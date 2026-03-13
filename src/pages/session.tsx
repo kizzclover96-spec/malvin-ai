@@ -5,7 +5,6 @@ import {
   RoomAudioRenderer,
   VideoTrack,
   useTracks,
-
   useRemoteParticipant,
   useIsSpeaking,
   BarVisualizer,
@@ -30,7 +29,7 @@ function MalvinVoiceIsland({ agent }: { agent: any }) {
       height: '60px',
       backgroundColor: '#111',
       borderRadius: '30px',
-      display: 'flex', // Fixed: was Display: 'Flex'
+      display: 'flex', 
       alignItems: 'center',
       justifyContent: 'center',
       padding: '0 25px',
@@ -42,9 +41,9 @@ function MalvinVoiceIsland({ agent }: { agent: any }) {
     }}>
       <BarVisualizer 
         trackRef={{ 
-          participant: agent, // Fixed capitalization
+          participant: agent, 
           source: Track.Source.Microphone,
-          publication: agent.getTrackPublication(Track.Source.Microphone) // Fixed capitalization
+          publication: agent.getTrackPublication(Track.Source.Microphone) 
         }} 
         style={{ width: '100px', height: '30px' }}
       />
@@ -121,11 +120,16 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
         })}
       </div>
 
-      {/* 3. VIDEO WINDOWS (Displays only when active) */}
+      {/* 3. VIDEO WINDOWS - Now at Top Left */}
       <div style={{
-        position: 'absolute', bottom: '110px', right: '20px',
-        display: 'flex', flexDirection: 'column', gap: '10px', zIndex: 15,
-        alignItems: 'flex-end'
+        position: 'absolute', 
+        top: '20px', 
+        left: '20px',
+        display: 'flex', 
+        flexDirection: 'column', 
+        gap: '10px', 
+        zIndex: 15,
+        alignItems: 'flex-start'
       }}>
         {localScreenTrack && (
           <div style={{ ...videoBoxStyle, width: '320px', aspectRatio: '16/9' }}>
@@ -133,8 +137,16 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
           </div>
         )}
         {localCameraTrack && (
-          <div style={{ ...videoBoxStyle, width: '180px', height: '240px' }}>
-            <VideoTrack trackRef={localCameraTrack as any} />
+          <div style={{ 
+            ...videoBoxStyle, 
+            width: '240px', 
+            height: '180px', 
+            transform: 'scaleX(-1)' // Mirroring the camera for a natural feel
+          }}>
+            <VideoTrack 
+              trackRef={localCameraTrack as any} 
+              style={{ objectFit: 'contain', width: '100%', height: '100%' }} // 'contain' stops the heavy zoom
+            />
           </div>
         )}
       </div>
@@ -180,7 +192,13 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
 }
 
 const btnStyle = { background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', padding: '8px', color: '#ccc' };
-const videoBoxStyle = { borderRadius: '15px', overflow: 'hidden', border: '2px solid #333', backgroundColor: '#111' };
+const videoBoxStyle = { 
+  borderRadius: '15px', 
+  overflow: 'hidden', 
+  border: '1px solid #333', 
+  backgroundColor: '#000',
+  boxShadow: '0 10px 30px rgba(0,0,0,0.5)' 
+};
 
 export default function Session({ token, serverUrl, onDisconnect }: SessionProps) {
   return (
