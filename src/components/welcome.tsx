@@ -6,7 +6,7 @@ interface WelcomeProps {
 function Welcomeview({ onWakeClick, isConnecting }: WelcomeProps) {
   return (
     <div className="welcome" style={welcomeContainerStyle}>
-      {/* 1. Global CSS for the Gradient and Glow */}
+      {/* 1. Animations */}
       <style>{`
         @keyframes gradientMove {
           0% { background-position: 0% 50%; }
@@ -29,6 +29,7 @@ function Welcomeview({ onWakeClick, isConnecting }: WelcomeProps) {
         }
       `}</style>
 
+      {/* 2. Main Content */}
       <div className="ai-picture-container" style={{ textAlign: 'center', zIndex: 1 }}>
         <img 
           src="/Malvin self.png" 
@@ -51,9 +52,9 @@ function Welcomeview({ onWakeClick, isConnecting }: WelcomeProps) {
 
         <button 
           style={{ 
-            height: "45px", // Slightly taller
+            height: "45px", 
             width: "160px", 
-            borderRadius: "22px", // Modern pill shape
+            borderRadius: "22px", 
             backgroundColor: isConnecting ? "#333" : "#0070f3", 
             color: "white",
             border: "none",
@@ -71,11 +72,30 @@ function Welcomeview({ onWakeClick, isConnecting }: WelcomeProps) {
           {isConnecting ? "Waking Malvin..." : "Wake Malvin"}
         </button>
       </div>
+
+      {/* 3. Support Link (Inside the return, but separate from the center container) */}
+      <div style={supportLinkStyle}>
+        <p style={{ margin: 0 }}>
+          For questions or user support: 
+          <a 
+            href="mailto:malvinsupportteam@gmail.com" 
+            style={{ 
+              color: "#0070f3", 
+              textDecoration: "none", 
+              marginLeft: "5px",
+              fontWeight: "500"
+            }}
+          >
+            malvinsupportteam@gmail.com
+          </a>
+        </p>
+      </div>
     </div>
   )
 }
 
-// 2. The Animated Gradient Style
+// --- Styles ---
+
 const welcomeContainerStyle: React.CSSProperties = {
   width: '100vw',
   height: '100vh',
@@ -84,11 +104,22 @@ const welcomeContainerStyle: React.CSSProperties = {
   alignItems: 'center',
   justifyContent: 'center',
   overflow: 'hidden',
-  // Colors: Black -> Dark Grey -> Deep Blue -> Black
   background: 'linear-gradient(-45deg, #000000, #0a0a0a, #002b5e, #000000)',
   backgroundSize: '400% 400%',
   animation: 'gradientMove 12s ease infinite',
+  position: 'relative', // Added this to help pin the support link
   fontFamily: '"Inter", sans-serif'
+};
+
+const supportLinkStyle: React.CSSProperties = {
+  position: 'absolute',
+  bottom: '20px',
+  left: '50%',
+  transform: 'translateX(-50%)',
+  color: 'rgba(255, 255, 255, 0.5)', 
+  fontSize: '13px',
+  textAlign: 'center',
+  width: '100%',
 };
 
 export default Welcomeview;
