@@ -1,3 +1,11 @@
+.env
+
+.env.local
+
+.DS_Store
+
+dist/
+
 # Logs
 logs
 *.log
@@ -22,3 +30,4 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
