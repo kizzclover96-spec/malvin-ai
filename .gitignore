@@ -4,9 +4,13 @@
 
 .DS_Store
 
+node_modules/
+malvin front/node_modules/
 dist/
-
-# Logs
+build/
+.gradle/
+local.properties
+android/app/build/
 logs
 *.log
 npm-debug.log*

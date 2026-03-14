@@ -97,17 +97,20 @@ function Welcomeview({ onWakeClick, isConnecting }: WelcomeProps) {
 // --- Styles ---
 
 const welcomeContainerStyle: React.CSSProperties = {
-  width: '100vw',
-  height: '100vh',
+  width: '100%',             // Changed from 100vw to 100%
+  height: '100%',            // Changed from 100vh to 100%
+  position: 'fixed',         // Use fixed to "pin" it to the edges
+  top: 0,
+  left: 0,
   display: 'flex',
   flexDirection: 'column',
   alignItems: 'center',
   justifyContent: 'center',
-  overflow: 'hidden',
+  overflow: 'hidden',        // Clips any accidental overflow
+  touchAction: 'none',       // Prevents "rubber-banding" or dragging
   background: 'linear-gradient(-45deg, #000000, #0a0a0a, #002b5e, #000000)',
   backgroundSize: '400% 400%',
   animation: 'gradientMove 12s ease infinite',
-  position: 'relative', // Added this to help pin the support link
   fontFamily: '"Inter", sans-serif'
 };
 

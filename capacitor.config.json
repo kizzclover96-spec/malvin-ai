@@ -1,0 +1,7 @@
+{
+  "appId": "com.malvin.agent",
+  "appName": "Malvin",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "npmClient": "npm"
+}
