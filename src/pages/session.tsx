@@ -250,7 +250,7 @@ export default function Session({ token, serverUrl, onDisconnect }: SessionProps
       serverUrl={serverUrl} 
       connect={true} 
       audio={true} 
-      video={false} 
+      video={true} 
       screen={false} 
       onDisconnected={onDisconnect}
     >
