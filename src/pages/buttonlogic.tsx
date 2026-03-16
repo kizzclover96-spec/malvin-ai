@@ -8,12 +8,16 @@ export function useMalvinActivation() {
   const wakeMalvin = async () => {
     setLoading(true);
     try {
-      // 1. Call your Vercel backend to get a token
-      // We use a relative path so it works on both localhost and Vercel.
-      // We pass a room name and username to ensure the token is valid.
-      const roomName = "malvin-room"; 
+      // 1. GENERATE A UNIQUE ROOM NAME
+      // This prevents multiple users from ending up in the same session.
+      const uniqueId = Math.random().toString(36).substring(7);
+      const roomName = `malvin-session-${uniqueId}`; 
+      
+      // Keep the unique participant name as well
       const participantName = "User-" + Math.floor(Math.random() * 1000);
 
+      // 2. Call the Vercel backend using the dynamic roomName
+      // The API will now create a token specifically for this unique room.
       const response = await fetch(`/api/get-participant-token?room=${roomName}&username=${participantName}`); 
       
       if (!response.ok) {
@@ -22,7 +26,7 @@ export function useMalvinActivation() {
 
       const data = await response.json();
       
-      // 2. Set the token to trigger the UI switch
+      // 3. Set the token to trigger the UI switch to the Session component
       if (data.token) {
         setToken(data.token);
       } else {
