@@ -26,19 +26,19 @@ function MalvinVoiceIsland({ agent }: { agent: any }) {
   return (
     <div style={{
       marginTop: '20px',
-      minWidth: '200px', 
-      height: '60px',
-      backgroundColor: '#111',
-      borderRadius: '30px',
+      minWidth: '180px', 
+      height: '54px',
+      backgroundColor: 'rgba(15, 15, 15, 0.9)',
+      borderRadius: '27px',
       display: 'flex', 
       alignItems: 'center',
       justifyContent: 'center',
-      padding: '0 25px',
-      border: '1px solid #222',
-      transition: 'all 0.4s ease',
-      opacity: isAgentSpeaking ? 1 : 0.4,
+      padding: '0 20px',
+      border: '1px solid rgba(255,255,255,0.1)',
+      transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+      opacity: isAgentSpeaking ? 1 : 0.6,
       transform: isAgentSpeaking ? 'scale(1.05)' : 'scale(1)',
-      boxShadow: isAgentSpeaking ? '0 0 30px rgba(0, 255, 0, 0.15)' : 'none',
+      boxShadow: isAgentSpeaking ? '0 0 25px rgba(50, 215, 75, 0.2)' : 'none',
       zIndex: 20
     }}>
       <BarVisualizer 
@@ -47,7 +47,7 @@ function MalvinVoiceIsland({ agent }: { agent: any }) {
           source: Track.Source.Microphone,
           publication: agent.getTrackPublication(Track.Source.Microphone) 
         }} 
-        style={{ width: '100px', height: '30px' }}
+        style={{ width: '80px', height: '24px' }}
       />
     </div>
   );
@@ -70,6 +70,7 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
   const localCameraTrack = tracks.find(t => t.participant.isLocal && t.source === Track.Source.Camera);
   const localScreenTrack = tracks.find(t => t.participant.isLocal && t.source === Track.Source.ScreenShare);
 
+  // Auto-scroll to bottom on new messages
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -85,26 +86,27 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
 
   return (
     <div style={{ 
-      position: 'fixed', // Use fixed to pin to the actual viewport
+      position: 'fixed', 
       top: 0, 
       left: 0, 
       right: 0, 
       bottom: 0,
-      width: '100%', 
-      height: '100%', 
+      width: '100vw', 
+      height: '100vh', 
       backgroundColor: '#000', 
       color: 'white', 
-      fontFamily: '"Inter", sans-serif',
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       display: 'flex', 
       flexDirection: 'column', 
       alignItems: 'center', 
       overflow: 'hidden',
-      touchAction: 'none' // Prevents accidental drag-scrolling of the UI
     }}>
       
-      {/* TOP ISLAND */}
+      {/* TOP STATUS / VOICE ISLAND */}
       {agent ? <MalvinVoiceIsland agent={agent} /> : (
-        <div style={{ marginTop: '30px', color: '#444', fontSize: '12px', zIndex: 20 }}>INITIALIZING MALVIN...</div>
+        <div style={{ marginTop: '30px', color: '#666', fontSize: '11px', letterSpacing: '1px', zIndex: 20 }}>
+          CONNECTING TO MALVIN...
+        </div>
       )}
 
       {/* CHAT AREA */}
@@ -112,15 +114,15 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
         ref={scrollRef}
         style={{
           flex: 1, 
-          width: '95%', 
+          width: '100%', 
           padding: '20px', 
           overflowY: 'auto', 
           display: 'flex', 
           flexDirection: 'column', 
-          gap: '14px', 
-          paddingBottom: '140px', // Extra space for the dock
+          gap: '12px', 
+          paddingBottom: '180px', // Space for dock
           scrollbarWidth: 'none',
-          WebkitOverflowScrolling: 'touch' // Smooth scroll for iOS/Android
+          WebkitOverflowScrolling: 'touch'
         }}
       >
         {chatMessages.map((msg, idx) => {
@@ -128,16 +130,17 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
           return (
             <div key={idx} style={{
               alignSelf: isFromUser ? 'flex-end' : 'flex-start',
-              backgroundColor: isFromUser ? '#1a1a1a' : '#007AFF', 
+              backgroundColor: isFromUser ? '#1c1c1e' : '#0a84ff', 
               color: 'white', 
-              padding: '12px 18px', 
-              borderRadius: isFromUser ? '20px 20px 2px 20px' : '20px 20px 20px 2px', 
-              maxWidth: '80%', 
+              padding: '12px 16px', 
+              borderRadius: isFromUser ? '18px 18px 2px 18px' : '18px 18px 18px 2px', 
+              maxWidth: '82%', 
               fontSize: '15px', 
-              boxShadow: '0 4px 15px rgba(0,0,0,0.2)', 
+              lineHeight: '1.4',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.3)', 
               whiteSpace: 'pre-wrap'
             }}>
-              <div style={{ fontSize: '10px', opacity: 0.5, marginBottom: '4px', fontWeight: 'bold' }}>
+              <div style={{ fontSize: '9px', opacity: 0.5, marginBottom: '4px', fontWeight: '800', textTransform: 'uppercase' }}>
                 {isFromUser ? 'YOU' : 'MALVIN'}
               </div>
               {msg.message}
@@ -146,28 +149,29 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
         })}
       </div>
 
-      {/* FLOATING VIDEO WINDOWS */}
+      {/* FLOATING SELF-VIEWS */}
       <div style={{
         position: 'absolute', 
-        top: '90px', // Moved down slightly to clear the Voice Island
-        left: '20px',
+        top: '90px', 
+        left: '16px',
         display: 'flex', 
         flexDirection: 'column', 
         gap: '10px', 
         zIndex: 15,
-        alignItems: 'flex-start'
+        pointerEvents: 'none'
       }}>
         {localScreenTrack && (
-          <div style={{ ...videoBoxStyle, width: '280px', aspectRatio: '16/9' }}>
+          <div style={{ ...videoBoxStyle, width: '200px', aspectRatio: '16/9', pointerEvents: 'auto' }}>
             <VideoTrack trackRef={localScreenTrack as any} />
           </div>
         )}
         {localCameraTrack && (
           <div style={{ 
             ...videoBoxStyle, 
-            width: '160px', 
-            height: '120px', 
-            transform: 'scaleX(-1)' 
+            width: '110px', 
+            height: '150px', 
+            transform: 'scaleX(-1)',
+            pointerEvents: 'auto'
           }}>
             <VideoTrack 
               trackRef={localCameraTrack as any} 
@@ -177,29 +181,38 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
         )}
       </div>
 
-      {/* BOTTOM CONTROL DOCK */}
+      {/* THE CAPSULE DOCK */}
       <div style={{
         position: 'absolute', 
-        bottom: '35px', // Adjusted for mobile safe-areas
+        bottom: '30px', 
         width: '92%', 
-        height: '65px',
-        backgroundColor: 'rgba(25, 25, 25, 0.9)', 
+        maxWidth: '480px',
+        minHeight: '64px',
+        backgroundColor: 'rgba(30, 30, 30, 0.85)', 
         backdropFilter: 'blur(20px)', 
-        borderRadius: '35px', 
+        WebkitBackdropFilter: 'blur(20px)',
+        borderRadius: '32px', 
         display: 'flex', 
         alignItems: 'center', 
-        padding: '0 15px',
-        border: '1px solid rgba(255,255,255,0.08)', 
+        padding: '0 12px',
+        border: '1px solid rgba(255,255,255,0.1)', 
+        boxShadow: '0 15px 35px rgba(0,0,0,0.5)',
         zIndex: 100
       }}>
-        <button onClick={onDisconnect} style={{...btnStyle, color: '#FF3B30', fontSize: '24px'}}>✕</button>
-        <div style={{ width: '1px', height: '25px', backgroundColor: '#333', margin: '0 10px' }} />
+        {/* DISCONNECT */}
+        <button onClick={onDisconnect} style={{...btnStyle, color: '#ff453a', fontSize: '22px'}}>✕</button>
         
+        <div style={dividerStyle} />
+        
+        {/* MIC TOGGLE */}
         <button 
           onClick={() => localParticipant.setMicrophoneEnabled(!localParticipant.isMicrophoneEnabled)}
-          style={{...btnStyle, color: localParticipant.isMicrophoneEnabled ? '#00FF00' : '#ccc'}}
-        >🎙️</button>
+          style={{...btnStyle, color: localParticipant.isMicrophoneEnabled ? '#32d74b' : '#636366'}}
+        >
+          {localParticipant.isMicrophoneEnabled ? '🎙️' : '🔇'}
+        </button>
 
+        {/* INPUT */}
         <input 
           placeholder="Message Malvin..."
           value={textInput}
@@ -212,37 +225,68 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
             color: 'white', 
             outline: 'none', 
             padding: '0 10px', 
-            fontSize: '16px' 
+            fontSize: '16px',
+            fontWeight: '400'
           }} 
         />
 
-        <button onClick={handleSendMessage} style={{ ...btnStyle, color: '#007AFF', fontWeight: 'bold' }}>SEND</button>
-        <div style={{ width: '1px', height: '25px', backgroundColor: '#333', margin: '0 10px' }} />
-
-        <button 
-          onClick={() => localParticipant.setCameraEnabled(!localParticipant.isCameraEnabled)} 
-          style={{...btnStyle, color: localParticipant.isCameraEnabled ? '#007AFF' : '#ccc'}}
-        >📷</button>
-
-        <button 
-          onClick={() => localParticipant.setScreenShareEnabled(!localParticipant.isScreenShareEnabled)}
-          style={{...btnStyle, color: localParticipant.isScreenShareEnabled ? '#007AFF' : '#ccc'}}
-        >🖥️</button>
+        {/* ADAPTIVE ACTION BUTTONS */}
+        {textInput.trim().length > 0 ? (
+           <button 
+             onClick={handleSendMessage} 
+             style={{ ...btnStyle, color: '#0a84ff', fontSize: '13px', fontWeight: '700', paddingRight: '15px' }}
+           >
+             SEND
+           </button>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <button 
+              onClick={() => localParticipant.setCameraEnabled(!localParticipant.isCameraEnabled)} 
+              style={{...btnStyle, color: localParticipant.isCameraEnabled ? '#0a84ff' : '#636366'}}
+            >
+              📷
+            </button>
+            <button 
+              onClick={() => localParticipant.setScreenShareEnabled(!localParticipant.isScreenShareEnabled)}
+              style={{...btnStyle, color: localParticipant.isScreenShareEnabled ? '#0a84ff' : '#636366'}}
+            >
+              🖥️
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-// --- STYLES & EXPORT ---
-const btnStyle = { background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', padding: '8px', color: '#ccc' };
-const videoBoxStyle = { 
-  borderRadius: '15px', 
-  overflow: 'hidden', 
-  border: '1px solid #333', 
-  backgroundColor: '#000',
-  boxShadow: '0 10px 30px rgba(0,0,0,0.5)' 
+// --- SHARED CONSTANTS ---
+const btnStyle = { 
+  background: 'none', 
+  border: 'none', 
+  cursor: 'pointer', 
+  fontSize: '20px', 
+  padding: '10px', 
+  display: 'flex', 
+  alignItems: 'center', 
+  justifyContent: 'center' 
 };
 
+const dividerStyle = { 
+  width: '1px', 
+  height: '24px', 
+  backgroundColor: 'rgba(255,255,255,0.1)', 
+  margin: '0 8px' 
+};
+
+const videoBoxStyle = { 
+  borderRadius: '16px', 
+  overflow: 'hidden', 
+  border: '1px solid rgba(255,255,255,0.1)', 
+  backgroundColor: '#111',
+  boxShadow: '0 8px 20px rgba(0,0,0,0.4)' 
+};
+
+// --- MAIN EXPORT ---
 export default function Session({ token, serverUrl, onDisconnect }: SessionProps) {
   return (
     <LiveKitRoom 
@@ -251,7 +295,6 @@ export default function Session({ token, serverUrl, onDisconnect }: SessionProps
       connect={true} 
       audio={true} 
       video={true} 
-      screen={false} 
       onDisconnected={onDisconnect}
     >
       <LayoutContextProvider>
