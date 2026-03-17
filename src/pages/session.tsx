@@ -25,10 +25,9 @@ function MalvinVoiceIsland({ agent }: { agent: any }) {
 
   return (
     <div style={{
-      position: 'fixed',
       minWidth: '180px', 
       height: '54px',
-      backgroundColor: 'rgba(15, 15, 15, 0.9)',
+      backgroundColor: 'rgba(25, 25, 25, 0.95)', // Slightly darker for contrast
       borderRadius: '27px',
       display: 'flex', 
       alignItems: 'center', 
@@ -36,9 +35,9 @@ function MalvinVoiceIsland({ agent }: { agent: any }) {
       padding: '0 20px',
       border: '1px solid rgba(255,255,255,0.1)',
       transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-      opacity: isAgentSpeaking ? 1 : 0.7,
+      opacity: isAgentSpeaking ? 1 : 0.8,
       transform: isAgentSpeaking ? 'scale(1.05)' : 'scale(1)',
-      boxShadow: isAgentSpeaking ? '0 0 25px rgba(50, 215, 75, 0.2)' : 'none',
+      boxShadow: isAgentSpeaking ? '0 0 25px rgba(10, 132, 255, 0.3)' : 'none',
     }}>
       <BarVisualizer 
         trackRef={{ 
@@ -68,7 +67,6 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
   const localCameraTrack = tracks.find(t => t.participant.isLocal && t.source === Track.Source.Camera);
   const localScreenTrack = tracks.find(t => t.participant.isLocal && t.source === Track.Source.ScreenShare);
 
-  // Auto-scroll to bottom
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTo({
@@ -86,42 +84,51 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
   };
 
   return (
+    /* MAIN CONTAINER - FORCED BLACK */
     <div className="moving-gradient" style={{ 
       position: 'fixed', 
       top: 0, left: 0, right: 0, bottom: 0,
+      backgroundColor: '#000', // <--- FORCING BLACK HERE
       display: 'flex', 
       flexDirection: 'column', 
-      overflow: 'hidden', // Prevents whole-page wobble
+      overflow: 'hidden',
     }}>
       
-      {/* --- FIXED HEADER AREA --- */}
+      {/* --- FIXED TOP AREA --- */}
       <div style={{
+        position: 'fixed', // Stick to top
+        top: 0,
+        left: 0,
+        right: 0,
         paddingTop: 'env(safe-area-inset-top, 20px)',
-        paddingBottom: '10px',
-        width: '100%',
+        height: '100px',
         display: 'flex',
         justifyContent: 'center',
-        zIndex: 100,
+        zIndex: 1000,
+        pointerEvents: 'none', // Let clicks pass through to chat
       }}>
-        {agent ? <MalvinVoiceIsland agent={agent} /> : (
-          <div style={{ marginTop: '10px', color: '#666', fontSize: '11px', letterSpacing: '1px' }}>
-            CONNECTING TO MALVIN...
-          </div>
-        )}
+        <div style={{ pointerEvents: 'auto' }}>
+          {agent ? <MalvinVoiceIsland agent={agent} /> : (
+            <div style={{ marginTop: '10px', color: '#666', fontSize: '11px', letterSpacing: '1px' }}>
+              CONNECTING...
+            </div>
+          )}
+        </div>
       </div>
 
       {/* --- SCROLLABLE CHAT AREA --- */}
       <div 
         ref={scrollRef}
         style={{
-          flex: 1, // Takes up remaining space
+          flex: 1,
           width: '100%', 
           overflowY: 'auto', 
           padding: '0 20px', 
           display: 'flex', 
           flexDirection: 'column', 
           gap: '12px', 
-          paddingBottom: '140px', // Prevents last message from being hidden by Dock
+          paddingTop: '110px',   // Gap for Top Island
+          paddingBottom: '140px', // Gap for Bottom Dock
           scrollbarWidth: 'none',
           WebkitOverflowScrolling: 'touch',
         }}
@@ -149,47 +156,16 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
         })}
       </div>
 
-      {/* --- FLOATING CAMERA VIEWS --- */}
-      <div style={{
-        position: 'absolute', 
-        top: '100px', 
-        left: '16px',
-        display: 'flex', 
-        flexDirection: 'column', 
-        gap: '10px', 
-        zIndex: 50,
-        pointerEvents: 'none'
-      }}>
-        {localScreenTrack && (
-          <div style={{ ...videoBoxStyle, width: '180px', aspectRatio: '16/9', pointerEvents: 'auto' }}>
-            <VideoTrack trackRef={localScreenTrack as any} />
-          </div>
-        )}
-        {localCameraTrack && (
-          <div style={{ 
-            ...videoBoxStyle, 
-            width: '90px', height: '120px', 
-            transform: 'scaleX(-1)',
-            pointerEvents: 'auto'
-          }}>
-            <VideoTrack 
-              trackRef={localCameraTrack as any} 
-              style={{ objectFit: 'cover', width: '100%', height: '100%' }} 
-            />
-          </div>
-        )}
-      </div>
-
       {/* --- FIXED BOTTOM DOCK --- */}
       <div style={{
-        position: 'fixed',
+        position: 'fixed', // Stick to bottom
         bottom: 'calc(env(safe-area-inset-bottom, 0px) + 20px)',
         left: '50%',
         transform: 'translateX(-50%)',
         width: '92%', 
         maxWidth: '480px',
         minHeight: '64px',
-        backgroundColor: 'rgba(30, 30, 30, 0.85)', 
+        backgroundColor: 'rgba(30, 30, 30, 0.9)', 
         backdropFilter: 'blur(20px)', 
         WebkitBackdropFilter: 'blur(20px)',
         borderRadius: '32px', 
@@ -198,7 +174,7 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
         padding: '0 12px',
         border: '1px solid rgba(255,255,255,0.1)', 
         boxShadow: '0 15px 35px rgba(0,0,0,0.5)',
-        zIndex: 100
+        zIndex: 1000
       }}>
         <button onClick={onDisconnect} style={{...btnStyle, color: '#ff453a', fontSize: '22px'}}>✕</button>
         <div style={dividerStyle} />
