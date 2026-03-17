@@ -15,8 +15,8 @@ export default function Login() {
 
   return (
     <div style={{
-      height: '100vh',
-      width: '100vw',
+      height: '100px',
+      width: '100px',
       backgroundColor: '#000',
       display: 'flex',
       flexDirection: 'column',
