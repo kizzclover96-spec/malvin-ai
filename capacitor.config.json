@@ -1,7 +1,9 @@
 {
-  "appId": "com.malvin.agent",
+  "appId": "com.your.app",
   "appName": "Malvin",
   "webDir": "dist",
-  "bundledWebRuntime": false,
-  "npmClient": "npm"
+  "server": {
+    "url": "https://malvin-ai.vercel.app",
+    "cleartext": false
+  }
 }
