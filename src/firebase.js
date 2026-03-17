@@ -6,8 +6,8 @@ import { getAuth, GoogleAuthProvider } from "firebase/auth";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyAfKq3_PeV4lwEzSG9nV6AlH8fA3IaJ6Ew",
-  authDomain: "malvin-df21d.firebaseapp.com",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN
   projectId: "malvin-df21d",
   storageBucket: "malvin-df21d.firebasestorage.app",
   messagingSenderId: "581592622100",
