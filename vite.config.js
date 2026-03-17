@@ -6,16 +6,16 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      // Your existing React aliases
       react: path.resolve('./node_modules/react'),
       'react-dom': path.resolve('./node_modules/react-dom'),
-      
-      // THE FIREBASE FIX: Redirects the base 'firebase' import to the 'app' module
-      firebase: 'firebase/app',
+      // Map 'firebase/auth' and 'firebase/app' directly to their ESM versions
+      'firebase/app': path.resolve(__dirname, 'node_modules/firebase/app/dist/index.mjs'),
+      'firebase/auth': path.resolve(__dirname, 'node_modules/firebase/auth/dist/index.mjs'),
     },
   },
-  // This pre-bundles these dependencies so Vite doesn't trip over them during build
-  optimizeDeps: {
-    include: ['firebase/app', 'firebase/auth']
-  }
+  build: {
+    commonjsOptions: {
+      include: [/node_modules/],
+    },
+  },
 })
