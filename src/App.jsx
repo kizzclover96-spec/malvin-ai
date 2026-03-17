@@ -4,7 +4,7 @@ import { useMalvinActivation } from "./pages/buttonlogic";
 import Welcomeview from "./components/welcome";
 import Session from "./pages/session";
 import Login from "./pages/login"; // Import your new login page
-import { onAuthStateChanged, User } from 'firebase/auth';
+import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from './firebase'; // Path to your firebase.ts
 
 function App() {
