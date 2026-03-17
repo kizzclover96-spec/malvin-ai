@@ -1,23 +1,19 @@
 import { auth, googleProvider } from "../firebase";
-import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
-import { useRouter } from "next/router";
+import { signInWithPopup } from "firebase/auth";
 
 export default function Login() {
-  const router = useRouter();
+  // REMOVED: const router = useRouter(); 
+  // We don't need this because App.jsx automatically switches views when you log in.
 
   const handleGoogleLogin = async () => {
     try {
-      const result = await signInWithRedirect(auth, googleProvider);
-      // This gives you a Google Access Token. You can use it to access the Google API.
-      const credential = GoogleAuthProvider.credentialFromResult(result);
-      const token = credential?.accessToken;
-      // The signed-in user info.
-      const user = result.user;
+      // Switched to Popup for better Vite compatibility
+      const result = await signInWithPopup(auth, googleProvider);
       
+      const user = result.user;
       console.log("User logged in:", user.displayName);
       
-      // Redirect to the main app/session after login
-      router.push("/"); 
+      // No manual redirect needed! App.jsx handles the 'user' state.
     } catch (error: any) {
       console.error("Login failed:", error.message);
     }
