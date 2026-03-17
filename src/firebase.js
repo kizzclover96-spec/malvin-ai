@@ -7,12 +7,12 @@ import { getAuth, GoogleAuthProvider } from "firebase/auth";
 // Your web app's Firebase configuration
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN
-  projectId: "malvin-df21d",
-  storageBucket: "malvin-df21d.firebasestorage.app",
-  messagingSenderId: "581592622100",
-  appId: "1:581592622100:web:9471d95a5e758424a53301"
-};
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,    // Check for comma
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID             // Last one doesn't need a comma
+};;
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
