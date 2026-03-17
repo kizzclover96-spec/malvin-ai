@@ -1,0 +1,9 @@
+{
+  "appId": "com.your.app",
+  "appName": "Malvin",
+  "webDir": "dist",
+  "server": {
+    "url": "https://malvin-ai.vercel.app",
+    "cleartext": false
+  }
+}
