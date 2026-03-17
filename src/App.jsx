@@ -9,7 +9,7 @@ import { auth } from './firebase'; // Path to your firebase.ts
 
 function App() {
   const { wakeMalvin, token, loading: sessionLoading, setToken } = useMalvinActivation();
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
 
   // 1. Listen for the User
