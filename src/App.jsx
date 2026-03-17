@@ -8,9 +8,11 @@ import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { auth } from './firebase';
 
 function App() {
-  const { wakeMalvin, token, loading: sessionLoading, setToken } = useMalvinActivation();
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
+
+  // Keep ONLY this one—it passes the UID to the hook
+  const { wakeMalvin, token, loading: sessionLoading, setToken } = useMalvinActivation(user?.uid);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -45,7 +47,6 @@ function App() {
           backdropFilter: 'blur(10px)',
           border: '1px solid rgba(255, 255, 255, 0.1)'
         }}>
-          {/* The Green Indicator Ball */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div style={{
               width: '10px',
@@ -57,10 +58,8 @@ function App() {
             <span style={{ fontSize: '12px', fontWeight: '500', color: '#00ff88' }}>Live</span>
           </div>
 
-          {/* Vertical Divider */}
           <div style={{ width: '1px', height: '15px', backgroundColor: 'rgba(255,255,255,0.2)' }} />
 
-          {/* Sign Out Link */}
           <button 
             onClick={handleSignOut}
             style={{
