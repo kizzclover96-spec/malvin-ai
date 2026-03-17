@@ -27,13 +27,13 @@ function MalvinVoiceIsland({ agent }: { agent: any }) {
     <div style={{
       minWidth: '180px', 
       height: '54px',
-      backgroundColor: 'rgba(25, 25, 25, 0.95)', // Slightly darker for contrast
+      backgroundColor: 'rgba(20, 20, 20, 0.95)', 
       borderRadius: '27px',
       display: 'flex', 
       alignItems: 'center', 
       justifyContent: 'center',
       padding: '0 20px',
-      border: '1px solid rgba(255,255,255,0.1)',
+      border: '1px solid rgba(255,255,255,0.15)',
       transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
       opacity: isAgentSpeaking ? 1 : 0.8,
       transform: isAgentSpeaking ? 'scale(1.05)' : 'scale(1)',
@@ -84,28 +84,26 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
   };
 
   return (
-    /* MAIN CONTAINER - FORCED BLACK */
+    /* LAYER 0: THE LOCKED STAGE */
     <div className="moving-gradient" style={{ 
       position: 'fixed', 
       top: 0, left: 0, right: 0, bottom: 0,
-      backgroundColor: '#000', // <--- FORCING BLACK HERE
+      backgroundColor: '#000', 
       display: 'flex', 
       flexDirection: 'column', 
       overflow: 'hidden',
+      zIndex: 0
     }}>
       
-      {/* --- FIXED TOP AREA --- */}
+      {/* LAYER 1: THE FIXED TOP ISLAND */}
       <div style={{
-        position: 'fixed', // Stick to top
-        top: 0,
-        left: 0,
-        right: 0,
+        position: 'absolute', 
+        top: 0, left: 0, right: 0,
         paddingTop: 'env(safe-area-inset-top, 20px)',
-        height: '100px',
         display: 'flex',
         justifyContent: 'center',
-        zIndex: 1000,
-        pointerEvents: 'none', // Let clicks pass through to chat
+        zIndex: 100, 
+        pointerEvents: 'none', 
       }}>
         <div style={{ pointerEvents: 'auto' }}>
           {agent ? <MalvinVoiceIsland agent={agent} /> : (
@@ -116,21 +114,20 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
         </div>
       </div>
 
-      {/* --- SCROLLABLE CHAT AREA --- */}
+      {/* LAYER 2: THE SCROLLABLE CHAT AREA */}
       <div 
         ref={scrollRef}
         style={{
-          flex: 1,
-          width: '100%', 
+          position: 'absolute',
+          top: 0, left: 0, right: 0, bottom: 0,
           overflowY: 'auto', 
-          padding: '0 20px', 
           display: 'flex', 
           flexDirection: 'column', 
           gap: '12px', 
-          paddingTop: '110px',   // Gap for Top Island
-          paddingBottom: '140px', // Gap for Bottom Dock
+          padding: '110px 20px 140px 20px', // Space for Island and Dock
           scrollbarWidth: 'none',
           WebkitOverflowScrolling: 'touch',
+          zIndex: 50
         }}
       >
         {chatMessages.map((msg, idx) => {
@@ -156,59 +153,81 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
         })}
       </div>
 
-      {/* --- FIXED BOTTOM DOCK --- */}
+      {/* FLOATING CAMERA VIEWS */}
       <div style={{
-        position: 'fixed', // Stick to bottom
-        bottom: 'calc(env(safe-area-inset-bottom, 0px) + 20px)',
-        left: '50%',
-        transform: 'translateX(-50%)',
-        width: '92%', 
-        maxWidth: '480px',
-        minHeight: '64px',
-        backgroundColor: 'rgba(30, 30, 30, 0.9)', 
-        backdropFilter: 'blur(20px)', 
-        WebkitBackdropFilter: 'blur(20px)',
-        borderRadius: '32px', 
+        position: 'absolute', 
+        top: '100px', 
+        left: '16px',
         display: 'flex', 
-        alignItems: 'center', 
-        padding: '0 12px',
-        border: '1px solid rgba(255,255,255,0.1)', 
-        boxShadow: '0 15px 35px rgba(0,0,0,0.5)',
-        zIndex: 1000
+        flexDirection: 'column', 
+        gap: '10px', 
+        zIndex: 60,
+        pointerEvents: 'none'
       }}>
-        <button onClick={onDisconnect} style={{...btnStyle, color: '#ff453a', fontSize: '22px'}}>✕</button>
-        <div style={dividerStyle} />
-        
-        <button 
-          onClick={() => localParticipant.setMicrophoneEnabled(!localParticipant.isMicrophoneEnabled)}
-          style={{...btnStyle, color: localParticipant.isMicrophoneEnabled ? '#32d74b' : '#636366'}}
-        >
-          {localParticipant.isMicrophoneEnabled ? '🎙️' : '🔇'}
-        </button>
-
-        <input 
-          placeholder="Message Malvin..."
-          value={textInput}
-          onChange={(e) => setTextInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-          style={{ 
-            flex: 1, backgroundColor: 'transparent', border: 'none', 
-            color: 'white', outline: 'none', padding: '0 10px', fontSize: '16px'
-          }} 
-        />
-
-        {textInput.trim().length > 0 ? (
-           <button onClick={handleSendMessage} style={{ ...btnStyle, color: '#0a84ff', fontSize: '13px', fontWeight: '700' }}>
-             SEND
-           </button>
-        ) : (
-          <div style={{ display: 'flex' }}>
-            <button onClick={() => localParticipant.setCameraEnabled(!localParticipant.isCameraEnabled)} 
-                    style={{...btnStyle, color: localParticipant.isCameraEnabled ? '#0a84ff' : '#636366'}}>📷</button>
-            <button onClick={() => localParticipant.setScreenShareEnabled(!localParticipant.isScreenShareEnabled)}
-                    style={{...btnStyle, color: localParticipant.isScreenShareEnabled ? '#0a84ff' : '#636366'}}>🖥️</button>
+        {localScreenTrack && (
+          <div style={{ ...videoBoxStyle, width: '160px', aspectRatio: '16/9', pointerEvents: 'auto' }}>
+            <VideoTrack trackRef={localScreenTrack as any} />
           </div>
         )}
+        {localCameraTrack && (
+          <div style={{ ...videoBoxStyle, width: '80px', height: '110px', transform: 'scaleX(-1)', pointerEvents: 'auto' }}>
+            <VideoTrack trackRef={localCameraTrack as any} style={{ objectFit: 'cover', width: '100%', height: '100%' }} />
+          </div>
+        )}
+      </div>
+
+      {/* LAYER 3: THE FIXED BOTTOM DOCK */}
+      <div style={{
+        position: 'absolute', 
+        bottom: 'calc(env(safe-area-inset-bottom, 0px) + 20px)',
+        left: 0, right: 0,
+        display: 'flex',
+        justifyContent: 'center',
+        zIndex: 100, 
+        pointerEvents: 'none'
+      }}>
+        <div style={{
+          pointerEvents: 'auto',
+          width: '92%', 
+          maxWidth: '480px',
+          minHeight: '64px',
+          backgroundColor: 'rgba(30, 30, 30, 0.9)', 
+          backdropFilter: 'blur(20px)', 
+          WebkitBackdropFilter: 'blur(20px)',
+          borderRadius: '32px', 
+          display: 'flex', 
+          alignItems: 'center', 
+          padding: '0 12px',
+          border: '1px solid rgba(255,255,255,0.1)', 
+          boxShadow: '0 15px 35px rgba(0,0,0,0.5)',
+        }}>
+          <button onClick={onDisconnect} style={{...btnStyle, color: '#ff453a', fontSize: '22px'}}>✕</button>
+          <div style={dividerStyle} />
+          
+          <button 
+            onClick={() => localParticipant.setMicrophoneEnabled(!localParticipant.isMicrophoneEnabled)}
+            style={{...btnStyle, color: localParticipant.isMicrophoneEnabled ? '#32d74b' : '#636366'}}
+          >
+            {localParticipant.isMicrophoneEnabled ? '🎙️' : '🔇'}
+          </button>
+
+          <input 
+            placeholder="Message Malvin..."
+            value={textInput}
+            onChange={(e) => setTextInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+            style={{ flex: 1, backgroundColor: 'transparent', border: 'none', color: 'white', outline: 'none', padding: '0 10px', fontSize: '16px' }} 
+          />
+
+          {textInput.trim().length > 0 ? (
+             <button onClick={handleSendMessage} style={{ ...btnStyle, color: '#0a84ff', fontSize: '13px', fontWeight: '700' }}>SEND</button>
+          ) : (
+            <div style={{ display: 'flex' }}>
+              <button onClick={() => localParticipant.setCameraEnabled(!localParticipant.isCameraEnabled)} style={{...btnStyle, color: localParticipant.isCameraEnabled ? '#0a84ff' : '#636366'}}>📷</button>
+              <button onClick={() => localParticipant.setScreenShareEnabled(!localParticipant.isScreenShareEnabled)} style={{...btnStyle, color: localParticipant.isScreenShareEnabled ? '#0a84ff' : '#636366'}}>🖥️</button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
