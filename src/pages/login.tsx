@@ -1,76 +1,69 @@
-import { auth, googleProvider } from "../firebase";
-import { signInWithPopup, signInWithRedirect, getRedirectResult } from "firebase/auth";
+import { auth } from "../firebase";
+import { 
+  signInWithPopup, 
+  GoogleAuthProvider, 
+  onAuthStateChanged 
+} from "firebase/auth";
 import { useEffect } from "react";
+import { useRouter } from "next/router"; // Or 'next/navigation' if using App Router
 
 export default function Login() {
-  
-  // 1. This "catches" the user after the phone redirects them back to the app
+  const router = useRouter();
+
+  // 1. Listen for the login success
   useEffect(() => {
-    getRedirectResult(auth)
-      .then((result) => {
-        if (result) {
-          console.log("Successfully logged in via redirect:", result.user);
-        }
-      })
-      .catch((error) => {
-        console.error("Redirect login error:", error);
-      });
-  }, []);
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        console.log("User logged in:", user.uid);
+        // Change '/dashboard' to whatever your main page is
+        router.push('/'); 
+      }
+    });
+    return () => unsubscribe();
+  }, [router]);
 
   const handleGoogleLogin = async () => {
-    // 2. Check if the user is on a phone or tablet
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const provider = new GoogleAuthProvider();
+    
+    // This force-opens the account picker, which helps bypass cache issues
+    provider.setCustomParameters({ 
+      prompt: 'select_account',
+      auth_type: 'reauthenticate' 
+    });
 
     try {
-      if (isMobile) {
-        // Mobile browsers handle Redirects much better than Popups
-        await signInWithRedirect(auth, googleProvider);
-      } else {
-        // Desktop browsers work perfectly with Popups
-        await signInWithPopup(auth, googleProvider);
-      }
-    } catch (error) {
+      // Use Popup for BOTH mobile and desktop. 
+      // Modern mobile browsers handle this much better than Redirects.
+      await signInWithPopup(auth, provider);
+    } catch (error: any) {
       console.error("Login failed:", error);
+      if (error.code === 'auth/popup-blocked') {
+        alert("Please allow popups for this site to log in.");
+      } else {
+        alert("Login error: " + error.message);
+      }
     }
   };
 
   return (
     <div style={{
-      height: '100vh',
-      width: '100vw',
-      backgroundColor: '#000',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      margin: 0,
-      padding: 0,
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      color: 'white'
+      height: '100vh', width: '100vw', backgroundColor: '#000',
+      display: 'flex', flexDirection: 'column', alignItems: 'center',
+      justifyContent: 'center', position: 'fixed', top: 0, left: 0, color: 'white'
     }}>
       <div style={{ textAlign: 'center' }}>
         <h1 style={{ 
-          fontSize: '3.5rem', 
-          letterSpacing: '0.8rem', 
-          marginBottom: '2rem',
-          fontWeight: 'bold' 
+          fontSize: '3.5rem', letterSpacing: '0.8rem', 
+          marginBottom: '2rem', fontWeight: 'bold' 
         }}>
           MALVIN
         </h1>
         <button 
           onClick={handleGoogleLogin}
           style={{
-            padding: '16px 40px',
-            borderRadius: '50px',
-            border: 'none',
-            backgroundColor: '#fff',
-            color: '#000',
-            fontSize: '1rem',
-            fontWeight: '600',
-            cursor: 'pointer',
-            boxShadow: '0 4px 15px rgba(255,255,255,0.1)'
+            padding: '16px 40px', borderRadius: '50px', border: 'none',
+            backgroundColor: '#fff', color: '#000', fontSize: '1rem',
+            fontWeight: '600', cursor: 'pointer'
           }}
         >
           Continue with Google
