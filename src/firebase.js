@@ -7,8 +7,8 @@ import { getAuth, GoogleAuthProvider } from "firebase/auth";
 // Your web app's Firebase configuration
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: "malvin-df21d.firebaseapp.com",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,    // Check for comma
+  authDomain: "malvin-ai.vercel.app",
+  projectId: "malvin-df21d",    // Check for comma
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
   appId: import.meta.env.VITE_FIREBASE_APP_ID             // Last one doesn't need a comma
