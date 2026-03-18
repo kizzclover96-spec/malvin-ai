@@ -5,41 +5,32 @@ import {
   onAuthStateChanged 
 } from "firebase/auth";
 import { useEffect } from "react";
-import { useRouter } from "next/router"; // Or 'next/navigation' if using App Router
 
 export default function Login() {
-  const router = useRouter();
 
-  // 1. Listen for the login success
   useEffect(() => {
+    // This checks if the user is already logged in when the page loads
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
-        console.log("User logged in:", user.uid);
-        // Change '/dashboard' to whatever your main page is
-        router.push('/'); 
+        console.log("User detected, refreshing to home...");
+        // This force-reloads the page to your base URL
+        window.location.href = "/"; 
       }
     });
     return () => unsubscribe();
-  }, [router]);
+  }, []);
 
   const handleGoogleLogin = async () => {
     const provider = new GoogleAuthProvider();
-    
-    // This force-opens the account picker, which helps bypass cache issues
-    provider.setCustomParameters({ 
-      prompt: 'select_account',
-      auth_type: 'reauthenticate' 
-    });
+    provider.setCustomParameters({ prompt: 'select_account' });
 
     try {
-      // Use Popup for BOTH mobile and desktop. 
-      // Modern mobile browsers handle this much better than Redirects.
+      // Popup is the safest bet for mobile without a router setup
       await signInWithPopup(auth, provider);
+      // Once the popup closes, the useEffect above will handle the redirect
     } catch (error: any) {
       console.error("Login failed:", error);
-      if (error.code === 'auth/popup-blocked') {
-        alert("Please allow popups for this site to log in.");
-      } else {
+      if (error.code !== 'auth/cancelled-popup-request') {
         alert("Login error: " + error.message);
       }
     }
