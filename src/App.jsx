@@ -11,7 +11,7 @@ function App() {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
 
-  // Keep ONLY this one—it passes the UID to the hook
+  // Hook handles the LiveKit token logic
   const { wakeMalvin, token, loading: sessionLoading, setToken } = useMalvinActivation(user?.uid);
 
   useEffect(() => {
@@ -31,29 +31,19 @@ function App() {
   return (
     <div className="app-container" style={{ backgroundColor: '#000', minHeight: '100vh', color: 'white' }}>
       
-      {/* --- STATUS BAR (Top Right) --- */}
+      {/* --- STATUS BAR --- */}
       {user && (
         <div style={{
-          position: 'fixed',
-          top: '20px',
-          right: '20px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '15px',
-          zIndex: 2000,
-          backgroundColor: 'rgba(255, 255, 255, 0.05)',
-          padding: '8px 16px',
-          borderRadius: '30px',
-          backdropFilter: 'blur(10px)',
-          border: '1px solid rgba(255, 255, 255, 0.1)'
+          position: 'fixed', top: '20px', right: '20px',
+          display: 'flex', alignItems: 'center', gap: '15px',
+          zIndex: 2000, backgroundColor: 'rgba(255, 255, 255, 0.05)',
+          padding: '8px 16px', borderRadius: '30px',
+          backdropFilter: 'blur(10px)', border: '1px solid rgba(255, 255, 255, 0.1)'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div style={{
-              width: '10px',
-              height: '10px',
-              backgroundColor: '#00ff88',
-              borderRadius: '50%',
-              boxShadow: '0 0 10px #00ff88'
+              width: '10px', height: '10px', backgroundColor: '#00ff88',
+              borderRadius: '50%', boxShadow: '0 0 10px #00ff88'
             }} />
             <span style={{ fontSize: '12px', fontWeight: '500', color: '#00ff88' }}>Live</span>
           </div>
@@ -63,13 +53,8 @@ function App() {
           <button 
             onClick={handleSignOut}
             style={{
-              background: 'none',
-              border: 'none',
-              color: 'rgba(255,255,255,0.6)',
-              cursor: 'pointer',
-              fontSize: '12px',
-              padding: 0,
-              textDecoration: 'underline'
+              background: 'none', border: 'none', color: 'rgba(255,255,255,0.6)',
+              cursor: 'pointer', fontSize: '12px', padding: 0, textDecoration: 'underline'
             }}
           >
             Sign Out
@@ -77,7 +62,7 @@ function App() {
         </div>
       )}
 
-      {/* --- MAIN NAVIGATION LOGIC --- */}
+      {/* --- CONDITIONAL SCREEN LOGIC --- */}
       {!user ? (
         <Login />
       ) : token ? (

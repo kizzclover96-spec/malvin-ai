@@ -9,12 +9,11 @@ import { useEffect } from "react";
 export default function Login() {
 
   useEffect(() => {
-    // This checks if the user is already logged in when the page loads
+    // If the user is already logged in, the App.jsx state will handle it,
+    // but we can log it here for debugging.
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
-        console.log("User detected, refreshing to home...");
-        // This force-reloads the page to your base URL
-        window.location.href = "/"; 
+        console.log("User session detected.");
       }
     });
     return () => unsubscribe();
@@ -25,10 +24,10 @@ export default function Login() {
     provider.setCustomParameters({ prompt: 'select_account' });
 
     try {
-      // Popup is the safest bet for mobile without a router setup
+      // Using Popup avoids the "missing initial state" error on mobile
       await signInWithPopup(auth, provider);
-      // Once the popup closes, the useEffect above will handle the redirect
-    } catch (error: any) {
+      // App.jsx will automatically see this change and swap the screen
+    } catch (error) {
       console.error("Login failed:", error);
       if (error.code !== 'auth/cancelled-popup-request') {
         alert("Login error: " + error.message);
@@ -54,8 +53,11 @@ export default function Login() {
           style={{
             padding: '16px 40px', borderRadius: '50px', border: 'none',
             backgroundColor: '#fff', color: '#000', fontSize: '1rem',
-            fontWeight: '600', cursor: 'pointer'
+            fontWeight: '600', cursor: 'pointer',
+            transition: 'transform 0.2s'
           }}
+          onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+          onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
         >
           Continue with Google
         </button>
