@@ -2,7 +2,7 @@ import { auth } from "./firebase";
 import { 
   GoogleAuthProvider, 
   signInWithCredential, 
-  signInWithPopup 
+  signInWithRedirect // Changed from Popup to fix laptop error
 } from "firebase/auth";
 import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 import { Capacitor } from '@capacitor/core';
@@ -10,7 +10,7 @@ import { Capacitor } from '@capacitor/core';
 export default function Login() {
 
   const handleGoogleLogin = async () => {
-    console.log("Login attempt started..."); // This lets you see it's working
+    console.log("Login attempt started...");
     try {
       if (Capacitor.isNativePlatform()) {
         const googleUser = await GoogleAuth.signIn();
@@ -19,7 +19,8 @@ export default function Login() {
       } else {
         const provider = new GoogleAuthProvider();
         provider.setCustomParameters({ prompt: 'select_account' });
-        await signInWithPopup(auth, provider);
+        // Use Redirect instead of Popup for laptop/web browsers
+        await signInWithRedirect(auth, provider);
       }
     } catch (error) {
       console.error("Login failed:", error);
@@ -31,7 +32,7 @@ export default function Login() {
 
   return (
     <div style={{
-      position: 'fixed', // Fixed from 'Position'
+      position: 'fixed',
       top: 0,
       left: 0,
       width: '100vw',
@@ -40,8 +41,8 @@ export default function Login() {
       color: '#fff',
       margin: 0,
       padding: 0,
-      display: 'flex', // Fixed from 'Display'
-      flexDirection: 'column', // Fixed from 'Flex'
+      display: 'flex',
+      flexDirection: 'column',
       zIndex: 999999,
       fontFamily: 'sans-serif',
       boxSizing: 'border-box'
@@ -56,7 +57,7 @@ export default function Login() {
           fontSize: '4.1rem', 
           letterSpacing: '1.2rem', 
           fontWeight: '900', 
-          margin: '0 0 2rem 0',
+          margin: '0 0 2.5rem 0',
           paddingLeft: '1.2rem',
           textTransform: 'uppercase'
         }}>
