@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { auth } from "../firebase"; // Adjust path if needed
+import { auth } from "../firebase"; // Ensure this path correctly leads to your firebase.js
 import { 
   GoogleAuthProvider, 
   signInWithCredential, 
@@ -11,12 +11,18 @@ import { Capacitor } from '@capacitor/core';
 
 export default function Login() {
 
-  // Catch the redirect result when the laptop returns from Google
+  // This handles the "handshake" when returning from Google on a laptop
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) {
-      getRedirectResult(auth).catch((error) => {
-        console.error("Redirect Result Error:", error);
-      });
+      getRedirectResult(auth)
+        .then((result) => {
+          if (result) {
+            console.log("User successfully logged in via redirect:", result.user);
+          }
+        })
+        .catch((error) => {
+          console.error("Redirect Result Error:", error);
+        });
     }
   }, []);
 
@@ -24,10 +30,12 @@ export default function Login() {
     console.log("Button clicked!");
     try {
       if (Capacitor.isNativePlatform()) {
+        // Native Phone Logic
         const googleUser = await GoogleAuth.signIn();
         const credential = GoogleAuthProvider.credential(googleUser.authentication.idToken);
         await signInWithCredential(auth, credential);
       } else {
+        // Laptop/Web Logic
         const provider = new GoogleAuthProvider();
         provider.setCustomParameters({ prompt: 'select_account' });
         await signInWithRedirect(auth, provider);

@@ -11,11 +11,12 @@ function App() {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
 
-  // Keep ONLY this one—it passes the UID to the hook
+  // Corrected: Passed user?.uid (lowercase) and removed the plain text comment
   const { wakeMalvin, token, loading: sessionLoading, setToken } = useMalvinActivation(user?.uid);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      console.log("Auth detected user:", currentUser?.email);
       setUser(currentUser);
       setAuthLoading(false);
     });
@@ -34,10 +35,10 @@ function App() {
       {/* --- STATUS BAR (Top Right) --- */}
       {user && (
         <div style={{
-          position: 'fixed',
+          position: 'fixed', // lowercase
           top: '20px',
           right: '20px',
-          display: 'flex',
+          display: 'flex', // lowercase
           alignItems: 'center',
           gap: '15px',
           zIndex: 2000,
