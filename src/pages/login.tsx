@@ -30,36 +30,35 @@ export default function Login() {
 
   return (
     <div style={{
+      // FORCE FULL SCREEN
       position: 'fixed',
       top: 0,
       left: 0,
-      right: 0,
-      bottom: 0,
       width: '100vw',
       height: '100vh',
       backgroundColor: '#000',
-      color: 'white',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center', // Centers the main content (Title + Button)
-      zIndex: 99999,
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      color: '#fff',
       margin: 0,
       padding: 0,
+      display: 'flex',
+      flexDirection: 'column',
+      zIndex: 999999,
+      fontFamily: 'sans-serif',
       boxSizing: 'border-box'
     }}>
       
-      {/* Main Content: Title & Button */}
-      <div style={{ textAlign: 'center', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+      {/* 1. TOP SPACER (Pushes content down) */}
+      <div style={{ flex: 1 }}></div>
+
+      {/* 2. CENTER CONTENT (MALVIN + BUTTON) */}
+      <div style={{ textAlign: 'center', padding: '0 20px' }}>
         <h1 style={{ 
-          fontSize: '3.5rem', 
-          letterSpacing: '1rem', 
-          marginBottom: '2rem', 
-          fontWeight: '900',
-          textTransform: 'uppercase',
-          margin: 0,
-          paddingLeft: '1rem' 
+          fontSize: '4rem', 
+          letterSpacing: '1.2rem', 
+          fontWeight: '900', 
+          margin: '0 0 2rem 0',
+          paddingLeft: '1.2rem', // Offset for perfect center
+          textTransform: 'uppercase'
         }}>
           MALVIN
         </h1>
@@ -67,33 +66,39 @@ export default function Login() {
         <button 
           onClick={handleGoogleLogin}
           style={{
-            padding: '18px 45px', 
+            padding: '20px 50px', 
             borderRadius: '50px', 
             border: 'none',
             backgroundColor: '#fff', 
             color: '#000', 
-            fontSize: '1rem',
-            fontWeight: '700', 
+            fontSize: '1.1rem',
+            fontWeight: 'bold', 
             cursor: 'pointer',
-            transition: 'transform 0.2s ease',
-            alignSelf: 'center'
+            boxShadow: '0 4px 15px rgba(255,255,255,0.2)'
           }}
-          onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
-          onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
         >
           Continue with Google
         </button>
       </div>
 
-      {/* Footer Text: Fixed at the bottom */}
+      {/* 3. BOTTOM CONTENT (SLOGAN) */}
       <div style={{ 
-        paddingBottom: '40px', // Distance from the very bottom of the screen
-        opacity: 0.6, // Makes it look subtle and elegant
-        fontSize: '0.9rem',
-        letterSpacing: '0.1rem',
-        fontWeight: '300'
+        flex: 1, 
+        display: 'flex', 
+        flexDirection: 'column', 
+        justifyContent: 'flex-end', 
+        alignItems: 'center',
+        paddingBottom: '50px' // Space from bottom of phone
       }}>
-        The future in your palms
+        <p style={{ 
+          margin: 0, 
+          opacity: 0.5, 
+          letterSpacing: '0.2rem', 
+          fontSize: '0.8rem',
+          textTransform: 'uppercase'
+        }}>
+          The future in your palms
+        </p>
       </div>
 
     </div>
