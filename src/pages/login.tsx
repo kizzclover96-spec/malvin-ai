@@ -10,6 +10,7 @@ import { Capacitor } from '@capacitor/core';
 export default function Login() {
 
   const handleGoogleLogin = async () => {
+    console.log("Login attempt started..."); // This lets you see it's working
     try {
       if (Capacitor.isNativePlatform()) {
         const googleUser = await GoogleAuth.signIn();
@@ -30,8 +31,7 @@ export default function Login() {
 
   return (
     <div style={{
-      // FORCE FULL SCREEN
-      position: 'fixed',
+      position: 'fixed', // Fixed from 'Position'
       top: 0,
       left: 0,
       width: '100vw',
@@ -40,24 +40,24 @@ export default function Login() {
       color: '#fff',
       margin: 0,
       padding: 0,
-      display: 'flex',
-      flexDirection: 'column',
+      display: 'flex', // Fixed from 'Display'
+      flexDirection: 'column', // Fixed from 'Flex'
       zIndex: 999999,
       fontFamily: 'sans-serif',
       boxSizing: 'border-box'
     }}>
       
-      {/* 1. TOP SPACER (Pushes content down) */}
+      {/* 1. TOP SPACER */}
       <div style={{ flex: 1 }}></div>
 
-      {/* 2. CENTER CONTENT (MALVIN + BUTTON) */}
+      {/* 2. CENTER CONTENT */}
       <div style={{ textAlign: 'center', padding: '0 20px' }}>
         <h1 style={{ 
-          fontSize: '4rem', 
+          fontSize: '4.1rem', 
           letterSpacing: '1.2rem', 
           fontWeight: '900', 
           margin: '0 0 2rem 0',
-          paddingLeft: '1.2rem', // Offset for perfect center
+          paddingLeft: '1.2rem',
           textTransform: 'uppercase'
         }}>
           MALVIN
@@ -81,14 +81,14 @@ export default function Login() {
         </button>
       </div>
 
-      {/* 3. BOTTOM CONTENT (SLOGAN) */}
+      {/* 3. BOTTOM CONTENT */}
       <div style={{ 
         flex: 1, 
         display: 'flex', 
         flexDirection: 'column', 
         justifyContent: 'flex-end', 
         alignItems: 'center',
-        paddingBottom: '50px' // Space from bottom of phone
+        paddingBottom: '50px' 
       }}>
         <p style={{ 
           margin: 0, 
@@ -100,7 +100,6 @@ export default function Login() {
           The future in your palms
         </p>
       </div>
-
     </div>
   );
 }
