@@ -11,15 +11,14 @@ import { Capacitor } from '@capacitor/core';
 
 export default function Login() {
 
-  // This part is CRITICAL for the laptop/web version
   useEffect(() => {
+    // Only run this on web/laptop
     if (!Capacitor.isNativePlatform()) {
       getRedirectResult(auth)
         .then((result) => {
           if (result) {
-            // This triggers after the laptop redirects back from Google
             console.log("Logged in on Web:", result.user);
-            // You can add: window.location.href = "/dashboard";
+            // Optional: window.location.href = "/dashboard";
           }
         })
         .catch((error) => {
@@ -37,7 +36,7 @@ export default function Login() {
         const credential = GoogleAuthProvider.credential(googleUser.authentication.idToken);
         await signInWithCredential(auth, credential);
       } else {
-        // LAPTOP LOGIC - Fixes the "Cross-Origin" (COOP) error
+        // LAPTOP LOGIC
         const provider = new GoogleAuthProvider();
         provider.setCustomParameters({ prompt: 'select_account' });
         await signInWithRedirect(auth, provider);
