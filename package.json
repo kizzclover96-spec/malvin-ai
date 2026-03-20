@@ -13,6 +13,7 @@
     "@capacitor/android": "^8.2.0",
     "@capacitor/cli": "^2.5.0",
     "@capacitor/core": "^8.2.0",
+    "@codetrix-studio/capacitor-google-auth": "^3.4.0-rc.4",
     "@livekit/components-react": "^2.9.20",
     "firebase": "^12.10.0",
     "livekit-client": "^2.17.3",

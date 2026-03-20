@@ -1,9 +1,16 @@
 {
-  "appId": "com.your.app",
+  "appId": "com.malvin.agent",
   "appName": "Malvin",
   "webDir": "dist",
   "server": {
     "url": "https://malvin-ai.vercel.app",
     "cleartext": false
+  },
+  "plugins": {
+    "GoogleAuth": {
+      "scopes": ["profile", "email"],
+      "serverClientId": "581592622100-margm0rpko5f3nmrqqace7l85n9se0so.apps.googleusercontent.com",
+      "forceCodeForRefreshToken": true
+    }
   }
 }

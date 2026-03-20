@@ -1,32 +1,38 @@
 import { auth } from "../firebase";
 import { 
-  signInWithPopup, 
   GoogleAuthProvider, 
-  onAuthStateChanged 
+  signInWithCredential, 
+  signInWithPopup 
 } from "firebase/auth";
-import { useEffect } from "react";
+import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
+import { Capacitor } from '@capacitor/core';
 
 export default function Login() {
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        console.log("User session detected.");
-      }
-    });
-    return () => unsubscribe();
-  }, []);
 
   const handleGoogleLogin = async () => {
-    const provider = new GoogleAuthProvider();
-    provider.setCustomParameters({ prompt: 'select_account' });
-
     try {
-      await signInWithPopup(auth, provider);
-      // App.jsx will automatically swap the screen when this finishes
+      // Check if we are running on a real Device (Android/iOS)
+      if (Capacitor.isNativePlatform()) {
+        // 1. Trigger the Native Android Account Picker
+        const googleUser = await GoogleAuth.signIn();
+        
+        // 2. Convert the token to a Firebase Credential
+        const credential = GoogleAuthProvider.credential(googleUser.authentication.idToken);
+        
+        // 3. Sign in to Firebase (App.jsx will detect this via onAuthStateChanged)
+        await signInWithCredential(auth, credential);
+
+      } else {
+        // FALLBACK: Use standard popup for Web/Browser testing
+        const provider = new GoogleAuthProvider();
+        provider.setCustomParameters({ prompt: 'select_account' });
+        await signInWithPopup(auth, provider);
+      }
+
     } catch (error) {
       console.error("Login failed:", error);
-      // Check for 'auth/popup-closed-by-user' specifically if you want to be quiet
-      if (error.code !== 'auth/cancelled-popup-request' && error.code !== 'auth/popup-closed-by-user') {
+      // Don't alert if the user just swiped the picker away
+      if (error.message !== "user cancelled selection") {
         alert("Login error: " + error.message);
       }
     }
@@ -39,7 +45,12 @@ export default function Login() {
       justifyContent: 'center', position: 'fixed', top: 0, left: 0, color: 'white'
     }}>
       <div style={{ textAlign: 'center' }}>
-        <h1 style={{ fontSize: '3.5rem', letterSpacing: '0.8rem', marginBottom: '2rem', fontWeight: 'bold' }}>
+        <h1 style={{ 
+          fontSize: '3.5rem', 
+          letterSpacing: '0.8rem', 
+          marginBottom: '2rem', 
+          fontWeight: 'bold' 
+        }}>
           MALVIN
         </h1>
         <button 
