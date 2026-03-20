@@ -12,12 +12,12 @@ export default function Login() {
   const handleGoogleLogin = async () => {
     try {
       if (Capacitor.isNativePlatform()) {
-        // --- NATIVE ANDROID LOGIC ---
+        // --- NATIVE LOGIC (Android/iOS) ---
         const googleUser = await GoogleAuth.signIn();
         const credential = GoogleAuthProvider.credential(googleUser.authentication.idToken);
         await signInWithCredential(auth, credential);
       } else {
-        // --- WEB/VERCEL LOGIC ---
+        // --- WEB LOGIC (Vercel/Browser) ---
         const provider = new GoogleAuthProvider();
         provider.setCustomParameters({ prompt: 'select_account' });
         await signInWithPopup(auth, provider);
@@ -32,35 +32,37 @@ export default function Login() {
 
   return (
     <div style={{
-      // FIX: Pins the black background to every edge of the screen
+      // This part fixes the "Half Screen" issue
       position: 'fixed',
       top: 0,
       left: 0,
       right: 0,
       bottom: 0,
-      height: '100vh',
       width: '100vw',
+      height: '100vh',
       backgroundColor: '#000',
+      
+      // Layout logic
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
       color: 'white',
-      zIndex: 9999, // Sits on top of everything
+      zIndex: 99999, // Stays above any other app styles
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       margin: 0,
       padding: 0,
-      overflow: 'hidden'
+      boxSizing: 'border-box'
     }}>
       <div style={{ textAlign: 'center' }}>
         <h1 style={{ 
           fontSize: '3.5rem', 
           letterSpacing: '0.8rem', 
-          marginBottom: '2rem', 
-          fontWeight: '900', // Bold/Thick "Malvin"
+          marginBottom: '2.5rem', 
+          fontWeight: '900',
           textTransform: 'uppercase',
           margin: 0,
-          paddingLeft: '0.8rem' // Offsets the last letter's spacing for perfect centering
+          paddingLeft: '0.8rem' // Visual centering fix
         }}>
           MALVIN
         </h1>
@@ -68,17 +70,16 @@ export default function Login() {
         <button 
           onClick={handleGoogleLogin}
           style={{
-            padding: '16px 40px', 
+            padding: '18px 45px', 
             borderRadius: '50px', 
             border: 'none',
             backgroundColor: '#fff', 
             color: '#000', 
-            fontSize: '1rem',
+            fontSize: '1.1rem',
             fontWeight: '700', 
-            cursor: 'pointer', 
+            cursor: 'pointer',
             transition: 'transform 0.2s ease',
-            marginTop: '20px',
-            boxShadow: '0 4px 15px rgba(255, 255, 255, 0.1)'
+            boxShadow: '0 4px 20px rgba(255, 255, 255, 0.1)'
           }}
           onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
           onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
