@@ -1,4 +1,4 @@
-import { auth } from "../firebase";
+import { auth } from "./firebase"; // Fixed to ./ since they are in the same folder
 import { 
   GoogleAuthProvider, 
   signInWithCredential, 
@@ -11,27 +11,19 @@ export default function Login() {
 
   const handleGoogleLogin = async () => {
     try {
-      // Check if we are running on a real Device (Android/iOS)
       if (Capacitor.isNativePlatform()) {
-        // 1. Trigger the Native Android Account Picker
+        // NATIVE LOGIC (Phone)
         const googleUser = await GoogleAuth.signIn();
-        
-        // 2. Convert the token to a Firebase Credential
         const credential = GoogleAuthProvider.credential(googleUser.authentication.idToken);
-        
-        // 3. Sign in to Firebase (App.jsx will detect this via onAuthStateChanged)
         await signInWithCredential(auth, credential);
-
       } else {
-        // FALLBACK: Use standard popup for Web/Browser testing
+        // WEB LOGIC (Vercel/Browser)
         const provider = new GoogleAuthProvider();
         provider.setCustomParameters({ prompt: 'select_account' });
         await signInWithPopup(auth, provider);
       }
-
     } catch (error) {
       console.error("Login failed:", error);
-      // Don't alert if the user just swiped the picker away
       if (error.message !== "user cancelled selection") {
         alert("Login error: " + error.message);
       }
