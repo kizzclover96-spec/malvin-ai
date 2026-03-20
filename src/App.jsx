@@ -4,22 +4,39 @@ import { useMalvinActivation } from "./pages/buttonlogic";
 import Welcomeview from "./components/welcome";
 import Session from "./pages/session";
 import Login from "./pages/login";
-import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { onAuthStateChanged, signOut, getRedirectResult } from 'firebase/auth'; // Added getRedirectResult
 import { auth } from './firebase';
+import { Capacitor } from '@capacitor/core';
 
 function App() {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
 
-  // Corrected: Passed user?.uid (lowercase) and removed the plain text comment
+  // FIXED: Changed UID to uid (lowercase)
   const { wakeMalvin, token, loading: sessionLoading, setToken } = useMalvinActivation(user?.uid);
 
   useEffect(() => {
+    // 1. FOR LAPTOP: Catch the redirect result immediately on page load
+    if (!Capacitor.isNativePlatform()) {
+      getRedirectResult(auth)
+        .then((result) => {
+          if (result) {
+            console.log("Redirect catch success:", result.user.email);
+            setUser(result.user);
+          }
+        })
+        .catch((err) => {
+          console.error("Redirect handshake failed:", err.message);
+        });
+    }
+
+    // 2. FOR BOTH: Standard listener for login state
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       console.log("Auth detected user:", currentUser?.email);
       setUser(currentUser);
       setAuthLoading(false);
     });
+
     return () => unsubscribe();
   }, []);
 
@@ -32,13 +49,13 @@ function App() {
   return (
     <div className="app-container" style={{ backgroundColor: '#000', minHeight: '100vh', color: 'white' }}>
       
-      {/* --- STATUS BAR (Top Right) --- */}
+      {/* --- STATUS BAR --- */}
       {user && (
         <div style={{
-          position: 'fixed', // lowercase
+          position: 'fixed',
           top: '20px',
           right: '20px',
-          display: 'flex', // lowercase
+          display: 'flex',
           alignItems: 'center',
           gap: '15px',
           zIndex: 2000,
@@ -58,9 +75,7 @@ function App() {
             }} />
             <span style={{ fontSize: '12px', fontWeight: '500', color: '#00ff88' }}>Live</span>
           </div>
-
           <div style={{ width: '1px', height: '15px', backgroundColor: 'rgba(255,255,255,0.2)' }} />
-
           <button 
             onClick={handleSignOut}
             style={{
@@ -78,7 +93,7 @@ function App() {
         </div>
       )}
 
-      {/* --- MAIN NAVIGATION LOGIC --- */}
+      {/* --- NAVIGATION --- */}
       {!user ? (
         <Login />
       ) : token ? (
