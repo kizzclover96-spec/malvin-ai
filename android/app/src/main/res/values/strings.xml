@@ -4,5 +4,4 @@
     <string name="title_activity_main">Malvin</string>
     <string name="package_name">com.malvin.agent</string>
     <string name="custom_url_scheme">com.malvin.agent</string>
-    <string name="google_client_id">"581592622100-margm0rpko5f3nmrqqace7l85n9se0so.apps.googleusercontent.com"</string>
 </resources>
