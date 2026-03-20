@@ -1,9 +1,8 @@
-// src/pages/buttonlogic.tsx
 import { useState } from 'react';
 
-export function useMalvinActivation(firebaseUid: string | undefined) {
+export function useMalvinActivation(firebaseUid) {
   const [loading, setLoading] = useState(false);
-  const [token, setToken] = useState<string | null>(null);
+  const [token, setToken] = useState(null);
 
   const wakeMalvin = async () => {
     if (!firebaseUid) {
@@ -15,7 +14,7 @@ export function useMalvinActivation(firebaseUid: string | undefined) {
     
     try {
       // 1. GET GPS COORDINATES
-      const getPosition = (): Promise<{lat: number, lng: number} | null> => {
+      const getPosition = () => {
         return new Promise((resolve) => {
           if (!navigator.geolocation) {
             console.log("Geolocation not supported");
@@ -26,8 +25,8 @@ export function useMalvinActivation(firebaseUid: string | undefined) {
           navigator.geolocation.getCurrentPosition(
             (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
             (err) => {
-              console.warn(`Location blocked or error: ${err.message}`);
-              resolve(null); // Return null so the session can still start without GPS
+              console.warn(`Location blocked: ${err.message}`);
+              resolve(null); 
             },
             { timeout: 5000, enableHighAccuracy: true }
           );
@@ -40,14 +39,12 @@ export function useMalvinActivation(firebaseUid: string | undefined) {
       const uniqueId = Math.random().toString(36).substring(7);
       const roomName = `malvin-session-${uniqueId}`; 
       
-      // Pack the UID and Location into one metadata string
       const metadataStr = JSON.stringify({ 
         location: coords, 
         firebaseUid: firebaseUid 
       });
 
       // 3. SINGLE FETCH CALL
-      // We send the room, the identity (firebaseUid), and the encoded metadata
       const response = await fetch(
         `/api/get-participant-token?room=${roomName}&username=${firebaseUid}&metadata=${encodeURIComponent(metadataStr)}`
       ); 
