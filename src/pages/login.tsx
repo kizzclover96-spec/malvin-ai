@@ -2,7 +2,7 @@ import { auth } from "./firebase";
 import { 
   GoogleAuthProvider, 
   signInWithCredential, 
-  signInWithRedirect // Changed from Popup to fix laptop error
+  signInWithRedirect // CHANGED: Redirect bypasses the security block
 } from "firebase/auth";
 import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 import { Capacitor } from '@capacitor/core';
@@ -13,17 +13,21 @@ export default function Login() {
     console.log("Login attempt started...");
     try {
       if (Capacitor.isNativePlatform()) {
+        // --- NATIVE PHONE LOGIC ---
         const googleUser = await GoogleAuth.signIn();
         const credential = GoogleAuthProvider.credential(googleUser.authentication.idToken);
         await signInWithCredential(auth, credential);
       } else {
+        // --- WEB/LAPTOP LOGIC ---
         const provider = new GoogleAuthProvider();
         provider.setCustomParameters({ prompt: 'select_account' });
-        // Use Redirect instead of Popup for laptop/web browsers
+        
+        // Use Redirect to solve the Cross-Origin-Opener-Policy error
         await signInWithRedirect(auth, provider);
       }
     } catch (error) {
       console.error("Login failed:", error);
+      // Fixed: lowercase 'message'
       if (error.message !== "user cancelled selection") {
         alert("Login error: " + error.message);
       }
@@ -48,10 +52,10 @@ export default function Login() {
       boxSizing: 'border-box'
     }}>
       
-      {/* 1. TOP SPACER */}
+      {/* Top Spacer */}
       <div style={{ flex: 1 }}></div>
 
-      {/* 2. CENTER CONTENT */}
+      {/* Center Content */}
       <div style={{ textAlign: 'center', padding: '0 20px' }}>
         <h1 style={{ 
           fontSize: '4.1rem', 
@@ -82,7 +86,7 @@ export default function Login() {
         </button>
       </div>
 
-      {/* 3. BOTTOM CONTENT */}
+      {/* Bottom Content */}
       <div style={{ 
         flex: 1, 
         display: 'flex', 
