@@ -1,9 +1,9 @@
 import React from "react";
-import { auth } from "../firebase";
+import { auth } from "../firebase"; // Ensure this path is correct
 import { 
   GoogleAuthProvider, 
   signInWithCredential, 
-  signInWithRedirect 
+  signInWithPopup 
 } from "firebase/auth";
 import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 import { Capacitor } from '@capacitor/core';
@@ -11,27 +11,42 @@ import { Capacitor } from '@capacitor/core';
 export default function Login() {
 
   const handleGoogleLogin = async () => {
+    console.log("Login button clicked!");
+    
     try {
       if (Capacitor.isNativePlatform()) {
+        // --- NATIVE MOBILE LOGIC ---
+        // Uses the native Google Identity SDK
         const googleUser = await GoogleAuth.signIn();
         const credential = GoogleAuthProvider.credential(googleUser.authentication.idToken);
-        await signInWithCredential(auth, credential);
+        const result = await signInWithCredential(auth, credential);
+        console.log("Native Login Success:", result.user);
       } else {
+        // --- WEB/LAPTOP LOGIC ---
+        // Uses a Popup instead of Redirect to prevent the "reload loop"
         const provider = new GoogleAuthProvider();
         provider.setCustomParameters({ prompt: 'select_account' });
-        // This triggers the redirect
-        await signInWithRedirect(auth, provider);
+        
+        const result = await signInWithPopup(auth, provider);
+        console.log("Web Login Success:", result.user);
+        // App.jsx will automatically detect result.user via onAuthStateChanged
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Login Error:", error);
+      alert(`Login failed: ${error.message}`);
     }
   };
 
   return (
-    <div style={{ /* ... your container styles ... */ }}>
+    <div style={{
+      position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+      backgroundColor: '#000', color: '#fff', display: 'flex', flexDirection: 'column',
+      zIndex: 9999, fontFamily: 'sans-serif'
+    }}>
       <div style={{ flex: 1 }}></div>
+      
       <div style={{ textAlign: 'center', padding: '0 20px' }}>
-        <h1 style={{ // Fixed: lowercase h1 and style
+        <h1 style={{ 
           fontSize: '4rem', 
           letterSpacing: '1.2rem', 
           fontWeight: '900', 
@@ -40,11 +55,44 @@ export default function Login() {
         }}>
           MALVIN
         </h1>
-        <button onClick={handleGoogleLogin} style={{ /* ... button styles ... */ }}>
+        
+        <button 
+          onClick={handleGoogleLogin} 
+          style={{
+            padding: '20px 50px', 
+            borderRadius: '50px', 
+            border: 'none',
+            backgroundColor: '#fff', 
+            color: '#000', 
+            fontSize: '1.1rem', 
+            fontWeight: 'bold', 
+            cursor: 'pointer',
+            transition: 'transform 0.2s'
+          }}
+          onMouseDown={(e) => (e.currentTarget.style.transform = 'scale(0.95)')}
+          onMouseUp={(e) => (e.currentTarget.style.transform = 'scale(1)')}
+        >
           Continue with Google
         </button>
       </div>
-      {/* ... rest of your footer ... */}
+
+      <div style={{ 
+        flex: 1, 
+        display: 'flex', 
+        flexDirection: 'column', 
+        justifyContent: 'flex-end', 
+        alignItems: 'center', 
+        paddingBottom: '50px' 
+      }}>
+        <p style={{ 
+          opacity: 0.5, 
+          letterSpacing: '0.2rem', 
+          fontSize: '0.8rem', 
+          textTransform: 'uppercase' 
+        }}>
+          The future in your palms
+        </p>
+      </div>
     </div>
   );
 }
