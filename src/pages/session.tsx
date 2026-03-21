@@ -54,10 +54,23 @@ function MalvinVoiceIsland({ agent }: { agent: any }) {
 // --- 2. VIDEO STAGE (The Main UI) ---
 function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
   const [textInput, setTextInput] = useState("");
+  const [isNotepadOpen, setIsNotepadOpen] = useState(false);
+  const [notes, setNotes] = useState<string[]>([]);
+  
   const agent = useRemoteParticipant({ kind: ParticipantKind.AGENT });
   const { send, chatMessages } = useChat();
   const { localParticipant } = useLocalParticipant();
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Sync Notes: Logic to capture "Note" events from Malvin
+  useEffect(() => {
+    const lastMessage = chatMessages[chatMessages.length - 1];
+    // This looks for messages starting with "NOTE:" or similar triggers
+    if (lastMessage && !lastMessage.from?.isLocal && lastMessage.message.startsWith("NOTE:")) {
+        const noteContent = lastMessage.message.replace("NOTE:", "").trim();
+        setNotes(prev => [...prev, noteContent]);
+    }
+  }, [chatMessages]);
 
   const tracks = useTracks([
     { source: Track.Source.Camera, withPlaceholder: false },
@@ -84,7 +97,6 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
   };
 
   return (
-    /* LAYER 0: THE LOCKED STAGE */
     <div className="moving-gradient" style={{ 
       position: 'fixed', 
       top: 0, left: 0, right: 0, bottom: 0,
@@ -95,6 +107,63 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
       zIndex: 0
     }}>
       
+      {/* --- NOTEPAD DROPDOWN TRIGGER --- */}
+      <div style={{
+        position: 'absolute',
+        top: 'env(safe-area-inset-top, 20px)',
+        left: '20px',
+        zIndex: 110,
+      }}>
+        <button 
+          onClick={() => setIsNotepadOpen(!isNotepadOpen)}
+          style={{
+            background: 'rgba(30, 30, 30, 0.8)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: '12px',
+            color: 'white',
+            padding: '10px',
+            cursor: 'pointer',
+            fontSize: '18px',
+            backdropFilter: 'blur(10px)'
+          }}
+        >
+          {isNotepadOpen ? '📖' : '📁'}
+        </button>
+
+        {/* --- THE ACTUAL NOTEPAD --- */}
+        {isNotepadOpen && (
+          <div style={{
+            position: 'absolute',
+            top: '55px',
+            left: 0,
+            width: '280px',
+            maxHeight: '400px',
+            backgroundColor: '#fffbe6', // Post-it note yellow
+            color: '#333',
+            borderRadius: '12px',
+            padding: '15px',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+            zIndex: 120,
+            overflowY: 'auto',
+            fontFamily: 'monospace'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+              <strong style={{ fontSize: '12px', color: '#999' }}>MALVIN'S NOTES</strong>
+              <button onClick={() => setNotes([])} style={{ border: 'none', background: 'none', fontSize: '10px', color: '#cc0000', cursor: 'pointer' }}>CLEAR</button>
+            </div>
+            {notes.length === 0 ? (
+              <p style={{ fontSize: '13px', opacity: 0.5 }}>No notes saved yet...</p>
+            ) : (
+              <ul style={{ paddingLeft: '15px', margin: 0, fontSize: '14px' }}>
+                {notes.map((n, i) => (
+                  <li key={i} style={{ marginBottom: '8px', borderBottom: '1px solid rgba(0,0,0,0.05)', paddingBottom: '4px' }}>{n}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* LAYER 1: THE FIXED TOP ISLAND */}
       <div style={{
         position: 'absolute', 
@@ -124,7 +193,7 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
           display: 'flex', 
           flexDirection: 'column', 
           gap: '12px', 
-          padding: '110px 20px 140px 20px', // Space for Island and Dock
+          padding: '110px 20px 140px 20px', 
           scrollbarWidth: 'none',
           WebkitOverflowScrolling: 'touch',
           zIndex: 50
@@ -157,7 +226,7 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
       <div style={{
         position: 'absolute', 
         top: '100px', 
-        left: '16px',
+        right: '16px', // Moved to right so it doesn't block the notepad
         display: 'flex', 
         flexDirection: 'column', 
         gap: '10px', 
