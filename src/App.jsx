@@ -11,12 +11,10 @@ function App() {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
 
-  // FIXED: Changed user?. UID to user?.uid (Firebase uses lowercase)
+  // FIXED: Ensure uid is lowercase to match Firebase User object
   const { wakeMalvin, token, loading: sessionLoading, setToken } = useMalvinActivation(user?.uid);
 
   useEffect(() => {
-    // This listener is the "Source of Truth"
-    // It works for both Popup logins and persistent sessions
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       setAuthLoading(false);
@@ -41,20 +39,33 @@ function App() {
   return (
     <div className="app-container" style={{ backgroundColor: '#000', minHeight: '100vh', color: 'white' }}>
       
-      {/* --- Global Status Bar --- */}
+      {/* --- REFINED MINI CAPSULE (Top Right) --- */}
       {user && (
         <div style={{
-          position: 'fixed', top: '20px', right: '20px', display: 'flex',
-          alignItems: 'center', gap: '15px', zIndex: 2000,
-          backgroundColor: 'rgba(255, 255, 255, 0.05)', padding: '8px 16px',
-          borderRadius: '30px', backdropFilter: 'blur(10px)', border: '1px solid rgba(255, 255, 255, 0.1)'
+          position: 'fixed', 
+          top: '15px', 
+          right: '15px', 
+          display: 'flex',
+          alignItems: 'center', 
+          gap: '8px', 
+          zIndex: 2000,
+          backgroundColor: 'rgba(255, 255, 255, 0.08)', 
+          padding: '4px 10px', // Smaller padding
+          borderRadius: '20px', // Tighter curve
+          backdropFilter: 'blur(10px)', 
+          border: '1px solid rgba(255, 255, 255, 0.1)'
         }}>
-          <span style={{ fontSize: '12px', color: '#00ff88' }}>● Live</span>
+          <span style={{ fontSize: '10px', color: '#00ff88', fontWeight: 'bold' }}>●</span>
           <button onClick={handleSignOut} style={{
-            background: 'none', border: 'none', color: 'rgba(255,255,255,0.6)',
-            cursor: 'pointer', fontSize: '12px', textDecoration: 'underline'
+            background: 'none', 
+            border: 'none', 
+            color: 'rgba(255,255,255,0.7)',
+            cursor: 'pointer', 
+            fontSize: '11px', // Smaller text
+            fontWeight: '500',
+            padding: '2px 0'
           }}>
-            Sign Out
+            Log out
           </button>
         </div>
       )}
