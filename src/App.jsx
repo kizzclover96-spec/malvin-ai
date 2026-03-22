@@ -7,92 +7,31 @@ import Login from "./pages/login";
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { auth } from './firebase';
 
-function App() {
-  const [user, setUser] = useState<any>(null);
-  const [authLoading, setAuthLoading] = useState(true);
+// --- SUB-COMPONENT ---
+// This ensures the hook only runs when we are 100% sure a user exists.
+function MalvinInterface({ user, handleSignOut }) {
+  const { wakeMalvin, token, loading: sessionLoading, setToken } = useMalvinActivation(user.uid);
 
-  // The hook is initialized here. 
-  // Ensure useMalvinActivation handles user_id being undefined/null internally!
-  const { wakeMalvin, token, loading: sessionLoading, setToken } = useMalvinActivation(user?.uid);
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      setAuthLoading(false);
-      if (currentUser) {
-        console.log("🚀 Malvin User Identified:", currentUser.uid);
-      }
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  const handleSignOut = async () => {
-    try {
-      await signOut(auth);
-      setToken(null); 
-    } catch (err) {
-      console.error("Sign out failed", err);
-    }
-  };
-
-  // 1. Loading State (Splash Screen)
-  if (authLoading) {
-    return (
-      <div style={{ 
-        backgroundColor: '#000', 
-        height: '100vh', 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center',
-        color: '#444',
-        fontSize: '12px',
-        letterSpacing: '2px'
-      }}>
-        INITIALIZING...
-      </div>
-    );
-  }
-
-  // 2. Unauthenticated State (Login Screen)
-  if (!user) {
-    return <Login />;
-  }
-
-  // 3. Authenticated State (Main App)
   return (
     <div className="app-container" style={{ backgroundColor: '#000', minHeight: '100vh', color: 'white' }}>
       
-      {/* --- USER CAPSULE --- */}
+      {/* USER CAPSULE */}
       <div style={{
-        position: 'fixed', 
-        top: '15px', 
-        right: '15px', 
-        display: 'flex',
-        alignItems: 'center', 
-        gap: '8px', 
-        zIndex: 2000,
-        backgroundColor: 'rgba(255, 255, 255, 0.08)', 
-        padding: '4px 10px', 
-        borderRadius: '20px', 
-        backdropFilter: 'blur(10px)', 
-        border: '1px solid rgba(255, 255, 255, 0.1)'
+        position: 'fixed', top: '15px', right: '15px', display: 'flex',
+        alignItems: 'center', gap: '8px', zIndex: 2000,
+        backgroundColor: 'rgba(255, 255, 255, 0.08)', padding: '4px 10px',
+        borderRadius: '20px', backdropFilter: 'blur(10px)', border: '1px solid rgba(255, 255, 255, 0.1)'
       }}>
         <span style={{ fontSize: '10px', color: '#00ff88', fontWeight: 'bold' }}>●</span>
         <button onClick={handleSignOut} style={{
-          background: 'none', 
-          border: 'none', 
-          color: 'rgba(255,255,255,0.7)',
-          cursor: 'pointer', 
-          fontSize: '11px', 
-          fontWeight: '500',
-          padding: '2px 0'
+          background: 'none', border: 'none', color: 'rgba(255,255,255,0.7)',
+          cursor: 'pointer', fontSize: '11px', fontWeight: '500'
         }}>
           Log out
         </button>
       </div>
 
-      {/* --- NAVIGATION --- */}
+      {/* NAVIGATION */}
       {token ? (
         <Session 
           token={token} 
@@ -108,6 +47,51 @@ function App() {
       )}
     </div>
   );
+}
+
+// --- MAIN APP ---
+function App() {
+  const [user, setUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setAuthLoading(false);
+      if (currentUser) {
+        console.log("🚀 Malvin User Identified:", currentUser.uid);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth);
+    } catch (err) {
+      console.error("Sign out failed", err);
+    }
+  };
+
+  if (authLoading) {
+    return (
+      <div style={{ 
+        backgroundColor: '#000', height: '100vh', display: 'flex', 
+        alignItems: 'center', justifyContent: 'center', color: '#444',
+        fontSize: '12px', letterSpacing: '2px' 
+      }}>
+        INITIALIZING...
+      </div>
+    );
+  }
+
+  // If no user, show Login.
+  if (!user) {
+    return <Login />;
+  }
+
+  // If user exists, render the interface.
+  return <MalvinInterface user={user} handleSignOut={handleSignOut} />;
 }
 
 export default App;
