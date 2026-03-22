@@ -10,13 +10,15 @@ import {
   BarVisualizer,
   LayoutContextProvider,
   useChat,
-  useLocalParticipant
+  useLocalParticipant,
+  useRoomContext
 } from '@livekit/components-react';
 
 interface SessionProps {
   token: string;
   serverUrl: string;
   onDisconnect: () => void;
+  userEmail: string;
 }
 
 // --- 1. MALVIN VOICE ISLAND ---
@@ -57,18 +59,40 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
   const [isNotepadOpen, setIsNotepadOpen] = useState(false);
   const [notes, setNotes] = useState<string[]>([]);
   
+  // Custom state to track messages since we are bypassing the Chat SDK
+  const [localMessages, setLocalMessages] = useState<{message: string, isLocal: boolean}[]>([]);
+  
+  const room = useRoomContext();
   const agent = useRemoteParticipant({ kind: ParticipantKind.AGENT });
-  const { send, chatMessages } = useChat();
+  const { chatMessages } = useChat(); 
   const { localParticipant } = useLocalParticipant();
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Sync Notes: Logic to capture "Note" events from Malvin
+  // 1. Sync Location to Malvin's attributes
+  useEffect(() => {
+    if (localParticipant) {
+      navigator.geolocation.getCurrentPosition((pos) => {
+        localParticipant.setAttributes({
+          "user.lat": pos.coords.latitude.toString(),
+          "user.lng": pos.coords.longitude.toString()
+        });
+      });
+    }
+  }, [localParticipant]);
+
+  // 2. Sync Notes & Chat History
   useEffect(() => {
     const lastMessage = chatMessages[chatMessages.length - 1];
-    // This looks for messages starting with "NOTE:" or similar triggers
-    if (lastMessage && !lastMessage.from?.isLocal && lastMessage.message.startsWith("NOTE:")) {
-        const noteContent = lastMessage.message.replace("NOTE:", "").trim();
-        setNotes(prev => [...prev, noteContent]);
+    if (lastMessage) {
+      // Add to our visible list
+      setLocalMessages(prev => [...prev, { message: lastMessage.message, isLocal: lastMessage.from?.isLocal || false }]);
+      
+      // Notepad logic
+      if (!lastMessage.from?.isLocal && lastMessage.message.includes("NOTE:")) {
+          const noteContent = lastMessage.message.split("NOTE:")[1].trim();
+          setNotes(prev => prev.includes(noteContent) ? prev : [...prev, noteContent]);
+          setIsNotepadOpen(true);
+      }
     }
   }, [chatMessages]);
 
@@ -82,157 +106,77 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
 
   useEffect(() => {
     if (scrollRef.current) {
-      scrollRef.current.scrollTo({
-        top: scrollRef.current.scrollHeight,
-        behavior: 'smooth'
-      });
+      scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
     }
-  }, [chatMessages]);
+  }, [localMessages]);
 
-  const handleSendMessage = () => {
-    if (textInput.trim()) {
-      send(textInput);
+  // 3. Updated Send logic using Data Packets
+  const handleSendMessage = async () => {
+    if (textInput.trim() && localParticipant) {
+      const encoder = new TextEncoder();
+      const data = encoder.encode(textInput);
+
+      await localParticipant.publishData(data, {
+        reliable: true,
+        topic: "user_input"
+      });
+
+      // Manually add your message to the UI
+      setLocalMessages(prev => [...prev, { message: textInput, isLocal: true }]);
       setTextInput("");
     }
   };
 
   return (
     <div className="moving-gradient" style={{ 
-      position: 'fixed', 
-      top: 0, left: 0, right: 0, bottom: 0,
-      backgroundColor: '#000', 
-      display: 'flex', 
-      flexDirection: 'column', 
-      overflow: 'hidden',
-      zIndex: 0
+      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+      backgroundColor: '#000', display: 'flex', flexDirection: 'column', overflow: 'hidden'
     }}>
       
-      {/* --- NOTEPAD DROPDOWN TRIGGER --- */}
-      <div style={{
-        position: 'absolute',
-        top: 'env(safe-area-inset-top, 20px)',
-        left: '20px',
-        zIndex: 110,
-      }}>
-        <button 
-          onClick={() => setIsNotepadOpen(!isNotepadOpen)}
-          style={{
-            background: 'rgba(30, 30, 30, 0.8)',
-            border: '1px solid rgba(255,255,255,0.1)',
-            borderRadius: '12px',
-            color: 'white',
-            padding: '10px',
-            cursor: 'pointer',
-            fontSize: '18px',
-            backdropFilter: 'blur(10px)'
-          }}
-        >
+      {/* NOTEPAD UI */}
+      <div style={{ position: 'absolute', top: '20px', left: '20px', zIndex: 110 }}>
+        <button onClick={() => setIsNotepadOpen(!isNotepadOpen)} style={noteBtnStyle(isNotepadOpen)}>
           {isNotepadOpen ? '📖' : '📁'}
         </button>
 
-        {/* --- THE ACTUAL NOTEPAD --- */}
         {isNotepadOpen && (
-          <div style={{
-            position: 'absolute',
-            top: '55px',
-            left: 0,
-            width: '280px',
-            maxHeight: '400px',
-            backgroundColor: '#fffbe6', // Post-it note yellow
-            color: '#333',
-            borderRadius: '12px',
-            padding: '15px',
-            boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
-            zIndex: 120,
-            overflowY: 'auto',
-            fontFamily: 'monospace'
-          }}>
+          <div style={notepadBoxStyle}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
               <strong style={{ fontSize: '12px', color: '#999' }}>MALVIN'S NOTES</strong>
-              <button onClick={() => setNotes([])} style={{ border: 'none', background: 'none', fontSize: '10px', color: '#cc0000', cursor: 'pointer' }}>CLEAR</button>
+              <button onClick={() => setNotes([])} style={clearBtnStyle}>CLEAR ALL</button>
             </div>
             {notes.length === 0 ? (
               <p style={{ fontSize: '13px', opacity: 0.5 }}>No notes saved yet...</p>
             ) : (
               <ul style={{ paddingLeft: '15px', margin: 0, fontSize: '14px' }}>
-                {notes.map((n, i) => (
-                  <li key={i} style={{ marginBottom: '8px', borderBottom: '1px solid rgba(0,0,0,0.05)', paddingBottom: '4px' }}>{n}</li>
-                ))}
+                {notes.map((n, i) => <li key={i} style={noteItemStyle}>{n}</li>)}
               </ul>
             )}
           </div>
         )}
       </div>
 
-      {/* LAYER 1: THE FIXED TOP ISLAND */}
-      <div style={{
-        position: 'absolute', 
-        top: 0, left: 0, right: 0,
-        paddingTop: 'env(safe-area-inset-top, 20px)',
-        display: 'flex',
-        justifyContent: 'center',
-        zIndex: 100, 
-        pointerEvents: 'none', 
-      }}>
+      {/* VOICE ISLAND */}
+      <div style={islandContainerStyle}>
         <div style={{ pointerEvents: 'auto' }}>
-          {agent ? <MalvinVoiceIsland agent={agent} /> : (
-            <div style={{ marginTop: '10px', color: '#666', fontSize: '11px', letterSpacing: '1px' }}>
-              CONNECTING...
-            </div>
-          )}
+          {agent ? <MalvinVoiceIsland agent={agent} /> : <div style={connectingStyle}>CONNECTING TO MALVIN...</div>}
         </div>
       </div>
 
-      {/* LAYER 2: THE SCROLLABLE CHAT AREA */}
-      <div 
-        ref={scrollRef}
-        style={{
-          position: 'absolute',
-          top: 0, left: 0, right: 0, bottom: 0,
-          overflowY: 'auto', 
-          display: 'flex', 
-          flexDirection: 'column', 
-          gap: '12px', 
-          padding: '110px 20px 140px 20px', 
-          scrollbarWidth: 'none',
-          WebkitOverflowScrolling: 'touch',
-          zIndex: 50
-        }}
-      >
-        {chatMessages.map((msg, idx) => {
-          const isFromUser = msg.from?.isLocal;
-          return (
-            <div key={idx} style={{
-              alignSelf: isFromUser ? 'flex-end' : 'flex-start',
-              backgroundColor: isFromUser ? '#1c1c1e' : '#0a84ff', 
-              color: 'white', 
-              padding: '12px 16px', 
-              borderRadius: isFromUser ? '18px 18px 2px 18px' : '18px 18px 18px 2px', 
-              maxWidth: '85%', 
-              fontSize: '15px', 
-              boxShadow: '0 2px 8px rgba(0,0,0,0.3)', 
-              whiteSpace: 'pre-wrap'
-            }}>
-              <div style={{ fontSize: '9px', opacity: 0.5, marginBottom: '4px', fontWeight: '800' }}>
-                {isFromUser ? 'YOU' : 'MALVIN'}
-              </div>
-              {msg.message}
+      {/* CHAT AREA */}
+      <div ref={scrollRef} style={chatAreaStyle}>
+        {localMessages.map((msg, idx) => (
+          <div key={idx} style={bubbleStyle(msg.isLocal)}>
+            <div style={{ fontSize: '9px', opacity: 0.5, marginBottom: '4px', fontWeight: '800' }}>
+              {msg.isLocal ? 'YOU' : 'MALVIN'}
             </div>
-          );
-        })}
+            {msg.message}
+          </div>
+        ))}
       </div>
 
-      {/* FLOATING CAMERA VIEWS */}
-      <div style={{
-        position: 'absolute', 
-        top: '100px', 
-        right: '16px', // Moved to right so it doesn't block the notepad
-        display: 'flex', 
-        flexDirection: 'column', 
-        gap: '10px', 
-        zIndex: 60,
-        pointerEvents: 'none'
-      }}>
+      {/* VIDEO OVERLAYS */}
+      <div style={videoOverlayStyle}>
         {localScreenTrack && (
           <div style={{ ...videoBoxStyle, width: '160px', aspectRatio: '16/9', pointerEvents: 'auto' }}>
             <VideoTrack trackRef={localScreenTrack as any} />
@@ -245,39 +189,17 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
         )}
       </div>
 
-      {/* LAYER 3: THE FIXED BOTTOM DOCK */}
-      <div style={{
-        position: 'absolute', 
-        bottom: 'calc(env(safe-area-inset-bottom, 0px) + 20px)',
-        left: 0, right: 0,
-        display: 'flex',
-        justifyContent: 'center',
-        zIndex: 100, 
-        pointerEvents: 'none'
-      }}>
-        <div style={{
-          pointerEvents: 'auto',
-          width: '92%', 
-          maxWidth: '480px',
-          minHeight: '64px',
-          backgroundColor: 'rgba(30, 30, 30, 0.9)', 
-          backdropFilter: 'blur(20px)', 
-          WebkitBackdropFilter: 'blur(20px)',
-          borderRadius: '32px', 
-          display: 'flex', 
-          alignItems: 'center', 
-          padding: '0 12px',
-          border: '1px solid rgba(255,255,255,0.1)', 
-          boxShadow: '0 15px 35px rgba(0,0,0,0.5)',
-        }}>
+      {/* BOTTOM CONTROLS */}
+      <div style={bottomControlsWrapper}>
+        <div style={pillContainerStyle}>
           <button onClick={onDisconnect} style={{...btnStyle, color: '#ff453a', fontSize: '22px'}}>✕</button>
           <div style={dividerStyle} />
           
           <button 
-            onClick={() => localParticipant.setMicrophoneEnabled(!localParticipant.isMicrophoneEnabled)}
-            style={{...btnStyle, color: localParticipant.isMicrophoneEnabled ? '#32d74b' : '#636366'}}
+            onClick={() => localParticipant?.setMicrophoneEnabled(!localParticipant.isMicrophoneEnabled)}
+            style={{...btnStyle, color: localParticipant?.isMicrophoneEnabled ? '#32d74b' : '#636366'}}
           >
-            {localParticipant.isMicrophoneEnabled ? '🎙️' : '🔇'}
+            {localParticipant?.isMicrophoneEnabled ? '🎙️' : '🔇'}
           </button>
 
           <input 
@@ -285,15 +207,15 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
             value={textInput}
             onChange={(e) => setTextInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-            style={{ flex: 1, backgroundColor: 'transparent', border: 'none', color: 'white', outline: 'none', padding: '0 10px', fontSize: '16px' }} 
+            style={inputStyle} 
           />
 
           {textInput.trim().length > 0 ? (
              <button onClick={handleSendMessage} style={{ ...btnStyle, color: '#0a84ff', fontSize: '13px', fontWeight: '700' }}>SEND</button>
           ) : (
             <div style={{ display: 'flex' }}>
-              <button onClick={() => localParticipant.setCameraEnabled(!localParticipant.isCameraEnabled)} style={{...btnStyle, color: localParticipant.isCameraEnabled ? '#0a84ff' : '#636366'}}>📷</button>
-              <button onClick={() => localParticipant.setScreenShareEnabled(!localParticipant.isScreenShareEnabled)} style={{...btnStyle, color: localParticipant.isScreenShareEnabled ? '#0a84ff' : '#636366'}}>🖥️</button>
+              <button onClick={() => localParticipant?.setCameraEnabled(!localParticipant.isCameraEnabled)} style={{...btnStyle, color: localParticipant?.isCameraEnabled ? '#0a84ff' : '#636366'}}>📷</button>
+              <button onClick={() => localParticipant?.setScreenShareEnabled(!localParticipant.isScreenShareEnabled)} style={{...btnStyle, color: localParticipant?.isScreenShareEnabled ? '#0a84ff' : '#636366'}}>🖥️</button>
             </div>
           )}
         </div>
@@ -302,13 +224,80 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
   );
 }
 
+// --- STYLES ---
+const noteBtnStyle = (isOpen: boolean) => ({
+  background: isOpen ? '#0a84ff' : 'rgba(30, 30, 30, 0.8)',
+  border: '1px solid rgba(255,255,255,0.1)',
+  borderRadius: '12px',
+  color: 'white',
+  padding: '10px',
+  cursor: 'pointer',
+  fontSize: '18px',
+  backdropFilter: 'blur(10px)',
+  transition: 'all 0.3s ease'
+});
+
+const notepadBoxStyle: React.CSSProperties = {
+  position: 'absolute', top: '55px', left: 0, width: '280px', maxHeight: '400px',
+  backgroundColor: '#fffbe6', color: '#333', borderRadius: '12px', padding: '15px',
+  boxShadow: '0 10px 30px rgba(0,0,0,0.5)', zIndex: 120, overflowY: 'auto',
+  fontFamily: 'monospace', border: '1px solid #e6dbac'
+};
+
+const islandContainerStyle: React.CSSProperties = {
+  position: 'absolute', top: 0, left: 0, right: 0, paddingTop: '20px',
+  display: 'flex', justifyContent: 'center', zIndex: 100, pointerEvents: 'none',
+};
+
+const chatAreaStyle: React.CSSProperties = {
+  position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, overflowY: 'auto',
+  display: 'flex', flexDirection: 'column', gap: '12px', padding: '110px 20px 140px 20px',
+  scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch', zIndex: 50
+};
+
+const bubbleStyle = (isLocal: boolean): React.CSSProperties => ({
+  alignSelf: isLocal ? 'flex-end' : 'flex-start',
+  backgroundColor: isLocal ? '#1c1c1e' : '#0a84ff',
+  color: 'white', padding: '12px 16px', borderRadius: isLocal ? '18px 18px 2px 18px' : '18px 18px 18px 2px',
+  maxWidth: '85%', fontSize: '15px', boxShadow: '0 2px 8px rgba(0,0,0,0.3)', whiteSpace: 'pre-wrap'
+});
+
+const inputStyle: React.CSSProperties = {
+  flex: 1, backgroundColor: 'transparent', border: 'none', color: 'white', outline: 'none', padding: '0 10px', fontSize: '16px'
+};
+
+const pillContainerStyle: React.CSSProperties = {
+  pointerEvents: 'auto', width: '92%', maxWidth: '480px', minHeight: '64px',
+  backgroundColor: 'rgba(30, 30, 30, 0.9)', backdropFilter: 'blur(20px)', borderRadius: '32px',
+  display: 'flex', alignItems: 'center', padding: '0 12px', border: '1px solid rgba(255,255,255,0.1)',
+  boxShadow: '0 15px 35px rgba(0,0,0,0.5)',
+};
+
+const bottomControlsWrapper: React.CSSProperties = {
+  position: 'absolute', bottom: '40px', left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 100, pointerEvents: 'none'
+};
+
+const videoOverlayStyle: React.CSSProperties = {
+  position: 'absolute', top: '100px', right: '16px', display: 'flex', flexDirection: 'column', gap: '10px', zIndex: 60, pointerEvents: 'none'
+};
+
 const btnStyle = { background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', padding: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' };
 const dividerStyle = { width: '1px', height: '24px', backgroundColor: 'rgba(255,255,255,0.1)', margin: '0 8px' };
 const videoBoxStyle = { borderRadius: '16px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)', backgroundColor: '#111', boxShadow: '0 8px 20px rgba(0,0,0,0.4)' };
+const clearBtnStyle: React.CSSProperties = { border: 'none', background: 'none', fontSize: '10px', color: '#cc0000', cursor: 'pointer' };
+const noteItemStyle = { marginBottom: '8px', borderBottom: '1px solid rgba(0,0,0,0.05)', paddingBottom: '4px' };
+const connectingStyle = { marginTop: '10px', color: '#666', fontSize: '11px', letterSpacing: '1px' };
 
 export default function Session({ token, serverUrl, onDisconnect }: SessionProps) {
   return (
-    <LiveKitRoom token={token} serverUrl={serverUrl} connect={true} audio={true} video={true} onDisconnected={onDisconnect}>
+    <LiveKitRoom 
+      token={token} 
+      serverUrl={serverUrl} 
+      connect={true} 
+      audio={true} 
+      video={true} 
+      onDisconnected={onDisconnect}
+    >
       <LayoutContextProvider>
         <RoomAudioRenderer />
         <VideoStage onDisconnect={onDisconnect} />
