@@ -11,9 +11,8 @@ function App() {
   const [user, setUser] = useState<any>(null);
   const [authLoading, setAuthLoading] = useState(true);
 
-  // --- IDENTITY DECISION ---
-  // We use user?.uid here. Ensure your token-saving logic (where you get Gmail tokens) 
-  // also saves the Firebase UID into the 'user_id' column of your database.
+  // The hook is initialized here. 
+  // Ensure useMalvinActivation handles user_id being undefined/null internally!
   const { wakeMalvin, token, loading: sessionLoading, setToken } = useMalvinActivation(user?.uid);
 
   useEffect(() => {
@@ -37,6 +36,7 @@ function App() {
     }
   };
 
+  // 1. Loading State (Splash Screen)
   if (authLoading) {
     return (
       <div style={{ 
@@ -54,48 +54,50 @@ function App() {
     );
   }
 
+  // 2. Unauthenticated State (Login Screen)
+  if (!user) {
+    return <Login />;
+  }
+
+  // 3. Authenticated State (Main App)
   return (
     <div className="app-container" style={{ backgroundColor: '#000', minHeight: '100vh', color: 'white' }}>
       
-      {/* --- REFINED MINI CAPSULE (Top Right) --- */}
-      {user && (
-        <div style={{
-          position: 'fixed', 
-          top: '15px', 
-          right: '15px', 
-          display: 'flex',
-          alignItems: 'center', 
-          gap: '8px', 
-          zIndex: 2000,
-          backgroundColor: 'rgba(255, 255, 255, 0.08)', 
-          padding: '4px 10px', 
-          borderRadius: '20px', 
-          backdropFilter: 'blur(10px)', 
-          border: '1px solid rgba(255, 255, 255, 0.1)'
+      {/* --- USER CAPSULE --- */}
+      <div style={{
+        position: 'fixed', 
+        top: '15px', 
+        right: '15px', 
+        display: 'flex',
+        alignItems: 'center', 
+        gap: '8px', 
+        zIndex: 2000,
+        backgroundColor: 'rgba(255, 255, 255, 0.08)', 
+        padding: '4px 10px', 
+        borderRadius: '20px', 
+        backdropFilter: 'blur(10px)', 
+        border: '1px solid rgba(255, 255, 255, 0.1)'
+      }}>
+        <span style={{ fontSize: '10px', color: '#00ff88', fontWeight: 'bold' }}>●</span>
+        <button onClick={handleSignOut} style={{
+          background: 'none', 
+          border: 'none', 
+          color: 'rgba(255,255,255,0.7)',
+          cursor: 'pointer', 
+          fontSize: '11px', 
+          fontWeight: '500',
+          padding: '2px 0'
         }}>
-          <span style={{ fontSize: '10px', color: '#00ff88', fontWeight: 'bold' }}>●</span>
-          <button onClick={handleSignOut} style={{
-            background: 'none', 
-            border: 'none', 
-            color: 'rgba(255,255,255,0.7)',
-            cursor: 'pointer', 
-            fontSize: '11px', 
-            fontWeight: '500',
-            padding: '2px 0'
-          }}>
-            Log out
-          </button>
-        </div>
-      )}
+          Log out
+        </button>
+      </div>
 
-      {/* --- THE NAVIGATION SWITCH --- */}
-      {!user ? (
-        <Login /> 
-      ) : token ? (
+      {/* --- NAVIGATION --- */}
+      {token ? (
         <Session 
           token={token} 
           serverUrl={import.meta.env.VITE_LIVEKIT_URL} 
-          userEmail={user.email} // Passed for Malvin's context
+          userEmail={user.email}
           onDisconnect={() => setToken(null)} 
         />
       ) : (
