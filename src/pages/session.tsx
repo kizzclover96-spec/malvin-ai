@@ -58,10 +58,12 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
   const [textInput, setTextInput] = useState("");
   const [isNotepadOpen, setIsNotepadOpen] = useState(false);
   const [notes, setNotes] = useState<string[]>([]);
-  
-  // Custom state to track messages since we are bypassing the Chat SDK
   const [localMessages, setLocalMessages] = useState<{message: string, isLocal: boolean}[]>([]);
   
+  // Camera Switch State
+  const [isBackCamera, setIsBackCamera] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const room = useRoomContext();
   const agent = useRemoteParticipant({ kind: ParticipantKind.AGENT });
   const { chatMessages } = useChat(); 
@@ -84,10 +86,8 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
   useEffect(() => {
     const lastMessage = chatMessages[chatMessages.length - 1];
     if (lastMessage) {
-      // Add to our visible list
       setLocalMessages(prev => [...prev, { message: lastMessage.message, isLocal: lastMessage.from?.isLocal || false }]);
       
-      // Notepad logic
       if (!lastMessage.from?.isLocal && lastMessage.message.includes("NOTE:")) {
           const noteContent = lastMessage.message.split("NOTE:")[1].trim();
           setNotes(prev => prev.includes(noteContent) ? prev : [...prev, noteContent]);
@@ -110,7 +110,7 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
     }
   }, [localMessages]);
 
-  // 3. Updated Send logic using Data Packets
+  // 3. Send logic using Data Packets
   const handleSendMessage = async () => {
     if (textInput.trim() && localParticipant) {
       const encoder = new TextEncoder();
@@ -121,10 +121,32 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
         topic: "user_input"
       });
 
-      // Manually add your message to the UI
       setLocalMessages(prev => [...prev, { message: textInput, isLocal: true }]);
       setTextInput("");
     }
+  };
+
+  // 4. Camera Switch Handlers
+  const toggleCameraFacing = async () => {
+    if (!localParticipant) return;
+    const newFacingMode = isBackCamera ? 'user' : 'environment';
+    
+    await localParticipant.setCameraEnabled(false);
+    await localParticipant.setCameraEnabled(true, {
+      videoCaptureDefaults: { facingMode: newFacingMode }
+    });
+    setIsBackCamera(!isBackCamera);
+  };
+
+  const handlePressStart = () => {
+    timerRef.current = setTimeout(() => {
+      toggleCameraFacing();
+      if (navigator.vibrate) navigator.vibrate(50);
+    }, 2000);
+  };
+
+  const handlePressEnd = () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
   };
 
   return (
@@ -183,7 +205,13 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
           </div>
         )}
         {localCameraTrack && (
-          <div style={{ ...videoBoxStyle, width: '80px', height: '110px', transform: 'scaleX(-1)', pointerEvents: 'auto' }}>
+          <div style={{ 
+            ...videoBoxStyle, 
+            width: '80px', 
+            height: '110px', 
+            transform: isBackCamera ? 'none' : 'scaleX(-1)', // Flip mirror only for front cam
+            pointerEvents: 'auto' 
+          }}>
             <VideoTrack trackRef={localCameraTrack as any} style={{ objectFit: 'cover', width: '100%', height: '100%' }} />
           </div>
         )}
@@ -214,7 +242,18 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
              <button onClick={handleSendMessage} style={{ ...btnStyle, color: '#0a84ff', fontSize: '13px', fontWeight: '700' }}>SEND</button>
           ) : (
             <div style={{ display: 'flex' }}>
-              <button onClick={() => localParticipant?.setCameraEnabled(!localParticipant.isCameraEnabled)} style={{...btnStyle, color: localParticipant?.isCameraEnabled ? '#0a84ff' : '#636366'}}>📷</button>
+              <button 
+                onMouseDown={handlePressStart}
+                onMouseUp={handlePressEnd}
+                onMouseLeave={handlePressEnd}
+                onTouchStart={handlePressStart}
+                onTouchEnd={handlePressEnd}
+                onContextMenu={(e) => e.preventDefault()}
+                onClick={() => localParticipant?.setCameraEnabled(!localParticipant.isCameraEnabled)} 
+                style={{...btnStyle, color: localParticipant?.isCameraEnabled ? '#0a84ff' : '#636366'}}
+              >
+                📷
+              </button>
               <button onClick={() => localParticipant?.setScreenShareEnabled(!localParticipant.isScreenShareEnabled)} style={{...btnStyle, color: localParticipant?.isScreenShareEnabled ? '#0a84ff' : '#636366'}}>🖥️</button>
             </div>
           )}
