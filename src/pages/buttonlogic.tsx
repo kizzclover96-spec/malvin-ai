@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-export function useMalvinActivation(firebaseUid) {
+export function useMalvinActivation(firebaseUid: string | null | undefined) {
   const [loading, setLoading] = useState(false);
   const [token, setToken] = useState(null);
 

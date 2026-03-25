@@ -130,11 +130,14 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
   const toggleCameraFacing = async () => {
     if (!localParticipant) return;
     const newFacingMode = isBackCamera ? 'user' : 'environment';
-    
+  
     await localParticipant.setCameraEnabled(false);
+  
+    // FIX: Pass the facingMode directly inside the videoCaptureOptions object
     await localParticipant.setCameraEnabled(true, {
-      videoCaptureDefaults: { facingMode: newFacingMode }
+    facingMode: newFacingMode 
     });
+  
     setIsBackCamera(!isBackCamera);
   };
 

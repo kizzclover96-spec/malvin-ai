@@ -10,12 +10,13 @@ import { auth } from './firebase';
 // --- SUB-COMPONENT ---
 // This ensures the hook only runs when we are 100% sure a user exists.
 function MalvinInterface({ user, handleSignOut }) {
+  // Passing user.uid here ensures the LiveKit token is linked to this specific user
   const { wakeMalvin, token, loading: sessionLoading, setToken } = useMalvinActivation(user.uid);
 
   return (
     <div className="app-container" style={{ backgroundColor: '#000', minHeight: '100vh', color: 'white' }}>
       
-      {/* USER CAPSULE */}
+      {/* USER CAPSULE (Top Right) */}
       <div style={{
         position: 'fixed', top: '15px', right: '15px', display: 'flex',
         alignItems: 'center', gap: '8px', zIndex: 2000,
@@ -31,18 +32,19 @@ function MalvinInterface({ user, handleSignOut }) {
         </button>
       </div>
 
-      {/* NAVIGATION */}
+      {/* NAVIGATION LOGIC */}
       {token ? (
         <Session 
           token={token} 
           serverUrl={import.meta.env.VITE_LIVEKIT_URL} 
-          userEmail={user.email}
+          userEmail={user.email} // Passed to the session for UI display
           onDisconnect={() => setToken(null)} 
         />
       ) : (
         <Welcomeview 
           onWakeClick={wakeMalvin} 
           isConnecting={sessionLoading} 
+          userEmail={user.email} // <--- Added this to show email on Welcome screen
         />
       )}
     </div>
@@ -73,6 +75,7 @@ function App() {
     }
   };
 
+  // Loading state while Firebase checks the session
   if (authLoading) {
     return (
       <div style={{ 
@@ -85,12 +88,12 @@ function App() {
     );
   }
 
-  // If no user, show Login.
+  // If no user is logged in, show the Login screen.
   if (!user) {
     return <Login />;
   }
 
-  // If user exists, render the interface.
+  // If user exists, render the Malvin Interface.
   return <MalvinInterface user={user} handleSignOut={handleSignOut} />;
 }
 
