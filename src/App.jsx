@@ -44,7 +44,7 @@ function MalvinInterface({ user, handleSignOut }) {
         <Welcomeview 
           onWakeClick={wakeMalvin} 
           isConnecting={sessionLoading} 
-          userEmail={user.email} // <--- Added this to show email on Welcome screen
+          userEmail={user?.email} // <--- Added this to show email on Welcome screen
         />
       )}
     </div>

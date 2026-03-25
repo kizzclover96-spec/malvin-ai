@@ -1,12 +1,15 @@
+import React from "react";
+
 interface WelcomeProps {
   onWakeClick: () => void;
   isConnecting: boolean;
+  userEmail: string | null | undefined; // Added to track the login state
 }
 
-function Welcomeview({ onWakeClick, isConnecting }: WelcomeProps) {
+function Welcomeview({ onWakeClick, isConnecting, userEmail }: WelcomeProps) {
   return (
     <div className="welcome" style={welcomeContainerStyle}>
-      {/* 1. Animations */}
+      {/* 1. Global Animations */}
       <style>{`
         @keyframes gradientMove {
           0% { background-position: 0% 50%; }
@@ -29,7 +32,21 @@ function Welcomeview({ onWakeClick, isConnecting }: WelcomeProps) {
         }
       `}</style>
 
-      {/* 2. Main Content */}
+      {/* 2. User Identity Badge (Top Left) */}
+      <div style={userBadgeStyle}>
+        <div style={{ 
+          width: '8px', 
+          height: '8px', 
+          borderRadius: '50%', 
+          backgroundColor: userEmail ? '#32d74b' : '#ff453a',
+          boxShadow: userEmail ? '0 0 10px #32d74b' : 'none'
+        }} />
+        <span style={userEmailTextStyle}>
+          {userEmail ? userEmail.toLowerCase() : "Not Logged In"}
+        </span>
+      </div>
+
+      {/* 3. Main Content */}
       <div className="ai-picture-container" style={{ textAlign: 'center', zIndex: 1 }}>
         <img 
           src="/Malvin self.png" 
@@ -73,7 +90,7 @@ function Welcomeview({ onWakeClick, isConnecting }: WelcomeProps) {
         </button>
       </div>
 
-      {/* 3. Support Link (Inside the return, but separate from the center container) */}
+      {/* 4. Support Link */}
       <div style={supportLinkStyle}>
         <p style={{ margin: 0 }}>
           For questions or user support: 
@@ -91,27 +108,50 @@ function Welcomeview({ onWakeClick, isConnecting }: WelcomeProps) {
         </p>
       </div>
     </div>
-  )
+  );
 }
 
 // --- Styles ---
 
 const welcomeContainerStyle: React.CSSProperties = {
-  width: '100%',             // Changed from 100vw to 100%
-  height: '100%',            // Changed from 100vh to 100%
-  position: 'fixed',         // Use fixed to "pin" it to the edges
+  width: '100%',
+  height: '100%',
+  position: 'fixed',
   top: 0,
   left: 0,
   display: 'flex',
   flexDirection: 'column',
   alignItems: 'center',
   justifyContent: 'center',
-  overflow: 'hidden',        // Clips any accidental overflow
-  touchAction: 'none',       // Prevents "rubber-banding" or dragging
+  overflow: 'hidden',
+  touchAction: 'none',
   background: 'linear-gradient(-45deg, #000000, #0a0a0a, #002b5e, #000000)',
   backgroundSize: '400% 400%',
   animation: 'gradientMove 12s ease infinite',
   fontFamily: '"Inter", sans-serif'
+};
+
+const userBadgeStyle: React.CSSProperties = {
+  position: 'absolute',
+  top: '30px',
+  left: '30px',
+  display: 'flex',
+  alignItems: 'center',
+  gap: '10px',
+  zIndex: 10,
+  padding: '8px 14px',
+  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  borderRadius: '20px',
+  backdropFilter: 'blur(10px)',
+  border: '1px solid rgba(255, 255, 255, 0.1)'
+};
+
+const userEmailTextStyle: React.CSSProperties = {
+  color: 'rgba(255, 255, 255, 0.7)',
+  fontSize: '11px',
+  fontWeight: '600',
+  letterSpacing: '0.05rem',
+  fontFamily: 'monospace'
 };
 
 const supportLinkStyle: React.CSSProperties = {
