@@ -70,7 +70,7 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
   const { localParticipant } = useLocalParticipant();
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // 1. Sync Location to Malvin's attributes
+  // 1. Sync Location
   useEffect(() => {
     if (localParticipant) {
       navigator.geolocation.getCurrentPosition((pos) => {
@@ -110,42 +110,45 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
     }
   }, [localMessages]);
 
-  // 3. Send logic using Data Packets
   const handleSendMessage = async () => {
     if (textInput.trim() && localParticipant) {
       const encoder = new TextEncoder();
       const data = encoder.encode(textInput);
-
-      await localParticipant.publishData(data, {
-        reliable: true,
-        topic: "user_input"
-      });
-
+      await localParticipant.publishData(data, { reliable: true, topic: "user_input" });
       setLocalMessages(prev => [...prev, { message: textInput, isLocal: true }]);
       setTextInput("");
     }
   };
 
-  // 4. Camera Switch Handlers
+  // 4. Camera Switch Handlers (Manual string typing to avoid SDK import error)
   const toggleCameraFacing = async () => {
     if (!localParticipant) return;
-    const newFacingMode = isBackCamera ? 'user' : 'environment';
+    
+    try {
+      const newFacingMode: 'user' | 'environment' = isBackCamera ? 'user' : 'environment';
+      
+      // Stop current track to release hardware
+      await localParticipant.setCameraEnabled(false);
+      
+      // Hardware reset delay
+      await new Promise(resolve => setTimeout(resolve, 150));
   
-    await localParticipant.setCameraEnabled(false);
+      // Restart with new constraints
+      await localParticipant.setCameraEnabled(true, {
+        facingMode: newFacingMode 
+      });
   
-    // FIX: Pass the facingMode directly inside the videoCaptureOptions object
-    await localParticipant.setCameraEnabled(true, {
-    facingMode: newFacingMode 
-    });
-  
-    setIsBackCamera(!isBackCamera);
+      setIsBackCamera(!isBackCamera);
+    } catch (err) {
+      console.error("Camera switch failed:", err);
+    }
   };
 
   const handlePressStart = () => {
     timerRef.current = setTimeout(() => {
       toggleCameraFacing();
       if (navigator.vibrate) navigator.vibrate(50);
-    }, 2000);
+    }, 800);
   };
 
   const handlePressEnd = () => {
@@ -184,7 +187,7 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
       {/* VOICE ISLAND */}
       <div style={islandContainerStyle}>
         <div style={{ pointerEvents: 'auto' }}>
-          {agent ? <MalvinVoiceIsland agent={agent} /> : <div style={connectingStyle}>CONNECTING TO MALVIN...</div>}
+          {agent ? <MalvinVoiceIsland agent={agent} /> : <div style={connectingStyle}>CONNECTING...</div>}
         </div>
       </div>
 
@@ -212,7 +215,7 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
             ...videoBoxStyle, 
             width: '80px', 
             height: '110px', 
-            transform: isBackCamera ? 'none' : 'scaleX(-1)', // Flip mirror only for front cam
+            transform: isBackCamera ? 'none' : 'scaleX(-1)', 
             pointerEvents: 'auto' 
           }}>
             <VideoTrack trackRef={localCameraTrack as any} style={{ objectFit: 'cover', width: '100%', height: '100%' }} />
@@ -270,59 +273,45 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
 const noteBtnStyle = (isOpen: boolean) => ({
   background: isOpen ? '#0a84ff' : 'rgba(30, 30, 30, 0.8)',
   border: '1px solid rgba(255,255,255,0.1)',
-  borderRadius: '12px',
-  color: 'white',
-  padding: '10px',
-  cursor: 'pointer',
-  fontSize: '18px',
-  backdropFilter: 'blur(10px)',
-  transition: 'all 0.3s ease'
+  borderRadius: '12px', color: 'white', padding: '10px',
+  cursor: 'pointer', fontSize: '18px', backdropFilter: 'blur(10px)', transition: 'all 0.3s ease'
 });
-
 const notepadBoxStyle: React.CSSProperties = {
   position: 'absolute', top: '55px', left: 0, width: '280px', maxHeight: '400px',
   backgroundColor: '#fffbe6', color: '#333', borderRadius: '12px', padding: '15px',
   boxShadow: '0 10px 30px rgba(0,0,0,0.5)', zIndex: 120, overflowY: 'auto',
   fontFamily: 'monospace', border: '1px solid #e6dbac'
 };
-
 const islandContainerStyle: React.CSSProperties = {
   position: 'absolute', top: 0, left: 0, right: 0, paddingTop: '20px',
   display: 'flex', justifyContent: 'center', zIndex: 100, pointerEvents: 'none',
 };
-
 const chatAreaStyle: React.CSSProperties = {
   position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, overflowY: 'auto',
   display: 'flex', flexDirection: 'column', gap: '12px', padding: '110px 20px 140px 20px',
   scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch', zIndex: 50
 };
-
 const bubbleStyle = (isLocal: boolean): React.CSSProperties => ({
   alignSelf: isLocal ? 'flex-end' : 'flex-start',
   backgroundColor: isLocal ? '#1c1c1e' : '#0a84ff',
   color: 'white', padding: '12px 16px', borderRadius: isLocal ? '18px 18px 2px 18px' : '18px 18px 18px 2px',
   maxWidth: '85%', fontSize: '15px', boxShadow: '0 2px 8px rgba(0,0,0,0.3)', whiteSpace: 'pre-wrap'
 });
-
 const inputStyle: React.CSSProperties = {
   flex: 1, backgroundColor: 'transparent', border: 'none', color: 'white', outline: 'none', padding: '0 10px', fontSize: '16px'
 };
-
 const pillContainerStyle: React.CSSProperties = {
   pointerEvents: 'auto', width: '92%', maxWidth: '480px', minHeight: '64px',
   backgroundColor: 'rgba(30, 30, 30, 0.9)', backdropFilter: 'blur(20px)', borderRadius: '32px',
   display: 'flex', alignItems: 'center', padding: '0 12px', border: '1px solid rgba(255,255,255,0.1)',
   boxShadow: '0 15px 35px rgba(0,0,0,0.5)',
 };
-
 const bottomControlsWrapper: React.CSSProperties = {
   position: 'absolute', bottom: '40px', left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 100, pointerEvents: 'none'
 };
-
 const videoOverlayStyle: React.CSSProperties = {
   position: 'absolute', top: '100px', right: '16px', display: 'flex', flexDirection: 'column', gap: '10px', zIndex: 60, pointerEvents: 'none'
 };
-
 const btnStyle = { background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', padding: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' };
 const dividerStyle = { width: '1px', height: '24px', backgroundColor: 'rgba(255,255,255,0.1)', margin: '0 8px' };
 const videoBoxStyle = { borderRadius: '16px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)', backgroundColor: '#111', boxShadow: '0 8px 20px rgba(0,0,0,0.4)' };
