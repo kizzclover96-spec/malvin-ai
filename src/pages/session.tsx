@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ParticipantKind, Track } from 'livekit-client';
+import { ParticipantKind, Track, createLocalVideoTrack } from 'livekit-client';
 import {
   LiveKitRoom,
   RoomAudioRenderer,
@@ -20,145 +20,246 @@ interface SessionProps {
   userEmail: string;
 }
 
-// --- MALVIN FACE ---
-function MalvinFace({ isSpeaking }: { isSpeaking: boolean }) {
-  const [isBlinking, setIsBlinking] = useState(false);
-  useEffect(() => {
-    const i = setInterval(() => {
-      setIsBlinking(true);
-      setTimeout(() => setIsBlinking(false), 200);
-    }, 6000);
-    return () => clearInterval(i);
-  }, []);
+// --- VOICE ISLAND ---
+function MalvinVoiceIsland({ agent }: { agent: any }) {
+  const isAgentSpeaking = useIsSpeaking(agent);
 
   return (
     <div style={{
-      width: '120px', height: '120px', borderRadius: '50%', background: '#000',
-      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-      border: '3px solid #333', boxShadow: isSpeaking ? '0 0 30px #0a84ff' : 'none',
-      transition: 'all 0.3s ease', position: 'relative'
+      minWidth: '180px',
+      height: '54px',
+      backgroundColor: 'rgba(20,20,20,0.95)',
+      borderRadius: '27px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '0 20px',
+      border: '1px solid rgba(255,255,255,0.15)',
+      opacity: isAgentSpeaking ? 1 : 0.8,
     }}>
-      <div style={{ display: 'flex', gap: '20px', marginBottom: '10px' }}>
-        <div style={{ width: '10px', height: isBlinking ? '2px' : '10px', background: '#fff', borderRadius: '2px' }} />
-        <div style={{ width: '10px', height: isBlinking ? '2px' : '10px', background: '#fff', borderRadius: '2px' }} />
-      </div>
-      <div style={{ width: '25px', height: '2px', background: 'rgba(255,255,255,0.4)' }} />
+      <BarVisualizer
+        trackRef={{
+          participant: agent,
+          source: Track.Source.Microphone,
+          publication: agent.getTrackPublication(Track.Source.Microphone)
+        }}
+        style={{ width: '80px', height: '24px' }}
+      />
     </div>
   );
 }
 
-// --- MAIN STAGE ---
+// --- MAIN UI ---
 function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
   const [textInput, setTextInput] = useState("");
   const [localMessages, setLocalMessages] = useState<any[]>([]);
   const [isBackCamera, setIsBackCamera] = useState(false);
-  const timerRef = useRef<any>(null);
 
+  const timerRef = useRef<any>(null);
   const agent = useRemoteParticipant({ kind: ParticipantKind.AGENT });
-  const isAgentSpeaking = useIsSpeaking(agent);
   const { chatMessages } = useChat();
   const { localParticipant } = useLocalParticipant();
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const tracks = useTracks([{ source: Track.Source.Camera, withPlaceholder: false }]);
-  const localCameraTrack = tracks.find(t => t.participant.isLocal && t.source === Track.Source.Camera);
-  const isCameraEnabled = localParticipant?.isCameraEnabled ?? false;
+  // TRACKS (FIXED ERROR HERE)
+  const tracks = useTracks([
+    { source: Track.Source.Camera, withPlaceholder: true },
+    { source: Track.Source.ScreenShare, withPlaceholder: false }
+  ]);
 
+  const localCameraTrack = tracks.find(
+    t => t.participant.isLocal && t.source === Track.Source.Camera
+  );
+
+  // CHAT SYNC
   useEffect(() => {
     const last = chatMessages[chatMessages.length - 1];
-    if (last) setLocalMessages(prev => [...prev, { message: last.message, isLocal: last.from?.isLocal || false }]);
+    if (last) {
+      setLocalMessages(prev => [...prev, {
+        message: last.message,
+        isLocal: last.from?.isLocal || false
+      }]);
+    }
   }, [chatMessages]);
 
+  // AUTO SCROLL
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+    scrollRef.current?.scrollTo({
+      top: scrollRef.current.scrollHeight,
+      behavior: 'smooth'
+    });
   }, [localMessages]);
 
+  // SEND MESSAGE
   const handleSendMessage = async () => {
     if (!textInput.trim() || !localParticipant) return;
+
     const data = new TextEncoder().encode(textInput);
-    await localParticipant.publishData(data, { reliable: true, topic: "user_input" });
+
+    await localParticipant.publishData(data, {
+      reliable: true,
+      topic: "user_input"
+    });
+
     setLocalMessages(prev => [...prev, { message: textInput, isLocal: true }]);
     setTextInput("");
   };
 
-  const toggleCamera = async () => {
+  // 🔥 GET CAMERAS
+  const getCameraDevices = async () => {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    return devices.filter(d => d.kind === 'videoinput');
+  };
+
+  // 🔥 REAL CAMERA SWITCH (WORKING)
+  const toggleCameraFacing = async () => {
     if (!localParticipant) return;
-    const nextState = !isCameraEnabled;
-    await localParticipant.setCameraEnabled(nextState, { facingMode: isBackCamera ? 'environment' : 'user' });
+
+    try {
+      const devices = await getCameraDevices();
+
+      if (devices.length < 2) {
+        console.warn("Only one camera found");
+        return;
+      }
+
+      // smarter selection (find back camera if possible)
+      const backCam = devices.find(d =>
+        d.label.toLowerCase().includes('back')
+      );
+
+      const frontCam = devices.find(d =>
+        d.label.toLowerCase().includes('front')
+      );
+
+      const newDevice = isBackCamera
+        ? (frontCam || devices[0])
+        : (backCam || devices[1]);
+
+      const newTrack = await createLocalVideoTrack({
+        deviceId: { exact: newDevice.deviceId }
+      });
+
+      // remove old track
+      const camPub = Array.from(localParticipant.videoTrackPublications.values())
+        .find(pub => pub.source === Track.Source.Camera);
+
+      if (camPub?.track) {
+        await localParticipant.unpublishTrack(camPub.track);
+        camPub.track.stop();
+      }
+
+      // publish new
+      await localParticipant.publishTrack(newTrack);
+
+      setIsBackCamera(!isBackCamera);
+
+    } catch (err) {
+      console.error("Camera switch failed:", err);
+    }
+  };
+
+  // HOLD TO SWITCH
+  const handlePressStart = () => {
+    timerRef.current = setTimeout(() => {
+      toggleCameraFacing();
+      navigator.vibrate?.(50);
+    }, 500);
+  };
+
+  const handlePressEnd = () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
   };
 
   return (
-    <div style={{ 
-      position: 'fixed', inset: 0, backgroundColor: '#000', color: '#fff',
-      display: 'flex', flexDirection: 'column', overflow: 'hidden' 
-    }}>
-      
-      {/* CAMERA LAYER (Absolute Background) */}
-      {isCameraEnabled && localCameraTrack && (
-        <div style={{ 
-          position: 'absolute', inset: 0, zIndex: 1, 
-          transform: isBackCamera ? 'none' : 'scaleX(-1)' 
+    <div style={{ position: 'fixed', inset: 0, background: '#000' }}>
+
+      {/* VOICE */}
+      <div style={{ position: 'absolute', top: 20, width: '100%', display: 'flex', justifyContent: 'center' }}>
+        {agent && <MalvinVoiceIsland agent={agent} />}
+      </div>
+
+      {/* CHAT */}
+      <div ref={scrollRef} style={{ padding: 20, marginTop: 100, overflowY: 'auto', height: '70%' }}>
+        {localMessages.map((msg, i) => (
+          <div key={i} style={{
+            background: msg.isLocal ? '#1c1c1e' : '#0a84ff',
+            color: '#fff',
+            padding: 10,
+            borderRadius: 10,
+            marginBottom: 10,
+            alignSelf: msg.isLocal ? 'flex-end' : 'flex-start'
+          }}>
+            {msg.message}
+          </div>
+        ))}
+      </div>
+
+      {/* CAMERA PREVIEW */}
+      {localCameraTrack && (
+        <div style={{
+          position: 'absolute',
+          right: 20,
+          top: 120,
+          width: 90,
+          height: 120,
+          overflow: 'hidden',
+          borderRadius: 12,
+          transform: isBackCamera ? 'none' : 'scaleX(-1)'
         }}>
-          <VideoTrack trackRef={localCameraTrack as any} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)' }} />
+          <VideoTrack trackRef={localCameraTrack as any} />
         </div>
       )}
 
-      {/* UI LAYER (Foreground) */}
-      <div style={{ position: 'relative', zIndex: 10, flex: 1, display: 'flex', flexDirection: 'column', height: '100%' }}>
-        
-        {/* Header */}
-        <div style={{ padding: '40px 20px', display: 'flex', justifyContent: 'center' }}>
-          {isCameraEnabled ? (
-            <MalvinFace isSpeaking={isAgentSpeaking} />
-          ) : (
-            agent && (
-              <div style={{ background: 'rgba(30,30,30,0.8)', padding: '15px 25px', borderRadius: '30px', border: '1px solid #444' }}>
-                <BarVisualizer 
-                  trackRef={{ participant: agent, source: Track.Source.Microphone, publication: agent.getTrackPublication(Track.Source.Microphone) }} 
-                  style={{ width: '80px', height: '20px' }} 
-                />
-              </div>
-            )
-          )}
-        </div>
+      {/* CONTROLS */}
+      <div style={{
+        position: 'absolute',
+        bottom: 30,
+        width: '100%',
+        display: 'flex',
+        justifyContent: 'center'
+      }}>
+        <div style={{
+          display: 'flex',
+          gap: 10,
+          background: '#222',
+          padding: 10,
+          borderRadius: 30
+        }}>
+          <button onClick={onDisconnect}>❌</button>
 
-        {/* Chat */}
-        <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', padding: '0 20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {localMessages.map((msg, i) => (
-            <div key={i} style={{
-              alignSelf: msg.isLocal ? 'flex-end' : 'flex-start',
-              background: msg.isLocal ? '#333' : '#0a84ff',
-              padding: '10px 15px', borderRadius: '15px', maxWidth: '80%'
-            }}>{msg.message}</div>
-          ))}
-        </div>
+          <button
+            onMouseDown={handlePressStart}
+            onMouseUp={handlePressEnd}
+            onMouseLeave={handlePressEnd}
+            onTouchStart={handlePressStart}
+            onTouchEnd={handlePressEnd}
+          >
+            📷
+          </button>
 
-        {/* Controls */}
-        <div style={{ padding: '20px', display: 'flex', justifyContent: 'center' }}>
-          <div style={{ 
-            width: '100%', maxWidth: '400px', background: '#1c1c1e', 
-            borderRadius: '25px', display: 'flex', alignItems: 'center', padding: '5px 15px' 
-          }}>
-            <button onClick={onDisconnect} style={{ background: 'none', border: 'none', padding: '10px' }}>❌</button>
-            <button onClick={toggleCamera} style={{ background: 'none', border: 'none', fontSize: '20px', color: isCameraEnabled ? '#0a84ff' : '#666' }}>📷</button>
-            <input 
-              placeholder="Message Malvin..."
-              value={textInput}
-              onChange={e => setTextInput(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleSendMessage()}
-              style={{ flex: 1, background: 'none', border: 'none', color: '#fff', padding: '10px', outline: 'none' }}
-            />
-          </div>
+          <input
+            value={textInput}
+            onChange={e => setTextInput(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleSendMessage()}
+          />
         </div>
       </div>
     </div>
   );
 }
 
+// --- ROOT ---
 export default function Session({ token, serverUrl, onDisconnect }: SessionProps) {
   return (
-    <LiveKitRoom token={token} serverUrl={serverUrl} connect={true} audio={true} video={false} onDisconnected={onDisconnect}>
+    <LiveKitRoom
+      token={token}
+      serverUrl={serverUrl}
+      connect
+      audio
+      video
+      onDisconnected={onDisconnect}
+    >
       <LayoutContextProvider>
         <RoomAudioRenderer />
         <VideoStage onDisconnect={onDisconnect} />
