@@ -6,7 +6,6 @@ import {
   useRemoteParticipant,
   useIsSpeaking,
   LayoutContextProvider,
-  useChat,
   useLocalParticipant,
   useConnectionState
 } from '@livekit/components-react';
@@ -94,26 +93,30 @@ function VideoStage({ onDisconnect }: any) {
   const localParticipant = useLocalParticipant();
   const connectionState = useConnectionState();
 
-  const { chatMessages } = useChat() || {}; // ✅ SAFE
-
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const speaking = agent ? useIsSpeaking(agent) : false;
 
-  // ✅ SAFE CHAT HANDLING
+  // ✅ RECEIVE DATA MANUALLY (instead of useChat)
   useEffect(() => {
-    if (!chatMessages || chatMessages.length === 0) return;
+    if (!agent) return;
 
-    const last = chatMessages[chatMessages.length - 1];
+    const handleData = (payload: Uint8Array) => {
+      const msg = new TextDecoder().decode(payload);
 
-    if (!last?.from?.isLocal) {
       setThinking(false);
       setMessages(prev => [...prev, {
-        message: last.message,
+        message: msg,
         isLocal: false
       }]);
-    }
-  }, [chatMessages]);
+    };
+
+    agent.on("dataReceived", handleData);
+
+    return () => {
+      agent.off("dataReceived", handleData);
+    };
+  }, [agent]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({
@@ -125,7 +128,6 @@ function VideoStage({ onDisconnect }: any) {
   const send = async () => {
     if (!text.trim()) return;
 
-    // ❌ DO NOT SEND if not connected
     if (connectionState !== "connected") {
       console.warn("⚠️ Not connected yet");
       return;
@@ -153,7 +155,6 @@ function VideoStage({ onDisconnect }: any) {
     }
   };
 
-  // ✅ LOADING SCREEN
   if (!localParticipant || connectionState !== "connected") {
     return (
       <div style={{
@@ -178,7 +179,6 @@ function VideoStage({ onDisconnect }: any) {
       flexDirection: "column"
     }}>
 
-      {/* FACE */}
       <div style={{
         position: "absolute",
         top: 40,
@@ -189,7 +189,6 @@ function VideoStage({ onDisconnect }: any) {
         {agent && <MalvinFace speaking={speaking} />}
       </div>
 
-      {/* CHAT */}
       <div
         ref={scrollRef}
         style={{
@@ -216,7 +215,6 @@ function VideoStage({ onDisconnect }: any) {
         {thinking && <div style={{ color: "#888" }}>Malvin is thinking...</div>}
       </div>
 
-      {/* INPUT */}
       <div style={{ padding: 20 }}>
         <div style={{
           display: "flex",
