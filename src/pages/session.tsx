@@ -5,7 +5,6 @@ import {
   RoomAudioRenderer,
   useRemoteParticipant,
   useIsSpeaking,
-  LayoutContextProvider,
   useLocalParticipant,
   useConnectionState
 } from '@livekit/components-react';
@@ -19,7 +18,7 @@ class ErrorBoundary extends React.Component<any, { hasError: boolean }> {
     if (this.state.hasError) {
       return (
         <div style={{ color: "#fff", background: "#000", height: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          UI Error. Please refresh.
+          Critical Error. Please Refresh.
         </div>
       );
     }
@@ -50,17 +49,15 @@ function MalvinFace({ speaking }: { speaking: boolean }) {
     }}>
       <style>{`@keyframes spin { 0% { background-position: 0% } 100% { background-position: 200% } }`}</style>
       <div style={{ display: "flex", gap: 20, marginBottom: 10 }}>
-        <div style={{ width: 12, height: blink ? 2 : 12, background: "#fff" }} />
-        <div style={{ width: 12, height: blink ? 2 : 12, background: "#fff" }} />
+        <div style={{ width: 12, height: blink ? 2 : 12, background: "#fff", transition: 'height 0.1s' }} />
+        <div style={{ width: 12, height: blink ? 2 : 12, background: "#fff", transition: 'height 0.1s' }} />
       </div>
     </div>
   );
 }
 
-// ---------------- ACTIVE SESSION CONTENT ----------------
-// We pull all LiveKit hooks into THIS component. 
-// It ONLY renders when connectionState === 'connected'.
-function ActiveStage({ onDisconnect }: { onDisconnect: () => void }) {
+// ---------------- ACTUAL CHAT LOGIC ----------------
+function ActiveSession({ onDisconnect }: { onDisconnect: () => void }) {
   const [text, setText] = useState("");
   const [messages, setMessages] = useState<any[]>([]);
   const [thinking, setThinking] = useState(false);
@@ -68,8 +65,6 @@ function ActiveStage({ onDisconnect }: { onDisconnect: () => void }) {
 
   const { localParticipant } = useLocalParticipant();
   const agent = useRemoteParticipant({ kind: ParticipantKind.AGENT });
-  
-  // hook is safe here because this component only mounts when connected
   const speaking = agent ? useIsSpeaking(agent) : false;
 
   useEffect(() => {
@@ -95,9 +90,7 @@ function ActiveStage({ onDisconnect }: { onDisconnect: () => void }) {
       await localParticipant.publishData(data, { reliable: true, topic: "user_input" });
       setMessages(prev => [...prev, { message: text, isLocal: true }]);
       setText("");
-    } catch (err) {
-      setThinking(false);
-    }
+    } catch (err) { setThinking(false); }
   };
 
   return (
@@ -107,6 +100,7 @@ function ActiveStage({ onDisconnect }: { onDisconnect: () => void }) {
       </div>
 
       <div ref={scrollRef} style={{ flex: 1, marginTop: 220, padding: 20, overflowY: "auto", display: 'flex', flexDirection: 'column' }}>
+        <div style={{ flex: 1 }} />
         {messages.map((m, i) => (
           <div key={i} style={{
             marginBottom: 10, alignSelf: m.isLocal ? "flex-end" : "flex-start",
@@ -114,17 +108,16 @@ function ActiveStage({ onDisconnect }: { onDisconnect: () => void }) {
             padding: "10px 14px", borderRadius: 14, color: "#fff", maxWidth: "75%"
           }}>{m.message}</div>
         ))}
-        {thinking && <div style={{ color: "#888" }}>Thinking...</div>}
+        {thinking && <div style={{ color: "#888", fontSize: '14px' }}>Thinking...</div>}
       </div>
 
       <div style={{ padding: 20 }}>
         <div style={{ display: "flex", gap: 10, background: "rgba(40,40,40,0.8)", padding: 10, borderRadius: 30 }}>
           <input 
-             value={text} 
-             onChange={e => setText(e.target.value)} 
-             onKeyDown={e => e.key === "Enter" && send()}
-             placeholder="Message..." 
-             style={{ flex: 1, background: "transparent", border: "none", color: "#fff", outline: "none" }} 
+            value={text} onChange={e => setText(e.target.value)} 
+            onKeyDown={e => e.key === "Enter" && send()} 
+            placeholder="Message..." 
+            style={{ flex: 1, background: "transparent", border: "none", color: "#fff", outline: "none" }} 
           />
           <button onClick={send} style={{ background: 'none', border: 'none', color: '#0a84ff', fontSize: '20px' }}>➤</button>
           <button onClick={onDisconnect} style={{ background: 'none', border: 'none' }}>❌</button>
@@ -134,20 +127,19 @@ function ActiveStage({ onDisconnect }: { onDisconnect: () => void }) {
   );
 }
 
-// ---------------- GATEKEEPER ----------------
-function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
-  const connectionState = useConnectionState();
-
-  if (connectionState !== "connected") {
+// ---------------- LOADING GUARD ----------------
+function ConnectionGuard({ onDisconnect }: { onDisconnect: () => void }) {
+  const state = useConnectionState();
+  
+  if (state !== "connected") {
     return (
       <div style={{ color: "#fff", background: "#000", height: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        Connecting to Malvin...
+        {state === 'connecting' ? 'Connecting to Malvin...' : 'Finalizing...'}
       </div>
     );
   }
 
-  // Only render the components with hooks once connected
-  return <ActiveStage onDisconnect={onDisconnect} />;
+  return <ActiveSession onDisconnect={onDisconnect} />;
 }
 
 // ---------------- ROOT ----------------
@@ -162,10 +154,8 @@ export default function Session(props: any) {
         video={false}
         onDisconnected={props.onDisconnect}
       >
-        <LayoutContextProvider>
-          <RoomAudioRenderer />
-          <VideoStage onDisconnect={props.onDisconnect} />
-        </LayoutContextProvider>
+        <RoomAudioRenderer />
+        <ConnectionGuard onDisconnect={props.onDisconnect} />
       </LiveKitRoom>
     </ErrorBoundary>
   );
