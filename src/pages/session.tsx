@@ -10,6 +10,7 @@ import {
   LayoutContextProvider,
   useChat,
   useLocalParticipant,
+  useTranscription, // Added this
 } from '@livekit/components-react';
 
 interface SessionProps {
@@ -18,7 +19,7 @@ interface SessionProps {
   onDisconnect: () => void;
 }
 
-// --- 1. STYLES (Defined at top to prevent Rollup build errors) ---
+// --- 1. STYLES ---
 const pulseStyle: CSSProperties = { position: 'absolute', bottom: '8px', width: '24px', height: '2px', background: '#0a84ff', borderRadius: '2px', animation: 'malvin-pulse 1.5s infinite' };
 const cameraCloseBtnStyle: CSSProperties = { position: 'absolute', bottom: '110px', right: '30px', width: '44px', height: '44px', borderRadius: '22px', backgroundColor: 'rgba(255, 69, 58, 0.8)', color: 'white', border: 'none', fontSize: '18px', cursor: 'pointer', backdropFilter: 'blur(5px)', zIndex: 100, pointerEvents: 'auto' };
 const noteBtnStyle = (isOpen: boolean) => ({ background: isOpen ? '#0a84ff' : 'rgba(30, 30, 30, 0.6)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: 'white', padding: '10px', cursor: 'pointer', backdropFilter: 'blur(10px)' });
@@ -112,11 +113,33 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
   const { localParticipant } = useLocalParticipant();
   const isUserSpeaking = useIsSpeaking(localParticipant);
 
+  // --- TRANSCRIPTION LOGIC ---
+  const agentTranscriptions = useTranscription(agent);
+  const userTranscriptions = useTranscription(localParticipant);
+
   const resetInactivity = () => {
     setIsSleeping(false);
     if (sleepTimer.current) clearTimeout(sleepTimer.current);
     sleepTimer.current = setTimeout(() => setIsSleeping(true), 60000);
   };
+
+  // Listen for AI Voice
+  useEffect(() => {
+    const latest = agentTranscriptions[agentTranscriptions.length - 1];
+    if (latest?.text && (latest.isFinal || (latest as any).is_final)) {
+      setLocalMessages(prev => [...prev.slice(-15), { message: latest.text, isLocal: false }]);
+      resetInactivity();
+    }
+  }, [agentTranscriptions]);
+
+  // Listen for User Voice
+  useEffect(() => {
+    const latest = userTranscriptions[userTranscriptions.length - 1];
+    if (latest?.text && (latest.isFinal || (latest as any).is_final)) {
+      setLocalMessages(prev => [...prev.slice(-15), { message: latest.text, isLocal: true }]);
+      resetInactivity();
+    }
+  }, [userTranscriptions]);
 
   useEffect(() => {
     if (isUserSpeaking || (agent && agent.isSpeaking) || chatMessages.length > 0) {
@@ -131,7 +154,13 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
     if (chatMessages.length === 0) return;
     const lastMessage = chatMessages[chatMessages.length - 1];
     if (lastMessage) {
-      setLocalMessages(prev => [...prev.slice(-15), { message: lastMessage.message, isLocal: lastMessage.from?.isLocal || false }]);
+      // Avoid duplicating messages if voice transcription already added it
+      setLocalMessages(prev => {
+        const isDuplicate = prev.length > 0 && prev[prev.length - 1].message === lastMessage.message;
+        if (isDuplicate) return prev;
+        return [...prev.slice(-15), { message: lastMessage.message, isLocal: lastMessage.from?.isLocal || false }];
+      });
+
       if (!lastMessage.from?.isLocal) {
         if (lastMessage.message.includes("?")) {
           setIsConfused(true);
@@ -181,7 +210,7 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
         </div>
       )}
 
-      {/* --- BACKGROUND CHAT LOG (The context you asked for) --- */}
+      {/* --- BACKGROUND CHAT LOG --- */}
       <div ref={scrollRef} style={chatAreaStyle}>
         <div style={{ maxWidth: '600px', margin: '0 auto', width: '100%', pointerEvents: 'none' }}>
           {localMessages.map((msg, i) => (
