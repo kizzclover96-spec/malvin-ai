@@ -20,10 +20,21 @@ interface SessionProps {
 
 // --- 1. MALVIN BOX EYES ISLAND ---
 function MalvinVoiceIsland({ agent, isSleeping, isConfused }: { agent: any, isSleeping: boolean, isConfused: boolean }) {
-  // Pass agent explicitly to avoid context errors
   const isAgentSpeaking = useIsSpeaking(agent);
   const [blink, setBlink] = useState(false);
+  const [isWaking, setIsWaking] = useState(false);
+  const prevSleeping = useRef(isSleeping);
 
+  // Waking Up Logic
+  useEffect(() => {
+    if (prevSleeping.current === true && isSleeping === false) {
+      setIsWaking(true);
+      setTimeout(() => setIsWaking(false), 600);
+    }
+    prevSleeping.current = isSleeping;
+  }, [isSleeping]);
+
+  // Blink Logic
   useEffect(() => {
     if (isSleeping) return;
     const blinkInterval = setInterval(() => {
@@ -42,16 +53,14 @@ function MalvinVoiceIsland({ agent, isSleeping, isConfused }: { agent: any, isSl
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       border: '1px solid rgba(255,255,255,0.15)',
       transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-      transform: isAgentSpeaking ? 'scale(1.1)' : 'scale(1)',
+      transform: isWaking ? 'scale(1.2)' : (isAgentSpeaking ? 'scale(1.1)' : 'scale(1)'),
       boxShadow: isAgentSpeaking ? '0 0 25px rgba(10, 132, 255, 0.4)' : '0 4px 15px rgba(0,0,0,0.5)',
       position: 'relative'
     }}>
-      {/* Confusion indicator */}
       {isConfused && !isAgentSpeaking && !isSleeping && (
         <div style={{ position: 'absolute', right: '-15px', top: '-5px', color: '#ffcc00', fontSize: '20px', fontWeight: 'bold' }}>?</div>
       )}
 
-      {/* Sleeping indicator */}
       {isSleeping && (
         <div style={{ position: 'absolute', top: '-15px', right: '5px' }}>
           <div className="zzz" style={{ animationDelay: '0s' }}>z</div>
@@ -67,7 +76,12 @@ function MalvinVoiceIsland({ agent, isSleeping, isConfused }: { agent: any, isSl
           height={isSleeping || blink ? "2" : (isConfused ? "12" : (isAgentSpeaking ? "16" : "10"))} 
           rx="1" 
           fill="white" 
-          style={{ transition: 'all 0.1s ease-out', transform: isConfused ? 'rotate(-10deg)' : 'none', transformOrigin: 'center' }} 
+          style={{ 
+            transition: 'all 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275)', 
+            opacity: isSleeping ? 0.3 : 1,
+            transform: isWaking ? 'scale(1.4)' : (isConfused ? 'rotate(-10deg)' : 'none'), 
+            transformOrigin: 'center' 
+          }} 
         />
         <rect 
           x="38" 
@@ -76,14 +90,19 @@ function MalvinVoiceIsland({ agent, isSleeping, isConfused }: { agent: any, isSl
           height={isSleeping || blink ? "2" : (isConfused ? "12" : (isAgentSpeaking ? "16" : "10"))} 
           rx="1" 
           fill="white" 
-          style={{ transition: 'all 0.1s ease-out', transform: isConfused ? 'rotate(10deg)' : 'none', transformOrigin: 'center' }} 
+          style={{ 
+            transition: 'all 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275)', 
+            opacity: isSleeping ? 0.3 : 1,
+            transform: isWaking ? 'scale(1.4)' : (isConfused ? 'rotate(10deg)' : 'none'), 
+            transformOrigin: 'center' 
+          }} 
         />
       </svg>
       {isAgentSpeaking && <div style={pulseStyle} />}
       <style>{` 
         @keyframes malvin-pulse { 0% { opacity: 0.3; transform: scaleX(0.8); } 50% { opacity: 1; transform: scaleX(1.3); } 100% { opacity: 0.3; transform: scaleX(0.8); } } 
         @keyframes zzz-float { 0% { opacity: 0; transform: translateY(0); } 50% { opacity: 1; } 100% { opacity: 0; transform: translateY(-20px) translateX(10px); } }
-        .zzz { position: absolute; animation: zzz-float 3s infinite; color: #0a84ff; font-weight: bold; font-size: 12px; pointer-events: none; }
+        .zzz { position: absolute; animation: zzz-float 3s infinite; color: #0a84ff; font-weight: bold; font-size: 14px; pointer-events: none; }
       `}</style>
     </div>
   );
@@ -97,7 +116,6 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
   const [localMessages, setLocalMessages] = useState<{message: string, isLocal: boolean}[]>([]);
   const [isBackCamera, setIsBackCamera] = useState(false);
   
-  // Expression States
   const [isSleeping, setIsSleeping] = useState(false);
   const [isConfused, setIsConfused] = useState(false);
   const sleepTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -109,15 +127,14 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
   const { chatMessages = [] } = useChat(); 
   const { localParticipant } = useLocalParticipant();
 
-  // Reset inactivity timer
-  const pokeMalvin = () => {
+  const resetInactivity = () => {
     setIsSleeping(false);
     if (sleepTimer.current) clearTimeout(sleepTimer.current);
-    sleepTimer.current = setTimeout(() => setIsSleeping(true), 60000); // 1 minute
+    sleepTimer.current = setTimeout(() => setIsSleeping(true), 60000);
   };
 
   useEffect(() => {
-    pokeMalvin();
+    resetInactivity();
     return () => { if (sleepTimer.current) clearTimeout(sleepTimer.current); };
   }, [chatMessages]);
 
@@ -143,16 +160,11 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
     const lastMessage = chatMessages[chatMessages.length - 1];
     if (lastMessage) {
       setLocalMessages(prev => [...prev, { message: lastMessage.message, isLocal: lastMessage.from?.isLocal || false }]);
-      
-      // Agent-only reactions
       if (!lastMessage.from?.isLocal) {
-        // Confusion logic
         if (lastMessage.message.includes("?")) {
           setIsConfused(true);
-          setTimeout(() => setIsConfused(false), 4000);
+          setTimeout(() => setIsConfused(false), 4500);
         }
-
-        // Note syncing
         if (lastMessage.message.includes("NOTE:")) {
           const noteContent = lastMessage.message.split("NOTE:")[1].trim();
           setNotes(prev => prev.includes(noteContent) ? prev : [...prev, noteContent]);
@@ -172,7 +184,7 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
       await localParticipant.publishData(data, { reliable: true, topic: "user_input" });
       setLocalMessages(prev => [...prev, { message: textInput, isLocal: true }]);
       setTextInput("");
-      pokeMalvin();
+      resetInactivity();
     }
   };
 
@@ -194,7 +206,6 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
 
   return (
     <div style={{ position: 'fixed', inset: 0, backgroundColor: '#000', color: '#fff' }}>
-      
       {localParticipant?.isCameraEnabled && localCameraTrack && (
         <div style={{ position: 'absolute', inset: 0, zIndex: 0, transform: isBackCamera ? 'none' : 'scaleX(-1)' }}>
           <VideoTrack trackRef={localCameraTrack as any} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -220,7 +231,6 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
           </div>
           
           <div style={{ pointerEvents: 'auto' }}>
-            {/* Conditional check prevents useIsSpeaking from crashing before agent is ready */}
             {agent ? (
               <MalvinVoiceIsland agent={agent} isSleeping={isSleeping} isConfused={isConfused} />
             ) : (
@@ -244,13 +254,10 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
           <div style={pillContainerStyle}>
             <button onClick={onDisconnect} style={{...btnStyle, color: '#ff453a'}}>✕</button>
             <div style={dividerStyle} />
-            
             <button onClick={() => localParticipant?.setMicrophoneEnabled(!localParticipant.isMicrophoneEnabled)} style={{...btnStyle, color: localParticipant?.isMicrophoneEnabled ? '#32d74b' : '#636366'}}>
               {localParticipant?.isMicrophoneEnabled ? '🎙️' : '🔇'}
             </button>
-
             <input placeholder="Message Malvin..." value={textInput} onChange={(e) => setTextInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} style={inputStyle} />
-
             {textInput.trim().length > 0 ? (
                <button onClick={handleSendMessage} style={{ ...btnStyle, color: '#0a84ff', fontSize: '12px', fontWeight: 'bold' }}>SEND</button>
             ) : (
