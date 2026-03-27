@@ -13,13 +13,29 @@ import {
 // ---------------- ERROR BOUNDARY ----------------
 class ErrorBoundary extends React.Component<any, { hasError: boolean }> {
   state = { hasError: false };
-  static getDerivedStateFromError() { return { hasError: true }; }
-  componentDidCatch(err: any) { console.error(err); }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: any) {
+    console.error("🔥 UI Crash:", error);
+  }
+
   render() {
     if (this.state.hasError) {
-      return <div style={{ color: "#fff", background: "#000", height: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        Something broke. Reload.
-      </div>;
+      return (
+        <div style={{
+          color: "#fff",
+          background: "#000",
+          height: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center"
+        }}>
+          Something broke. Reload.
+        </div>
+      );
     }
     return this.props.children;
   }
@@ -50,7 +66,7 @@ function WaveBars({ active }: { active: boolean }) {
 }
 
 // ---------------- AI FACE ----------------
-function MalvinFace({ speaking, thinking }: { speaking: boolean, thinking: boolean }) {
+function MalvinFace({ speaking, thinking }: { speaking: boolean; thinking: boolean }) {
   const [blink, setBlink] = useState(false);
 
   useEffect(() => {
@@ -84,87 +100,159 @@ function MalvinFace({ speaking, thinking }: { speaking: boolean, thinking: boole
       boxShadow: glow,
       transition: "0.3s"
     }}>
-      <style>{`@keyframes spin {0%{background-position:0%}100%{background-position:200%}}`}</style>
+      <style>{`
+        @keyframes spin {
+          0% { background-position: 0% }
+          100% { background-position: 200% }
+        }
+      `}</style>
 
       <div>
+        {/* Eyes */}
         <div style={{ display: "flex", gap: 20, justifyContent: "center", marginBottom: 10 }}>
-          <div style={{ width: 12, height: blink ? 2 : 12, background: "#fff", transition: "0.1s" }} />
-          <div style={{ width: 12, height: blink ? 2 : 12, background: "#fff", transition: "0.1s" }} />
+          <div style={{
+            width: 12,
+            height: blink ? 2 : 12,
+            background: "#fff",
+            transition: "0.1s"
+          }} />
+          <div style={{
+            width: 12,
+            height: blink ? 2 : 12,
+            background: "#fff",
+            transition: "0.1s"
+          }} />
         </div>
 
+        {/* Mouth / Wave */}
         {speaking ? (
           <WaveBars active />
         ) : (
-          <div style={{ width: 30, height: 2, background: "#aaa", margin: "0 auto" }} />
+          <div style={{
+            width: 30,
+            height: 2,
+            background: "#aaa",
+            margin: "0 auto"
+          }} />
         )}
       </div>
     </div>
   );
 }
 
-// ---------------- MAIN ----------------
+// ---------------- MAIN UI ----------------
 function VideoStage({ onDisconnect }: any) {
   const [text, setText] = useState("");
   const [messages, setMessages] = useState<any[]>([]);
   const [thinking, setThinking] = useState(false);
 
   const agent = useRemoteParticipant({ kind: ParticipantKind.AGENT });
+
+  // ✅ Correct hook usage
+  const localParticipant = useLocalParticipant();
+
   const { chatMessages } = useChat();
-  const { localParticipant } = useLocalParticipant();
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // ⚠️ Safe speaking usage
   const speaking = agent ? useIsSpeaking(agent) : false;
 
+  // ✅ Prevent crash before connection
   if (!localParticipant) {
-    return <div style={{ color: "#fff", background: "#000", height: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      Connecting...
-    </div>;
+    return (
+      <div style={{
+        color: "#fff",
+        background: "#000",
+        height: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center"
+      }}>
+        Connecting...
+      </div>
+    );
   }
 
   useEffect(() => {
-    const last = chatMessages[chatMessages.length - 1];
+    const last = chatMessages?.[chatMessages.length - 1];
     if (!last) return;
 
     if (!last.from?.isLocal) {
       setThinking(false);
-      setMessages(prev => [...prev, { message: last.message, isLocal: false }]);
+      setMessages(prev => [...prev, {
+        message: last.message,
+        isLocal: false
+      }]);
     }
   }, [chatMessages]);
 
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+    scrollRef.current?.scrollTo({
+      top: scrollRef.current.scrollHeight,
+      behavior: "smooth"
+    });
   }, [messages]);
 
   const send = async () => {
     if (!text.trim()) return;
 
-    setThinking(true);
+    try {
+      setThinking(true);
 
-    const data = new TextEncoder().encode(text);
-    await localParticipant.publishData(data, { reliable: true, topic: "user_input" });
+      const data = new TextEncoder().encode(text);
 
-    setMessages(prev => [...prev, { message: text, isLocal: true }]);
-    setText("");
+      await localParticipant.publishData(data, {
+        reliable: true,
+        topic: "user_input"
+      });
+
+      setMessages(prev => [...prev, {
+        message: text,
+        isLocal: true
+      }]);
+
+      setText("");
+    } catch (err) {
+      console.error("Send failed:", err);
+      setThinking(false);
+    }
   };
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "#000", display: "flex", flexDirection: "column" }}>
+    <div style={{
+      position: "fixed",
+      inset: 0,
+      background: "#000",
+      display: "flex",
+      flexDirection: "column"
+    }}>
 
       {/* AI FACE */}
-      <div style={{ position: "absolute", top: 40, width: "100%", display: "flex", justifyContent: "center" }}>
-        {agent && <MalvinFace speaking={speaking} thinking={thinking} />}
+      <div style={{
+        position: "absolute",
+        top: 40,
+        width: "100%",
+        display: "flex",
+        justifyContent: "center"
+      }}>
+        {agent && (
+          <MalvinFace speaking={speaking} thinking={thinking} />
+        )}
       </div>
 
       {/* CHAT */}
-      <div ref={scrollRef} style={{
-        flex: 1,
-        marginTop: 220,
-        padding: 20,
-        overflowY: "auto",
-        display: "flex",
-        flexDirection: "column",
-        gap: 10
-      }}>
+      <div
+        ref={scrollRef}
+        style={{
+          flex: 1,
+          marginTop: 220,
+          padding: 20,
+          overflowY: "auto",
+          display: "flex",
+          flexDirection: "column",
+          gap: 10
+        }}
+      >
         {messages.map((m, i) => (
           <div key={i} style={{
             alignSelf: m.isLocal ? "flex-end" : "flex-start",
@@ -172,37 +260,27 @@ function VideoStage({ onDisconnect }: any) {
             padding: "10px 14px",
             borderRadius: 14,
             color: "#fff",
-            maxWidth: "75%",
-            animation: "fade 0.3s ease"
+            maxWidth: "75%"
           }}>
             {m.message}
           </div>
         ))}
 
         {thinking && (
-          <div style={{ color: "#888", fontSize: 14 }}>
+          <div style={{ color: "#888" }}>
             Malvin is thinking...
           </div>
         )}
-
-        <style>{`@keyframes fade {from{opacity:0;transform:translateY(10px)}to{opacity:1}}`}</style>
       </div>
 
-      {/* INPUT BAR */}
-      <div style={{
-        padding: 20,
-        display: "flex",
-        justifyContent: "center"
-      }}>
+      {/* INPUT */}
+      <div style={{ padding: 20 }}>
         <div style={{
           display: "flex",
           gap: 10,
           background: "rgba(40,40,40,0.8)",
           padding: 10,
-          borderRadius: 30,
-          width: "100%",
-          maxWidth: 500,
-          backdropFilter: "blur(20px)"
+          borderRadius: 30
         }}>
           <input
             value={text}
@@ -234,7 +312,7 @@ export default function Session(props: any) {
         serverUrl={props.serverUrl}
         connect
         audio
-        video={false}
+        video
         onDisconnected={props.onDisconnect}
       >
         <LayoutContextProvider>
