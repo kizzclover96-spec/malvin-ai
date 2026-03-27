@@ -25,7 +25,6 @@ function MalvinVoiceIsland({ agent, isSleeping, isConfused }: { agent: any, isSl
   const [isWaking, setIsWaking] = useState(false);
   const prevSleeping = useRef(isSleeping);
 
-  // Waking Up Logic
   useEffect(() => {
     if (prevSleeping.current === true && isSleeping === false) {
       setIsWaking(true);
@@ -34,7 +33,6 @@ function MalvinVoiceIsland({ agent, isSleeping, isConfused }: { agent: any, isSl
     prevSleeping.current = isSleeping;
   }, [isSleeping]);
 
-  // Blink Logic
   useEffect(() => {
     if (isSleeping) return;
     const blinkInterval = setInterval(() => {
@@ -126,17 +124,28 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
   const agent = useRemoteParticipant({ kind: ParticipantKind.AGENT });
   const { chatMessages = [] } = useChat(); 
   const { localParticipant } = useLocalParticipant();
+  
+  // FIX: Monitor if the USER is speaking to wake up Malvin
+  const isUserSpeaking = useIsSpeaking(localParticipant);
 
   const resetInactivity = () => {
     setIsSleeping(false);
     if (sleepTimer.current) clearTimeout(sleepTimer.current);
+    // Malvin goes back to sleep after 60 seconds of silence from both sides
     sleepTimer.current = setTimeout(() => setIsSleeping(true), 60000);
   };
 
+  // Wake up if User speaks OR Agent speaks OR a chat message arrives
   useEffect(() => {
-    resetInactivity();
+    if (isUserSpeaking || (agent && agent.isSpeaking) || chatMessages.length > 0) {
+      resetInactivity();
+    }
+  }, [isUserSpeaking, agent?.isSpeaking, chatMessages]);
+
+  useEffect(() => {
+    resetInactivity(); // Initial timer start
     return () => { if (sleepTimer.current) clearTimeout(sleepTimer.current); };
-  }, [chatMessages]);
+  }, []);
 
   const tracks = useTracks([
     { source: Track.Source.Camera, withPlaceholder: false },
