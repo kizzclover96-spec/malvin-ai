@@ -10,7 +10,7 @@ import {
   LayoutContextProvider,
   useChat,
   useLocalParticipant,
-  useTranscription, // Added for real-time speech-to-text
+  useTranscription,
 } from '@livekit/components-react';
 
 interface SessionProps {
@@ -25,7 +25,7 @@ function SubtitleOverlay({ message }: { message: string }) {
   return (
     <div style={{
       position: 'absolute',
-      bottom: '25%', // Moved slightly lower than dead center to not block Malvin
+      bottom: '25%',
       left: '50%',
       transform: 'translateX(-50%)',
       width: '85%',
@@ -121,7 +121,6 @@ function MalvinVoiceIsland({ agent, isSleeping, isConfused }: { agent: any, isSl
 
 // --- 3. MAIN STAGE ---
 function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
-  const [textInput, setTextInput] = useState("");
   const [isNotepadOpen, setIsNotepadOpen] = useState(false);
   const [notes, setNotes] = useState<string[]>([]);
   const [isBackCamera, setIsBackCamera] = useState(false);
@@ -135,21 +134,28 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
   const { localParticipant } = useLocalParticipant();
   const isUserSpeaking = useIsSpeaking(localParticipant);
 
-  // TRANSCRIPTION HOOK: This catches what Malvin is saying out loud
+  // TRANSCRIPTION
   const transcriptions = useTranscription(agent);
   const [lastTranscript, setLastTranscript] = useState("");
 
   useEffect(() => {
     if (transcriptions && transcriptions.length > 0) {
       const latest = transcriptions[transcriptions.length - 1];
-      setLastTranscript(latest.text);
-      resetInactivity();
-      
-      // Clear transcript after Malvin stops talking for a bit
-      const clearTimer = setTimeout(() => setLastTranscript(""), 3000);
-      return () => clearTimeout(clearTimer);
+      if (latest.text) {
+        setLastTranscript(latest.text);
+        resetInactivity();
+      }
     }
   }, [transcriptions]);
+
+  // Clear text when Malvin stops speaking
+  const agentIsSpeaking = useIsSpeaking(agent);
+  useEffect(() => {
+    if (!agentIsSpeaking) {
+      const t = setTimeout(() => setLastTranscript(""), 2000);
+      return () => clearTimeout(t);
+    }
+  }, [agentIsSpeaking]);
 
   const resetInactivity = () => {
     setIsSleeping(false);
@@ -158,10 +164,10 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
   };
 
   useEffect(() => {
-    if (isUserSpeaking || (agent && agent.isSpeaking)) {
+    if (isUserSpeaking || agentIsSpeaking) {
       resetInactivity();
     }
-  }, [isUserSpeaking, agent?.isSpeaking]);
+  }, [isUserSpeaking, agentIsSpeaking]);
 
   const tracks = useTracks([{ source: Track.Source.Camera, withPlaceholder: false }]);
   const localCameraTrack = tracks.find(t => t.participant.isLocal && t.source === Track.Source.Camera);
@@ -185,12 +191,10 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
         </div>
       )}
 
-      {/* CENTER TRANSCRIPTION OVERLAY */}
       <SubtitleOverlay message={lastTranscript} />
 
       <div style={{ position: 'relative', zIndex: 10, height: '100%', display: 'flex', flexDirection: 'column', pointerEvents: 'none' }}>
         
-        {/* TOP BAR */}
         <div style={{ padding: '20px', display: 'flex', justifyContent: 'center', position: 'relative' }}>
           <div style={{ position: 'absolute', left: '20px', pointerEvents: 'auto' }}>
             <button onClick={() => setIsNotepadOpen(!isNotepadOpen)} style={noteBtnStyle(isNotepadOpen)}>
@@ -212,10 +216,8 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
           </div>
         </div>
 
-        {/* SPACER */}
         <div style={{ flex: 1 }} />
 
-        {/* BOTTOM CONTROLS */}
         <div style={bottomControlsWrapper}>
           <div style={pillContainerStyle}>
             <button onClick={onDisconnect} style={{...btnStyle, color: '#ff453a'}}>✕</button>
@@ -223,7 +225,7 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
             <button onClick={() => localParticipant?.setMicrophoneEnabled(!localParticipant.isMicrophoneEnabled)} style={{...btnStyle, color: localParticipant?.isMicrophoneEnabled ? '#32d74b' : '#636366'}}>
               {localParticipant?.isMicrophoneEnabled ? '🎙️' : '🔇'}
             </button>
-            <input placeholder="Talk to Malvin..." disabled style={inputStyle} />
+            <div style={inputStyle}>Listening...</div>
             <button 
               onMouseDown={() => { timerRef.current = setTimeout(toggleCameraFacing, 800); }} 
               onMouseUp={() => timerRef.current && clearTimeout(timerRef.current)}
@@ -237,18 +239,18 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
   );
 }
 
-// --- STYLES ---
+// --- STYLES (Properly defined to avoid TraceVariable errors) ---
 const cameraCloseBtnStyle: React.CSSProperties = { position: 'absolute', bottom: '110px', right: '30px', width: '44px', height: '44px', borderRadius: '22px', backgroundColor: 'rgba(255, 69, 58, 0.8)', color: 'white', border: 'none', fontSize: '18px', cursor: 'pointer', backdropFilter: 'blur(5px)', zIndex: 100, pointerEvents: 'auto' };
 const pulseStyle: React.CSSProperties = { position: 'absolute', bottom: '8px', width: '24px', height: '2px', background: '#0a84ff', borderRadius: '2px', animation: 'malvin-pulse 1.5s infinite' };
 const noteBtnStyle = (isOpen: boolean) => ({ background: isOpen ? '#0a84ff' : 'rgba(30, 30, 30, 0.6)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: 'white', padding: '10px', cursor: 'pointer', backdropFilter: 'blur(10px)' });
 const notepadBoxStyle: React.CSSProperties = { position: 'absolute', top: '55px', left: 0, width: '220px', maxHeight: '250px', backgroundColor: '#fffbe6', color: '#333', borderRadius: '12px', padding: '12px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)', overflowY: 'auto', pointerEvents: 'auto' };
-const inputStyle: React.CSSProperties = { flex: 1, backgroundColor: 'transparent', border: 'none', color: '#999', outline: 'none', padding: '0 10px', fontSize: '15px' };
+const inputStyle: React.CSSProperties = { flex: 1, color: '#999', padding: '0 10px', fontSize: '15px', textAlign: 'center' };
 const pillContainerStyle: React.CSSProperties = { pointerEvents: 'auto', width: '92%', maxWidth: '450px', minHeight: '60px', backgroundColor: 'rgba(30, 30, 30, 0.75)', backdropFilter: 'blur(20px)', borderRadius: '30px', display: 'flex', alignItems: 'center', padding: '0 10px', border: '1px solid rgba(255,255,255,0.1)' };
 const bottomControlsWrapper: React.CSSProperties = { paddingBottom: '30px', display: 'flex', justifyContent: 'center' };
 const btnStyle = { background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', padding: '10px', display: 'flex', alignItems: 'center' };
 const dividerStyle = { width: '1px', height: '20px', backgroundColor: 'rgba(255,255,255,0.1)', margin: '0 5px' };
 const clearBtnStyle: React.CSSProperties = { border: 'none', background: 'none', fontSize: '10px', color: '#cc0000', cursor: 'pointer' };
-const noteItemStyle = { marginBottom: '5px', fontSize: '12px' };
+const noteItemStyle = { marginBottom: '5px', fontSize: '12px', listStyle: 'none' };
 const connectingStyle = { color: '#666', fontSize: '11px' };
 
 export default function Session({ token, serverUrl, onDisconnect }: SessionProps) {
