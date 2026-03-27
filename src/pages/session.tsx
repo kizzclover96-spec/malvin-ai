@@ -19,14 +19,7 @@ class ErrorBoundary extends React.Component<any, { hasError: boolean }> {
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{
-          color: "#fff",
-          background: "#000",
-          height: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center"
-        }}>
+        <div style={{ color: "#fff", background: "#000", height: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
           Something broke. Reload.
         </div>
       );
@@ -49,33 +42,19 @@ function MalvinFace({ speaking }: { speaking: boolean }) {
 
   return (
     <div style={{
-      width: 140,
-      height: 140,
-      borderRadius: "50%",
-      background: "#000",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
+      width: 140, height: 140, borderRadius: "50%", background: "#000",
+      display: "flex", alignItems: "center", justifyContent: "center",
       border: "3px solid transparent",
-      backgroundImage:
-        "linear-gradient(#000,#000),linear-gradient(90deg,#00f,#0ff,#0f0,#ff0,#f00,#00f)",
+      backgroundImage: "linear-gradient(#000,#000),linear-gradient(90deg,#00f,#0ff,#0f0,#ff0,#f00,#00f)",
       backgroundClip: "content-box, border-box",
       animation: "spin 4s linear infinite",
-      boxShadow: speaking
-        ? "0 0 40px rgba(0,150,255,0.9)"
-        : "0 0 10px rgba(255,255,255,0.1)"
+      boxShadow: speaking ? "0 0 40px rgba(0,150,255,0.9)" : "0 0 10px rgba(255,255,255,0.1)"
     }}>
-      <style>{`
-        @keyframes spin {
-          0% { background-position: 0% }
-          100% { background-position: 200% }
-        }
-      `}</style>
-
+      <style>{`@keyframes spin { 0% { background-position: 0% } 100% { background-position: 200% } }`}</style>
       <div>
         <div style={{ display: "flex", gap: 20, marginBottom: 10 }}>
-          <div style={{ width: 12, height: blink ? 2 : 12, background: "#fff" }} />
-          <div style={{ width: 12, height: blink ? 2 : 12, background: "#fff" }} />
+          <div style={{ width: 12, height: blink ? 2 : 12, background: "#fff", transition: 'height 0.1s' }} />
+          <div style={{ width: 12, height: blink ? 2 : 12, background: "#fff", transition: 'height 0.1s' }} />
         </div>
         <div style={{ width: 30, height: 2, background: "#aaa", margin: "0 auto" }} />
       </div>
@@ -89,65 +68,49 @@ function VideoStage({ onDisconnect }: any) {
   const [messages, setMessages] = useState<any[]>([]);
   const [thinking, setThinking] = useState(false);
 
-  const agent = useRemoteParticipant({ kind: ParticipantKind.AGENT });
-  const localParticipant = useLocalParticipant();
+  // 1. Get connection state first
   const connectionState = useConnectionState();
+  const { localParticipant } = useLocalParticipant();
+  const agent = useRemoteParticipant({ kind: ParticipantKind.AGENT });
+  
+  // 2. Only call hooks if we have an agent
+  const speaking = agent ? useIsSpeaking(agent) : false;
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const speaking = agent ? useIsSpeaking(agent) : false;
-
-  // ✅ RECEIVE DATA MANUALLY (instead of useChat)
+  // ✅ DEFENSIVE DATA RECEIVE
   useEffect(() => {
     if (!agent) return;
 
     const handleData = (payload: Uint8Array) => {
-      const msg = new TextDecoder().decode(payload);
-
-      setThinking(false);
-      setMessages(prev => [...prev, {
-        message: msg,
-        isLocal: false
-      }]);
+      try {
+        const msg = new TextDecoder().decode(payload);
+        setThinking(false);
+        setMessages(prev => [...prev, { message: msg, isLocal: false }]);
+      } catch (e) {
+        console.error("Decode error:", e);
+      }
     };
 
     agent.on("dataReceived", handleData);
-
-    return () => {
-      agent.off("dataReceived", handleData);
-    };
+    return () => { agent.off("dataReceived", handleData); };
   }, [agent]);
 
   useEffect(() => {
-    scrollRef.current?.scrollTo({
-      top: scrollRef.current.scrollHeight,
-      behavior: "smooth"
-    });
-  }, [messages]);
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages, thinking]);
 
   const send = async () => {
-    if (!text.trim()) return;
-
-    if (connectionState !== "connected") {
-      console.warn("⚠️ Not connected yet");
-      return;
-    }
+    if (!text.trim() || !localParticipant || connectionState !== "connected") return;
 
     try {
       setThinking(true);
-
       const data = new TextEncoder().encode(text);
+      await localParticipant.publishData(data, { reliable: true, topic: "user_input" });
 
-      await localParticipant.publishData(data, {
-        reliable: true,
-        topic: "user_input"
-      });
-
-      setMessages(prev => [...prev, {
-        message: text,
-        isLocal: true
-      }]);
-
+      setMessages(prev => [...prev, { message: text, isLocal: true }]);
       setText("");
     } catch (err) {
       console.error("Send failed:", err);
@@ -155,49 +118,26 @@ function VideoStage({ onDisconnect }: any) {
     }
   };
 
-  if (!localParticipant || connectionState !== "connected") {
+  // 3. Render Loading State if not ready
+  if (connectionState !== "connected" || !localParticipant) {
     return (
-      <div style={{
-        color: "#fff",
-        background: "#000",
-        height: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center"
-      }}>
-        Connecting to AI...
+      <div style={{ color: "#fff", background: "#000", height: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        Connecting to Malvin...
       </div>
     );
   }
 
   return (
-    <div style={{
-      position: "fixed",
-      inset: 0,
-      background: "#000",
-      display: "flex",
-      flexDirection: "column"
-    }}>
-
-      <div style={{
-        position: "absolute",
-        top: 40,
-        width: "100%",
-        display: "flex",
-        justifyContent: "center"
-      }}>
-        {agent && <MalvinFace speaking={speaking} />}
+    <div style={{ position: "fixed", inset: 0, background: "#000", display: "flex", flexDirection: "column", overflow: 'hidden' }}>
+      
+      {/* FACE */}
+      <div style={{ position: "absolute", top: 40, width: "100%", display: "flex", justifyContent: "center", zIndex: 10 }}>
+        <MalvinFace speaking={speaking} />
       </div>
 
-      <div
-        ref={scrollRef}
-        style={{
-          flex: 1,
-          marginTop: 220,
-          padding: 20,
-          overflowY: "auto"
-        }}
-      >
+      {/* CHAT */}
+      <div ref={scrollRef} style={{ flex: 1, marginTop: 220, padding: "0 20px 20px 20px", overflowY: "auto", display: 'flex', flexDirection: 'column' }}>
+        <div style={{ flex: 1 }} /> {/* Spacer to push messages to bottom */}
         {messages.map((m, i) => (
           <div key={i} style={{
             marginBottom: 10,
@@ -206,36 +146,27 @@ function VideoStage({ onDisconnect }: any) {
             padding: "10px 14px",
             borderRadius: 14,
             color: "#fff",
-            maxWidth: "70%"
+            maxWidth: "75%",
+            wordBreak: "break-word"
           }}>
             {m.message}
           </div>
         ))}
-
-        {thinking && <div style={{ color: "#888" }}>Malvin is thinking...</div>}
+        {thinking && <div style={{ color: "#888", fontSize: '14px', fontStyle: 'italic' }}>Malvin is thinking...</div>}
       </div>
 
-      <div style={{ padding: 20 }}>
-        <div style={{
-          display: "flex",
-          gap: 10,
-          background: "rgba(40,40,40,0.8)",
-          padding: 10,
-          borderRadius: 30
-        }}>
+      {/* INPUT */}
+      <div style={{ padding: 20, zIndex: 20 }}>
+        <div style={{ display: "flex", gap: 10, background: "rgba(40,40,40,0.8)", padding: '8px 16px', borderRadius: 30, alignItems: 'center', backdropFilter: 'blur(10px)' }}>
           <input
             value={text}
             onChange={e => setText(e.target.value)}
-            placeholder="Message..."
-            style={{
-              flex: 1,
-              background: "transparent",
-              border: "none",
-              color: "#fff"
-            }}
+            onKeyDown={e => e.key === "Enter" && send()}
+            placeholder="Talk to Malvin..."
+            style={{ flex: 1, background: "transparent", border: "none", color: "#fff", outline: "none", padding: '8px 0' }}
           />
-          <button onClick={send}>➤</button>
-          <button onClick={onDisconnect}>❌</button>
+          <button onClick={send} style={{ background: 'none', border: 'none', color: '#0a84ff', fontSize: '20px', cursor: 'pointer' }}>➤</button>
+          <button onClick={onDisconnect} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>❌</button>
         </div>
       </div>
     </div>
@@ -249,9 +180,9 @@ export default function Session(props: any) {
       <LiveKitRoom
         token={props.token}
         serverUrl={props.serverUrl}
-        connect
-        audio
-        video
+        connect={true}
+        audio={true}
+        video={false}
         onDisconnected={props.onDisconnect}
       >
         <LayoutContextProvider>
