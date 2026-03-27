@@ -7,20 +7,15 @@ import {
   useIsSpeaking,
   LayoutContextProvider,
   useChat,
-  useLocalParticipant
+  useLocalParticipant,
+  useConnectionState
 } from '@livekit/components-react';
 
 // ---------------- ERROR BOUNDARY ----------------
 class ErrorBoundary extends React.Component<any, { hasError: boolean }> {
   state = { hasError: false };
-
-  static getDerivedStateFromError() {
-    return { hasError: true };
-  }
-
-  componentDidCatch(error: any) {
-    console.error("🔥 UI Crash:", error);
-  }
+  static getDerivedStateFromError() { return { hasError: true }; }
+  componentDidCatch(err: any) { console.error("🔥 UI Crash:", err); }
 
   render() {
     if (this.state.hasError) {
@@ -41,32 +36,8 @@ class ErrorBoundary extends React.Component<any, { hasError: boolean }> {
   }
 }
 
-// ---------------- WAVEFORM ----------------
-function WaveBars({ active }: { active: boolean }) {
-  return (
-    <div style={{ display: "flex", gap: 4 }}>
-      {[...Array(5)].map((_, i) => (
-        <div key={i} style={{
-          width: 4,
-          height: active ? 20 : 8,
-          background: "#0a84ff",
-          borderRadius: 2,
-          animation: active ? `wave 0.6s ${i * 0.1}s infinite alternate` : "none"
-        }} />
-      ))}
-
-      <style>{`
-        @keyframes wave {
-          from { height: 6px; }
-          to { height: 22px; }
-        }
-      `}</style>
-    </div>
-  );
-}
-
 // ---------------- AI FACE ----------------
-function MalvinFace({ speaking, thinking }: { speaking: boolean; thinking: boolean }) {
+function MalvinFace({ speaking }: { speaking: boolean }) {
   const [blink, setBlink] = useState(false);
 
   useEffect(() => {
@@ -77,16 +48,10 @@ function MalvinFace({ speaking, thinking }: { speaking: boolean; thinking: boole
     return () => clearInterval(t);
   }, []);
 
-  const glow = speaking
-    ? "0 0 50px rgba(10,132,255,0.9)"
-    : thinking
-    ? "0 0 25px rgba(255,255,255,0.3)"
-    : "0 0 10px rgba(255,255,255,0.1)";
-
   return (
     <div style={{
-      width: 150,
-      height: 150,
+      width: 140,
+      height: 140,
       borderRadius: "50%",
       background: "#000",
       display: "flex",
@@ -97,8 +62,9 @@ function MalvinFace({ speaking, thinking }: { speaking: boolean; thinking: boole
         "linear-gradient(#000,#000),linear-gradient(90deg,#00f,#0ff,#0f0,#ff0,#f00,#00f)",
       backgroundClip: "content-box, border-box",
       animation: "spin 4s linear infinite",
-      boxShadow: glow,
-      transition: "0.3s"
+      boxShadow: speaking
+        ? "0 0 40px rgba(0,150,255,0.9)"
+        : "0 0 10px rgba(255,255,255,0.1)"
     }}>
       <style>{`
         @keyframes spin {
@@ -108,76 +74,39 @@ function MalvinFace({ speaking, thinking }: { speaking: boolean; thinking: boole
       `}</style>
 
       <div>
-        {/* Eyes */}
-        <div style={{ display: "flex", gap: 20, justifyContent: "center", marginBottom: 10 }}>
-          <div style={{
-            width: 12,
-            height: blink ? 2 : 12,
-            background: "#fff",
-            transition: "0.1s"
-          }} />
-          <div style={{
-            width: 12,
-            height: blink ? 2 : 12,
-            background: "#fff",
-            transition: "0.1s"
-          }} />
+        <div style={{ display: "flex", gap: 20, marginBottom: 10 }}>
+          <div style={{ width: 12, height: blink ? 2 : 12, background: "#fff" }} />
+          <div style={{ width: 12, height: blink ? 2 : 12, background: "#fff" }} />
         </div>
-
-        {/* Mouth / Wave */}
-        {speaking ? (
-          <WaveBars active />
-        ) : (
-          <div style={{
-            width: 30,
-            height: 2,
-            background: "#aaa",
-            margin: "0 auto"
-          }} />
-        )}
+        <div style={{ width: 30, height: 2, background: "#aaa", margin: "0 auto" }} />
       </div>
     </div>
   );
 }
 
-// ---------------- MAIN UI ----------------
+// ---------------- MAIN ----------------
 function VideoStage({ onDisconnect }: any) {
   const [text, setText] = useState("");
   const [messages, setMessages] = useState<any[]>([]);
   const [thinking, setThinking] = useState(false);
 
   const agent = useRemoteParticipant({ kind: ParticipantKind.AGENT });
-
-  // ✅ Correct hook usage
   const localParticipant = useLocalParticipant();
+  const connectionState = useConnectionState();
 
-  const { chatMessages } = useChat();
+  const { chatMessages } = useChat() || {}; // ✅ SAFE
+
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // ⚠️ Safe speaking usage
   const speaking = agent ? useIsSpeaking(agent) : false;
 
-  // ✅ Prevent crash before connection
-  if (!localParticipant) {
-    return (
-      <div style={{
-        color: "#fff",
-        background: "#000",
-        height: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center"
-      }}>
-        Connecting...
-      </div>
-    );
-  }
-
+  // ✅ SAFE CHAT HANDLING
   useEffect(() => {
-    const last = chatMessages?.[chatMessages.length - 1];
-    if (!last) return;
+    if (!chatMessages || chatMessages.length === 0) return;
 
-    if (!last.from?.isLocal) {
+    const last = chatMessages[chatMessages.length - 1];
+
+    if (!last?.from?.isLocal) {
       setThinking(false);
       setMessages(prev => [...prev, {
         message: last.message,
@@ -195,6 +124,12 @@ function VideoStage({ onDisconnect }: any) {
 
   const send = async () => {
     if (!text.trim()) return;
+
+    // ❌ DO NOT SEND if not connected
+    if (connectionState !== "connected") {
+      console.warn("⚠️ Not connected yet");
+      return;
+    }
 
     try {
       setThinking(true);
@@ -218,6 +153,22 @@ function VideoStage({ onDisconnect }: any) {
     }
   };
 
+  // ✅ LOADING SCREEN
+  if (!localParticipant || connectionState !== "connected") {
+    return (
+      <div style={{
+        color: "#fff",
+        background: "#000",
+        height: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center"
+      }}>
+        Connecting to AI...
+      </div>
+    );
+  }
+
   return (
     <div style={{
       position: "fixed",
@@ -227,7 +178,7 @@ function VideoStage({ onDisconnect }: any) {
       flexDirection: "column"
     }}>
 
-      {/* AI FACE */}
+      {/* FACE */}
       <div style={{
         position: "absolute",
         top: 40,
@@ -235,9 +186,7 @@ function VideoStage({ onDisconnect }: any) {
         display: "flex",
         justifyContent: "center"
       }}>
-        {agent && (
-          <MalvinFace speaking={speaking} thinking={thinking} />
-        )}
+        {agent && <MalvinFace speaking={speaking} />}
       </div>
 
       {/* CHAT */}
@@ -247,30 +196,24 @@ function VideoStage({ onDisconnect }: any) {
           flex: 1,
           marginTop: 220,
           padding: 20,
-          overflowY: "auto",
-          display: "flex",
-          flexDirection: "column",
-          gap: 10
+          overflowY: "auto"
         }}
       >
         {messages.map((m, i) => (
           <div key={i} style={{
+            marginBottom: 10,
             alignSelf: m.isLocal ? "flex-end" : "flex-start",
             background: m.isLocal ? "#1c1c1e" : "#0a84ff",
             padding: "10px 14px",
             borderRadius: 14,
             color: "#fff",
-            maxWidth: "75%"
+            maxWidth: "70%"
           }}>
             {m.message}
           </div>
         ))}
 
-        {thinking && (
-          <div style={{ color: "#888" }}>
-            Malvin is thinking...
-          </div>
-        )}
+        {thinking && <div style={{ color: "#888" }}>Malvin is thinking...</div>}
       </div>
 
       {/* INPUT */}
@@ -285,14 +228,12 @@ function VideoStage({ onDisconnect }: any) {
           <input
             value={text}
             onChange={e => setText(e.target.value)}
-            onKeyDown={e => e.key === "Enter" && send()}
-            placeholder="Message Malvin..."
+            placeholder="Message..."
             style={{
               flex: 1,
               background: "transparent",
               border: "none",
-              color: "#fff",
-              outline: "none"
+              color: "#fff"
             }}
           />
           <button onClick={send}>➤</button>
