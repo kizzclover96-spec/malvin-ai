@@ -20,7 +20,7 @@ interface SessionProps {
 
 // --- 1. MALVIN BOX EYES ISLAND ---
 function MalvinVoiceIsland({ agent, isSleeping, isConfused }: { agent: any, isSleeping: boolean, isConfused: boolean }) {
-  // Explicitly passing agent to the hook to prevent the "No participant provided" error
+  // Pass agent explicitly to avoid context errors
   const isAgentSpeaking = useIsSpeaking(agent);
   const [blink, setBlink] = useState(false);
 
@@ -46,12 +46,12 @@ function MalvinVoiceIsland({ agent, isSleeping, isConfused }: { agent: any, isSl
       boxShadow: isAgentSpeaking ? '0 0 25px rgba(10, 132, 255, 0.4)' : '0 4px 15px rgba(0,0,0,0.5)',
       position: 'relative'
     }}>
-      {/* Confusion Question Mark */}
+      {/* Confusion indicator */}
       {isConfused && !isAgentSpeaking && !isSleeping && (
         <div style={{ position: 'absolute', right: '-15px', top: '-5px', color: '#ffcc00', fontSize: '20px', fontWeight: 'bold' }}>?</div>
       )}
 
-      {/* Sleeping ZZZs */}
+      {/* Sleeping indicator */}
       {isSleeping && (
         <div style={{ position: 'absolute', top: '-15px', right: '5px' }}>
           <div className="zzz" style={{ animationDelay: '0s' }}>z</div>
@@ -67,11 +67,7 @@ function MalvinVoiceIsland({ agent, isSleeping, isConfused }: { agent: any, isSl
           height={isSleeping || blink ? "2" : (isConfused ? "12" : (isAgentSpeaking ? "16" : "10"))} 
           rx="1" 
           fill="white" 
-          style={{ 
-            transition: 'all 0.1s ease-out',
-            transform: isConfused ? 'rotate(-10deg)' : 'none',
-            transformOrigin: 'center'
-          }} 
+          style={{ transition: 'all 0.1s ease-out', transform: isConfused ? 'rotate(-10deg)' : 'none', transformOrigin: 'center' }} 
         />
         <rect 
           x="38" 
@@ -80,11 +76,7 @@ function MalvinVoiceIsland({ agent, isSleeping, isConfused }: { agent: any, isSl
           height={isSleeping || blink ? "2" : (isConfused ? "12" : (isAgentSpeaking ? "16" : "10"))} 
           rx="1" 
           fill="white" 
-          style={{ 
-            transition: 'all 0.1s ease-out',
-            transform: isConfused ? 'rotate(10deg)' : 'none',
-            transformOrigin: 'center'
-          }} 
+          style={{ transition: 'all 0.1s ease-out', transform: isConfused ? 'rotate(10deg)' : 'none', transformOrigin: 'center' }} 
         />
       </svg>
       {isAgentSpeaking && <div style={pulseStyle} />}
@@ -105,7 +97,7 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
   const [localMessages, setLocalMessages] = useState<{message: string, isLocal: boolean}[]>([]);
   const [isBackCamera, setIsBackCamera] = useState(false);
   
-  // States for the Expression Engine
+  // Expression States
   const [isSleeping, setIsSleeping] = useState(false);
   const [isConfused, setIsConfused] = useState(false);
   const sleepTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -116,19 +108,18 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
   const agent = useRemoteParticipant({ kind: ParticipantKind.AGENT });
   const { chatMessages = [] } = useChat(); 
   const { localParticipant } = useLocalParticipant();
-  const isAgentSpeaking = useIsSpeaking(agent);
 
-  // Activity detection to manage sleep state
-  const resetInactivity = () => {
+  // Reset inactivity timer
+  const pokeMalvin = () => {
     setIsSleeping(false);
     if (sleepTimer.current) clearTimeout(sleepTimer.current);
-    sleepTimer.current = setTimeout(() => setIsSleeping(true), 60000);
+    sleepTimer.current = setTimeout(() => setIsSleeping(true), 60000); // 1 minute
   };
 
   useEffect(() => {
-    resetInactivity();
+    pokeMalvin();
     return () => { if (sleepTimer.current) clearTimeout(sleepTimer.current); };
-  }, [chatMessages, isAgentSpeaking]);
+  }, [chatMessages]);
 
   const tracks = useTracks([
     { source: Track.Source.Camera, withPlaceholder: false },
@@ -153,17 +144,19 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
     if (lastMessage) {
       setLocalMessages(prev => [...prev, { message: lastMessage.message, isLocal: lastMessage.from?.isLocal || false }]);
       
+      // Agent-only reactions
       if (!lastMessage.from?.isLocal) {
-        // Confusion logic: Trigger if Malvin's text contains a question mark
+        // Confusion logic
         if (lastMessage.message.includes("?")) {
           setIsConfused(true);
-          setTimeout(() => setIsConfused(false), 4500);
+          setTimeout(() => setIsConfused(false), 4000);
         }
 
+        // Note syncing
         if (lastMessage.message.includes("NOTE:")) {
-            const noteContent = lastMessage.message.split("NOTE:")[1].trim();
-            setNotes(prev => prev.includes(noteContent) ? prev : [...prev, noteContent]);
-            setIsNotepadOpen(true);
+          const noteContent = lastMessage.message.split("NOTE:")[1].trim();
+          setNotes(prev => prev.includes(noteContent) ? prev : [...prev, noteContent]);
+          setIsNotepadOpen(true);
         }
       }
     }
@@ -179,7 +172,7 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
       await localParticipant.publishData(data, { reliable: true, topic: "user_input" });
       setLocalMessages(prev => [...prev, { message: textInput, isLocal: true }]);
       setTextInput("");
-      resetInactivity();
+      pokeMalvin();
     }
   };
 
@@ -210,7 +203,6 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
       )}
 
       <div style={{ position: 'relative', zIndex: 10, height: '100%', display: 'flex', flexDirection: 'column', pointerEvents: 'none' }}>
-        
         <div style={{ padding: '20px', display: 'flex', justifyContent: 'center', position: 'relative' }}>
           <div style={{ position: 'absolute', left: '20px', pointerEvents: 'auto' }}>
             <button onClick={() => setIsNotepadOpen(!isNotepadOpen)} style={noteBtnStyle(isNotepadOpen)}>
@@ -228,6 +220,7 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
           </div>
           
           <div style={{ pointerEvents: 'auto' }}>
+            {/* Conditional check prevents useIsSpeaking from crashing before agent is ready */}
             {agent ? (
               <MalvinVoiceIsland agent={agent} isSleeping={isSleeping} isConfused={isConfused} />
             ) : (
