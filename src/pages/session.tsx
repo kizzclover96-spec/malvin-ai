@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ParticipantKind, Track, createLocalVideoTrack } from 'livekit-client';
+import { ParticipantKind, Track } from 'livekit-client';
 import {
   LiveKitRoom,
   RoomAudioRenderer,
@@ -27,7 +27,7 @@ function MalvinFace({ isSpeaking }: { isSpeaking: boolean }) {
   useEffect(() => {
     const blinkInterval = setInterval(() => {
       setIsBlinking(true);
-      setTimeout(() => setIsBlinking(false), 200); // Blink duration
+      setTimeout(() => setIsBlinking(false), 200); 
     }, 6000);
     return () => clearInterval(blinkInterval);
   }, []);
@@ -53,23 +53,24 @@ function MalvinFace({ isSpeaking }: { isSpeaking: boolean }) {
       zIndex: 10
     }}>
       <style>{`
-        @keyframes rotateBorder { to { background-position: 200% center; } }
+        @keyframes rotateBorder { 
+          from { background-position: 0% center; }
+          to { background-position: 200% center; } 
+        }
         .eye { width: 12px; height: ${isBlinking ? '2px' : '12px'}; background: #fff; border-radius: 2px; transition: height 0.1s ease; }
       `}</style>
       
-      {/* Eyes Container */}
       <div style={{ display: 'flex', gap: '25px', marginBottom: '15px' }}>
         <div className="eye" />
         <div className="eye" />
       </div>
 
-      {/* Mouth */}
       <div style={{ width: '30px', height: '2px', background: 'rgba(255,255,255,0.6)', borderRadius: '2px' }} />
     </div>
   );
 }
 
-// --- VOICE ISLAND ---
+// --- VOICE ISLAND (Capsule) ---
 function MalvinVoiceIsland({ agent }: { agent: any }) {
   const isAgentSpeaking = useIsSpeaking(agent);
   return (
@@ -106,19 +107,22 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
 
   const tracks = useTracks([
     { source: Track.Source.Camera, withPlaceholder: false },
-    { source: Track.Source.ScreenShare, withPlaceholder: false }
   ]);
 
+  // Only consider camera active if it's actually published
   const localCameraTrack = tracks.find(t => t.participant.isLocal && t.source === Track.Source.Camera);
-  const isCameraEnabled = !!localCameraTrack;
+  const isCameraEnabled = localParticipant?.isCameraEnabled ?? false;
 
-  // Sync Messages
   useEffect(() => {
     const last = chatMessages[chatMessages.length - 1];
     if (last) {
       setLocalMessages(prev => [...prev, { message: last.message, isLocal: last.from?.isLocal || false }]);
     }
   }, [chatMessages]);
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+  }, [localMessages]);
 
   const handleSendMessage = async () => {
     if (!textInput.trim() || !localParticipant) return;
@@ -129,30 +133,30 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
   };
 
   const toggleCameraFacing = async () => {
-    if (!localParticipant) return;
+    if (!localParticipant || !isCameraEnabled) return;
     try {
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      const videoDevices = devices.filter(d => d.kind === 'videoinput');
-      if (videoDevices.length < 2) return;
-
-      const newFacingMode = isBackCamera ? 'user' : 'environment';
-      
+      const newFacingMode: 'user' | 'environment' = isBackCamera ? 'user' : 'environment';
       await localParticipant.setCameraEnabled(false);
-      await new Promise(r => setTimeout(r, 200));
+      await new Promise(r => setTimeout(r, 250));
       await localParticipant.setCameraEnabled(true, { facingMode: newFacingMode });
-
       setIsBackCamera(!isBackCamera);
     } catch (err) { console.error(err); }
   };
 
-  const handlePressStart = () => { timerRef.current = setTimeout(() => { toggleCameraFacing(); navigator.vibrate?.(50); }, 600); };
+  const handlePressStart = () => { 
+    if (!isCameraEnabled) return;
+    timerRef.current = setTimeout(() => { 
+      toggleCameraFacing(); 
+      navigator.vibrate?.(50); 
+    }, 700); 
+  };
   const handlePressEnd = () => { if (timerRef.current) clearTimeout(timerRef.current); };
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: '#000', overflow: 'hidden' }}>
       
       {/* 1. BACKGROUND CAMERA (Full Screen) */}
-      {isCameraEnabled && (
+      {isCameraEnabled && localCameraTrack && (
         <div style={{ 
           position: 'absolute', inset: 0, zIndex: 0,
           transform: isBackCamera ? 'none' : 'scaleX(-1)'
@@ -161,8 +165,7 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
             trackRef={localCameraTrack as any} 
             style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
           />
-          {/* Dark overlay to keep chat readable */}
-          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)' }} />
+          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.45)' }} />
         </div>
       )}
 
@@ -185,10 +188,10 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
       }}>
         {localMessages.map((msg, i) => (
           <div key={i} style={{
-            background: msg.isLocal ? 'rgba(40,40,40,0.8)' : '#0a84ff',
+            background: msg.isLocal ? 'rgba(50,50,50,0.8)' : '#0a84ff',
             color: '#fff', padding: '12px 16px', borderRadius: '18px',
             marginBottom: 10, alignSelf: msg.isLocal ? 'flex-end' : 'flex-start',
-            maxWidth: '80%', backdropFilter: 'blur(5px)', fontSize: '15px'
+            maxWidth: '85%', backdropFilter: 'blur(10px)', fontSize: '15px'
           }}>
             {msg.message}
           </div>
@@ -198,31 +201,35 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
       {/* 4. BOTTOM CONTROLS */}
       <div style={{ position: 'absolute', bottom: 30, width: '100%', display: 'flex', justifyContent: 'center', zIndex: 10 }}>
         <div style={{ 
-          display: 'flex', gap: 12, background: 'rgba(30,30,30,0.9)', 
-          padding: '8px 16px', borderRadius: '32px', width: '90%', maxWidth: '400px',
-          alignItems: 'center', border: '1px solid rgba(255,255,255,0.1)'
+          display: 'flex', gap: 12, background: 'rgba(25,25,25,0.95)', 
+          padding: '8px 16px', borderRadius: '32px', width: '92%', maxWidth: '450px',
+          alignItems: 'center', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(20px)'
         }}>
-          <button onClick={onDisconnect} style={{ background: 'none', border: 'none', fontSize: '20px' }}>❌</button>
+          <button onClick={onDisconnect} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer' }}>❌</button>
           
           <button
             onMouseDown={handlePressStart} onMouseUp={handlePressEnd}
             onMouseLeave={handlePressEnd} onTouchStart={handlePressStart}
             onTouchEnd={handlePressEnd}
             onClick={() => localParticipant?.setCameraEnabled(!isCameraEnabled)}
-            style={{ background: 'none', border: 'none', fontSize: '22px', color: isCameraEnabled ? '#0a84ff' : '#fff' }}
+            style={{ 
+              background: 'none', border: 'none', fontSize: '22px', cursor: 'pointer',
+              color: isCameraEnabled ? '#0a84ff' : '#666',
+              transition: 'color 0.3s ease'
+            }}
           >
             📷
           </button>
 
           <input
-            placeholder="Talk to Malvin..."
+            placeholder="Ask Malvin anything..."
             value={textInput}
             onChange={e => setTextInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleSendMessage()}
             style={{ flex: 1, background: 'none', border: 'none', color: '#fff', outline: 'none', fontSize: '16px' }}
           />
           {textInput.trim() && (
-            <button onClick={handleSendMessage} style={{ background: 'none', border: 'none', color: '#0a84ff', fontWeight: 'bold' }}>SEND</button>
+            <button onClick={handleSendMessage} style={{ background: 'none', border: 'none', color: '#0a84ff', fontWeight: 'bold', cursor: 'pointer' }}>SEND</button>
           )}
         </div>
       </div>
@@ -232,7 +239,14 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
 
 export default function Session({ token, serverUrl, onDisconnect }: SessionProps) {
   return (
-    <LiveKitRoom token={token} serverUrl={serverUrl} connect audio video onDisconnected={onDisconnect}>
+    <LiveKitRoom 
+      token={token} 
+      serverUrl={serverUrl} 
+      connect={true} 
+      audio={true} 
+      video={false} // <--- THIS DISABLES AUTO-CAMERA AT START
+      onDisconnected={onDisconnect}
+    >
       <LayoutContextProvider>
         <RoomAudioRenderer />
         <VideoStage onDisconnect={onDisconnect} />
