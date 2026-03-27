@@ -15,12 +15,11 @@ class ErrorBoundary extends React.Component<any, { hasError: boolean }> {
   state = { hasError: false };
   static getDerivedStateFromError() { return { hasError: true }; }
   componentDidCatch(err: any) { console.error("🔥 UI Crash:", err); }
-
   render() {
     if (this.state.hasError) {
       return (
         <div style={{ color: "#fff", background: "#000", height: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          Something broke. Reload.
+          UI Error. Please refresh.
         </div>
       );
     }
@@ -31,7 +30,6 @@ class ErrorBoundary extends React.Component<any, { hasError: boolean }> {
 // ---------------- AI FACE ----------------
 function MalvinFace({ speaking }: { speaking: boolean }) {
   const [blink, setBlink] = useState(false);
-
   useEffect(() => {
     const t = setInterval(() => {
       setBlink(true);
@@ -51,75 +49,96 @@ function MalvinFace({ speaking }: { speaking: boolean }) {
       boxShadow: speaking ? "0 0 40px rgba(0,150,255,0.9)" : "0 0 10px rgba(255,255,255,0.1)"
     }}>
       <style>{`@keyframes spin { 0% { background-position: 0% } 100% { background-position: 200% } }`}</style>
-      <div>
-        <div style={{ display: "flex", gap: 20, marginBottom: 10 }}>
-          <div style={{ width: 12, height: blink ? 2 : 12, background: "#fff", transition: 'height 0.1s' }} />
-          <div style={{ width: 12, height: blink ? 2 : 12, background: "#fff", transition: 'height 0.1s' }} />
-        </div>
-        <div style={{ width: 30, height: 2, background: "#aaa", margin: "0 auto" }} />
+      <div style={{ display: "flex", gap: 20, marginBottom: 10 }}>
+        <div style={{ width: 12, height: blink ? 2 : 12, background: "#fff" }} />
+        <div style={{ width: 12, height: blink ? 2 : 12, background: "#fff" }} />
       </div>
     </div>
   );
 }
 
-// ---------------- MAIN ----------------
-function VideoStage({ onDisconnect }: any) {
+// ---------------- ACTIVE SESSION CONTENT ----------------
+// We pull all LiveKit hooks into THIS component. 
+// It ONLY renders when connectionState === 'connected'.
+function ActiveStage({ onDisconnect }: { onDisconnect: () => void }) {
   const [text, setText] = useState("");
   const [messages, setMessages] = useState<any[]>([]);
   const [thinking, setThinking] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-  // 1. Get connection state first
-  const connectionState = useConnectionState();
   const { localParticipant } = useLocalParticipant();
   const agent = useRemoteParticipant({ kind: ParticipantKind.AGENT });
   
-  // 2. Only call hooks if we have an agent
+  // hook is safe here because this component only mounts when connected
   const speaking = agent ? useIsSpeaking(agent) : false;
 
-  const scrollRef = useRef<HTMLDivElement>(null);
-
-  // ✅ DEFENSIVE DATA RECEIVE
   useEffect(() => {
     if (!agent) return;
-
     const handleData = (payload: Uint8Array) => {
-      try {
-        const msg = new TextDecoder().decode(payload);
-        setThinking(false);
-        setMessages(prev => [...prev, { message: msg, isLocal: false }]);
-      } catch (e) {
-        console.error("Decode error:", e);
-      }
+      const msg = new TextDecoder().decode(payload);
+      setThinking(false);
+      setMessages(prev => [...prev, { message: msg, isLocal: false }]);
     };
-
     agent.on("dataReceived", handleData);
     return () => { agent.off("dataReceived", handleData); };
   }, [agent]);
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, thinking]);
 
   const send = async () => {
-    if (!text.trim() || !localParticipant || connectionState !== "connected") return;
-
+    if (!text.trim() || !localParticipant) return;
     try {
       setThinking(true);
       const data = new TextEncoder().encode(text);
       await localParticipant.publishData(data, { reliable: true, topic: "user_input" });
-
       setMessages(prev => [...prev, { message: text, isLocal: true }]);
       setText("");
     } catch (err) {
-      console.error("Send failed:", err);
       setThinking(false);
     }
   };
 
-  // 3. Render Loading State if not ready
-  if (connectionState !== "connected" || !localParticipant) {
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "#000", display: "flex", flexDirection: "column" }}>
+      <div style={{ position: "absolute", top: 40, width: "100%", display: "flex", justifyContent: "center", zIndex: 10 }}>
+        <MalvinFace speaking={speaking} />
+      </div>
+
+      <div ref={scrollRef} style={{ flex: 1, marginTop: 220, padding: 20, overflowY: "auto", display: 'flex', flexDirection: 'column' }}>
+        {messages.map((m, i) => (
+          <div key={i} style={{
+            marginBottom: 10, alignSelf: m.isLocal ? "flex-end" : "flex-start",
+            background: m.isLocal ? "#1c1c1e" : "#0a84ff",
+            padding: "10px 14px", borderRadius: 14, color: "#fff", maxWidth: "75%"
+          }}>{m.message}</div>
+        ))}
+        {thinking && <div style={{ color: "#888" }}>Thinking...</div>}
+      </div>
+
+      <div style={{ padding: 20 }}>
+        <div style={{ display: "flex", gap: 10, background: "rgba(40,40,40,0.8)", padding: 10, borderRadius: 30 }}>
+          <input 
+             value={text} 
+             onChange={e => setText(e.target.value)} 
+             onKeyDown={e => e.key === "Enter" && send()}
+             placeholder="Message..." 
+             style={{ flex: 1, background: "transparent", border: "none", color: "#fff", outline: "none" }} 
+          />
+          <button onClick={send} style={{ background: 'none', border: 'none', color: '#0a84ff', fontSize: '20px' }}>➤</button>
+          <button onClick={onDisconnect} style={{ background: 'none', border: 'none' }}>❌</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------- GATEKEEPER ----------------
+function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
+  const connectionState = useConnectionState();
+
+  if (connectionState !== "connected") {
     return (
       <div style={{ color: "#fff", background: "#000", height: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
         Connecting to Malvin...
@@ -127,50 +146,8 @@ function VideoStage({ onDisconnect }: any) {
     );
   }
 
-  return (
-    <div style={{ position: "fixed", inset: 0, background: "#000", display: "flex", flexDirection: "column", overflow: 'hidden' }}>
-      
-      {/* FACE */}
-      <div style={{ position: "absolute", top: 40, width: "100%", display: "flex", justifyContent: "center", zIndex: 10 }}>
-        <MalvinFace speaking={speaking} />
-      </div>
-
-      {/* CHAT */}
-      <div ref={scrollRef} style={{ flex: 1, marginTop: 220, padding: "0 20px 20px 20px", overflowY: "auto", display: 'flex', flexDirection: 'column' }}>
-        <div style={{ flex: 1 }} /> {/* Spacer to push messages to bottom */}
-        {messages.map((m, i) => (
-          <div key={i} style={{
-            marginBottom: 10,
-            alignSelf: m.isLocal ? "flex-end" : "flex-start",
-            background: m.isLocal ? "#1c1c1e" : "#0a84ff",
-            padding: "10px 14px",
-            borderRadius: 14,
-            color: "#fff",
-            maxWidth: "75%",
-            wordBreak: "break-word"
-          }}>
-            {m.message}
-          </div>
-        ))}
-        {thinking && <div style={{ color: "#888", fontSize: '14px', fontStyle: 'italic' }}>Malvin is thinking...</div>}
-      </div>
-
-      {/* INPUT */}
-      <div style={{ padding: 20, zIndex: 20 }}>
-        <div style={{ display: "flex", gap: 10, background: "rgba(40,40,40,0.8)", padding: '8px 16px', borderRadius: 30, alignItems: 'center', backdropFilter: 'blur(10px)' }}>
-          <input
-            value={text}
-            onChange={e => setText(e.target.value)}
-            onKeyDown={e => e.key === "Enter" && send()}
-            placeholder="Talk to Malvin..."
-            style={{ flex: 1, background: "transparent", border: "none", color: "#fff", outline: "none", padding: '8px 0' }}
-          />
-          <button onClick={send} style={{ background: 'none', border: 'none', color: '#0a84ff', fontSize: '20px', cursor: 'pointer' }}>➤</button>
-          <button onClick={onDisconnect} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>❌</button>
-        </div>
-      </div>
-    </div>
-  );
+  // Only render the components with hooks once connected
+  return <ActiveStage onDisconnect={onDisconnect} />;
 }
 
 // ---------------- ROOT ----------------
