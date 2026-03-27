@@ -18,20 +18,11 @@ interface SessionProps {
   onDisconnect: () => void;
 }
 
-// --- 1. MALVIN BOX EYES ISLAND (With Sleep & Confusion) ---
-function MalvinVoiceIsland({ 
-  agent, 
-  isSleeping, 
-  isConfused 
-}: { 
-  agent: any, 
-  isSleeping: boolean, 
-  isConfused: boolean 
-}) {
+// --- 1. MALVIN BOX EYES ISLAND ---
+function MalvinVoiceIsland({ agent, isSleeping, isConfused }: { agent: any, isSleeping: boolean, isConfused: boolean }) {
   const isAgentSpeaking = useIsSpeaking(agent);
   const [blink, setBlink] = useState(false);
 
-  // Normal Blinking Logic
   useEffect(() => {
     if (isSleeping) return;
     const blinkInterval = setInterval(() => {
@@ -44,32 +35,25 @@ function MalvinVoiceIsland({
   return (
     <div style={{
       width: '140px', height: '54px',
-      backgroundColor: isSleeping ? 'rgba(10, 10, 10, 0.9)' : 'rgba(20, 20, 20, 0.85)',
+      backgroundColor: 'rgba(20, 20, 20, 0.85)',
       backdropFilter: 'blur(10px)',
       borderRadius: '27px',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      border: isSleeping ? '1px solid rgba(255,255,255,0.05)' : '1px solid rgba(255,255,255,0.15)',
-      transition: 'all 0.8s ease',
+      border: '1px solid rgba(255,255,255,0.15)',
+      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
       transform: isAgentSpeaking ? 'scale(1.1)' : 'scale(1)',
       boxShadow: isAgentSpeaking ? '0 0 25px rgba(10, 132, 255, 0.4)' : '0 4px 15px rgba(0,0,0,0.5)',
       position: 'relative'
     }}>
-      {/* Confusion Question Mark */}
-      {isConfused && !isAgentSpeaking && !isSleeping && (
-        <div style={questionMarkStyle}>?</div>
-      )}
-
-      {/* Sleeping ZZZs */}
+      {isConfused && !isAgentSpeaking && !isSleeping && <div style={questionMarkStyle}>?</div>}
       {isSleeping && (
-        <>
+        <div style={{ position: 'absolute', top: '-15px', right: '10px' }}>
           <div className="zzz" style={{ ...zzzStyle, animationDelay: '0s' }}>z</div>
           <div className="zzz" style={{ ...zzzStyle, animationDelay: '1s' }}>z</div>
           <div className="zzz" style={{ ...zzzStyle, animationDelay: '2s' }}>Z</div>
-        </>
+        </div>
       )}
-
       <svg width="60" height="20" viewBox="0 0 60 20" fill="none">
-        {/* Left Eye */}
         <rect 
           x="12" 
           y={isSleeping || blink ? "9" : (isConfused ? "4" : (isAgentSpeaking ? "2" : "5"))} 
@@ -77,13 +61,8 @@ function MalvinVoiceIsland({
           height={isSleeping || blink ? "2" : (isConfused ? "12" : (isAgentSpeaking ? "16" : "10"))} 
           rx="1" 
           fill="white" 
-          style={{ 
-            transition: 'all 0.2s ease-out', 
-            transform: isConfused ? 'rotate(-10deg)' : 'none',
-            transformOrigin: 'center'
-          }} 
+          style={{ transition: 'all 0.1s ease-out', transform: isConfused ? 'rotate(-10deg)' : 'none', transformOrigin: 'center' }} 
         />
-        {/* Right Eye */}
         <rect 
           x="38" 
           y={isSleeping || blink ? "9" : (isConfused ? "2" : (isAgentSpeaking ? "2" : "5"))} 
@@ -91,24 +70,14 @@ function MalvinVoiceIsland({
           height={isSleeping || blink ? "2" : (isConfused ? "12" : (isAgentSpeaking ? "16" : "10"))} 
           rx="1" 
           fill="white" 
-          style={{ 
-            transition: 'all 0.2s ease-out',
-            transform: isConfused ? 'rotate(15deg)' : 'none',
-            transformOrigin: 'center'
-          }} 
+          style={{ transition: 'all 0.1s ease-out', transform: isConfused ? 'rotate(15deg)' : 'none', transformOrigin: 'center' }} 
         />
       </svg>
-      
       {isAgentSpeaking && <div style={pulseStyle} />}
-      
       <style>{` 
         @keyframes malvin-pulse { 0% { opacity: 0.3; transform: scaleX(0.8); } 50% { opacity: 1; transform: scaleX(1.3); } 100% { opacity: 0.3; transform: scaleX(0.8); } } 
-        @keyframes zzz-float {
-          0% { opacity: 0; transform: translate(0, 0) scale(0.5); }
-          50% { opacity: 1; }
-          100% { opacity: 0; transform: translate(20px, -40px) scale(1.2); }
-        }
-        .zzz { animation: zzz-float 3s infinite linear; }
+        @keyframes zzz-float { 0% { opacity: 0; transform: translateY(0); } 50% { opacity: 1; } 100% { opacity: 0; transform: translateY(-30px) translateX(15px); } }
+        .zzz { position: absolute; animation: zzz-float 3s infinite; color: #0a84ff; font-weight: bold; font-family: sans-serif; }
       `}</style>
     </div>
   );
@@ -122,11 +91,10 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
   const [localMessages, setLocalMessages] = useState<{message: string, isLocal: boolean}[]>([]);
   const [isBackCamera, setIsBackCamera] = useState(false);
   
-  // New States for Personality
+  // Personality States
   const [isSleeping, setIsSleeping] = useState(false);
   const [isConfused, setIsConfused] = useState(false);
-  const inactivityTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const confusionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sleepTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -136,43 +104,60 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
   const { localParticipant } = useLocalParticipant();
   const isAgentSpeaking = useIsSpeaking(agent);
 
-  // 1. Inactivity (Sleep) Logic
-  const resetInactivityTimer = () => {
+  // Auto-off at start and Sleep Reset
+  useEffect(() => {
+    if (localParticipant) {
+      localParticipant.setCameraEnabled(false);
+    }
+  }, [localParticipant]);
+
+  const resetSleepTimer = () => {
     setIsSleeping(false);
-    if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
-    inactivityTimer.current = setTimeout(() => {
-      setIsSleeping(true);
-    }, 60000); // 1 minute
+    if (sleepTimer.current) clearTimeout(sleepTimer.current);
+    sleepTimer.current = setTimeout(() => setIsSleeping(true), 60000);
   };
 
   useEffect(() => {
-    resetInactivityTimer();
-    return () => { if (inactivityTimer.current) clearTimeout(inactivityTimer.current); };
+    resetSleepTimer();
+    return () => { if (sleepTimer.current) clearTimeout(sleepTimer.current); };
   }, [chatMessages, isAgentSpeaking]);
 
-  // 2. Camera Tracks
-  const tracks = useTracks([{ source: Track.Source.Camera, withPlaceholder: false }]);
+  const tracks = useTracks([
+    { source: Track.Source.Camera, withPlaceholder: false },
+    { source: Track.Source.ScreenShare, withPlaceholder: false }
+  ]);
   const localCameraTrack = tracks.find(t => t.participant.isLocal && t.source === Track.Source.Camera);
 
-  // 3. Sync Messages & Check Confusion
+  // Sync Geolocation
+  useEffect(() => {
+    if (localParticipant) {
+      navigator.geolocation.getCurrentPosition((pos) => {
+        localParticipant.setAttributes({
+          "user.lat": pos.coords.latitude.toString(),
+          "user.lng": pos.coords.longitude.toString()
+        });
+      });
+    }
+  }, [localParticipant]);
+
+  // Sync Notes and Expressions
   useEffect(() => {
     if (!chatMessages || chatMessages.length === 0) return;
     const lastMessage = chatMessages[chatMessages.length - 1];
     if (lastMessage) {
       setLocalMessages(prev => [...prev, { message: lastMessage.message, isLocal: lastMessage.from?.isLocal || false }]);
       
-      // Confusion Logic: Trigger if Malvin's message ends in "?" or contains "don't understand"
       if (!lastMessage.from?.isLocal) {
-        if (lastMessage.message.includes("?") || lastMessage.message.toLowerCase().includes("understand")) {
+        // Confusion Check
+        if (lastMessage.message.includes("?")) {
           setIsConfused(true);
-          if (confusionTimer.current) clearTimeout(confusionTimer.current);
-          confusionTimer.current = setTimeout(() => setIsConfused(false), 5000); // Clear after 5s
+          setTimeout(() => setIsConfused(false), 5000);
         }
-
+        // Notepad Check
         if (lastMessage.message.includes("NOTE:")) {
-            const noteContent = lastMessage.message.split("NOTE:")[1].trim();
-            setNotes(prev => prev.includes(noteContent) ? prev : [...prev, noteContent]);
-            setIsNotepadOpen(true);
+          const noteContent = lastMessage.message.split("NOTE:")[1].trim();
+          setNotes(prev => prev.includes(noteContent) ? prev : [...prev, noteContent]);
+          setIsNotepadOpen(true);
         }
       }
     }
@@ -188,7 +173,7 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
       await localParticipant.publishData(data, { reliable: true, topic: "user_input" });
       setLocalMessages(prev => [...prev, { message: textInput, isLocal: true }]);
       setTextInput("");
-      resetInactivityTimer();
+      resetSleepTimer();
     }
   };
 
@@ -199,6 +184,13 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
     await new Promise(r => setTimeout(r, 150));
     await localParticipant.setCameraEnabled(true, { facingMode: mode });
     setIsBackCamera(!isBackCamera);
+  };
+
+  const handlePressStart = () => {
+    timerRef.current = setTimeout(() => {
+      toggleCameraFacing();
+      if (navigator.vibrate) navigator.vibrate(50);
+    }, 800);
   };
 
   return (
@@ -232,13 +224,7 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
           </div>
           
           <div style={{ pointerEvents: 'auto' }}>
-            {agent ? (
-              <MalvinVoiceIsland 
-                agent={agent} 
-                isSleeping={isSleeping} 
-                isConfused={isConfused} 
-              />
-            ) : <div style={connectingStyle}>CONNECTING...</div>}
+            {agent ? <MalvinVoiceIsland agent={agent} isSleeping={isSleeping} isConfused={isConfused} /> : <div style={connectingStyle}>CONNECTING...</div>}
           </div>
         </div>
 
@@ -257,17 +243,19 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
           <div style={pillContainerStyle}>
             <button onClick={onDisconnect} style={{...btnStyle, color: '#ff453a'}}>✕</button>
             <div style={dividerStyle} />
+            
             <button onClick={() => localParticipant?.setMicrophoneEnabled(!localParticipant.isMicrophoneEnabled)} style={{...btnStyle, color: localParticipant?.isMicrophoneEnabled ? '#32d74b' : '#636366'}}>
               {localParticipant?.isMicrophoneEnabled ? '🎙️' : '🔇'}
             </button>
+
             <input placeholder="Message Malvin..." value={textInput} onChange={(e) => setTextInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} style={inputStyle} />
+
             {textInput.trim().length > 0 ? (
                <button onClick={handleSendMessage} style={{ ...btnStyle, color: '#0a84ff', fontSize: '12px', fontWeight: 'bold' }}>SEND</button>
             ) : (
               <div style={{ display: 'flex' }}>
                 <button 
-                  onMouseDown={() => { timerRef.current = setTimeout(toggleCameraFacing, 800); }} 
-                  onMouseUp={() => timerRef.current && clearTimeout(timerRef.current)}
+                  onMouseDown={handlePressStart} onMouseUp={() => timerRef.current && clearTimeout(timerRef.current)}
                   onClick={() => localParticipant?.setCameraEnabled(!localParticipant.isCameraEnabled)} 
                   style={{...btnStyle, color: localParticipant?.isCameraEnabled ? '#0a84ff' : '#636366'}}
                 >📷</button>
@@ -280,18 +268,10 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
   );
 }
 
-// --- NEW PERSONALITY STYLES ---
-const zzzStyle: React.CSSProperties = {
-  position: 'absolute', top: '-10px', right: '10px', color: '#0a84ff',
-  fontSize: '14px', fontWeight: 'bold', pointerEvents: 'none'
-};
-const questionMarkStyle: React.CSSProperties = {
-  position: 'absolute', right: '-25px', top: '5px', color: '#ffcc00',
-  fontSize: '24px', fontWeight: 'bold', textShadow: '0 0 10px rgba(255,204,0,0.5)'
-};
-
-// --- REST OF STYLES ---
-const cameraCloseBtnStyle: React.CSSProperties = { position: 'absolute', bottom: '30px', right: '30px', width: '50px', height: '50px', borderRadius: '25px', backgroundColor: 'rgba(255, 69, 58, 0.8)', color: 'white', border: 'none', fontSize: '20px', cursor: 'pointer', backdropFilter: 'blur(5px)', zIndex: 100 };
+// --- STYLES ---
+const zzzStyle: React.CSSProperties = { fontSize: '14px' };
+const questionMarkStyle: React.CSSProperties = { position: 'absolute', right: '-25px', top: '5px', color: '#ffcc00', fontSize: '24px', fontWeight: 'bold', textShadow: '0 0 10px rgba(255,204,0,0.5)' };
+const cameraCloseBtnStyle: React.CSSProperties = { position: 'absolute', bottom: '30px', right: '30px', width: '50px', height: '50px', borderRadius: '25px', backgroundColor: 'rgba(255, 69, 58, 0.8)', color: 'white', border: 'none', fontSize: '20px', cursor: 'pointer', backdropFilter: 'blur(5px)', zIndex: 100, pointerEvents: 'auto' };
 const pulseStyle: React.CSSProperties = { position: 'absolute', bottom: '8px', width: '24px', height: '2px', background: '#0a84ff', borderRadius: '2px', animation: 'malvin-pulse 1.5s infinite' };
 const noteBtnStyle = (isOpen: boolean) => ({ background: isOpen ? '#0a84ff' : 'rgba(30, 30, 30, 0.6)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: 'white', padding: '10px', cursor: 'pointer', backdropFilter: 'blur(10px)' });
 const notepadBoxStyle: React.CSSProperties = { position: 'absolute', top: '55px', left: 0, width: '220px', maxHeight: '250px', backgroundColor: '#fffbe6', color: '#333', borderRadius: '12px', padding: '12px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)', overflowY: 'auto', pointerEvents: 'auto' };
