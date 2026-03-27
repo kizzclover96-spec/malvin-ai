@@ -18,7 +18,47 @@ interface SessionProps {
   onDisconnect: () => void;
 }
 
-// --- 1. MALVIN BOX EYES ISLAND ---
+// --- 1. SUBTITLE OVERLAY (NEW) ---
+function SubtitleOverlay({ message }: { message: string }) {
+  if (!message) return null;
+  return (
+    <div style={{
+      position: 'absolute',
+      top: '50%',
+      left: '50%',
+      transform: 'translate(-50%, -50%)',
+      width: '80%',
+      textAlign: 'center',
+      zIndex: 15,
+      pointerEvents: 'none',
+      animation: 'subtitle-fade 0.3s ease-out'
+    }}>
+      <span style={{
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+        color: 'white',
+        padding: '12px 24px',
+        borderRadius: '16px',
+        fontSize: '20px',
+        fontWeight: '500',
+        lineHeight: '1.4',
+        backdropFilter: 'blur(8px)',
+        border: '1px solid rgba(255,255,255,0.1)',
+        display: 'inline-block',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.3)'
+      }}>
+        {message}
+      </span>
+      <style>{`
+        @keyframes subtitle-fade {
+          from { opacity: 0; transform: scale(0.95); }
+          to { opacity: 1; transform: scale(1); }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+// --- 2. MALVIN BOX EYES ISLAND ---
 function MalvinVoiceIsland({ agent, isSleeping, isConfused }: { agent: any, isSleeping: boolean, isConfused: boolean }) {
   const isAgentSpeaking = useIsSpeaking(agent);
   const [blink, setBlink] = useState(false);
@@ -106,12 +146,13 @@ function MalvinVoiceIsland({ agent, isSleeping, isConfused }: { agent: any, isSl
   );
 }
 
-// --- 2. MAIN STAGE ---
+// --- 3. MAIN STAGE ---
 function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
   const [textInput, setTextInput] = useState("");
   const [isNotepadOpen, setIsNotepadOpen] = useState(false);
   const [notes, setNotes] = useState<string[]>([]);
   const [localMessages, setLocalMessages] = useState<{message: string, isLocal: boolean}[]>([]);
+  const [currentAiSubtitle, setCurrentAiSubtitle] = useState(""); // Subtitle State
   const [isBackCamera, setIsBackCamera] = useState(false);
   
   const [isSleeping, setIsSleeping] = useState(false);
@@ -124,18 +165,14 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
   const agent = useRemoteParticipant({ kind: ParticipantKind.AGENT });
   const { chatMessages = [] } = useChat(); 
   const { localParticipant } = useLocalParticipant();
-  
-  // FIX: Monitor if the USER is speaking to wake up Malvin
   const isUserSpeaking = useIsSpeaking(localParticipant);
 
   const resetInactivity = () => {
     setIsSleeping(false);
     if (sleepTimer.current) clearTimeout(sleepTimer.current);
-    // Malvin goes back to sleep after 60 seconds of silence from both sides
     sleepTimer.current = setTimeout(() => setIsSleeping(true), 60000);
   };
 
-  // Wake up if User speaks OR Agent speaks OR a chat message arrives
   useEffect(() => {
     if (isUserSpeaking || (agent && agent.isSpeaking) || chatMessages.length > 0) {
       resetInactivity();
@@ -143,7 +180,7 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
   }, [isUserSpeaking, agent?.isSpeaking, chatMessages]);
 
   useEffect(() => {
-    resetInactivity(); // Initial timer start
+    resetInactivity();
     return () => { if (sleepTimer.current) clearTimeout(sleepTimer.current); };
   }, []);
 
@@ -154,22 +191,18 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
   const localCameraTrack = tracks.find(t => t.participant.isLocal && t.source === Track.Source.Camera);
 
   useEffect(() => {
-    if (localParticipant) {
-      navigator.geolocation.getCurrentPosition((pos) => {
-        localParticipant.setAttributes({
-          "user.lat": pos.coords.latitude.toString(),
-          "user.lng": pos.coords.longitude.toString()
-        });
-      });
-    }
-  }, [localParticipant]);
-
-  useEffect(() => {
     if (!chatMessages || chatMessages.length === 0) return;
     const lastMessage = chatMessages[chatMessages.length - 1];
     if (lastMessage) {
       setLocalMessages(prev => [...prev, { message: lastMessage.message, isLocal: lastMessage.from?.isLocal || false }]);
+      
+      // If message is from AI, show it in the center center subtitle
       if (!lastMessage.from?.isLocal) {
+        setCurrentAiSubtitle(lastMessage.message);
+        
+        // Hide subtitle after 5 seconds if Malvin stops speaking
+        setTimeout(() => setCurrentAiSubtitle(""), 5000);
+
         if (lastMessage.message.includes("?")) {
           setIsConfused(true);
           setTimeout(() => setIsConfused(false), 4500);
@@ -197,6 +230,7 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
     }
   };
 
+  // Logic to handle camera flip/toggle
   const toggleCameraFacing = async () => {
     if (!localParticipant) return;
     const mode: 'user' | 'environment' = isBackCamera ? 'user' : 'environment';
@@ -221,6 +255,9 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
           <button onClick={() => localParticipant.setCameraEnabled(false)} style={cameraCloseBtnStyle}>✕</button>
         </div>
       )}
+
+      {/* NEW CENTER SUBTITLE */}
+      <SubtitleOverlay message={currentAiSubtitle} />
 
       <div style={{ position: 'relative', zIndex: 10, height: '100%', display: 'flex', flexDirection: 'column', pointerEvents: 'none' }}>
         <div style={{ padding: '20px', display: 'flex', justifyContent: 'center', position: 'relative' }}>
@@ -248,6 +285,7 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
           </div>
         </div>
 
+        {/* MESSAGES AREA (Still here, but subtitles are primary) */}
         <div ref={scrollRef} style={chatAreaStyle}>
           {localMessages.map((msg, idx) => (
             <div key={idx} style={bubbleStyle(msg.isLocal)}>
