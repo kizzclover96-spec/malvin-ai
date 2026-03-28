@@ -18,7 +18,7 @@ interface SessionProps {
   onDisconnect: () => void;
 }
 
-// --- 1. STYLES (Defined at top to prevent Rollup build errors) ---
+// --- 1. STYLES ---
 const pulseStyle: CSSProperties = { position: 'absolute', bottom: '8px', width: '24px', height: '2px', background: '#0a84ff', borderRadius: '2px', animation: 'malvin-pulse 1.5s infinite' };
 const cameraCloseBtnStyle: CSSProperties = { position: 'absolute', bottom: '110px', right: '30px', width: '44px', height: '44px', borderRadius: '22px', backgroundColor: 'rgba(255, 69, 58, 0.8)', color: 'white', border: 'none', fontSize: '18px', cursor: 'pointer', backdropFilter: 'blur(5px)', zIndex: 100, pointerEvents: 'auto' };
 const noteBtnStyle = (isOpen: boolean) => ({ background: isOpen ? '#0a84ff' : 'rgba(30, 30, 30, 0.6)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: 'white', padding: '10px', cursor: 'pointer', backdropFilter: 'blur(10px)' });
@@ -102,10 +102,12 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
   const [isBackCamera, setIsBackCamera] = useState(false);
   const [isSleeping, setIsSleeping] = useState(false);
   const [isConfused, setIsConfused] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   
   const sleepTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const agent = useRemoteParticipant({ kind: ParticipantKind.AGENT });
   const { chatMessages = [] } = useChat(); 
@@ -126,6 +128,33 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
 
   const tracks = useTracks([{ source: Track.Source.Camera, withPlaceholder: false }]);
   const localCameraTrack = tracks.find(t => t.participant.isLocal && t.source === Track.Source.Camera);
+
+  // File Upload Logic
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !localParticipant) return;
+
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      // Note: This fetch requires an actual API route at /api/upload
+      const response = await fetch('/api/upload', { method: 'POST', body: formData });
+      const { url } = await response.json();
+
+      const payload = `FILE_UPLOADED:${url}|NAME:${file.name}`;
+      const data = new TextEncoder().encode(payload);
+      await localParticipant.publishData(data, { reliable: true, topic: "user_input" });
+
+      setLocalMessages(prev => [...prev, { message: `Sent: ${file.name}`, isLocal: true }]);
+    } catch (err) {
+      console.error("Upload failed:", err);
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
 
   useEffect(() => {
     if (chatMessages.length === 0) return;
@@ -181,7 +210,6 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
         </div>
       )}
 
-      {/* --- BACKGROUND CHAT LOG (The context you asked for) --- */}
       <div ref={scrollRef} style={chatAreaStyle}>
         <div style={{ maxWidth: '600px', margin: '0 auto', width: '100%', pointerEvents: 'none' }}>
           {localMessages.map((msg, i) => (
@@ -201,7 +229,11 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
                 backdropFilter: 'blur(10px)',
                 border: '1px solid rgba(255,255,255,0.05)'
               }}>
-                {msg.message}
+                {msg.message.includes("EDITED_FILE:") ? (
+                  <a href={msg.message.split("EDITED_FILE:")[1].trim()} target="_blank" rel="noreferrer" style={{ color: '#0a84ff', textDecoration: 'none', pointerEvents: 'auto' }}>
+                    📥 Download Edited File
+                  </a>
+                ) : msg.message}
               </span>
             </div>
           ))}
@@ -210,7 +242,6 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
 
       <div style={{ position: 'relative', zIndex: 10, height: '100%', display: 'flex', flexDirection: 'column', pointerEvents: 'none' }}>
         
-        {/* TOP BAR */}
         <div style={{ padding: '20px', display: 'flex', justifyContent: 'center', position: 'relative' }}>
           <div style={{ position: 'absolute', left: '20px', pointerEvents: 'auto' }}>
             <button onClick={() => setIsNotepadOpen(!isNotepadOpen)} style={noteBtnStyle(isNotepadOpen)}>
@@ -232,10 +263,8 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
           </div>
         </div>
 
-        {/* SPACER */}
         <div style={{ flex: 1 }} />
 
-        {/* BOTTOM CONTROLS */}
         <div style={bottomControlsWrapper}>
           <div style={pillContainerStyle}>
             <button onClick={onDisconnect} style={{...btnStyle, color: '#ff453a'}}>✕</button>
@@ -243,6 +272,21 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
             <button onClick={() => localParticipant?.setMicrophoneEnabled(!localParticipant.isMicrophoneEnabled)} style={{...btnStyle, color: localParticipant?.isMicrophoneEnabled ? '#32d74b' : '#636366'}}>
               {localParticipant?.isMicrophoneEnabled ? '🎙️' : '🔇'}
             </button>
+            
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              style={{ display: 'none' }} 
+              onChange={handleFileUpload} 
+            />
+            <button 
+              onClick={() => fileInputRef.current?.click()} 
+              style={{...btnStyle, color: isUploading ? '#ff9500' : '#fff'}}
+              disabled={isUploading}
+            >
+              {isUploading ? '⏳' : '📎'}
+            </button>
+
             <input placeholder="Message Malvin..." value={textInput} onChange={(e) => setTextInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} style={inputStyle} />
             <button 
               onMouseDown={() => { timerRef.current = setTimeout(toggleCameraFacing, 800); }} 
