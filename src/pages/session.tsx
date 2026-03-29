@@ -20,10 +20,9 @@ interface SessionProps {
 const neonBlue = "#00d2ff";
 const neonRed = "#ff3b30";
 
-/* ---------------- ICONS (Zero Padding / Tight Hitbox) ---------------- */
-
+// --- NEON ICONS ---
 const GearIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={neonBlue} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={neonBlue} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z" />
   </svg>
 );
@@ -46,8 +45,7 @@ const MicIcon = ({ enabled }: { enabled: boolean }) => (
   </svg>
 );
 
-/* ---------------- AI FACE (EMOTIONS) ---------------- */
-
+// 🔥 UPDATED AI FACE (ONLY ADDITION)
 function MalvinVoiceIsland({ agent, disabled, onToggleDisable, activitySignal }: any) {
   const isAgentSpeaking = useIsSpeaking(agent);
   const [blink, setBlink] = useState(false);
@@ -71,98 +69,132 @@ function MalvinVoiceIsland({ agent, disabled, onToggleDisable, activitySignal }:
 
   return (
     <div onClick={onToggleDisable} style={{
-      width: '110px', height: '42px', backgroundColor: 'rgba(10,10,10,0.9)',
-      borderRadius: '21px', border: `1.5px solid ${disabled ? neonRed : neonBlue}`,
-      display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', position: 'relative'
+      width: '110px', height: '42px',
+      backgroundColor: 'rgba(10, 10, 10, 0.9)',
+      borderRadius: '21px',
+      border: `1.5px solid ${neonBlue}`,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      cursor: 'pointer',
+      boxShadow: disabled
+        ? `0 0 10px ${neonRed}55`
+        : isAgentSpeaking
+        ? `0 0 15px ${neonBlue}55`
+        : `0 0 5px ${neonBlue}22`,
     }}>
-      {sleeping && !disabled && (
-        <div style={{ position: 'absolute', top: -15, color: neonBlue, fontSize: '10px', fontWeight: 'bold' }}>Zzz...</div>
-      )}
-      {disabled ? (
-        <div style={{ display: 'flex', gap: '8px', color: 'white', fontWeight: 'bold', fontSize: '16px' }}>
-          <span>X</span><span>X</span>
-        </div>
+      {sleeping ? (
+        <div style={{ color: "#aaa", fontSize: "12px" }}>- - zzz</div>
+      ) : disabled ? (
+        <div style={{ color: "white" }}>X X</div>
       ) : (
         <svg width="45" height="18" viewBox="0 0 60 20">
-          <rect x="12" y={sleeping || blink ? "9" : (isAgentSpeaking ? "2" : "5")} width="10" height={sleeping || blink ? "2" : (isAgentSpeaking ? "16" : "10")} rx="1" fill="white" />
-          <rect x="38" y={sleeping || blink ? "9" : (isAgentSpeaking ? "2" : "5")} width="10" height={sleeping || blink ? "2" : (isAgentSpeaking ? "16" : "10")} rx="1" fill="white" />
+          <rect x="12" y={blink ? "9" : (isAgentSpeaking ? "2" : "5")} width="10" height={blink ? "2" : (isAgentSpeaking ? "16" : "10")} rx="1" fill="white" />
+          <rect x="38" y={blink ? "9" : (isAgentSpeaking ? "2" : "5")} width="10" height={blink ? "2" : (isAgentSpeaking ? "16" : "10")} rx="1" fill="white" />
         </svg>
       )}
     </div>
   );
 }
 
-/* ---------------- MAIN STAGE ---------------- */
-
-function VideoStage({ onDisconnect }: any) {
+function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
   const [textInput, setTextInput] = useState("");
+
+  // 🔥 ADDED STATE
   const [disabled, setDisabled] = useState(false);
   const [activitySignal, setActivitySignal] = useState(0);
 
-  const agent = useRemoteParticipant({ kind: ParticipantKind.AGENT });
-  const { localParticipant } = useLocalParticipant();
-  const tracks = useTracks([{ source: Track.Source.Camera, withPlaceholder: false }]);
-  const cameraTrack = tracks.find(t => t.participant.isLocal && t.source === Track.Source.Camera);
-
   const triggerActivity = () => setActivitySignal(prev => prev + 1);
 
+  const agent = useRemoteParticipant({ kind: ParticipantKind.AGENT });
+  const { localParticipant } = useLocalParticipant();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleSendMessage = async () => {
+    if (textInput.trim() && localParticipant) {
+      const data = new TextEncoder().encode(textInput);
+      await localParticipant.publishData(data, { reliable: true, topic: "user_input" });
+      setTextInput("");
+      triggerActivity(); // 🔥 ADDED
+    }
+  };
+
   const btnReset: CSSProperties = {
-    background: 'none', border: 'none', padding: 0, margin: 0,
-    width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-    cursor: disabled ? 'default' : 'pointer', opacity: disabled ? 0.3 : 1,
-    pointerEvents: disabled ? 'none' : 'auto'
+    background: 'none', border: 'none', padding: 0, margin: 0, cursor: 'pointer',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    width: '24px', height: '24px'
   };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: '#000', color: '#fff' }} onMouseMove={triggerActivity} onClick={triggerActivity}>
+    <div style={{ position: 'fixed', inset: 0, backgroundColor: '#000', color: '#fff', overflow: 'hidden', fontFamily: 'sans-serif' }}>
       
-      {/* BACKGROUND VIDEO */}
-      {localParticipant?.isCameraEnabled && cameraTrack && (
-        <div style={{ position: 'absolute', inset: 0, zIndex: 0 }}>
-          <VideoTrack trackRef={cameraTrack as any} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-        </div>
-      )}
-
-      {/* TOP ALIGNMENT (Gear and Face on same horizontal line) */}
-      <div style={{ position: 'absolute', top: 25, left: 25, right: 25, display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 10 }}>
-        <div style={{ position: 'absolute', left: 0 }}>
-          <button style={btnReset} disabled={disabled}><GearIcon /></button>
-        </div>
-        <MalvinVoiceIsland
-          agent={agent}
-          disabled={disabled}
-          activitySignal={activitySignal}
-          onToggleDisable={() => setDisabled(p => !p)}
-        />
+      <div style={{ position: 'absolute', top: '25px', left: '25px', zIndex: 100 }}>
+        <button style={btnReset}><GearIcon /></button>
       </div>
 
-      {/* BOTTOM UNIFIED PILL */}
-      <div style={{ position: 'absolute', bottom: 30, width: '100%', display: 'flex', justifyContent: 'center', zIndex: 10 }}>
+      <div style={{ position: 'absolute', top: '25px', width: '100%', display: 'flex', justifyContent: 'center', zIndex: 100 }}>
+        {agent && (
+          <MalvinVoiceIsland
+            agent={agent}
+            disabled={disabled}
+            activitySignal={activitySignal}
+            onToggleDisable={() => setDisabled(prev => !prev)}
+          />
+        )}
+      </div>
+
+      <div style={{ position: 'absolute', bottom: '30px', left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 100 }}>
         <div style={{
-          width: '90%', maxWidth: 450, height: '52px', background: 'rgba(15,15,15,0.95)',
-          borderRadius: 26, border: `1px solid ${disabled ? '#444' : neonBlue}`,
-          display: 'flex', alignItems: 'center', padding: '0 15px',
-          boxShadow: disabled ? 'none' : `0 0 10px ${neonBlue}22`
+          width: '90%', maxWidth: '450px', height: '52px',
+          backgroundColor: 'rgba(15,15,15,0.95)',
+          borderRadius: '26px',
+          border: `1px solid ${neonBlue}`,
+          display: 'flex',
+          alignItems: 'center',
+          padding: '0 15px',
+          boxShadow: `0 0 10px ${neonBlue}15`
         }}>
           
-          <button onClick={onDisconnect} style={{ ...btnReset, width: '30px', height: '30px', borderRadius: '50%', border: `1.5px solid ${neonRed}`, color: neonRed, fontSize: '14px', marginRight: '10px', pointerEvents: 'auto', opacity: 1 }}>✕</button>
+          <button onClick={onDisconnect} style={{
+            ...btnReset, width: '30px', height: '30px',
+            borderRadius: '50%',
+            border: `1.5px solid ${neonRed}`,
+            color: neonRed,
+            fontSize: '14px',
+            fontWeight: 'bold',
+            marginRight: '12px'
+          }}>✕</button>
 
-          <input
-            placeholder={disabled ? "Frozen..." : "just say the word..."}
-            value={textInput}
-            disabled={disabled}
-            onChange={(e) => { setTextInput(e.target.value); triggerActivity(); }}
-            style={{ flex: 1, background: 'none', border: 'none', color: '#fff', outline: 'none', fontSize: '14px' }}
+          <input 
+            placeholder="just say the word..." 
+            value={textInput} 
+            onChange={(e) => {
+              setTextInput(e.target.value);
+              triggerActivity(); // 🔥 ADDED
+            }}
+            onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+            style={{ flex: 1, background: 'none', border: 'none', color: '#fff', outline: 'none', fontSize: '14px' }} 
           />
 
-          <div style={{ display: 'flex', gap: '14px', marginLeft: '10px' }}>
-            <button style={btnReset}><ClipIcon /></button>
-            <button style={btnReset} onClick={() => localParticipant?.setCameraEnabled(!localParticipant.isCameraEnabled)}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginLeft: '10px' }}>
+            <button onClick={() => { fileInputRef.current?.click(); triggerActivity(); }} style={btnReset}><ClipIcon /></button>
+            <input type="file" ref={fileInputRef} style={{ display: 'none' }} />
+            
+            <button onClick={() => {
+              localParticipant?.setCameraEnabled(!localParticipant.isCameraEnabled);
+              triggerActivity();
+            }} style={btnReset}>
               <CameraIcon enabled={!!localParticipant?.isCameraEnabled} />
             </button>
-            <button style={btnReset} onClick={() => localParticipant?.setMicrophoneEnabled(!localParticipant.isMicrophoneEnabled)}>
+
+            <button onClick={() => {
+              localParticipant?.setMicrophoneEnabled(!localParticipant.isMicrophoneEnabled);
+              triggerActivity();
+            }} style={btnReset}>
               <MicIcon enabled={!!localParticipant?.isMicrophoneEnabled} />
             </button>
+
+            {textInput.trim() && (
+              <button onClick={handleSendMessage} style={{ ...btnReset, color: neonBlue, fontWeight: 'bold' }}>↑</button>
+            )}
           </div>
         </div>
       </div>
@@ -170,18 +202,9 @@ function VideoStage({ onDisconnect }: any) {
   );
 }
 
-/* ---------------- ROOT ---------------- */
-
 export default function Session({ token, serverUrl, onDisconnect }: SessionProps) {
   return (
-    <LiveKitRoom 
-      token={token} 
-      serverUrl={serverUrl} 
-      connect={true} 
-      audio={true} 
-      video={false} // Match your working code
-      onDisconnected={onDisconnect}
-    >
+    <LiveKitRoom token={token} serverUrl={serverUrl} connect={true} audio={true} video={false} onDisconnected={onDisconnect}>
       <LayoutContextProvider>
         <RoomAudioRenderer />
         <VideoStage onDisconnect={onDisconnect} />
