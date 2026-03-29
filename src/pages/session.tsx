@@ -15,6 +15,7 @@ import {
 interface SessionProps {
   token: string;
   serverUrl: string;
+  userEmail: string; // Pass the logged-in email here
   onDisconnect: () => void;
 }
 
@@ -77,7 +78,6 @@ const BackgroundChat = () => {
     <div style={{ position: 'absolute', inset: 0, zIndex: 15, display: 'flex', justifyContent: 'center', pointerEvents: 'none' }}>
       <div
         ref={scrollRef}
-        className="custom-scrollbar"
         style={{
           width: '90%', maxWidth: '450px', padding: '120px 10px 180px 10px',
           overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px',
@@ -86,7 +86,6 @@ const BackgroundChat = () => {
         }}
       >
         {chatMessages.map((msg, index) => {
-          // If 'from' is undefined or matches local ID, it's YOU. Otherwise, it's MALVIN.
           const isMe = !msg.from || msg.from.identity === localParticipant?.identity;
           const isAgent = !isMe;
 
@@ -111,21 +110,17 @@ const BackgroundChat = () => {
             </div>
           );
         })}
-
         {isAgentTyping && (
           <div style={{ alignSelf: 'flex-start', display: 'flex', flexDirection: 'column' }}>
-            <div style={{
-              padding: '12px 18px', borderRadius: '18px', borderBottomLeftRadius: '4px',
-              backgroundColor: 'rgba(245, 245, 245, 0.92)', display: 'flex', gap: '5px', alignItems: 'center'
-            }}>
-              <style>{`@keyframes dotPulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }`}</style>
-              {[0, 1, 2].map((i) => (
-                <div key={i} style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#444', animation: `dotPulse 1.4s infinite ${i * 0.2}s` }} />
-              ))}
+            <div style={{ padding: '12px 18px', borderRadius: '18px', backgroundColor: 'rgba(245, 245, 245, 0.92)' }}>
+              <div style={{ width: '20px', height: '10px', display: 'flex', gap: '3px' }}>
+                <div style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#444' }} />
+                <div style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#444' }} />
+                <div style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#444' }} />
+              </div>
             </div>
           </div>
         )}
-        <div style={{ minHeight: '20px' }} />
       </div>
     </div>
   );
@@ -161,14 +156,10 @@ function MalvinVoiceIsland({ agent, disabled, onToggleDisable, activitySignal }:
       cursor: 'pointer', position: 'relative', transition: 'all 0.3s ease',
       boxShadow: disabled ? `0 0 20px ${neonRed}77` : isAgentSpeaking ? `0 0 15px ${neonBlue}55` : `0 0 5px ${neonBlue}22`,
     }}>
-      <style>{`@keyframes floatZ { 0% { transform: translate(0, 0) scale(0.5); opacity: 0; } 20% { opacity: 1; } 100% { transform: translate(10px, -25px) scale(1.3); opacity: 0; } } @keyframes pulseDead { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.92); } }`}</style>
       {disabled ? (
-        <svg width="45" height="18" viewBox="0 0 60 20" style={{ animation: 'pulseDead 2s infinite ease-in-out' }}><text x="10" y="15" fill={neonRed} fontSize="16" fontWeight="bold">X</text><text x="36" y="15" fill={neonRed} fontSize="16" fontWeight="bold">X</text></svg>
+        <span style={{ color: neonRed, fontWeight: 'bold' }}>OFFLINE</span>
       ) : sleeping ? (
-        <>
-          <svg width="45" height="18" viewBox="0 0 60 20"><rect x="12" y="10" width="10" height="2" rx="1" fill="white" opacity="0.6" /><rect x="38" y="10" width="10" height="2" rx="1" fill="white" opacity="0.6" /></svg>
-          {[0, 1, 2].map((i) => (<div key={i} style={{ position: 'absolute', right: '10px', top: '-5px', color: 'white', fontSize: i === 0 ? '12px' : '8px', fontWeight: 'bold', animation: `floatZ 3s infinite ${i * 0.8}s linear`, opacity: 0 }}>Z</div>))}
-        </>
+        <span style={{ color: '#fff', fontSize: '10px', opacity: 0.5 }}>SLEEPING...</span>
       ) : (
         <svg width="45" height="18" viewBox="0 0 60 20">
           <rect x="12" y={blink ? "9" : (isAgentSpeaking ? "2" : "5")} width="10" height={blink ? "2" : (isAgentSpeaking ? "16" : "10")} rx="1" fill="white" />
@@ -180,7 +171,7 @@ function MalvinVoiceIsland({ agent, disabled, onToggleDisable, activitySignal }:
 }
 
 // --- MAIN VIDEO STAGE ---
-function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
+function VideoStage({ onDisconnect, userEmail }: { onDisconnect: () => void, userEmail: string }) {
   const [textInput, setTextInput] = useState("");
   const [disabled, setDisabled] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -198,6 +189,35 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
   const tracks = useTracks([{ source: Track.Source.Camera, pks: [localParticipant?.identity || ''] }]);
   const cameraTrack = tracks.find(t => t.participant.identity === localParticipant?.identity);
   const bgInputRef = useRef<HTMLInputElement>(null);
+
+  // --- SAVE STATE LOGIC ---
+  const storageKey = `malvin_session_${userEmail.replace(/[^a-zA-Z0-9]/g, '_')}`;
+
+  useEffect(() => {
+    const saved = localStorage.getItem(storageKey);
+    if (saved) {
+      try {
+        const data = JSON.parse(saved);
+        if (data.notes) setNotes(data.notes);
+        if (data.backgroundImage) setBackgroundImage(data.backgroundImage);
+        if (data.bgBlur !== undefined) setBgBlur(data.bgBlur);
+      } catch (e) { console.error("Restore error", e); }
+    }
+  }, [storageKey]);
+
+  useEffect(() => {
+    const state = { notes, backgroundImage, bgBlur };
+    localStorage.setItem(storageKey, JSON.stringify(state));
+  }, [notes, backgroundImage, bgBlur, storageKey]);
+
+  const resetSession = () => {
+    if (window.confirm("Clear all notes and background settings for this email?")) {
+      setNotes([]);
+      setBackgroundImage(null);
+      setBgBlur(0);
+      localStorage.removeItem(storageKey);
+    }
+  };
 
   useEffect(() => {
     if (!localParticipant) return;
@@ -223,7 +243,7 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
   const btnReset: CSSProperties = {
     background: 'none', border: 'none', padding: 0, margin: 0, cursor: 'pointer',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    width: '24px', height: '24px', transition: 'opacity 0.3s'
+    width: '24px', height: '24px'
   };
 
   return (
@@ -282,10 +302,22 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
               )}
             </div>
           )}
+          {activeTab === 'system' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <div>
+                    <label style={{ fontSize: '10px', color: '#555', textTransform: 'uppercase' }}>Account</label>
+                    <div style={{ fontSize: '13px', color: neonBlue, marginTop: '4px' }}>{userEmail}</div>
+                </div>
+                <button 
+                    onClick={resetSession}
+                    style={{ background: 'rgba(255, 59, 48, 0.1)', border: `1px solid ${neonRed}44`, color: neonRed, padding: '12px', borderRadius: '8px', cursor: 'pointer', textAlign: 'center', fontSize: '12px', fontWeight: 'bold' }}
+                >
+                    RESET SESSION DATA
+                </button>
+            </div>
+          )}
         </div>
       </div>
-
-      {isSettingsOpen && <div onClick={() => setIsSettingsOpen(false)} style={{ position: 'absolute', inset: 0, zIndex: 199 }} />}
 
       <div style={{ position: 'absolute', top: '25px', left: '25px', zIndex: 201 }}>
         <button onClick={() => setIsSettingsOpen(!isSettingsOpen)} style={{ ...btnReset, opacity: disabled ? 0.2 : 1 }} disabled={disabled}><GearIcon /></button>
@@ -299,15 +331,13 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
         <div style={{
           width: '90%', maxWidth: '450px', height: '52px', backgroundColor: 'rgba(15,15,15,0.95)',
           borderRadius: '26px', border: `1px solid ${disabled ? '#333' : neonBlue}`,
-          display: 'flex', alignItems: 'center', padding: '0 15px', boxShadow: disabled ? 'none' : `0 0 10px ${neonBlue}15`
+          display: 'flex', alignItems: 'center', padding: '0 15px'
         }}>
-          <button onClick={onDisconnect} style={{ ...btnReset, width: '30px', height: '30px', borderRadius: '50%', border: `1.5px solid ${neonRed}`, color: neonRed, fontSize: '14px', fontWeight: 'bold', marginRight: '12px' }}>✕</button>
+          <button onClick={onDisconnect} style={{ ...btnReset, color: neonRed, marginRight: '12px' }}>✕</button>
           <input placeholder={disabled ? "Offline..." : "say something..."} value={textInput} disabled={disabled} onChange={(e) => { setTextInput(e.target.value); triggerActivity(); }} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} style={{ flex: 1, background: 'none', border: 'none', color: disabled ? '#444' : '#fff', outline: 'none' }} />
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginLeft: '10px' }}>
-            <button style={{ ...btnReset, opacity: disabled ? 0.2 : 1 }} disabled={disabled}><ClipIcon /></button>
-            <button onClick={async () => { if(!disabled && localParticipant) { const nextState = !localParticipant.isCameraEnabled; await localParticipant.setCameraEnabled(nextState); triggerActivity(); } }} style={{ ...btnReset, opacity: disabled ? 0.2 : 1 }} disabled={disabled}><CameraIcon enabled={!disabled && !!localParticipant?.isCameraEnabled} /></button>
-            <button onClick={async () => { if(!disabled && localParticipant) { await localParticipant.setMicrophoneEnabled(!localParticipant.isMicrophoneEnabled); triggerActivity(); } }} style={{ ...btnReset, opacity: disabled ? 0.2 : 1 }} disabled={disabled}><MicIcon enabled={!disabled && !!localParticipant?.isMicrophoneEnabled} /></button>
-            {!disabled && textInput.trim() && <button onClick={handleSendMessage} style={{ ...btnReset, color: neonBlue, fontWeight: 'bold' }}>↑</button>}
+            <button onClick={async () => { if(!disabled && localParticipant) { await localParticipant.setCameraEnabled(!localParticipant.isCameraEnabled); triggerActivity(); } }} style={btnReset}><CameraIcon enabled={!disabled && !!localParticipant?.isCameraEnabled} /></button>
+            <button onClick={async () => { if(!disabled && localParticipant) { await localParticipant.setMicrophoneEnabled(!localParticipant.isMicrophoneEnabled); triggerActivity(); } }} style={btnReset}><MicIcon enabled={!disabled && !!localParticipant?.isMicrophoneEnabled} /></button>
           </div>
         </div>
       </div>
@@ -315,12 +345,12 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
   );
 }
 
-export default function Session({ token, serverUrl, onDisconnect }: SessionProps) {
+export default function Session({ token, serverUrl, userEmail, onDisconnect }: SessionProps) {
   return (
     <LiveKitRoom token={token} serverUrl={serverUrl} connect={true} audio={true} video={false} onDisconnected={onDisconnect}>
       <LayoutContextProvider>
         <RoomAudioRenderer />
-        <VideoStage onDisconnect={onDisconnect} />
+        <VideoStage onDisconnect={onDisconnect} userEmail={userEmail} />
       </LayoutContextProvider>
     </LiveKitRoom>
   );
