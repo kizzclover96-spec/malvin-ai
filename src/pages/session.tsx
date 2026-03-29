@@ -9,6 +9,7 @@ import {
   useIsSpeaking,
   LayoutContextProvider,
   useLocalParticipant,
+  useTranscript,
 } from '@livekit/components-react';
 
 interface SessionProps {
@@ -45,6 +46,71 @@ const MicIcon = ({ enabled }: { enabled: boolean }) => (
   </svg>
 );
 
+// --- COMPONENT: BACKGROUND CHAT ---
+const BackgroundChat = () => {
+  const { segments } = useTranscript();
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [segments]);
+
+  return (
+    <div
+      ref={scrollRef}
+      className="custom-scrollbar"
+      style={{
+        position: 'absolute',
+        inset: 0,
+        zIndex: 15, // Sit above video but below interactive buttons
+        padding: '120px 30px 180px 30px',
+        overflowY: 'auto',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '20px',
+        maskImage: 'linear-gradient(to bottom, transparent, black 15%, black 85%, transparent)',
+        WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 15%, black 85%, transparent)',
+        pointerEvents: 'auto',
+      }}
+    >
+      {segments.map((segment) => (
+        <div
+          key={segment.id}
+          style={{
+            maxWidth: '75%',
+            alignSelf: segment.participant?.identity === 'agent' ? 'flex-start' : 'flex-end',
+          }}
+        >
+          <span style={{ 
+            fontSize: '10px', 
+            color: segment.participant?.identity === 'agent' ? neonBlue : '#fff', 
+            opacity: 0.4, 
+            display: 'block', 
+            marginBottom: '4px',
+            textTransform: 'uppercase'
+          }}>
+            {segment.participant?.identity === 'agent' ? 'Malvin' : 'You'}
+          </span>
+          <p style={{
+            margin: 0,
+            fontSize: '1.4rem',
+            lineHeight: '1.4',
+            fontWeight: '500',
+            color: '#fff',
+            opacity: 0.7,
+            textShadow: '0 2px 10px rgba(0,0,0,0.5)'
+          }}>
+            {segment.text}
+          </p>
+        </div>
+      ))}
+      <div style={{ minHeight: '80px' }} />
+    </div>
+  );
+};
+
 // --- AI FACE COMPONENT ---
 function MalvinVoiceIsland({ agent, disabled, onToggleDisable, activitySignal }: any) {
   const isAgentSpeaking = useIsSpeaking(agent);
@@ -58,13 +124,13 @@ function MalvinVoiceIsland({ agent, disabled, onToggleDisable, activitySignal }:
         setTimeout(() => setBlink(false), 150);
       }
     }, 4000);
-    return () => interval && clearInterval(interval);
+    return () => clearInterval(interval);
   }, [sleeping, disabled]);
 
   useEffect(() => {
     setSleeping(false);
     const timer = setTimeout(() => setSleeping(true), 60000);
-    return () => timer && clearTimeout(timer);
+    return () => clearTimeout(timer);
   }, [activitySignal]);
 
   return (
@@ -86,8 +152,8 @@ function MalvinVoiceIsland({ agent, disabled, onToggleDisable, activitySignal }:
       </style>
       {disabled ? (
         <svg width="45" height="18" viewBox="0 0 60 20" style={{ animation: 'pulseDead 2s infinite ease-in-out' }}>
-          <text x="10" y="15" fill={neonRed} fontSize="16" fontWeight="bold" style={{ fontFamily: 'Arial' }}>X</text>
-          <text x="36" y="15" fill={neonRed} fontSize="16" fontWeight="bold" style={{ fontFamily: 'Arial' }}>X</text>
+          <text x="10" y="15" fill={neonRed} fontSize="16" fontWeight="bold">X</text>
+          <text x="36" y="15" fill={neonRed} fontSize="16" fontWeight="bold">X</text>
         </svg>
       ) : sleeping ? (
         <>
@@ -192,9 +258,12 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
       {/* 3. DARK OVERLAY */}
       <div style={{ 
         position: 'absolute', inset: 0, 
-        backgroundColor: (backgroundImage || localParticipant?.isCameraEnabled) ? 'rgba(0,0,0,0.3)' : '#000', 
+        backgroundColor: (backgroundImage || localParticipant?.isCameraEnabled) ? 'rgba(0,0,0,0.4)' : '#000', 
         zIndex: 10 
       }} />
+
+      {/* 4. BACKGROUND CONVERSATION HISTORY */}
+      <BackgroundChat />
 
       {/* --- SIDEBAR --- */}
       <div style={{
@@ -256,7 +325,7 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
                   <p>Latency: ~40ms</p>
                </div>
                <button onClick={downloadNotes} style={{ background: 'none', border: `1px solid ${neonBlue}`, color: neonBlue, padding: '10px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}>
-                 📥 Download Notes
+                  📥 Download Notes
                </button>
             </div>
           )}

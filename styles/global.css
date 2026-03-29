@@ -1,8 +1,21 @@
-.lk-audio-bar {
-  background-color: #0e509c; /* Change to any color you like! */
-  border-radius: 5px;
+/* 1. RESET & CORE LAYOUT */
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden; /* Prevents accidental scrolling/bouncing */
+  position: fixed;  /* Best for mobile "App-like" feel */
+  background-color: #000;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
+#root {
+  width: 100%;
+  height: 100%;
+}
+
+/* 2. THE MOVING GRADIENT (Malvin's Idle State) */
 @keyframes gradientMove {
   0% { background-position: 0% 50%; }
   50% { background-position: 100% 50%; }
@@ -10,8 +23,7 @@
 }
 
 .moving-gradient {
-  /* You can change these colors to match Malvin's vibe */
-  background: linear-gradient(-45deg, #000000, #1a1a1a, #007AFF, #000000);
+  background: linear-gradient(-45deg, #000000, #051937, #004d7a, #008793, #00bf72);
   background-size: 400% 400%;
   animation: gradientMove 15s ease infinite;
   width: 100vw;
@@ -21,16 +33,51 @@
   align-items: center;
   justify-content: center;
 }
-html, body {
-  margin: 0;
-  padding: 0;
-  width: 100%;
-  height: 100%;
-  overflow: hidden; /* This is the "kill switch" for scrolling */
-  position: fixed;  /* Prevents the elastic bounce on iOS/Android */
+
+/* 3. LIVEKIT COMPONENT TWEAKS */
+.lk-audio-bar {
+  background-color: #00d2ff; /* Matched to Neon Blue */
+  border-radius: 5px;
+  box-shadow: 0 0 10px rgba(0, 210, 255, 0.5);
 }
 
-#root {
-  width: 100%;
-  height: 100%;
+/* 4. BACKGROUND CONVERSATION SCROLLBAR */
+/* This makes the scrollbar nearly invisible but functional */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(0, 210, 255, 0.2); /* Subtle neon blue tint */
+  border-radius: 10px;
+}
+
+/* 5. TEXT READABILITY (The "HUD" Look) */
+.custom-scrollbar p {
+  transition: all 0.4s ease;
+  /* This glow ensures you can read text over a busy video background */
+  text-shadow: 0 2px 4px rgba(0,0,0,0.9), 0 0 20px rgba(0,0,0,0.5);
+}
+
+/* 6. UI BUTTON HOVERS */
+button {
+  transition: transform 0.1s ease, opacity 0.2s ease;
+}
+
+button:active {
+  transform: scale(0.92);
+}
+
+/* 7. SETTINGS INPUTS (Inside Sidebar) */
+input[type="range"] {
+  cursor: pointer;
+}
+
+input[type="text"]::placeholder {
+  color: #444;
+  font-style: italic;
 }
