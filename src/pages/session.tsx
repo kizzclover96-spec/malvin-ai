@@ -21,121 +21,303 @@ const neonBlue = "#00d2ff";
 const neonRed = "#ff3b30";
 
 // --- ICONS ---
-const GearIcon = () => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={neonBlue} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z" /></svg>;
-const CameraIcon = ({ enabled }: { enabled: boolean }) => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={neonBlue} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: enabled ? 1 : 0.3 }}><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>;
-const MicIcon = ({ enabled }: { enabled: boolean }) => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={neonBlue} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: enabled ? 1 : 0.3 }}><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4M8 22h8" /></svg>;
+const GearIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={neonBlue} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z" />
+  </svg>
+);
 
+const CameraIcon = ({ enabled }: { enabled: boolean }) => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={neonBlue} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: enabled ? 1 : 0.4 }}>
+    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>
+  </svg>
+);
+
+const ClipIcon = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={neonBlue} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+  </svg>
+);
+
+const MicIcon = ({ enabled }: { enabled: boolean }) => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={neonBlue} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: enabled ? 1 : 0.4 }}>
+    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4M8 22h8" />
+  </svg>
+);
+
+// --- AI FACE COMPONENT ---
+function MalvinVoiceIsland({ agent, disabled, onToggleDisable, activitySignal }: any) {
+  const isAgentSpeaking = useIsSpeaking(agent);
+  const [blink, setBlink] = useState(false);
+  const [sleeping, setSleeping] = useState(false);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!sleeping && !disabled) {
+        setBlink(true);
+        setTimeout(() => setBlink(false), 150);
+      }
+    }, 4000);
+    return () => interval && clearInterval(interval);
+  }, [sleeping, disabled]);
+
+  useEffect(() => {
+    setSleeping(false);
+    const timer = setTimeout(() => setSleeping(true), 60000);
+    return () => timer && clearTimeout(timer);
+  }, [activitySignal]);
+
+  return (
+    <div
+      onClick={onToggleDisable}
+      style={{
+        width: '110px', height: '42px', backgroundColor: 'rgba(10, 10, 10, 0.9)',
+        borderRadius: '21px', border: `1.5px solid ${disabled ? neonRed : neonBlue}`,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        cursor: 'pointer', position: 'relative', transition: 'all 0.3s ease',
+        boxShadow: disabled ? `0 0 20px ${neonRed}77` : isAgentSpeaking ? `0 0 15px ${neonBlue}55` : `0 0 5px ${neonBlue}22`,
+      }}
+    >
+      <style>
+        {`
+          @keyframes floatZ { 0% { transform: translate(0, 0) scale(0.5); opacity: 0; } 20% { opacity: 1; } 100% { transform: translate(10px, -25px) scale(1.3); opacity: 0; } }
+          @keyframes pulseDead { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.92); } }
+        `}
+      </style>
+      {disabled ? (
+        <svg width="45" height="18" viewBox="0 0 60 20" style={{ animation: 'pulseDead 2s infinite ease-in-out' }}>
+          <text x="10" y="15" fill={neonRed} fontSize="16" fontWeight="bold" style={{ fontFamily: 'Arial' }}>X</text>
+          <text x="36" y="15" fill={neonRed} fontSize="16" fontWeight="bold" style={{ fontFamily: 'Arial' }}>X</text>
+        </svg>
+      ) : sleeping ? (
+        <>
+          <svg width="45" height="18" viewBox="0 0 60 20">
+            <rect x="12" y="10" width="10" height="2" rx="1" fill="white" opacity="0.6" />
+            <rect x="38" y="10" width="10" height="2" rx="1" fill="white" opacity="0.6" />
+          </svg>
+          {[0, 1, 2].map((i) => (
+            <div key={i} style={{ position: 'absolute', right: '10px', top: '-5px', color: 'white', fontSize: i === 0 ? '12px' : '8px', fontWeight: 'bold', animation: `floatZ 3s infinite ${i * 0.8}s linear`, opacity: 0 }}>Z</div>
+          ))}
+        </>
+      ) : (
+        <svg width="45" height="18" viewBox="0 0 60 20">
+          <rect x="12" y={blink ? "9" : (isAgentSpeaking ? "2" : "5")} width="10" height={blink ? "2" : (isAgentSpeaking ? "16" : "10")} rx="1" fill="white" />
+          <rect x="38" y={blink ? "9" : (isAgentSpeaking ? "2" : "5")} width="10" height={blink ? "2" : (isAgentSpeaking ? "16" : "10")} rx="1" fill="white" />
+        </svg>
+      )}
+    </div>
+  );
+}
+
+// --- MAIN VIDEO STAGE ---
 function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
-  const [activeTab, setActiveTab] = useState<'notes' | 'style' | 'system'>('notes');
-  const [notes, setNotes] = useState<string[]>([]);
+  const [textInput, setTextInput] = useState("");
+  const [disabled, setDisabled] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'notes' | 'appearance' | 'system'>('notes');
+  const [notes, setNotes] = useState<string[]>([]);
   const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
   const [bgBlur, setBgBlur] = useState(0);
+  const [activitySignal, setActivitySignal] = useState(0);
   
+  const triggerActivity = () => setActivitySignal(prev => prev + 1);
+  const agent = useRemoteParticipant({ kind: ParticipantKind.AGENT });
   const { localParticipant } = useLocalParticipant();
+  
   const tracks = useTracks([{ source: Track.Source.Camera, pks: [localParticipant?.identity || ''] }]);
   const cameraTrack = tracks.find(t => t.participant.identity === localParticipant?.identity);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const bgInputRef = useRef<HTMLInputElement>(null);
 
-  // Sync Notes from Data Packets
+  // Sync Notes from AI data packets
   useEffect(() => {
     if (!localParticipant) return;
-    const onData = (payload: Uint8Array, _p: any, _k: any, topic?: string) => {
+    const handleData = (payload: Uint8Array, _p: any, _k: any, topic?: string) => {
       if (topic === "note_update") {
         try {
           const data = JSON.parse(new TextDecoder().decode(payload));
           if (data.notes) setNotes(data.notes);
-        } catch (e) { console.error(e); }
+        } catch (e) { console.error("Parse error", e); }
       }
     };
-    localParticipant.on('dataReceived', onData);
-    return () => { localParticipant.off('dataReceived', onData); };
+    localParticipant.on('dataReceived', handleData);
+    return () => { localParticipant.off('dataReceived', handleData); };
   }, [localParticipant]);
 
   const downloadNotes = () => {
     const blob = new Blob([notes.join('\n')], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = 'notes.txt'; a.click();
+    a.href = url; a.download = 'malvin_notes.txt'; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleSendMessage = async () => {
+    if (disabled) return;
+    if (textInput.trim() && localParticipant) {
+      const data = new TextEncoder().encode(textInput);
+      await localParticipant.publishData(data, { reliable: true, topic: "user_input" });
+      setTextInput("");
+      triggerActivity();
+    }
+  };
+
+  const btnReset: CSSProperties = {
+    background: 'none', border: 'none', padding: 0, margin: 0, cursor: 'pointer',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    width: '24px', height: '24px', transition: 'opacity 0.3s'
   };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, backgroundColor: '#000', color: '#fff', fontFamily: 'sans-serif' }}>
+    <div style={{ position: 'fixed', inset: 0, backgroundColor: '#000', color: '#fff', overflow: 'hidden', fontFamily: 'sans-serif' }}>
       
-      {/* 1. VIDEO LAYER (Full Screen) */}
+      {/* 1. FULL SCREEN VIDEO LAYER */}
       {cameraTrack && localParticipant?.isCameraEnabled && (
-        <div style={{ position: 'absolute', inset: 0, zIndex: 1 }}>
+        <div style={{ position: 'absolute', inset: 0, zIndex: 5 }}>
           <VideoTrack trackRef={cameraTrack} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         </div>
       )}
 
-      {/* 2. WALLPAPER LAYER */}
+      {/* 2. CUSTOM BACKGROUND IMAGE LAYER */}
       {backgroundImage && (
-        <div style={{ 
-            position: 'absolute', inset: 0, zIndex: 2,
-            backgroundImage: `url(${backgroundImage})`, backgroundSize: 'cover', backgroundPosition: 'center',
-            filter: `blur(${bgBlur}px)`, transform: 'scale(1.1)' 
+        <div style={{
+          position: 'absolute', inset: 0,
+          backgroundImage: `url(${backgroundImage})`,
+          backgroundSize: 'cover', backgroundPosition: 'center',
+          filter: `blur(${bgBlur}px)`, transform: 'scale(1.1)', zIndex: 2
         }} />
       )}
       
-      {/* 3. DIMMER */}
-      <div style={{ position: 'absolute', inset: 0, zIndex: 3, backgroundColor: 'rgba(0,0,0,0.5)' }} />
+      {/* 3. DARK OVERLAY */}
+      <div style={{ 
+        position: 'absolute', inset: 0, 
+        backgroundColor: (backgroundImage || localParticipant?.isCameraEnabled) ? 'rgba(0,0,0,0.3)' : '#000', 
+        zIndex: 10 
+      }} />
 
       {/* --- SIDEBAR --- */}
-      {isSettingsOpen && (
-        <div style={{
-          position: 'absolute', top: 0, left: 0, bottom: 0, width: '300px',
-          backgroundColor: 'rgba(10,10,10,0.95)', borderRight: `1px solid ${neonBlue}33`,
-          zIndex: 100, display: 'flex', flexDirection: 'column', backdropFilter: 'blur(10px)'
-        }}>
-          <div style={{ display: 'flex', marginTop: '60px', borderBottom: '1px solid #222' }}>
-            {['notes', 'style', 'system'].map((t: any) => (
-              <div key={t} onClick={() => setActiveTab(t)} style={{
-                flex: 1, padding: '15px 0', textAlign: 'center', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold',
-                color: activeTab === t ? neonBlue : '#444', borderBottom: activeTab === t ? `2px solid ${neonBlue}` : 'none'
-              }}>{t.toUpperCase()}</div>
-            ))}
-          </div>
-
-          <div style={{ padding: '20px', flex: 1, overflowY: 'auto' }}>
-            {activeTab === 'notes' && (
-              <div>
-                <p style={{ fontSize: '12px', color: '#555', marginBottom: '15px' }}>Malvin's Notepad</p>
-                {notes.map((n, i) => <div key={i} style={{ padding: '10px', background: '#111', borderRadius: '5px', marginBottom: '8px', borderLeft: `2px solid ${neonBlue}`, fontSize: '13px' }}>{n}</div>)}
-              </div>
-            )}
-            {activeTab === 'style' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                <button onClick={() => bgInputRef.current?.click()} style={{ padding: '10px', background: 'none', border: `1px solid ${neonBlue}55`, color: '#fff', borderRadius: '5px', cursor: 'pointer' }}>Change Wallpaper</button>
-                <input type="file" ref={bgInputRef} hidden accept="image/*" onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) { const reader = new FileReader(); reader.onloadend = () => setBackgroundImage(reader.result as string); reader.readAsDataURL(file); }
-                }} />
-                {backgroundImage && <input type="range" min="0" max="25" value={bgBlur} onChange={(e) => setBgBlur(parseInt(e.target.value))} style={{ width: '100%', accentColor: neonBlue }} />}
-              </div>
-            )}
-            {activeTab === 'system' && (
-              <button onClick={downloadNotes} style={{ width: '100%', padding: '10px', background: neonBlue, border: 'none', borderRadius: '5px', fontWeight: 'bold', cursor: 'pointer' }}>Download .txt</button>
-            )}
-          </div>
+      <div style={{
+        position: 'absolute', top: 0, left: isSettingsOpen ? 0 : '-320px',
+        display: isSettingsOpen ? 'flex' : 'none',
+        width: '280px', height: '100%', backgroundColor: 'rgba(10,10,10,0.98)',
+        borderRight: `1px solid ${neonBlue}44`, zIndex: 200, transition: 'left 0.4s ease',
+        flexDirection: 'column', boxShadow: '20px 0 50px rgba(0,0,0,0.5)', backdropFilter: 'blur(10px)'
+      }}>
+        {/* Tab Headers */}
+        <div style={{ display: 'flex', marginTop: '70px', padding: '0 20px', borderBottom: '1px solid #222' }}>
+           {['notes', 'appearance', 'system'].map((t) => (
+             <div key={t} onClick={() => setActiveTab(t as any)} style={{
+               flex: 1, padding: '10px 0', textAlign: 'center', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold',
+               color: activeTab === t ? neonBlue : '#444', borderBottom: activeTab === t ? `2px solid ${neonBlue}` : 'none',
+               textTransform: 'uppercase'
+             }}>{t === 'appearance' ? 'style' : t}</div>
+           ))}
         </div>
-      )}
 
-      {/* OVERLAY TO CLOSE SIDEBAR */}
-      {isSettingsOpen && <div onClick={() => setIsSettingsOpen(false)} style={{ position: 'absolute', inset: 0, zIndex: 90 }} />}
+        {/* Tab Content */}
+        <div style={{ padding: '24px', flex: 1, overflowY: 'auto' }}>
+          {activeTab === 'notes' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+               <h4 style={{ color: neonBlue, margin: 0, fontSize: '14px' }}>NOTEPAD</h4>
+               {notes.length === 0 ? <p style={{ fontSize: '12px', color: '#444' }}>Empty...</p> : 
+                 notes.map((n, i) => <div key={i} style={{ padding: '10px', background: 'rgba(255,255,255,0.03)', borderRadius: '6px', borderLeft: `2px solid ${neonBlue}`, fontSize: '12px' }}>{n}</div>)
+               }
+            </div>
+          )}
 
-      {/* UI ELEMENTS */}
-      <div style={{ position: 'absolute', top: '25px', left: '25px', zIndex: 110 }}>
-        <button onClick={() => setIsSettingsOpen(!isSettingsOpen)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><GearIcon /></button>
+          {activeTab === 'appearance' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <button onClick={() => bgInputRef.current?.click()} style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${neonBlue}44`, color: '#fff', padding: '12px', borderRadius: '8px', cursor: 'pointer', textAlign: 'left', fontSize: '13px' }}>
+                  🖼️ Customize Background
+              </button>
+              <input type="file" ref={bgInputRef} hidden accept="image/*" onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    const reader = new FileReader();
+                    reader.onloadend = () => setBackgroundImage(reader.result as string);
+                    reader.readAsDataURL(file);
+                  }
+              }} />
+
+              {backgroundImage && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      <label style={{ fontSize: '11px', color: '#888' }}>BLUR: {bgBlur}px</label>
+                      <input type="range" min="0" max="20" value={bgBlur} onChange={(e) => setBgBlur(parseInt(e.target.value))} style={{ accentColor: neonBlue }} />
+                  </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'system' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+               <div style={{ fontSize: '12px', color: '#555' }}>
+                  <p>Model: Gemini 3 Flash</p>
+                  <p>Latency: ~40ms</p>
+               </div>
+               <button onClick={downloadNotes} style={{ background: 'none', border: `1px solid ${neonBlue}`, color: neonBlue, padding: '10px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}>
+                 📥 Download Notes
+               </button>
+            </div>
+          )}
+        </div>
       </div>
 
-      <div style={{ position: 'absolute', bottom: '30px', left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 110 }}>
-        <div style={{ width: '90%', maxWidth: '440px', height: '52px', backgroundColor: 'rgba(15,15,15,0.95)', borderRadius: '26px', border: `1px solid ${neonBlue}44`, display: 'flex', alignItems: 'center', padding: '0 15px' }}>
-          <button onClick={onDisconnect} style={{ color: neonRed, background: 'none', border: `1px solid ${neonRed}`, borderRadius: '50%', width: '30px', height: '30px', cursor: 'pointer', marginRight: '10px' }}>✕</button>
-          <input placeholder="Say something..." style={{ flex: 1, background: 'none', border: 'none', color: '#fff', outline: 'none' }} />
-          <div style={{ display: 'flex', gap: '12px' }}>
-             <button onClick={() => localParticipant?.setCameraEnabled(!localParticipant.isCameraEnabled)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><CameraIcon enabled={!!localParticipant?.isCameraEnabled} /></button>
-             <button onClick={() => localParticipant?.setMicrophoneEnabled(!localParticipant.isMicrophoneEnabled)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><MicIcon enabled={!!localParticipant?.isMicrophoneEnabled} /></button>
+      {isSettingsOpen && <div onClick={() => setIsSettingsOpen(false)} style={{ position: 'absolute', inset: 0, zIndex: 199 }} />}
+
+      {/* Gear Icon */}
+      <div style={{ position: 'absolute', top: '25px', left: '25px', zIndex: 201 }}>
+        <button onClick={() => setIsSettingsOpen(!isSettingsOpen)} style={{ ...btnReset, opacity: disabled ? 0.2 : 1 }} disabled={disabled}><GearIcon /></button>
+      </div>
+
+      {/* Center AI Island */}
+      <div style={{ position: 'absolute', top: '25px', width: '100%', display: 'flex', justifyContent: 'center', zIndex: 100 }}>
+        {agent && (
+          <MalvinVoiceIsland agent={agent} disabled={disabled} activitySignal={activitySignal} onToggleDisable={() => setDisabled(prev => !prev)} />
+        )}
+      </div>
+
+      {/* Bottom Bar Controls */}
+      <div style={{ position: 'absolute', bottom: '30px', left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 100 }}>
+        <div style={{
+          width: '90%', maxWidth: '450px', height: '52px', backgroundColor: 'rgba(15,15,15,0.95)',
+          borderRadius: '26px', border: `1px solid ${disabled ? '#333' : neonBlue}`,
+          display: 'flex', alignItems: 'center', padding: '0 15px', boxShadow: disabled ? 'none' : `0 0 10px ${neonBlue}15`
+        }}>
+          <button onClick={onDisconnect} style={{ ...btnReset, opacity: 1, width: '30px', height: '30px', borderRadius: '50%', border: `1.5px solid ${neonRed}`, color: neonRed, fontSize: '14px', fontWeight: 'bold', marginRight: '12px' }}>✕</button>
+
+          <input placeholder={disabled ? "Offline..." : "say something..."} value={textInput} disabled={disabled} onChange={(e) => { setTextInput(e.target.value); triggerActivity(); }} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} style={{ flex: 1, background: 'none', border: 'none', color: disabled ? '#444' : '#fff', outline: 'none' }} />
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginLeft: '10px' }}>
+            <button onClick={() => !disabled && fileInputRef.current?.click()} style={{ ...btnReset, opacity: disabled ? 0.2 : 1 }} disabled={disabled}><ClipIcon /></button>
+            <input type="file" ref={fileInputRef} hidden />
+            
+            <button 
+              onClick={async () => { 
+                if(!disabled && localParticipant) {
+                    const nextState = !localParticipant.isCameraEnabled;
+                    await localParticipant.setCameraEnabled(nextState);
+                    triggerActivity();
+                }
+              }} 
+              style={{ ...btnReset, opacity: disabled ? 0.2 : 1 }} disabled={disabled}
+            >
+              <CameraIcon enabled={!disabled && !!localParticipant?.isCameraEnabled} />
+            </button>
+
+            <button 
+              onClick={async () => { 
+                if(!disabled && localParticipant) {
+                    await localParticipant.setMicrophoneEnabled(!localParticipant.isMicrophoneEnabled);
+                    triggerActivity();
+                }
+              }} 
+              style={{ ...btnReset, opacity: disabled ? 0.2 : 1 }} disabled={disabled}
+            >
+              <MicIcon enabled={!disabled && !!localParticipant?.isMicrophoneEnabled} />
+            </button>
+
+            {!disabled && textInput.trim() && <button onClick={handleSendMessage} style={{ ...btnReset, color: neonBlue, fontWeight: 'bold' }}>↑</button>}
           </div>
         </div>
       </div>
@@ -145,7 +327,14 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
 
 export default function Session({ token, serverUrl, onDisconnect }: SessionProps) {
   return (
-    <LiveKitRoom token={token} serverUrl={serverUrl} connect={true} audio={true} video={false}>
+    <LiveKitRoom 
+      token={token} 
+      serverUrl={serverUrl} 
+      connect={true} 
+      audio={true} 
+      video={false} 
+      onDisconnected={onDisconnect}
+    >
       <LayoutContextProvider>
         <RoomAudioRenderer />
         <VideoStage onDisconnect={onDisconnect} />
