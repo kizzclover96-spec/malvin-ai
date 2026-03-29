@@ -9,7 +9,7 @@ import {
   useIsSpeaking,
   LayoutContextProvider,
   useLocalParticipant,
-  useTranscript,
+  useChat, // Swapped useTranscript for useChat
 } from '@livekit/components-react';
 
 interface SessionProps {
@@ -48,14 +48,14 @@ const MicIcon = ({ enabled }: { enabled: boolean }) => (
 
 // --- COMPONENT: BACKGROUND CHAT ---
 const BackgroundChat = () => {
-  const { segments } = useTranscript();
+  const { chatMessages } = useChat();
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [segments]);
+  }, [chatMessages]);
 
   return (
     <div
@@ -64,7 +64,7 @@ const BackgroundChat = () => {
       style={{
         position: 'absolute',
         inset: 0,
-        zIndex: 15, // Sit above video but below interactive buttons
+        zIndex: 15,
         padding: '120px 30px 180px 30px',
         overflowY: 'auto',
         display: 'flex',
@@ -72,40 +72,43 @@ const BackgroundChat = () => {
         gap: '20px',
         maskImage: 'linear-gradient(to bottom, transparent, black 15%, black 85%, transparent)',
         WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 15%, black 85%, transparent)',
-        pointerEvents: 'auto',
+        pointerEvents: 'none', // Allow clicks to pass through
       }}
     >
-      {segments.map((segment) => (
-        <div
-          key={segment.id}
-          style={{
-            maxWidth: '75%',
-            alignSelf: segment.participant?.identity === 'agent' ? 'flex-start' : 'flex-end',
-          }}
-        >
-          <span style={{ 
-            fontSize: '10px', 
-            color: segment.participant?.identity === 'agent' ? neonBlue : '#fff', 
-            opacity: 0.4, 
-            display: 'block', 
-            marginBottom: '4px',
-            textTransform: 'uppercase'
-          }}>
-            {segment.participant?.identity === 'agent' ? 'Malvin' : 'You'}
-          </span>
-          <p style={{
-            margin: 0,
-            fontSize: '1.4rem',
-            lineHeight: '1.4',
-            fontWeight: '500',
-            color: '#fff',
-            opacity: 0.7,
-            textShadow: '0 2px 10px rgba(0,0,0,0.5)'
-          }}>
-            {segment.text}
-          </p>
-        </div>
-      ))}
+      {chatMessages.map((msg, index) => {
+        const isAgent = msg.from?.identity === 'agent' || msg.from?.name?.toLowerCase().includes('malvin');
+        return (
+          <div
+            key={msg.timestamp || index}
+            style={{
+              maxWidth: '75%',
+              alignSelf: isAgent ? 'flex-start' : 'flex-end',
+            }}
+          >
+            <span style={{ 
+              fontSize: '10px', 
+              color: isAgent ? neonBlue : '#fff', 
+              opacity: 0.4, 
+              display: 'block', 
+              marginBottom: '4px',
+              textTransform: 'uppercase'
+            }}>
+              {isAgent ? 'Malvin' : 'You'}
+            </span>
+            <p style={{
+              margin: 0,
+              fontSize: '1.4rem',
+              lineHeight: '1.4',
+              fontWeight: '500',
+              color: '#fff',
+              opacity: 0.7,
+              textShadow: '0 2px 10px rgba(0,0,0,0.5)'
+            }}>
+              {msg.message}
+            </p>
+          </div>
+        );
+      })}
       <div style={{ minHeight: '80px' }} />
     </div>
   );
@@ -189,6 +192,7 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
   const triggerActivity = () => setActivitySignal(prev => prev + 1);
   const agent = useRemoteParticipant({ kind: ParticipantKind.AGENT });
   const { localParticipant } = useLocalParticipant();
+  const { send } = useChat();
   
   const tracks = useTracks([{ source: Track.Source.Camera, pks: [localParticipant?.identity || ''] }]);
   const cameraTrack = tracks.find(t => t.participant.identity === localParticipant?.identity);
@@ -220,13 +224,10 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
   };
 
   const handleSendMessage = async () => {
-    if (disabled) return;
-    if (textInput.trim() && localParticipant) {
-      const data = new TextEncoder().encode(textInput);
-      await localParticipant.publishData(data, { reliable: true, topic: "user_input" });
-      setTextInput("");
-      triggerActivity();
-    }
+    if (disabled || !textInput.trim() || !send) return;
+    await send(textInput);
+    setTextInput("");
+    triggerActivity();
   };
 
   const btnReset: CSSProperties = {
