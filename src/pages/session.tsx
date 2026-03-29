@@ -9,7 +9,7 @@ import {
   useIsSpeaking,
   LayoutContextProvider,
   useLocalParticipant,
-  useChat, // Swapped useTranscript for useChat
+  useChat,
 } from '@livekit/components-react';
 
 interface SessionProps {
@@ -46,7 +46,7 @@ const MicIcon = ({ enabled }: { enabled: boolean }) => (
   </svg>
 );
 
-// --- COMPONENT: BACKGROUND CHAT ---
+// --- COMPONENT: BACKGROUND CHAT (WhatsApp Style) ---
 const BackgroundChat = () => {
   const { chatMessages } = useChat();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -59,57 +59,76 @@ const BackgroundChat = () => {
 
   return (
     <div
-      ref={scrollRef}
-      className="custom-scrollbar"
       style={{
         position: 'absolute',
         inset: 0,
         zIndex: 15,
-        padding: '120px 30px 180px 30px',
-        overflowY: 'auto',
         display: 'flex',
-        flexDirection: 'column',
-        gap: '20px',
-        maskImage: 'linear-gradient(to bottom, transparent, black 15%, black 85%, transparent)',
-        WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 15%, black 85%, transparent)',
-        pointerEvents: 'none', // Allow clicks to pass through
+        justifyContent: 'center',
+        pointerEvents: 'none',
       }}
     >
-      {chatMessages.map((msg, index) => {
-        const isAgent = msg.from?.identity === 'agent' || msg.from?.name?.toLowerCase().includes('malvin');
-        return (
-          <div
-            key={msg.timestamp || index}
-            style={{
-              maxWidth: '75%',
-              alignSelf: isAgent ? 'flex-start' : 'flex-end',
-            }}
-          >
-            <span style={{ 
-              fontSize: '10px', 
-              color: isAgent ? neonBlue : '#fff', 
-              opacity: 0.4, 
-              display: 'block', 
-              marginBottom: '4px',
-              textTransform: 'uppercase'
-            }}>
-              {isAgent ? 'Malvin' : 'You'}
-            </span>
-            <p style={{
-              margin: 0,
-              fontSize: '1.4rem',
-              lineHeight: '1.4',
-              fontWeight: '500',
-              color: '#fff',
-              opacity: 0.7,
-              textShadow: '0 2px 10px rgba(0,0,0,0.5)'
-            }}>
-              {msg.message}
-            </p>
-          </div>
-        );
-      })}
-      <div style={{ minHeight: '80px' }} />
+      <div
+        ref={scrollRef}
+        className="custom-scrollbar"
+        style={{
+          width: '90%',
+          maxWidth: '450px', 
+          padding: '120px 10px 180px 10px',
+          overflowY: 'auto',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '12px',
+          pointerEvents: 'auto',
+          maskImage: 'linear-gradient(to bottom, transparent, black 10%, black 90%, transparent)',
+          WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 10%, black 90%, transparent)',
+        }}
+      >
+        {chatMessages.map((msg, index) => {
+          const isAgent = msg.from?.identity === 'agent' || msg.from?.name?.toLowerCase().includes('malvin');
+          return (
+            <div
+              key={msg.timestamp || index}
+              style={{
+                maxWidth: '85%',
+                alignSelf: isAgent ? 'flex-start' : 'flex-end',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: isAgent ? 'flex-start' : 'flex-end',
+              }}
+            >
+              <div
+                style={{
+                  padding: '10px 16px',
+                  borderRadius: '18px',
+                  // 85% opacity (D9 hex) for readable but integrated look
+                  backgroundColor: isAgent ? 'rgba(240, 240, 240, 0.85)' : `${neonBlue}D9`,
+                  color: isAgent ? '#111' : '#fff',
+                  fontSize: '0.92rem',
+                  lineHeight: '1.4',
+                  fontWeight: '400',
+                  boxShadow: '0 4px 15px rgba(0,0,0,0.25)',
+                  borderBottomLeftRadius: isAgent ? '4px' : '18px',
+                  borderBottomRightRadius: isAgent ? '18px' : '4px',
+                }}
+              >
+                {msg.message}
+              </div>
+              <span style={{ 
+                fontSize: '9px', 
+                color: '#fff', 
+                opacity: 0.5, 
+                marginTop: '4px',
+                padding: '0 5px',
+                letterSpacing: '0.5px'
+              }}>
+                {isAgent ? 'MALVIN' : 'YOU'}
+              </span>
+            </div>
+          );
+        })}
+        <div style={{ minHeight: '20px' }} />
+      </div>
     </div>
   );
 };
@@ -200,7 +219,6 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bgInputRef = useRef<HTMLInputElement>(null);
 
-  // Sync Notes from AI data packets
   useEffect(() => {
     if (!localParticipant) return;
     const handleData = (payload: Uint8Array, _p: any, _k: any, topic?: string) => {
@@ -214,14 +232,6 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
     localParticipant.on('dataReceived', handleData);
     return () => { localParticipant.off('dataReceived', handleData); };
   }, [localParticipant]);
-
-  const downloadNotes = () => {
-    const blob = new Blob([notes.join('\n')], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = 'malvin_notes.txt'; a.click();
-    URL.revokeObjectURL(url);
-  };
 
   const handleSendMessage = async () => {
     if (disabled || !textInput.trim() || !send) return;
@@ -239,14 +249,14 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
   return (
     <div style={{ position: 'fixed', inset: 0, backgroundColor: '#000', color: '#fff', overflow: 'hidden', fontFamily: 'sans-serif' }}>
       
-      {/* 1. FULL SCREEN VIDEO LAYER */}
+      {/* 1. VIDEO LAYER */}
       {cameraTrack && localParticipant?.isCameraEnabled && (
         <div style={{ position: 'absolute', inset: 0, zIndex: 5 }}>
           <VideoTrack trackRef={cameraTrack} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         </div>
       )}
 
-      {/* 2. CUSTOM BACKGROUND IMAGE LAYER */}
+      {/* 2. BG IMAGE LAYER */}
       {backgroundImage && (
         <div style={{
           position: 'absolute', inset: 0,
@@ -263,7 +273,7 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
         zIndex: 10 
       }} />
 
-      {/* 4. BACKGROUND CONVERSATION HISTORY */}
+      {/* 4. CHAT HISTORY (CENTERED & BUBBLED) */}
       <BackgroundChat />
 
       {/* --- SIDEBAR --- */}
@@ -274,7 +284,6 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
         borderRight: `1px solid ${neonBlue}44`, zIndex: 200, transition: 'left 0.4s ease',
         flexDirection: 'column', boxShadow: '20px 0 50px rgba(0,0,0,0.5)', backdropFilter: 'blur(10px)'
       }}>
-        {/* Tab Headers */}
         <div style={{ display: 'flex', marginTop: '70px', padding: '0 20px', borderBottom: '1px solid #222' }}>
            {['notes', 'appearance', 'system'].map((t) => (
              <div key={t} onClick={() => setActiveTab(t as any)} style={{
@@ -285,7 +294,6 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
            ))}
         </div>
 
-        {/* Tab Content */}
         <div style={{ padding: '24px', flex: 1, overflowY: 'auto' }}>
           {activeTab === 'notes' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
@@ -318,18 +326,6 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
               )}
             </div>
           )}
-
-          {activeTab === 'system' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-               <div style={{ fontSize: '12px', color: '#555' }}>
-                  <p>Model: Gemini 3 Flash</p>
-                  <p>Latency: ~40ms</p>
-               </div>
-               <button onClick={downloadNotes} style={{ background: 'none', border: `1px solid ${neonBlue}`, color: neonBlue, padding: '10px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}>
-                  📥 Download Notes
-               </button>
-            </div>
-          )}
         </div>
       </div>
 
@@ -354,7 +350,7 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
           borderRadius: '26px', border: `1px solid ${disabled ? '#333' : neonBlue}`,
           display: 'flex', alignItems: 'center', padding: '0 15px', boxShadow: disabled ? 'none' : `0 0 10px ${neonBlue}15`
         }}>
-          <button onClick={onDisconnect} style={{ ...btnReset, opacity: 1, width: '30px', height: '30px', borderRadius: '50%', border: `1.5px solid ${neonRed}`, color: neonRed, fontSize: '14px', fontWeight: 'bold', marginRight: '12px' }}>✕</button>
+          <button onClick={onDisconnect} style={{ ...btnReset, width: '30px', height: '30px', borderRadius: '50%', border: `1.5px solid ${neonRed}`, color: neonRed, fontSize: '14px', fontWeight: 'bold', marginRight: '12px' }}>✕</button>
 
           <input placeholder={disabled ? "Offline..." : "say something..."} value={textInput} disabled={disabled} onChange={(e) => { setTextInput(e.target.value); triggerActivity(); }} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} style={{ flex: 1, background: 'none', border: 'none', color: disabled ? '#444' : '#fff', outline: 'none' }} />
 
