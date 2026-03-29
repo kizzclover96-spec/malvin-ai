@@ -54,6 +54,13 @@ const BackgroundChat = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [chatMessages, isAgentTyping]);
+
+  // Listen for custom typing events
+  useEffect(() => {
     if (!localParticipant) return;
     const handleData = (payload: Uint8Array, _p: any, _k: any, topic?: string) => {
       if (topic === "typing") {
@@ -67,117 +74,70 @@ const BackgroundChat = () => {
     return () => { localParticipant.off('dataReceived', handleData); };
   }, [localParticipant]);
 
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [chatMessages, isAgentTyping]);
-
   return (
-    <div style={{ position: 'absolute', inset: 0, zIndex: 15, display: 'flex', justifyContent: 'center', pointerEvents: 'none' }}>
+    <div style={{
+      position: 'absolute',
+      inset: 0,
+      zIndex: 100, // Ensure it's above video but below modals
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      pointerEvents: 'none',
+    }}>
       <div
         ref={scrollRef}
-        className="custom-scrollbar"
         style={{
-          width: '90%', maxWidth: '450px', padding: '120px 10px 180px 10px',
-          overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px',
-          pointerEvents: 'auto', maskImage: 'linear-gradient(to bottom, transparent, black 10%, black 90%, transparent)',
-          WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 10%, black 90%, transparent)',
+          width: '90%',
+          maxWidth: '450px',
+          height: '60vh', // Limit height so it doesn't cover input
+          marginTop: '100px',
+          padding: '20px',
+          overflowY: 'auto',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '12px',
+          pointerEvents: 'auto',
         }}
       >
         {chatMessages.map((msg, index) => {
-          // If 'from' is undefined or matches local ID, it's YOU. Otherwise, it's MALVIN.
           const isMe = !msg.from || msg.from.identity === localParticipant?.identity;
           const isAgent = !isMe;
 
           return (
             <div key={msg.id || index} style={{
-              maxWidth: '85%', alignSelf: isAgent ? 'flex-start' : 'flex-end',
-              display: 'flex', flexDirection: 'column', alignItems: isAgent ? 'flex-start' : 'flex-end',
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: isAgent ? 'flex-start' : 'flex-end',
             }}>
               <div style={{
-                padding: '10px 16px', borderRadius: '18px',
-                backgroundColor: isAgent ? 'rgba(245, 245, 245, 0.92)' : `${neonBlue}E6`,
-                color: isAgent ? '#111' : '#fff', fontSize: '0.92rem', lineHeight: '1.4',
-                boxShadow: '0 4px 15px rgba(0,0,0,0.25)',
+                padding: '12px 16px',
+                borderRadius: '18px',
+                backgroundColor: isAgent ? 'rgba(240, 240, 240, 0.95)' : `${neonBlue}E6`,
+                color: isAgent ? '#000' : '#fff',
+                fontSize: '0.95rem',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                maxWidth: '85%',
                 borderBottomLeftRadius: isAgent ? '4px' : '18px',
                 borderBottomRightRadius: isAgent ? '18px' : '4px',
               }}>
                 {msg.message}
               </div>
-              <span style={{ fontSize: '9px', color: '#fff', opacity: 0.5, marginTop: '4px', padding: '0 5px', textTransform: 'uppercase' }}>
+              <span style={{ fontSize: '10px', color: '#fff', opacity: 0.6, marginTop: '4px', textTransform: 'uppercase' }}>
                 {isAgent ? (msg.from?.name || 'Malvin') : 'You'}
               </span>
             </div>
           );
         })}
-
         {isAgentTyping && (
-          <div style={{ alignSelf: 'flex-start', display: 'flex', flexDirection: 'column' }}>
-            <div style={{
-              padding: '12px 18px', borderRadius: '18px', borderBottomLeftRadius: '4px',
-              backgroundColor: 'rgba(245, 245, 245, 0.92)', display: 'flex', gap: '5px', alignItems: 'center'
-            }}>
-              <style>{`@keyframes dotPulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }`}</style>
-              {[0, 1, 2].map((i) => (
-                <div key={i} style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#444', animation: `dotPulse 1.4s infinite ${i * 0.2}s` }} />
-              ))}
-            </div>
+          <div style={{ alignSelf: 'flex-start', padding: '12px 18px', backgroundColor: 'rgba(240, 240, 240, 0.95)', borderRadius: '18px' }}>
+            <span style={{ color: '#555', fontSize: '12px' }}>...</span>
           </div>
         )}
-        <div style={{ minHeight: '20px' }} />
       </div>
     </div>
   );
 };
-
-// --- AI FACE COMPONENT ---
-function MalvinVoiceIsland({ agent, disabled, onToggleDisable, activitySignal }: any) {
-  const isAgentSpeaking = useIsSpeaking(agent);
-  const [blink, setBlink] = useState(false);
-  const [sleeping, setSleeping] = useState(false);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (!sleeping && !disabled) {
-        setBlink(true);
-        setTimeout(() => setBlink(false), 150);
-      }
-    }, 4000);
-    return () => clearInterval(interval);
-  }, [sleeping, disabled]);
-
-  useEffect(() => {
-    setSleeping(false);
-    const timer = setTimeout(() => setSleeping(true), 60000);
-    return () => clearTimeout(timer);
-  }, [activitySignal]);
-
-  return (
-    <div onClick={onToggleDisable} style={{
-      width: '110px', height: '42px', backgroundColor: 'rgba(10, 10, 10, 0.9)',
-      borderRadius: '21px', border: `1.5px solid ${disabled ? neonRed : neonBlue}`,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      cursor: 'pointer', position: 'relative', transition: 'all 0.3s ease',
-      boxShadow: disabled ? `0 0 20px ${neonRed}77` : isAgentSpeaking ? `0 0 15px ${neonBlue}55` : `0 0 5px ${neonBlue}22`,
-    }}>
-      <style>{`@keyframes floatZ { 0% { transform: translate(0, 0) scale(0.5); opacity: 0; } 20% { opacity: 1; } 100% { transform: translate(10px, -25px) scale(1.3); opacity: 0; } } @keyframes pulseDead { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.92); } }`}</style>
-      {disabled ? (
-        <svg width="45" height="18" viewBox="0 0 60 20" style={{ animation: 'pulseDead 2s infinite ease-in-out' }}><text x="10" y="15" fill={neonRed} fontSize="16" fontWeight="bold">X</text><text x="36" y="15" fill={neonRed} fontSize="16" fontWeight="bold">X</text></svg>
-      ) : sleeping ? (
-        <>
-          <svg width="45" height="18" viewBox="0 0 60 20"><rect x="12" y="10" width="10" height="2" rx="1" fill="white" opacity="0.6" /><rect x="38" y="10" width="10" height="2" rx="1" fill="white" opacity="0.6" /></svg>
-          {[0, 1, 2].map((i) => (<div key={i} style={{ position: 'absolute', right: '10px', top: '-5px', color: 'white', fontSize: i === 0 ? '12px' : '8px', fontWeight: 'bold', animation: `floatZ 3s infinite ${i * 0.8}s linear`, opacity: 0 }}>Z</div>))}
-        </>
-      ) : (
-        <svg width="45" height="18" viewBox="0 0 60 20">
-          <rect x="12" y={blink ? "9" : (isAgentSpeaking ? "2" : "5")} width="10" height={blink ? "2" : (isAgentSpeaking ? "16" : "10")} rx="1" fill="white" />
-          <rect x="38" y={blink ? "9" : (isAgentSpeaking ? "2" : "5")} width="10" height={blink ? "2" : (isAgentSpeaking ? "16" : "10")} rx="1" fill="white" />
-        </svg>
-      )}
-    </div>
-  );
-}
 
 // --- MAIN VIDEO STAGE ---
 function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
@@ -199,20 +159,6 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
   const cameraTrack = tracks.find(t => t.participant.identity === localParticipant?.identity);
   const bgInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (!localParticipant) return;
-    const handleData = (payload: Uint8Array, _p: any, _k: any, topic?: string) => {
-      if (topic === "note_update") {
-        try {
-          const data = JSON.parse(new TextDecoder().decode(payload));
-          if (data.notes) setNotes(data.notes);
-        } catch (e) { console.error("Parse error", e); }
-      }
-    };
-    localParticipant.on('dataReceived', handleData);
-    return () => { localParticipant.off('dataReceived', handleData); };
-  }, [localParticipant]);
-
   const handleSendMessage = async () => {
     if (disabled || !textInput.trim() || !send) return;
     await send(textInput);
@@ -222,93 +168,50 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
 
   const btnReset: CSSProperties = {
     background: 'none', border: 'none', padding: 0, margin: 0, cursor: 'pointer',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    width: '24px', height: '24px', transition: 'opacity 0.3s'
+    display: 'flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px'
   };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, backgroundColor: '#000', color: '#fff', overflow: 'hidden', fontFamily: 'sans-serif' }}>
+    <div style={{ position: 'fixed', inset: 0, backgroundColor: '#000', color: '#fff', overflow: 'hidden' }}>
+      
+      {/* Background/Video Layer */}
       {cameraTrack && localParticipant?.isCameraEnabled && (
-        <div style={{ position: 'absolute', inset: 0, zIndex: 5 }}>
+        <div style={{ position: 'absolute', inset: 0, zIndex: 1 }}>
           <VideoTrack trackRef={cameraTrack} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         </div>
       )}
       {backgroundImage && (
         <div style={{
           position: 'absolute', inset: 0, backgroundImage: `url(${backgroundImage})`,
-          backgroundSize: 'cover', backgroundPosition: 'center',
-          filter: `blur(${bgBlur}px)`, transform: 'scale(1.1)', zIndex: 2
+          backgroundSize: 'cover', backgroundPosition: 'center', filter: `blur(${bgBlur}px)`, zIndex: 2
         }} />
       )}
-      <div style={{ position: 'absolute', inset: 0, backgroundColor: (backgroundImage || localParticipant?.isCameraEnabled) ? 'rgba(0,0,0,0.4)' : '#000', zIndex: 10 }} />
+      
+      {/* Overlay for contrast */}
+      <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)', zIndex: 3 }} />
 
       <BackgroundChat />
 
-      {/* Sidebar */}
-      <div style={{
-        position: 'absolute', top: 0, left: isSettingsOpen ? 0 : '-320px',
-        display: isSettingsOpen ? 'flex' : 'none', width: '280px', height: '100%',
-        backgroundColor: 'rgba(10,10,10,0.98)', borderRight: `1px solid ${neonBlue}44`,
-        zIndex: 200, transition: 'left 0.4s ease', flexDirection: 'column',
-        boxShadow: '20px 0 50px rgba(0,0,0,0.5)', backdropFilter: 'blur(10px)'
-      }}>
-        <div style={{ display: 'flex', marginTop: '70px', padding: '0 20px', borderBottom: '1px solid #222' }}>
-           {['notes', 'appearance', 'system'].map((t) => (
-             <div key={t} onClick={() => setActiveTab(t as any)} style={{
-               flex: 1, padding: '10px 0', textAlign: 'center', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold',
-               color: activeTab === t ? neonBlue : '#444', borderBottom: activeTab === t ? `2px solid ${neonBlue}` : 'none',
-               textTransform: 'uppercase'
-             }}>{t === 'appearance' ? 'style' : t}</div>
-           ))}
-        </div>
-        <div style={{ padding: '24px', flex: 1, overflowY: 'auto' }}>
-          {activeTab === 'notes' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-               <h4 style={{ color: neonBlue, margin: 0, fontSize: '14px' }}>NOTEPAD</h4>
-               {notes.length === 0 ? <p style={{ fontSize: '12px', color: '#444' }}>Empty...</p> : 
-                 notes.map((n, i) => <div key={i} style={{ padding: '10px', background: 'rgba(255,255,255,0.03)', borderRadius: '6px', borderLeft: `2px solid ${neonBlue}`, fontSize: '12px' }}>{n}</div>)
-               }
-            </div>
-          )}
-          {activeTab === 'appearance' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              <button onClick={() => bgInputRef.current?.click()} style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${neonBlue}44`, color: '#fff', padding: '12px', borderRadius: '8px', cursor: 'pointer', textAlign: 'left', fontSize: '13px' }}>🖼️ Customize Background</button>
-              <input type="file" ref={bgInputRef} hidden accept="image/*" onChange={(e) => { const file = e.target.files?.[0]; if (file) { const reader = new FileReader(); reader.onloadend = () => setBackgroundImage(reader.result as string); reader.readAsDataURL(file); } }} />
-              {backgroundImage && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      <label style={{ fontSize: '11px', color: '#888' }}>BLUR: {bgBlur}px</label>
-                      <input type="range" min="0" max="20" value={bgBlur} onChange={(e) => setBgBlur(parseInt(e.target.value))} style={{ accentColor: neonBlue }} />
-                  </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {isSettingsOpen && <div onClick={() => setIsSettingsOpen(false)} style={{ position: 'absolute', inset: 0, zIndex: 199 }} />}
-
+      {/* Header UI */}
       <div style={{ position: 'absolute', top: '25px', left: '25px', zIndex: 201 }}>
-        <button onClick={() => setIsSettingsOpen(!isSettingsOpen)} style={{ ...btnReset, opacity: disabled ? 0.2 : 1 }} disabled={disabled}><GearIcon /></button>
+        <button onClick={() => setIsSettingsOpen(!isSettingsOpen)} style={btnReset}><GearIcon /></button>
       </div>
 
-      <div style={{ position: 'absolute', top: '25px', width: '100%', display: 'flex', justifyContent: 'center', zIndex: 100 }}>
-        {agent && <MalvinVoiceIsland agent={agent} disabled={disabled} activitySignal={activitySignal} onToggleDisable={() => setDisabled(prev => !prev)} />}
-      </div>
-
-      <div style={{ position: 'absolute', bottom: '30px', left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 100 }}>
+      {/* Input Bar */}
+      <div style={{ position: 'absolute', bottom: '30px', left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 200 }}>
         <div style={{
           width: '90%', maxWidth: '450px', height: '52px', backgroundColor: 'rgba(15,15,15,0.95)',
-          borderRadius: '26px', border: `1px solid ${disabled ? '#333' : neonBlue}`,
-          display: 'flex', alignItems: 'center', padding: '0 15px', boxShadow: disabled ? 'none' : `0 0 10px ${neonBlue}15`
+          borderRadius: '26px', border: `1px solid ${neonBlue}`, display: 'flex', alignItems: 'center', padding: '0 15px'
         }}>
-          <button onClick={onDisconnect} style={{ ...btnReset, width: '30px', height: '30px', borderRadius: '50%', border: `1.5px solid ${neonRed}`, color: neonRed, fontSize: '14px', fontWeight: 'bold', marginRight: '12px' }}>✕</button>
-          <input placeholder={disabled ? "Offline..." : "say something..."} value={textInput} disabled={disabled} onChange={(e) => { setTextInput(e.target.value); triggerActivity(); }} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} style={{ flex: 1, background: 'none', border: 'none', color: disabled ? '#444' : '#fff', outline: 'none' }} />
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginLeft: '10px' }}>
-            <button style={{ ...btnReset, opacity: disabled ? 0.2 : 1 }} disabled={disabled}><ClipIcon /></button>
-            <button onClick={async () => { if(!disabled && localParticipant) { const nextState = !localParticipant.isCameraEnabled; await localParticipant.setCameraEnabled(nextState); triggerActivity(); } }} style={{ ...btnReset, opacity: disabled ? 0.2 : 1 }} disabled={disabled}><CameraIcon enabled={!disabled && !!localParticipant?.isCameraEnabled} /></button>
-            <button onClick={async () => { if(!disabled && localParticipant) { await localParticipant.setMicrophoneEnabled(!localParticipant.isMicrophoneEnabled); triggerActivity(); } }} style={{ ...btnReset, opacity: disabled ? 0.2 : 1 }} disabled={disabled}><MicIcon enabled={!disabled && !!localParticipant?.isMicrophoneEnabled} /></button>
-            {!disabled && textInput.trim() && <button onClick={handleSendMessage} style={{ ...btnReset, color: neonBlue, fontWeight: 'bold' }}>↑</button>}
-          </div>
+          <button onClick={onDisconnect} style={{ ...btnReset, color: neonRed, marginRight: '10px' }}>✕</button>
+          <input 
+            placeholder="Say something..." 
+            value={textInput} 
+            onChange={(e) => setTextInput(e.target.value)} 
+            onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+            style={{ flex: 1, background: 'none', border: 'none', color: '#fff', outline: 'none' }} 
+          />
+          {textInput.trim() && <button onClick={handleSendMessage} style={{ ...btnReset, color: neonBlue }}>↑</button>}
         </div>
       </div>
     </div>
