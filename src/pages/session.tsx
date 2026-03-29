@@ -53,13 +53,6 @@ const BackgroundChat = () => {
   const [isAgentTyping, setIsAgentTyping] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Debugging: Log messages to console to see if they are arriving
-  useEffect(() => {
-    if (chatMessages.length > 0) {
-      console.log("New Chat Message Arrived:", chatMessages[chatMessages.length - 1]);
-    }
-  }, [chatMessages]);
-
   useEffect(() => {
     if (!localParticipant) return;
     const handleData = (payload: Uint8Array, _p: any, _k: any, topic?: string) => {
@@ -86,46 +79,30 @@ const BackgroundChat = () => {
         ref={scrollRef}
         className="custom-scrollbar"
         style={{
-          width: '90%',
-          maxWidth: '450px', 
-          padding: '120px 10px 180px 10px',
-          overflowY: 'auto',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '12px',
-          pointerEvents: 'auto',
-          maskImage: 'linear-gradient(to bottom, transparent, black 10%, black 90%, transparent)',
+          width: '90%', maxWidth: '450px', padding: '120px 10px 180px 10px',
+          overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px',
+          pointerEvents: 'auto', maskImage: 'linear-gradient(to bottom, transparent, black 10%, black 90%, transparent)',
           WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 10%, black 90%, transparent)',
         }}
       >
         {chatMessages.map((msg, index) => {
-          // Robust Identity Check: If it's not the local user, it's the Agent
-          const isAgent = msg.from?.identity !== localParticipant?.identity;
+          // If 'from' is undefined or matches local ID, it's YOU. Otherwise, it's MALVIN.
+          const isMe = !msg.from || msg.from.identity === localParticipant?.identity;
+          const isAgent = !isMe;
 
           return (
-            <div
-              key={msg.id || index}
-              style={{
-                maxWidth: '85%',
-                alignSelf: isAgent ? 'flex-start' : 'flex-end',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: isAgent ? 'flex-start' : 'flex-end',
-              }}
-            >
-              <div
-                style={{
-                  padding: '10px 16px',
-                  borderRadius: '18px',
-                  backgroundColor: isAgent ? 'rgba(245, 245, 245, 0.92)' : `${neonBlue}E6`,
-                  color: isAgent ? '#111' : '#fff',
-                  fontSize: '0.92rem',
-                  lineHeight: '1.4',
-                  boxShadow: '0 4px 15px rgba(0,0,0,0.25)',
-                  borderBottomLeftRadius: isAgent ? '4px' : '18px',
-                  borderBottomRightRadius: isAgent ? '18px' : '4px',
-                }}
-              >
+            <div key={msg.id || index} style={{
+              maxWidth: '85%', alignSelf: isAgent ? 'flex-start' : 'flex-end',
+              display: 'flex', flexDirection: 'column', alignItems: isAgent ? 'flex-start' : 'flex-end',
+            }}>
+              <div style={{
+                padding: '10px 16px', borderRadius: '18px',
+                backgroundColor: isAgent ? 'rgba(245, 245, 245, 0.92)' : `${neonBlue}E6`,
+                color: isAgent ? '#111' : '#fff', fontSize: '0.92rem', lineHeight: '1.4',
+                boxShadow: '0 4px 15px rgba(0,0,0,0.25)',
+                borderBottomLeftRadius: isAgent ? '4px' : '18px',
+                borderBottomRightRadius: isAgent ? '18px' : '4px',
+              }}>
                 {msg.message}
               </div>
               <span style={{ fontSize: '9px', color: '#fff', opacity: 0.5, marginTop: '4px', padding: '0 5px', textTransform: 'uppercase' }}>
@@ -138,11 +115,8 @@ const BackgroundChat = () => {
         {isAgentTyping && (
           <div style={{ alignSelf: 'flex-start', display: 'flex', flexDirection: 'column' }}>
             <div style={{
-              padding: '12px 18px',
-              borderRadius: '18px',
-              borderBottomLeftRadius: '4px',
-              backgroundColor: 'rgba(245, 245, 245, 0.92)',
-              display: 'flex', gap: '5px', alignItems: 'center'
+              padding: '12px 18px', borderRadius: '18px', borderBottomLeftRadius: '4px',
+              backgroundColor: 'rgba(245, 245, 245, 0.92)', display: 'flex', gap: '5px', alignItems: 'center'
             }}>
               <style>{`@keyframes dotPulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }`}</style>
               {[0, 1, 2].map((i) => (
@@ -180,16 +154,13 @@ function MalvinVoiceIsland({ agent, disabled, onToggleDisable, activitySignal }:
   }, [activitySignal]);
 
   return (
-    <div
-      onClick={onToggleDisable}
-      style={{
-        width: '110px', height: '42px', backgroundColor: 'rgba(10, 10, 10, 0.9)',
-        borderRadius: '21px', border: `1.5px solid ${disabled ? neonRed : neonBlue}`,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        cursor: 'pointer', position: 'relative', transition: 'all 0.3s ease',
-        boxShadow: disabled ? `0 0 20px ${neonRed}77` : isAgentSpeaking ? `0 0 15px ${neonBlue}55` : `0 0 5px ${neonBlue}22`,
-      }}
-    >
+    <div onClick={onToggleDisable} style={{
+      width: '110px', height: '42px', backgroundColor: 'rgba(10, 10, 10, 0.9)',
+      borderRadius: '21px', border: `1.5px solid ${disabled ? neonRed : neonBlue}`,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      cursor: 'pointer', position: 'relative', transition: 'all 0.3s ease',
+      boxShadow: disabled ? `0 0 20px ${neonRed}77` : isAgentSpeaking ? `0 0 15px ${neonBlue}55` : `0 0 5px ${neonBlue}22`,
+    }}>
       <style>{`@keyframes floatZ { 0% { transform: translate(0, 0) scale(0.5); opacity: 0; } 20% { opacity: 1; } 100% { transform: translate(10px, -25px) scale(1.3); opacity: 0; } } @keyframes pulseDead { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.92); } }`}</style>
       {disabled ? (
         <svg width="45" height="18" viewBox="0 0 60 20" style={{ animation: 'pulseDead 2s infinite ease-in-out' }}><text x="10" y="15" fill={neonRed} fontSize="16" fontWeight="bold">X</text><text x="36" y="15" fill={neonRed} fontSize="16" fontWeight="bold">X</text></svg>
@@ -264,8 +235,7 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
       )}
       {backgroundImage && (
         <div style={{
-          position: 'absolute', inset: 0,
-          backgroundImage: `url(${backgroundImage})`,
+          position: 'absolute', inset: 0, backgroundImage: `url(${backgroundImage})`,
           backgroundSize: 'cover', backgroundPosition: 'center',
           filter: `blur(${bgBlur}px)`, transform: 'scale(1.1)', zIndex: 2
         }} />
@@ -274,13 +244,13 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
 
       <BackgroundChat />
 
-      {/* --- SIDEBAR --- */}
+      {/* Sidebar */}
       <div style={{
         position: 'absolute', top: 0, left: isSettingsOpen ? 0 : '-320px',
-        display: isSettingsOpen ? 'flex' : 'none',
-        width: '280px', height: '100%', backgroundColor: 'rgba(10,10,10,0.98)',
-        borderRight: `1px solid ${neonBlue}44`, zIndex: 200, transition: 'left 0.4s ease',
-        flexDirection: 'column', boxShadow: '20px 0 50px rgba(0,0,0,0.5)', backdropFilter: 'blur(10px)'
+        display: isSettingsOpen ? 'flex' : 'none', width: '280px', height: '100%',
+        backgroundColor: 'rgba(10,10,10,0.98)', borderRight: `1px solid ${neonBlue}44`,
+        zIndex: 200, transition: 'left 0.4s ease', flexDirection: 'column',
+        boxShadow: '20px 0 50px rgba(0,0,0,0.5)', backdropFilter: 'blur(10px)'
       }}>
         <div style={{ display: 'flex', marginTop: '70px', padding: '0 20px', borderBottom: '1px solid #222' }}>
            {['notes', 'appearance', 'system'].map((t) => (
