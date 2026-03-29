@@ -53,7 +53,13 @@ const BackgroundChat = () => {
   const [isAgentTyping, setIsAgentTyping] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Listen for the 'typing' signal from the Python backend
+  // Debugging: Log messages to console to see if they are arriving
+  useEffect(() => {
+    if (chatMessages.length > 0) {
+      console.log("New Chat Message Arrived:", chatMessages[chatMessages.length - 1]);
+    }
+  }, [chatMessages]);
+
   useEffect(() => {
     if (!localParticipant) return;
     const handleData = (payload: Uint8Array, _p: any, _k: any, topic?: string) => {
@@ -75,16 +81,7 @@ const BackgroundChat = () => {
   }, [chatMessages, isAgentTyping]);
 
   return (
-    <div
-      style={{
-        position: 'absolute',
-        inset: 0,
-        zIndex: 15,
-        display: 'flex',
-        justifyContent: 'center',
-        pointerEvents: 'none',
-      }}
-    >
+    <div style={{ position: 'absolute', inset: 0, zIndex: 15, display: 'flex', justifyContent: 'center', pointerEvents: 'none' }}>
       <div
         ref={scrollRef}
         className="custom-scrollbar"
@@ -102,13 +99,12 @@ const BackgroundChat = () => {
         }}
       >
         {chatMessages.map((msg, index) => {
-          const isAgent = msg.from?.identity === 'agent' || 
-                          msg.from?.name?.toLowerCase().includes('malvin') ||
-                          msg.from?.identity?.toLowerCase().includes('agent');
+          // Robust Identity Check: If it's not the local user, it's the Agent
+          const isAgent = msg.from?.identity !== localParticipant?.identity;
 
           return (
             <div
-              key={msg.timestamp || index}
+              key={msg.id || index}
               style={{
                 maxWidth: '85%',
                 alignSelf: isAgent ? 'flex-start' : 'flex-end',
@@ -121,7 +117,7 @@ const BackgroundChat = () => {
                 style={{
                   padding: '10px 16px',
                   borderRadius: '18px',
-                  backgroundColor: isAgent ? 'rgba(245, 245, 245, 0.9)' : `${neonBlue}E6`, // ~90% Opacity
+                  backgroundColor: isAgent ? 'rgba(245, 245, 245, 0.92)' : `${neonBlue}E6`,
                   color: isAgent ? '#111' : '#fff',
                   fontSize: '0.92rem',
                   lineHeight: '1.4',
@@ -132,24 +128,21 @@ const BackgroundChat = () => {
               >
                 {msg.message}
               </div>
-              <span style={{ fontSize: '9px', color: '#fff', opacity: 0.5, marginTop: '4px', padding: '0 5px' }}>
-                {isAgent ? 'MALVIN' : 'YOU'}
+              <span style={{ fontSize: '9px', color: '#fff', opacity: 0.5, marginTop: '4px', padding: '0 5px', textTransform: 'uppercase' }}>
+                {isAgent ? (msg.from?.name || 'Malvin') : 'You'}
               </span>
             </div>
           );
         })}
 
-        {/* TYPING INDICATOR */}
         {isAgentTyping && (
           <div style={{ alignSelf: 'flex-start', display: 'flex', flexDirection: 'column' }}>
             <div style={{
               padding: '12px 18px',
               borderRadius: '18px',
               borderBottomLeftRadius: '4px',
-              backgroundColor: 'rgba(245, 245, 245, 0.9)',
-              display: 'flex',
-              gap: '5px',
-              alignItems: 'center'
+              backgroundColor: 'rgba(245, 245, 245, 0.92)',
+              display: 'flex', gap: '5px', alignItems: 'center'
             }}>
               <style>{`@keyframes dotPulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }`}</style>
               {[0, 1, 2].map((i) => (
@@ -264,13 +257,11 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
 
   return (
     <div style={{ position: 'fixed', inset: 0, backgroundColor: '#000', color: '#fff', overflow: 'hidden', fontFamily: 'sans-serif' }}>
-      
       {cameraTrack && localParticipant?.isCameraEnabled && (
         <div style={{ position: 'absolute', inset: 0, zIndex: 5 }}>
           <VideoTrack trackRef={cameraTrack} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         </div>
       )}
-
       {backgroundImage && (
         <div style={{
           position: 'absolute', inset: 0,
@@ -279,7 +270,6 @@ function VideoStage({ onDisconnect }: { onDisconnect: () => void }) {
           filter: `blur(${bgBlur}px)`, transform: 'scale(1.1)', zIndex: 2
         }} />
       )}
-      
       <div style={{ position: 'absolute', inset: 0, backgroundColor: (backgroundImage || localParticipant?.isCameraEnabled) ? 'rgba(0,0,0,0.4)' : '#000', zIndex: 10 }} />
 
       <BackgroundChat />
