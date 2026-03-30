@@ -132,6 +132,8 @@ const FeatureShowcase = () => {
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
         @keyframes premiumGlow { 0%, 100% { box-shadow: 0 0 5px rgba(255, 215, 0, 0.2); border-color: rgba(255, 215, 0, 0.5); } 50% { box-shadow: 0 0 15px rgba(255, 215, 0, 0.5); border-color: ${premiumGold}; } }
         @keyframes dashboardGlow { 0%, 100% { box-shadow: 0 0 5px rgba(191, 0, 255, 0.2); border-color: rgba(191, 0, 255, 0.5); } 50% { box-shadow: 0 0 15px rgba(191, 0, 255, 0.5); border-color: ${neonPurple}; } }
+        @keyframes goldGlow { 0%, 100% { box-shadow: 0 0 5px rgba(255, 215, 0, 0.3); border-color: rgba(255, 215, 0, 0.5); } 50% { box-shadow: 0 0 15px rgba(255, 215, 0, 0.6); border-color: #FFD700; }}
+        @keyframes twinkle { 0%, 100% { opacity: 0.3; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.2); }}
       `}</style>
       
       <div key={step} style={{ animation: 'fadeInOut 2s infinite', position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -507,6 +509,33 @@ function VideoStage({ onDisconnect, userEmail }: { onDisconnect: () => void, use
       {/* TOP GEAR */}
       <div style={{ position: 'absolute', top: '25px', left: '25px', zIndex: 201 }}>
         <button onClick={() => setIsSettingsOpen(!isSettingsOpen)} style={{ ...btnReset, opacity: disabled ? 0.2 : 1 }} disabled={disabled}><GearIcon /></button>
+        {/* NEW PREMIUM BUTTON */}
+        <button style={{
+          position: 'relative',
+          background: 'rgba(255, 215, 0, 0.05)',
+          border: '1px solid #FFD700',
+          color: '#FFD700',
+          padding: '6px 14px',
+          borderRadius: '12px',
+          fontSize: '10px',
+          fontWeight: '900',
+          letterSpacing: '1px',
+          textTransform: 'uppercase',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          animation: 'goldGlow 3s infinite',
+        }}>
+          {/* Twinkling Stars */}
+          <div style={{ position: 'absolute', top: '-6px', left: '-6px', animation: 'twinkle 2s infinite' }}>
+            <StarIcon size={12} />
+          </div>
+          <div style={{ position: 'absolute', bottom: '-8px', right: '-4px', animation: 'twinkle 2.5s infinite 0.5s', transform: 'scale(0.7)' }}>
+            <StarIcon size={12} />
+          </div>
+    
+          GO PREMIUM
+        </button>
       </div>
 
       <div style={{ position: 'absolute', top: '25px', width: '100%', display: 'flex', justifyContent: 'center', zIndex: 100 }}>
