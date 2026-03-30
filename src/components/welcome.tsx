@@ -8,15 +8,15 @@ interface WelcomeProps {
 
 function Welcomeview({ onWakeClick, isConnecting, userEmail }: WelcomeProps) {
   
+  // Auto-trigger the session opening like a real splash screen
   useEffect(() => {
-    // Only auto-trigger if we aren't already in the process
     const timer = setTimeout(() => {
-      if (!isConnecting && userEmail) {
+      if (!isConnecting) {
         onWakeClick();
       }
-    }, 1500); 
+    }, 1500); // 1.5s delay to let the user see the "Malvin" text
     return () => clearTimeout(timer);
-  }, [onWakeClick, isConnecting, userEmail]);
+  }, [onWakeClick, isConnecting]);
 
   return (
     <div className="welcome" style={welcomeContainerStyle}>
@@ -34,7 +34,7 @@ function Welcomeview({ onWakeClick, isConnecting, userEmail }: WelcomeProps) {
           position: absolute;
           inset: 0;
           background: rgba(0, 0, 0, 0.2);
-          backdrop-filter: blur(40px);
+          backdrop-filter: blur(40px); /* Deep iOS blur */
           -webkit-backdrop-filter: blur(40px);
           z-index: 1;
         }
@@ -50,12 +50,18 @@ function Welcomeview({ onWakeClick, isConnecting, userEmail }: WelcomeProps) {
         }
       `}</style>
 
+      {/* The Moving Background Layer */}
       <div style={backgroundLayerStyle} />
+
+      {/* The Glassmorphism Layer */}
       <div className="glass-overlay" />
 
+      {/* Identity Badge */}
       <div style={userBadgeStyle}>
         <div style={{ 
-          width: '6px', height: '6px', borderRadius: '50%', 
+          width: '6px', 
+          height: '6px', 
+          borderRadius: '50%', 
           backgroundColor: userEmail ? '#32d74b' : '#ff453a',
           boxShadow: userEmail ? '0 0 8px #32d74b' : 'none'
         }} />
@@ -64,21 +70,30 @@ function Welcomeview({ onWakeClick, isConnecting, userEmail }: WelcomeProps) {
         </span>
       </div>
 
-      <h1 className="malvin-text">malvin</h1>
+      {/* The Main "Malvin" Text */}
+      <h1 className="malvin-text">
+        malvin
+      </h1>
 
+      {/* Subtle Status Indicator */}
       <div style={{ position: 'absolute', bottom: '100px', zIndex: 2 }}>
         <p style={{ 
-          color: 'rgba(255,255,255,0.4)', fontSize: '12px', 
-          letterSpacing: '2px', textTransform: 'uppercase', fontWeight: '500'
+          color: 'rgba(255,255,255,0.4)', 
+          fontSize: '12px', 
+          letterSpacing: '2px', 
+          textTransform: 'uppercase',
+          fontWeight: '500'
         }}>
           {isConnecting ? "Initializing..." : "Ready"}
         </p>
       </div>
 
       <div style={supportLinkStyle}>
-        <a href="mailto:malvinsupportteam@gmail.com" style={{ color: "rgba(255,255,255,0.2)", textDecoration: "none", fontSize: '10px' }}>
-          malvinsupportteam@gmail.com
-        </a>
+        <p style={{ margin: 0 }}>
+          <a href="mailto:malvinsupportteam@gmail.com" style={{ color: "rgba(255,255,255,0.2)", textDecoration: "none" }}>
+            malvinsupportteam@gmail.com
+          </a>
+        </p>
       </div>
     </div>
   );
