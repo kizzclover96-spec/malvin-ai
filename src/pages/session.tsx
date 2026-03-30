@@ -10,6 +10,7 @@ import {
   LayoutContextProvider,
   useLocalParticipant,
   useChat,
+  useConnectionState,
 } from '@livekit/components-react';
 
 interface SessionProps {
@@ -21,7 +22,7 @@ interface SessionProps {
 
 const neonBlue = "#00d2ff";
 const neonRed = "#ff3b30";
-const neonPurple = "#bf00ff"; // For Dashboard/ScreenShare highlights
+const neonPurple = "#bf00ff";
 const premiumGold = "#FFD700";
 
 // --- ICONS ---
@@ -43,6 +44,12 @@ const CameraIcon = ({ enabled, size = 22 }: { enabled?: boolean, size?: number }
   </svg>
 );
 
+const ScreenShareIcon = ({ enabled, size = 22 }: { enabled?: boolean, size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={enabled ? neonPurple : neonBlue} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: enabled === false ? 0.4 : 1 }}>
+    <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><polyline points="8 21 12 17 16 21"/>
+  </svg>
+);
+
 const ClipIcon = ({ size = 22, animated = false }: { size?: number, animated?: boolean }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={neonBlue} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ animation: animated ? 'swing 2s ease-in-out infinite' : 'none', transformOrigin: 'top center' }}>
     <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
@@ -52,18 +59,6 @@ const ClipIcon = ({ size = 22, animated = false }: { size?: number, animated?: b
 const MicIcon = ({ enabled, size = 22 }: { enabled?: boolean, size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={neonBlue} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: enabled === false ? 0.4 : 1 }}>
     <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4M8 22h8" />
-  </svg>
-);
-
-const DashboardIcon = ({ active, size = 22 }: { active?: boolean, size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={active ? neonPurple : neonBlue} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
-  </svg>
-);
-
-const TrashIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: '8px' }}>
-    <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
   </svg>
 );
 
@@ -86,10 +81,10 @@ const CookbookIcon = ({ size = 60 }) => (
 const BrainstormIcon = ({ size = 60 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={neonBlue} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ animation: 'pulseGlow 2s infinite' }}><path d="M18 3a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3H6a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3V6a3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3h12a3 3 0 0 0 3-3 3 3 0 0 0-3-3z"/></svg>
 );
-const ScreenShareIcon = ({ size = 60, active = false }) => (
+const FeatureScreenShareIcon = ({ size = 60 }) => (
   <div style={{ position: 'relative' }}>
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={active ? neonPurple : neonBlue} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><polyline points="8 21 12 17 16 21"/></svg>
-    {!active && <div style={{ position: 'absolute', top: '6px', left: '6px', width: '12px', height: '8px', border: `1px solid ${neonBlue}`, animation: 'blink 2s infinite' }} />}
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={neonBlue} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><polyline points="8 21 12 17 16 21"/></svg>
+    <div style={{ position: 'absolute', top: '6px', left: '6px', width: '12px', height: '8px', border: `1px solid ${neonBlue}`, animation: 'blink 2s infinite' }} />
   </div>
 );
 const NoteIcon = ({ size = 60 }) => (
@@ -112,7 +107,7 @@ const FeatureShowcase = () => {
     { word: "COOK", icon: <CookbookIcon size={60} /> },
     { word: "NOTES", icon: <NoteIcon size={60} /> },
     { word: "STYLE", icon: <StyleIcon size={60} /> },
-    { word: "STREAM", icon: <ScreenShareIcon size={60} /> },
+    { word: "STREAM", icon: <FeatureScreenShareIcon size={60} /> },
     { word: "IDEATE", icon: <BrainstormIcon size={60} /> },
   ];
 
@@ -136,6 +131,7 @@ const FeatureShowcase = () => {
         @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
         @keyframes premiumGlow { 0%, 100% { box-shadow: 0 0 5px rgba(255, 215, 0, 0.2); border-color: rgba(255, 215, 0, 0.5); } 50% { box-shadow: 0 0 15px rgba(255, 215, 0, 0.5); border-color: ${premiumGold}; } }
+        @keyframes dashboardGlow { 0%, 100% { box-shadow: 0 0 5px rgba(191, 0, 255, 0.2); border-color: rgba(191, 0, 255, 0.5); } 50% { box-shadow: 0 0 15px rgba(191, 0, 255, 0.5); border-color: ${neonPurple}; } }
       `}</style>
       
       <div key={step} style={{ animation: 'fadeInOut 2s infinite', position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -314,11 +310,10 @@ function VideoStage({ onDisconnect, userEmail }: { onDisconnect: () => void, use
   const agent = useRemoteParticipant({ kind: ParticipantKind.AGENT });
   const { localParticipant } = useLocalParticipant();
   const { send, chatMessages } = useChat();
+  const connectionState = useConnectionState();
   
-  // Track filtering for Clear Chat
   const visibleMessages = useMemo(() => chatMessages.filter(m => (m.timestamp || 0) > chatVisibleTime), [chatMessages, chatVisibleTime]);
 
-  // Unified Track Handling
   const tracks = useTracks([
     { source: Track.Source.Camera, pks: [localParticipant?.identity || ''] },
     { source: Track.Source.ScreenShare, pks: [localParticipant?.identity || ''] }
@@ -396,19 +391,27 @@ function VideoStage({ onDisconnect, userEmail }: { onDisconnect: () => void, use
   return (
     <div style={{ position: 'fixed', inset: 0, backgroundColor: '#000', color: '#fff', overflow: 'hidden', fontFamily: 'sans-serif' }}>
       
-      {/* DASHBOARD LAYER */}
+      {/* DASHBOARD MODAL */}
       {isDashboardOpen && (
-        <div style={{ position: 'absolute', inset: 0, zIndex: 150, backgroundColor: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(20px)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', padding: '100px 40px' }}>
-          <div style={{ border: `1px solid ${neonPurple}`, borderRadius: '12px', padding: '20px' }}>
-            <h5 style={{ color: neonPurple, fontSize: '10px', letterSpacing: '2px' }}>SESSION STATS</h5>
-            <div style={{ marginTop: '10px' }}>Notes: {notes.length}</div>
-            <div style={{ marginTop: '5px' }}>Messages: {visibleMessages.length}</div>
+        <div style={{ position: 'absolute', inset: 0, zIndex: 300, backgroundColor: 'rgba(0,0,0,0.95)', backdropFilter: 'blur(20px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: '80%', maxWidth: '600px', background: '#0a0a0a', border: `1px solid ${neonPurple}`, borderRadius: '20px', padding: '40px', position: 'relative' }}>
+            <h2 style={{ color: neonPurple, marginTop: 0, letterSpacing: '4px' }}>DASHBOARD</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginTop: '30px' }}>
+              <div style={{ padding: '15px', background: 'rgba(191,0,255,0.05)', borderRadius: '10px' }}>
+                <div style={{ fontSize: '10px', color: neonPurple }}>ACTIVE NOTES</div>
+                <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{notes.length}</div>
+              </div>
+              <div style={{ padding: '15px', background: 'rgba(191,0,255,0.05)', borderRadius: '10px' }}>
+                <div style={{ fontSize: '10px', color: neonPurple }}>MESSAGES</div>
+                <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{visibleMessages.length}</div>
+              </div>
+            </div>
+            <button onClick={() => setIsDashboardOpen(false)} style={{ marginTop: '40px', width: '100%', background: neonPurple, border: 'none', color: '#fff', padding: '12px', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold' }}>BACK TO SESSION</button>
           </div>
-          <button onClick={() => setIsDashboardOpen(false)} style={{ position: 'absolute', top: '30px', right: '30px', background: neonPurple, border: 'none', color: '#fff', padding: '8px 20px', borderRadius: '20px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}>CLOSE DASHBOARD</button>
         </div>
       )}
 
-      {/* MEDIA LAYER */}
+      {/* MEDIA CONTENT */}
       <div style={{ position: 'absolute', inset: 0, zIndex: 5 }}>
         {screenTrack ? (
            <VideoTrack trackRef={screenTrack} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
@@ -426,7 +429,7 @@ function VideoStage({ onDisconnect, userEmail }: { onDisconnect: () => void, use
       <BackgroundChat visibleMessages={visibleMessages} />
       {visibleMessages.length === 0 && <FeatureShowcase />}
 
-      {/* SETTINGS SIDEBAR */}
+      {/* SIDEBAR */}
       <div style={{
         position: 'absolute', top: 0, left: isSettingsOpen ? 0 : '-320px',
         display: isSettingsOpen ? 'flex' : 'none', width: '280px', height: '100%',
@@ -439,6 +442,7 @@ function VideoStage({ onDisconnect, userEmail }: { onDisconnect: () => void, use
              <div key={t} onClick={() => setActiveTab(t as any)} style={{ flex: 1, padding: '10px 0', textAlign: 'center', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold', color: activeTab === t ? neonBlue : '#444', borderBottom: activeTab === t ? `2px solid ${neonBlue}` : 'none', textTransform: 'uppercase' }}>{t === 'appearance' ? 'style' : t}</div>
            ))}
         </div>
+        
         <div style={{ padding: '24px', flex: 1, overflowY: 'auto' }}>
           {activeTab === 'notes' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
@@ -449,6 +453,7 @@ function VideoStage({ onDisconnect, userEmail }: { onDisconnect: () => void, use
                {notes.length === 0 ? <p style={{ fontSize: '12px', color: '#444' }}>Empty...</p> : notes.map((n, i) => <div key={i} style={{ padding: '10px', background: 'rgba(255,255,255,0.03)', borderRadius: '6px', borderLeft: `2px solid ${neonBlue}`, fontSize: '12px' }}>{n}</div>)}
             </div>
           )}
+          
           {activeTab === 'appearance' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               <button onClick={() => bgInputRef.current?.click()} style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${neonBlue}44`, color: '#fff', padding: '12px', borderRadius: '8px', cursor: 'pointer', textAlign: 'left', fontSize: '13px' }}>🖼️ Customize Background</button>
@@ -461,21 +466,45 @@ function VideoStage({ onDisconnect, userEmail }: { onDisconnect: () => void, use
               )}
             </div>
           )}
+          
           {activeTab === 'system' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                <button onClick={() => { if(window.confirm("Clear visible chat history?")) setChatVisibleTime(Date.now()); }} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid #333', color: '#fff', padding: '12px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <TrashIcon /> CLEAR CHAT
+                {/* Network Strip */}
+                <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '8px', padding: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '10px', color: '#555' }}>NETWORK</span>
+                  <span style={{ fontSize: '10px', color: connectionState === 'connected' ? '#00ff00' : neonRed }}>{connectionState.toUpperCase()}</span>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '10px', color: '#555', textTransform: 'uppercase' }}>Account</label>
+                  <div style={{ fontSize: '13px', color: neonBlue, marginTop: '4px' }}>{userEmail}</div>
+                </div>
+
+                {/* Dashboard Button */}
+                <button 
+                  onClick={() => setIsDashboardOpen(true)}
+                  style={{ 
+                    background: 'rgba(191, 0, 255, 0.05)', border: `1px solid ${neonPurple}`, 
+                    color: neonPurple, padding: '12px', borderRadius: '8px', cursor: 'pointer',
+                    fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase',
+                    animation: 'dashboardGlow 3s infinite'
+                  }}
+                >
+                  Dashboard
                 </button>
+
                 <button style={{ background: 'rgba(255, 215, 0, 0.05)', border: '1px solid #FFD700', color: premiumGold, padding: '12px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', animation: 'premiumGlow 3s infinite' }}>
                   <StarIcon /> PREMIUM
                 </button>
+
+                <button onClick={() => { if(window.confirm("Clear visible chat history?")) setChatVisibleTime(Date.now()); }} style={{ background: 'none', border: '1px solid #333', color: '#888', padding: '10px', borderRadius: '8px', cursor: 'pointer', fontSize: '11px' }}>Clear Chat</button>
                 <button onClick={resetSession} style={{ background: 'rgba(255, 59, 48, 0.1)', border: `1px solid ${neonRed}44`, color: neonRed, padding: '12px', borderRadius: '8px', cursor: 'pointer', textAlign: 'center', fontSize: '12px', fontWeight: 'bold' }}>RESET SESSION DATA</button>
             </div>
           )}
         </div>
       </div>
 
-      {/* TOP CONTROLS */}
+      {/* TOP GEAR */}
       <div style={{ position: 'absolute', top: '25px', left: '25px', zIndex: 201 }}>
         <button onClick={() => setIsSettingsOpen(!isSettingsOpen)} style={{ ...btnReset, opacity: disabled ? 0.2 : 1 }} disabled={disabled}><GearIcon /></button>
       </div>
@@ -487,23 +516,17 @@ function VideoStage({ onDisconnect, userEmail }: { onDisconnect: () => void, use
       {/* BOTTOM CONTROL BAR */}
       <div style={{ position: 'absolute', bottom: '30px', left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 100 }}>
         <div style={{
-          width: '90%', maxWidth: '500px', height: '52px', backgroundColor: 'rgba(15,15,15,0.95)',
+          width: '90%', maxWidth: '450px', height: '52px', backgroundColor: 'rgba(15,15,15,0.95)',
           borderRadius: '26px', border: `1px solid ${disabled ? '#333' : neonBlue}`,
           display: 'flex', alignItems: 'center', padding: '0 15px'
         }}>
-          {/* Dashboard Icon */}
-          <button onClick={() => setIsDashboardOpen(!isDashboardOpen)} style={{ ...btnReset, marginRight: '10px' }}>
-            <DashboardIcon active={isDashboardOpen} size={20} />
-          </button>
-
           <button onClick={onDisconnect} style={{ ...btnReset, color: neonRed, marginRight: '12px' }}>✕</button>
           <input placeholder={disabled ? "Offline..." : "say something..."} value={textInput} disabled={disabled} onChange={(e) => { setTextInput(e.target.value); triggerActivity(); }} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} style={{ flex: 1, background: 'none', border: 'none', color: disabled ? '#444' : '#fff', outline: 'none' }} />
-          
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginLeft: '10px' }}>
             <button style={btnReset}><ClipIcon /></button>
-            {/* Screen Share Button */}
+            {/* Screen Share added near camera icon */}
             <button onClick={async () => { if(!disabled && localParticipant) { await localParticipant.setScreenShareEnabled(!localParticipant.isScreenShareEnabled); triggerActivity(); } }} style={btnReset}>
-               <ScreenShareIcon size={20} active={!!localParticipant?.isScreenShareEnabled} />
+              <ScreenShareIcon enabled={!disabled && !!localParticipant?.isScreenShareEnabled} />
             </button>
             <button onClick={async () => { if(!disabled && localParticipant) { await localParticipant.setCameraEnabled(!localParticipant.isCameraEnabled); triggerActivity(); } }} style={btnReset}><CameraIcon enabled={!disabled && !!localParticipant?.isCameraEnabled} /></button>
             <button onClick={async () => { if(!disabled && localParticipant) { await localParticipant.setMicrophoneEnabled(!localParticipant.isMicrophoneEnabled); triggerActivity(); } }} style={btnReset}><MicIcon enabled={!disabled && !!localParticipant?.isMicrophoneEnabled} /></button>
