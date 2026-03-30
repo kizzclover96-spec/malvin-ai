@@ -18,7 +18,6 @@ interface SessionProps {
   serverUrl: string;
   userEmail: string;
   onDisconnect: () => void;
-  onSignOut: () => void;
 }
 
 const neonBlue = "#00d2ff";
@@ -297,7 +296,7 @@ function MalvinVoiceIsland({ agent, disabled, onToggleDisable, activitySignal }:
 }
 
 // --- MAIN VIDEO STAGE ---
-function VideoStage({ onDisconnect, onSignOut, userEmail }: { onDisconnect: () => void, onSignOut: () => void, userEmail: string }) {
+function VideoStage({ onDisconnect, userEmail }: { onDisconnect: () => void, userEmail: string }) {
   const [textInput, setTextInput] = useState("");
   const [disabled, setDisabled] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -506,38 +505,7 @@ function VideoStage({ onDisconnect, onSignOut, userEmail }: { onDisconnect: () =
           )}
         </div>
       </div>
-
-      {/* TOP RIGHT CONTROLS */}
-      <div style={{ 
-        position: 'absolute', 
-        top: '25px', 
-        right: '25px', 
-        zIndex: 201, 
-        display: 'flex', 
-        alignItems: 'center', 
-        gap: '10px' 
-      }}>
-        <button 
-          onClick={onSignOut} 
-          style={{
-            background: 'rgba(255, 255, 255, 0.03)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            color: 'rgba(255, 255, 255, 0.4)',
-            padding: '4px 8px',
-            borderRadius: '8px',
-            fontSize: '8px',         // Very small
-            fontWeight: '900',
-            letterSpacing: '1px',
-            textTransform: 'uppercase',
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = '#ff3b30')} // Subtle red hover
-          onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255, 255, 255, 0.4)')}
-        >
-          Sign Out
-        </button>
-      </div>
+      
 
       {/* TOP GEAR */}
       <div style={{ position: 'absolute', top: '25px', left: '25px', zIndex: 201, display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -600,24 +568,12 @@ function VideoStage({ onDisconnect, onSignOut, userEmail }: { onDisconnect: () =
   );
 }
 
-export default function Session({ token, serverUrl, userEmail, onDisconnect, onSignOut }: SessionProps) {
+export default function Session({ token, serverUrl, userEmail, onDisconnect }: SessionProps) {
   return (
-    <LiveKitRoom 
-      token={token} 
-      serverUrl={serverUrl} 
-      connect={true} 
-      audio={true} 
-      video={false} 
-      onDisconnected={onDisconnect}
-    >
+    <LiveKitRoom token={token} serverUrl={serverUrl} connect={true} audio={true} video={false} onDisconnected={onDisconnect}>
       <LayoutContextProvider>
         <RoomAudioRenderer />
-        {/* Make sure onSignOut is passed here! */}
-        <VideoStage 
-          onDisconnect={onDisconnect} 
-          onSignOut={onSignOut} 
-          userEmail={userEmail} 
-        />
+        <VideoStage onDisconnect={onDisconnect} userEmail={userEmail} />
       </LayoutContextProvider>
     </LiveKitRoom>
   );
