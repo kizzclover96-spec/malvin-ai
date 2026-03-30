@@ -18,6 +18,7 @@ interface SessionProps {
   serverUrl: string;
   userEmail: string;
   onDisconnect: () => void;
+  onSignOut: () => void;
 }
 
 const neonBlue = "#00d2ff";
@@ -296,7 +297,7 @@ function MalvinVoiceIsland({ agent, disabled, onToggleDisable, activitySignal }:
 }
 
 // --- MAIN VIDEO STAGE ---
-function VideoStage({ onDisconnect, userEmail }: { onDisconnect: () => void, userEmail: string }) {
+function VideoStage({ onDisconnect, onSignOut, userEmail }: { onDisconnect: () => void, onSignOut: () => void, userEmail: string }) {
   const [textInput, setTextInput] = useState("");
   const [disabled, setDisabled] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -604,7 +605,7 @@ export default function Session({ token, serverUrl, userEmail, onDisconnect }: S
     <LiveKitRoom token={token} serverUrl={serverUrl} connect={true} audio={true} video={false} onDisconnected={onDisconnect}>
       <LayoutContextProvider>
         <RoomAudioRenderer />
-        <VideoStage onDisconnect={onDisconnect} userEmail={userEmail} />
+        <VideoStage onDisconnect={onDisconnect} onSignOut={onSignOut} userEmail={userEmail} />
       </LayoutContextProvider>
     </LiveKitRoom>
   );
