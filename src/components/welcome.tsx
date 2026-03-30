@@ -74,7 +74,7 @@ const containerStyle: React.CSSProperties = {
   fontFamily: '"Inter", sans-serif',
 
   background: 'linear-gradient(-45deg, #001f4d, #003366, #ff6a00, #ff3c00)',
-  backgroundSize: '400% 400%',
+  backgroundSize: '100% 100%',
   animation: 'gradientMove 12s ease infinite',
 };
 
@@ -84,7 +84,9 @@ const glassStyle: React.CSSProperties = {
   height: '100%',
   backdropFilter: 'blur(40px)',
   WebkitBackdropFilter: 'blur(40px)',
-  background: 'rgba(255,255,255,0.05)',
+  background: 'rgba(0,0,0,0.35)',
+  backdropFilter: 'blur(10px)',
+  WebkitBackdropFilter: 'blur(10px)',
 };
 
 const contentStyle: React.CSSProperties = {
