@@ -507,7 +507,7 @@ function VideoStage({ onDisconnect, userEmail }: { onDisconnect: () => void, use
       </div>
 
       {/* TOP GEAR */}
-      <div style={{ position: 'absolute', top: '25px', left: '25px', zIndex: 201, display: 'flex', alignItems: 'center', gap: '12px' }}>
+      <div style={{ position: 'absolute', top: '25px', left: '25px', zIndex: 201, display: 'flex', alignItems: 'center', gap: '8px' }}>
         <button onClick={() => setIsSettingsOpen(!isSettingsOpen)} style={{ ...btnReset, opacity: disabled ? 0.2 : 1 }} disabled={disabled}><GearIcon /></button>
         {/* NEW PREMIUM BUTTON */}
         <button style={{
