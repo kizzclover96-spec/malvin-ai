@@ -35,8 +35,8 @@ const CameraIcon = ({ enabled, size = 22 }: { enabled?: boolean, size?: number }
   </svg>
 );
 
-const ClipIcon = ({ size = 22 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={neonBlue} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+const ClipIcon = ({ size = 22, animated = false }: { size?: number, animated?: boolean }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={neonBlue} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ animation: animated ? 'swing 2s ease-in-out infinite' : 'none', transformOrigin: 'top center' }}>
     <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
   </svg>
 );
@@ -47,27 +47,36 @@ const MicIcon = ({ enabled, size = 22 }: { enabled?: boolean, size?: number }) =
   </svg>
 );
 
-// --- ADDITIONAL FEATURE ICONS ---
+// --- ANIMATED FEATURE ICONS ---
 const BrowserIcon = ({ size = 60 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={neonBlue} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+  <div style={{ position: 'relative' }}>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={neonBlue} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+    <div style={{ position: 'absolute', top: '50%', left: '15%', width: '70%', height: '2px', background: neonBlue, boxShadow: `0 0 10px ${neonBlue}`, animation: 'scan 2s linear infinite' }} />
+  </div>
 );
 const LocationIcon = ({ size = 60 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={neonBlue} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={neonBlue} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ animation: 'bounce 1s infinite alternate' }}><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
 );
 const CookbookIcon = ({ size = 60 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={neonBlue} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+  <div style={{ position: 'relative' }}>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={neonBlue} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+    <div style={{ position: 'absolute', right: '10px', top: '5px', width: '20px', height: '40px', borderLeft: `1.5px solid ${neonBlue}`, animation: 'flip 1.5s infinite', transformOrigin: 'left' }} />
+  </div>
 );
 const BrainstormIcon = ({ size = 60 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={neonBlue} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 3a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3H6a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3V6a3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3h12a3 3 0 0 0 3-3 3 3 0 0 0-3-3z"/></svg>
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={neonBlue} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ animation: 'pulseGlow 2s infinite' }}><path d="M18 3a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3H6a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3V6a3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3h12a3 3 0 0 0 3-3 3 3 0 0 0-3-3z"/></svg>
 );
 const ScreenShareIcon = ({ size = 60 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={neonBlue} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><polyline points="8 21 12 17 16 21"/></svg>
+  <div style={{ position: 'relative' }}>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={neonBlue} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><polyline points="8 21 12 17 16 21"/></svg>
+    <div style={{ position: 'absolute', top: '6px', left: '6px', width: '12px', height: '8px', border: `1px solid ${neonBlue}`, animation: 'blink 2s infinite' }} />
+  </div>
 );
 const NoteIcon = ({ size = 60 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={neonBlue} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15.5 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8.5L15.5 3Z"/><path d="M15 3v6h6"/></svg>
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={neonBlue} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ animation: 'float 3s ease-in-out infinite' }}><path d="M15.5 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8.5L15.5 3Z"/><path d="M15 3v6h6"/></svg>
 );
 const StyleIcon = ({ size = 60 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={neonBlue} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={neonBlue} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ animation: 'rotate 4s linear infinite' }}><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
 );
 
 // --- COMPONENT: FEATURE SHOWCASE ---
@@ -77,7 +86,7 @@ const FeatureShowcase = () => {
   const features = [
     { word: "SIGHT", icon: <CameraIcon size={60} /> },
     { word: "SPEECH", icon: <MicIcon size={60} enabled={true} /> },
-    { word: "ATTACH", icon: <ClipIcon size={60} /> },
+    { word: "ATTACH", icon: <ClipIcon size={60} animated={true} /> },
     { word: "BROWSE", icon: <BrowserIcon size={60} /> },
     { word: "LOCATE", icon: <LocationIcon size={60} /> },
     { word: "COOK", icon: <CookbookIcon size={60} /> },
@@ -88,19 +97,27 @@ const FeatureShowcase = () => {
   ];
 
   useEffect(() => {
-    const timer = setInterval(() => setStep(s => (s + 1) % features.length), 3000);
+    const timer = setInterval(() => setStep(s => (s + 1) % features.length), 2000);
     return () => clearInterval(timer);
   }, [features.length]);
 
   return (
     <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 12, pointerEvents: 'none' }}>
       <style>{`
-        @keyframes fadeInOut { 0%, 10%, 90%, 100% { opacity: 0; transform: translateY(10px); } 20%, 80% { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeInOut { 0%, 100% { opacity: 0; transform: scale(0.9); } 20%, 80% { opacity: 1; transform: scale(1); } }
         @keyframes sparkle { 0%, 100% { opacity: 0; transform: scale(0); } 50% { opacity: 1; transform: scale(1.2); } }
         @keyframes vibrate { 0% { transform: scale(1); opacity: 0.5; } 50% { transform: scale(1.5); opacity: 0; } 100% { transform: scale(1); opacity: 0; } }
+        @keyframes swing { 0%, 100% { transform: rotate(-10deg); } 50% { transform: rotate(10deg); } }
+        @keyframes flip { 0% { transform: rotateY(0deg); opacity: 0; } 50% { opacity: 1; } 100% { transform: rotateY(-180deg); opacity: 0; } }
+        @keyframes scan { 0% { transform: translateY(-15px); opacity: 0; } 50% { opacity: 1; } 100% { transform: translateY(15px); opacity: 0; } }
+        @keyframes pulseGlow { 0%, 100% { filter: drop-shadow(0 0 2px ${neonBlue}); } 50% { filter: drop-shadow(0 0 15px ${neonBlue}); } }
+        @keyframes bounce { from { transform: translateY(0); } to { transform: translateY(-10px); } }
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+        @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
       `}</style>
       
-      <div key={step} style={{ animation: 'fadeInOut 3s infinite', position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+      <div key={step} style={{ animation: 'fadeInOut 2s infinite', position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           {step === 1 && (
              <>
@@ -280,7 +297,6 @@ function VideoStage({ onDisconnect, userEmail }: { onDisconnect: () => void, use
   const cameraTrack = tracks.find(t => t.participant.identity === localParticipant?.identity);
   const bgInputRef = useRef<HTMLInputElement>(null);
 
-  // --- SAVE STATE LOGIC ---
   const storageKey = `malvin_session_${userEmail.replace(/[^a-zA-Z0-9]/g, '_')}`;
 
   useEffect(() => {
@@ -312,18 +328,7 @@ function VideoStage({ onDisconnect, userEmail }: { onDisconnect: () => void, use
   const saveAsPDF = () => {
     const printWindow = window.open('', '_blank');
     if (printWindow) {
-      const content = `
-        <html>
-          <head><title>Session Notes - ${userEmail}</title></head>
-          <body style="font-family: sans-serif; padding: 40px;">
-            <h1 style="color: ${neonBlue}; border-bottom: 2px solid #eee;">Malvin Session Notes</h1>
-            <p><strong>User:</strong> ${userEmail}</p>
-            <p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
-            <div style="margin-top: 30px;">
-              ${notes.map(n => `<div style="margin-bottom: 15px; padding: 10px; border-left: 4px solid ${neonBlue}; background: #f9f9f9;">${n}</div>`).join('')}
-            </div>
-          </body>
-        </html>`;
+      const content = `<html><body><h1>Malvin Session Notes</h1><p><strong>User:</strong> ${userEmail}</p>${notes.map(n => `<div style="border-left:4px solid ${neonBlue};padding:10px;">${n}</div>`).join('')}</body></html>`;
       printWindow.document.write(content);
       printWindow.document.close();
       printWindow.print();
@@ -336,11 +341,8 @@ function VideoStage({ onDisconnect, userEmail }: { onDisconnect: () => void, use
       if (topic === "note_update") {
         try {
           const data = JSON.parse(new TextDecoder().decode(payload));
-          if (Array.isArray(data.notes)) {
-             setNotes(data.notes);
-          } else if (data.note) {
-             setNotes(prev => [...prev, data.note]);
-          }
+          if (Array.isArray(data.notes)) setNotes(data.notes);
+          else if (data.note) setNotes(prev => [...prev, data.note]);
         } catch (e) { console.error("Parse error", e); }
       }
     };
@@ -369,20 +371,13 @@ function VideoStage({ onDisconnect, userEmail }: { onDisconnect: () => void, use
         </div>
       )}
       {backgroundImage && (
-        <div style={{
-          position: 'absolute', inset: 0, backgroundImage: `url(${backgroundImage})`,
-          backgroundSize: 'cover', backgroundPosition: 'center',
-          filter: `blur(${bgBlur}px)`, transform: 'scale(1.1)', zIndex: 2
-        }} />
+        <div style={{ position: 'absolute', inset: 0, backgroundImage: `url(${backgroundImage})`, backgroundSize: 'cover', backgroundPosition: 'center', filter: `blur(${bgBlur}px)`, transform: 'scale(1.1)', zIndex: 2 }} />
       )}
       <div style={{ position: 'absolute', inset: 0, backgroundColor: (backgroundImage || localParticipant?.isCameraEnabled) ? 'rgba(0,0,0,0.4)' : '#000', zIndex: 10 }} />
 
       <BackgroundChat />
-      
-      {/* Feature Animation (Only if no chat messages yet) */}
       {chatMessages.length === 0 && <FeatureShowcase />}
 
-      {/* Sidebar */}
       <div style={{
         position: 'absolute', top: 0, left: isSettingsOpen ? 0 : '-320px',
         display: isSettingsOpen ? 'flex' : 'none', width: '280px', height: '100%',
@@ -392,11 +387,7 @@ function VideoStage({ onDisconnect, userEmail }: { onDisconnect: () => void, use
       }}>
         <div style={{ display: 'flex', marginTop: '70px', padding: '0 20px', borderBottom: '1px solid #222' }}>
            {['notes', 'appearance', 'system'].map((t) => (
-             <div key={t} onClick={() => setActiveTab(t as any)} style={{
-               flex: 1, padding: '10px 0', textAlign: 'center', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold',
-               color: activeTab === t ? neonBlue : '#444', borderBottom: activeTab === t ? `2px solid ${neonBlue}` : 'none',
-               textTransform: 'uppercase'
-             }}>{t === 'appearance' ? 'style' : t}</div>
+             <div key={t} onClick={() => setActiveTab(t as any)} style={{ flex: 1, padding: '10px 0', textAlign: 'center', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold', color: activeTab === t ? neonBlue : '#444', borderBottom: activeTab === t ? `2px solid ${neonBlue}` : 'none', textTransform: 'uppercase' }}>{t === 'appearance' ? 'style' : t}</div>
            ))}
         </div>
         <div style={{ padding: '24px', flex: 1, overflowY: 'auto' }}>
@@ -406,9 +397,7 @@ function VideoStage({ onDisconnect, userEmail }: { onDisconnect: () => void, use
                  <h4 style={{ color: neonBlue, margin: 0, fontSize: '14px' }}>NOTEPAD</h4>
                  <button onClick={saveAsPDF} style={{ background: 'none', border: `1px solid ${neonBlue}`, color: neonBlue, padding: '2px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '10px' }}>PDF ↓</button>
                </div>
-               {notes.length === 0 ? <p style={{ fontSize: '12px', color: '#444' }}>Empty...</p> : 
-                 notes.map((n, i) => <div key={i} style={{ padding: '10px', background: 'rgba(255,255,255,0.03)', borderRadius: '6px', borderLeft: `2px solid ${neonBlue}`, fontSize: '12px' }}>{n}</div>)
-               }
+               {notes.length === 0 ? <p style={{ fontSize: '12px', color: '#444' }}>Empty...</p> : notes.map((n, i) => <div key={i} style={{ padding: '10px', background: 'rgba(255,255,255,0.03)', borderRadius: '6px', borderLeft: `2px solid ${neonBlue}`, fontSize: '12px' }}>{n}</div>)}
             </div>
           )}
           {activeTab === 'appearance' && (
@@ -425,16 +414,8 @@ function VideoStage({ onDisconnect, userEmail }: { onDisconnect: () => void, use
           )}
           {activeTab === 'system' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                <div>
-                    <label style={{ fontSize: '10px', color: '#555', textTransform: 'uppercase' }}>Account</label>
-                    <div style={{ fontSize: '13px', color: neonBlue, marginTop: '4px' }}>{userEmail}</div>
-                </div>
-                <button 
-                    onClick={resetSession}
-                    style={{ background: 'rgba(255, 59, 48, 0.1)', border: `1px solid ${neonRed}44`, color: neonRed, padding: '12px', borderRadius: '8px', cursor: 'pointer', textAlign: 'center', fontSize: '12px', fontWeight: 'bold' }}
-                >
-                    RESET SESSION DATA
-                </button>
+                <div><label style={{ fontSize: '10px', color: '#555', textTransform: 'uppercase' }}>Account</label><div style={{ fontSize: '13px', color: neonBlue, marginTop: '4px' }}>{userEmail}</div></div>
+                <button onClick={resetSession} style={{ background: 'rgba(255, 59, 48, 0.1)', border: `1px solid ${neonRed}44`, color: neonRed, padding: '12px', borderRadius: '8px', cursor: 'pointer', textAlign: 'center', fontSize: '12px', fontWeight: 'bold' }}>RESET SESSION DATA</button>
             </div>
           )}
         </div>
