@@ -21,11 +21,18 @@ interface SessionProps {
 
 const neonBlue = "#00d2ff";
 const neonRed = "#ff3b30";
+const premiumGold = "#FFD700";
 
 // --- ICONS ---
 const GearIcon = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={neonBlue} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z" />
+  </svg>
+);
+
+const StarIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill={premiumGold} stroke={premiumGold} strokeWidth="1" style={{ marginRight: '8px' }}>
+    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
   </svg>
 );
 
@@ -115,6 +122,7 @@ const FeatureShowcase = () => {
         @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
         @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+        @keyframes premiumGlow { 0%, 100% { box-shadow: 0 0 5px rgba(255, 215, 0, 0.2); border-color: rgba(255, 215, 0, 0.5); } 50% { box-shadow: 0 0 15px rgba(255, 215, 0, 0.5); border-color: ${premiumGold}; } }
       `}</style>
       
       <div key={step} style={{ animation: 'fadeInOut 2s infinite', position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -414,7 +422,33 @@ function VideoStage({ onDisconnect, userEmail }: { onDisconnect: () => void, use
           )}
           {activeTab === 'system' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                <div><label style={{ fontSize: '10px', color: '#555', textTransform: 'uppercase' }}>Account</label><div style={{ fontSize: '13px', color: neonBlue, marginTop: '4px' }}>{userEmail}</div></div>
+                <div>
+                  <label style={{ fontSize: '10px', color: '#555', textTransform: 'uppercase' }}>Account</label>
+                  <div style={{ fontSize: '13px', color: neonBlue, marginTop: '4px' }}>{userEmail}</div>
+                </div>
+
+                {/* PREMIUM BUTTON */}
+                <button 
+                  style={{ 
+                    background: 'rgba(255, 215, 0, 0.05)', 
+                    border: '1px solid #FFD700', 
+                    color: premiumGold, 
+                    padding: '12px', 
+                    borderRadius: '8px', 
+                    cursor: 'pointer', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    fontSize: '12px', 
+                    fontWeight: 'bold',
+                    textTransform: 'uppercase',
+                    letterSpacing: '1px',
+                    animation: 'premiumGlow 3s infinite'
+                  }}
+                >
+                  <StarIcon /> PREMIUM
+                </button>
+
                 <button onClick={resetSession} style={{ background: 'rgba(255, 59, 48, 0.1)', border: `1px solid ${neonRed}44`, color: neonRed, padding: '12px', borderRadius: '8px', cursor: 'pointer', textAlign: 'center', fontSize: '12px', fontWeight: 'bold' }}>RESET SESSION DATA</button>
             </div>
           )}
