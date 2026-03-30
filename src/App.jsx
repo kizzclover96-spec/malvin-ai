@@ -7,65 +7,81 @@ import Login from "./pages/login";
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { auth } from './firebase';
 
+
+// --- MALVIN INTERFACE ---
 function MalvinInterface({ user, handleSignOut }) {
-  const { wakeMalvin, token, loading: sessionLoading, setToken } = useMalvinActivation(user.uid);
+  const { wakeMalvin, token, loading: sessionLoading, setToken } =
+    useMalvinActivation(user.uid);
 
   const [showWelcome, setShowWelcome] = useState(true);
 
-  // Called after 6s animation
+  // Called after welcome animation
   const handleWelcomeFinish = async () => {
-    setShowWelcome(false);
-    await wakeMalvin();
+    try {
+      await wakeMalvin(); // get token
+      setShowWelcome(false); // switch AFTER token starts loading
+    } catch (e) {
+      console.error("Wake failed:", e);
+    }
   };
 
   return (
-    <div style={{ backgroundColor: '#000', minHeight: '100vh', color: 'white' }}>
+    <div style={{
+      backgroundColor: '#000',
+      minHeight: '100vh',
+      color: 'white'
+    }}>
 
-      {/* Top right logout */}
+      {/* LOG OUT BUTTON */}
       <div style={{
-        position: 'fixed', top: '15px', right: '15px',
+        position: 'fixed',
+        top: '15px',
+        right: '15px',
         zIndex: 2000
       }}>
-        <button onClick={handleSignOut} style={{
-          background: 'rgba(255,255,255,0.08)',
-          border: '1px solid rgba(255,255,255,0.1)',
-          color: 'white',
-          padding: '6px 12px',
-          borderRadius: '20px',
-          cursor: 'pointer',
-          fontSize: '12px'
-        }}>
+        <button
+          onClick={handleSignOut}
+          style={{
+            background: 'rgba(255,255,255,0.08)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            color: 'white',
+            padding: '6px 12px',
+            borderRadius: '20px',
+            cursor: 'pointer',
+            fontSize: '12px'
+          }}
+        >
           Log out
         </button>
       </div>
 
       {/* FLOW CONTROL */}
-      {showWelcome ? (
-        <Welcomeview 
+      {showWelcome && !token ? (
+        <Welcomeview
           onFinish={handleWelcomeFinish}
           userEmail={user?.email}
         />
       ) : token ? (
-        <Session 
+        <Session
           token={token}
           serverUrl={import.meta.env.VITE_LIVEKIT_URL}
           userEmail={user.email}
           onDisconnect={() => {
             setToken(null);
-            setShowWelcome(true); // go back to welcome when session ends
+            setShowWelcome(true); // go back to welcome
           }}
         />
       ) : (
         <div style={{
+          height: '100vh',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          height: '100vh',
-          color: '#555',
-          fontSize: '12px',
+          color: '#aaa',
+          fontSize: '14px',
           letterSpacing: '2px'
         }}>
-          CONNECTING...
+          Connecting to Malvin...
         </div>
       )}
 
@@ -73,6 +89,8 @@ function MalvinInterface({ user, handleSignOut }) {
   );
 }
 
+
+// --- MAIN APP ---
 function App() {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -81,7 +99,12 @@ function App() {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       setAuthLoading(false);
+
+      if (currentUser) {
+        console.log("🚀 Malvin User:", currentUser.uid);
+      }
     });
+
     return () => unsubscribe();
   }, []);
 
@@ -89,10 +112,11 @@ function App() {
     try {
       await signOut(auth);
     } catch (err) {
-      console.error("Sign out failed", err);
+      console.error("Sign out failed:", err);
     }
   };
 
+  // LOADING SCREEN
   if (authLoading) {
     return (
       <div style={{
@@ -101,23 +125,25 @@ function App() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        color: '#444',
+        color: '#666',
         fontSize: '12px',
         letterSpacing: '2px'
       }}>
-        INITIALIZING...
+        INITIALIZING MALVIN...
       </div>
     );
   }
 
+  // NOT LOGGED IN
   if (!user) {
     return <Login />;
   }
 
+  // LOGGED IN
   return (
-    <Welcomeview 
-      onFinish={() => console.log("finished")}
-      userEmail={user?.email}
+    <MalvinInterface
+      user={user}
+      handleSignOut={handleSignOut}
     />
   );
 }
