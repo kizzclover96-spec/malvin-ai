@@ -505,7 +505,6 @@ function VideoStage({ onDisconnect, userEmail }: { onDisconnect: () => void, use
           )}
         </div>
       </div>
-      
 
       {/* TOP GEAR */}
       <div style={{ position: 'absolute', top: '25px', left: '25px', zIndex: 201, display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -526,7 +525,6 @@ function VideoStage({ onDisconnect, userEmail }: { onDisconnect: () => void, use
           display: 'flex',
           alignItems: 'center',
           animation: 'goldGlow 3s infinite',
-          marginLeft: '-2px',
         }}>
           {/* Twinkling Stars */}
           <div style={{ position: 'absolute', top: '-6px', left: '-6px', animation: 'twinkle 2s infinite' }}>
