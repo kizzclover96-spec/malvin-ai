@@ -515,7 +515,7 @@ function VideoStage({ onDisconnect, userEmail }: { onDisconnect: () => void, use
           background: 'rgba(255, 215, 0, 0.05)',
           border: '1px solid #FFD700',
           color: '#FFD700',
-          padding: '4px 10px',
+          padding: '3px 8px',
           borderRadius: '8px',
           fontSize: '9px',
           fontWeight: '900',
