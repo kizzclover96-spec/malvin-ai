@@ -66,6 +66,7 @@ function MalvinInterface({ user, handleSignOut }) {
           token={token}
           serverUrl={import.meta.env.VITE_LIVEKIT_URL}
           userEmail={user.email}
+          onSignOut={handleSignOut}
           onDisconnect={() => {
             setToken(null);
             setShowWelcome(true); // go back to welcome
