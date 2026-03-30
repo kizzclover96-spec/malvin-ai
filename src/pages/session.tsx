@@ -600,12 +600,24 @@ function VideoStage({ onDisconnect, onSignOut, userEmail }: { onDisconnect: () =
   );
 }
 
-export default function Session({ token, serverUrl, userEmail, onDisconnect }: SessionProps) {
+export default function Session({ token, serverUrl, userEmail, onDisconnect, onSignOut }: SessionProps) {
   return (
-    <LiveKitRoom token={token} serverUrl={serverUrl} connect={true} audio={true} video={false} onDisconnected={onDisconnect}>
+    <LiveKitRoom 
+      token={token} 
+      serverUrl={serverUrl} 
+      connect={true} 
+      audio={true} 
+      video={false} 
+      onDisconnected={onDisconnect}
+    >
       <LayoutContextProvider>
         <RoomAudioRenderer />
-        <VideoStage onDisconnect={onDisconnect} onSignOut={onSignOut} userEmail={userEmail} />
+        {/* Make sure onSignOut is passed here! */}
+        <VideoStage 
+          onDisconnect={onDisconnect} 
+          onSignOut={onSignOut} 
+          userEmail={userEmail} 
+        />
       </LayoutContextProvider>
     </LiveKitRoom>
   );
