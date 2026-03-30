@@ -13,13 +13,11 @@ import {
   useConnectionState,
 } from '@livekit/components-react';
 
-// Added onSignOut to the interface
 interface SessionProps {
   token: string;
   serverUrl: string;
   userEmail: string;
   onDisconnect: () => void;
-  onSignOut: () => void; 
 }
 
 const neonBlue = "#00d2ff";
