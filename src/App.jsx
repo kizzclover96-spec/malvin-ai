@@ -114,7 +114,12 @@ function App() {
     return <Login />;
   }
 
-  return <MalvinInterface user={user} handleSignOut={handleSignOut} />;
+  return (
+    <Welcomeview 
+      onFinish={() => console.log("finished")}
+      userEmail={user?.email}
+    />
+  );
 }
 
 export default App;
