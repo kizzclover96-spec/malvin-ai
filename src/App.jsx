@@ -7,51 +7,72 @@ import Login from "./pages/login";
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { auth } from './firebase';
 
-// --- SUB-COMPONENT ---
-// This ensures the hook only runs when we are 100% sure a user exists.
 function MalvinInterface({ user, handleSignOut }) {
-  // Passing user.uid here ensures the LiveKit token is linked to this specific user
   const { wakeMalvin, token, loading: sessionLoading, setToken } = useMalvinActivation(user.uid);
 
+  const [showWelcome, setShowWelcome] = useState(true);
+
+  // Called after 6s animation
+  const handleWelcomeFinish = async () => {
+    setShowWelcome(false);
+    await wakeMalvin();
+  };
+
   return (
-    <div className="app-container" style={{ backgroundColor: '#000', minHeight: '100vh', color: 'white' }}>
-      
-      {/* USER CAPSULE (Top Right) */}
+    <div style={{ backgroundColor: '#000', minHeight: '100vh', color: 'white' }}>
+
+      {/* Top right logout */}
       <div style={{
-        position: 'fixed', top: '15px', right: '15px', display: 'flex',
-        alignItems: 'center', gap: '8px', zIndex: 2000,
-        backgroundColor: 'rgba(255, 255, 255, 0.08)', padding: '4px 10px',
-        borderRadius: '20px', backdropFilter: 'blur(10px)', border: '1px solid rgba(255, 255, 255, 0.1)'
+        position: 'fixed', top: '15px', right: '15px',
+        zIndex: 2000
       }}>
-        <span style={{ fontSize: '10px', color: '#00ff88', fontWeight: 'bold' }}>●</span>
         <button onClick={handleSignOut} style={{
-          background: 'none', border: 'none', color: 'rgba(255,255,255,0.7)',
-          cursor: 'pointer', fontSize: '11px', fontWeight: '500'
+          background: 'rgba(255,255,255,0.08)',
+          border: '1px solid rgba(255,255,255,0.1)',
+          color: 'white',
+          padding: '6px 12px',
+          borderRadius: '20px',
+          cursor: 'pointer',
+          fontSize: '12px'
         }}>
           Log out
         </button>
       </div>
 
-      {/* NAVIGATION LOGIC */}
-      {token ? (
+      {/* FLOW CONTROL */}
+      {showWelcome ? (
+        <Welcomeview 
+          onFinish={handleWelcomeFinish}
+          userEmail={user?.email}
+        />
+      ) : token ? (
         <Session 
-          token={token} 
-          serverUrl={import.meta.env.VITE_LIVEKIT_URL} 
-          userEmail={user.email} // Passed to the session for UI display
-          onDisconnect={() => setToken(null)} 
+          token={token}
+          serverUrl={import.meta.env.VITE_LIVEKIT_URL}
+          userEmail={user.email}
+          onDisconnect={() => {
+            setToken(null);
+            setShowWelcome(true); // go back to welcome when session ends
+          }}
         />
       ) : (
-        <Welcomeview 
-          onWakeClick={wakeMalvin} 
-          isConnecting={sessionLoading} 
-          userEmail={user?.email} // <--- Added this to show email on Welcome screen
-        />
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '100vh',
+          color: '#555',
+          fontSize: '12px',
+          letterSpacing: '2px'
+        }}>
+          CONNECTING...
+        </div>
       )}
+
     </div>
   );
 }
 
-// --- MAIN APP ---
 function App() {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -60,9 +81,6 @@ function App() {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       setAuthLoading(false);
-      if (currentUser) {
-        console.log("🚀 Malvin User Identified:", currentUser.uid);
-      }
     });
     return () => unsubscribe();
   }, []);
@@ -75,25 +93,27 @@ function App() {
     }
   };
 
-  // Loading state while Firebase checks the session
   if (authLoading) {
     return (
-      <div style={{ 
-        backgroundColor: '#000', height: '100vh', display: 'flex', 
-        alignItems: 'center', justifyContent: 'center', color: '#444',
-        fontSize: '12px', letterSpacing: '2px' 
+      <div style={{
+        backgroundColor: '#000',
+        height: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: '#444',
+        fontSize: '12px',
+        letterSpacing: '2px'
       }}>
         INITIALIZING...
       </div>
     );
   }
 
-  // If no user is logged in, show the Login screen.
   if (!user) {
     return <Login />;
   }
 
-  // If user exists, render the Malvin Interface.
   return <MalvinInterface user={user} handleSignOut={handleSignOut} />;
 }
 

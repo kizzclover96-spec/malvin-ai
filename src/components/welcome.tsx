@@ -1,133 +1,127 @@
-import React from "react";
+import React, { useEffect } from "react";
 
 interface WelcomeProps {
-  onWakeClick: () => void;
-  isConnecting: boolean;
-  userEmail: string | null | undefined;
+  onFinish: () => void;
+  userEmail?: string | null;
 }
 
-function Welcomeview({ onWakeClick, isConnecting, userEmail }: WelcomeProps) {
+function Welcomeview({ onFinish, userEmail }: WelcomeProps) {
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onFinish();
+    }, 6000);
+
+    return () => clearTimeout(timer);
+  }, [onFinish]);
+
   return (
-    <div className="welcome" style={welcomeContainerStyle}>
+    <div style={containerStyle}>
+      
       <style>{`
         @keyframes gradientMove {
           0% { background-position: 0% 50%; }
           50% { background-position: 100% 50%; }
           100% { background-position: 0% 50%; }
         }
-        @keyframes pulseGlow {
-          0% { box-shadow: 0 0 15px rgba(0, 112, 243, 0.2); }
-          50% { box-shadow: 0 0 30px rgba(0, 112, 243, 0.6); }
-          100% { box-shadow: 0 0 15px rgba(0, 112, 243, 0.2); }
+
+        @keyframes fadeSlide {
+          0% { opacity: 0; transform: translateY(20px) scale(0.95); }
+          50% { opacity: 1; transform: translateY(0px) scale(1.05); }
+          100% { opacity: 1; transform: translateY(0px) scale(1); }
         }
-        .ai-picture-container img { transition: transform 0.5s ease; }
-        .ai-picture-container img:hover { transform: scale(1.03); }
+
+        @keyframes glow {
+          0% { text-shadow: 0 0 10px rgba(0,150,255,0.3), 0 0 20px rgba(255,120,0,0.2); }
+          50% { text-shadow: 0 0 30px rgba(0,150,255,0.8), 0 0 60px rgba(255,120,0,0.6); }
+          100% { text-shadow: 0 0 10px rgba(0,150,255,0.3), 0 0 20px rgba(255,120,0,0.2); }
+        }
       `}</style>
 
-      {/* 2. Minimized User Identity Badge */}
+      {/* Glass Layer */}
+      <div style={glassStyle} />
+
+      {/* Center Content */}
+      <div style={contentStyle}>
+        <h1 style={titleStyle}>Malvin</h1>
+        <p style={subTextStyle}>
+          Initializing Intelligence...
+        </p>
+      </div>
+
+      {/* User badge (optional small detail) */}
       <div style={userBadgeStyle}>
-        <div style={{ 
-          width: '6px', // Smaller dot
-          height: '6px', 
-          borderRadius: '50%', 
-          backgroundColor: userEmail ? '#32d74b' : '#ff453a',
-          boxShadow: userEmail ? '0 0 8px #32d74b' : 'none'
-        }} />
-        <span style={userEmailTextStyle}>
-          {userEmail ? userEmail.toLowerCase() : "Offline"}
+        <span style={{ color: '#00ff88', fontSize: '10px' }}>●</span>
+        <span style={userTextStyle}>
+          {userEmail?.toLowerCase() || "offline"}
         </span>
       </div>
 
-      <div className="ai-picture-container" style={{ textAlign: 'center', zIndex: 1 }}>
-        <img 
-          src="/Malvin self.png" 
-          alt="Assistant" 
-          style={{ 
-            height: "250px", 
-            width: "250px", 
-            borderRadius: "50%", 
-            objectFit: "cover",
-            border: "2px solid rgba(255,255,255,0.1)",
-            boxShadow: "0 10px 30px rgba(0,0,0,0.5)"
-          }}
-        /> 
-        
-        <div className="welcome-overlay" style={{ marginTop: '20px' }}>
-          <p style={{ color: 'white', fontSize: '1.2rem', fontWeight: '300', opacity: 0.9 }}>
-            Ask Malvin anything!
-          </p>
-        </div>
-
-        <button 
-          style={{ 
-            height: "45px", 
-            width: "160px", 
-            borderRadius: "22px", 
-            backgroundColor: isConnecting ? "#333" : "#0070f3", 
-            color: "white",
-            border: "none",
-            cursor: isConnecting ? "not-allowed" : "pointer",
-            marginTop: "25px",
-            fontWeight: "bold",
-            fontSize: "15px",
-            transition: "all 0.3s ease",
-            animation: isConnecting ? "none" : "pulseGlow 3s infinite ease-in-out",
-            letterSpacing: "0.5px"
-          }}
-          onClick={onWakeClick} 
-          disabled={isConnecting}
-        >
-          {isConnecting ? "Waking Malvin..." : "Wake Malvin"}
-        </button>
-      </div>
-
-      <div style={supportLinkStyle}>
-        <p style={{ margin: 0 }}>
-          Support: 
-          <a href="mailto:malvinsupportteam@gmail.com" style={{ color: "#0070f3", textDecoration: "none", marginLeft: "5px" }}>
-            malvinsupportteam@gmail.com
-          </a>
-        </p>
-      </div>
     </div>
   );
 }
 
-const welcomeContainerStyle: React.CSSProperties = {
-  width: '100%', height: '100%', position: 'fixed', top: 0, left: 0,
-  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-  overflow: 'hidden', touchAction: 'none',
-  background: 'linear-gradient(-45deg, #000000, #0a0a0a, #002b5e, #000000)',
-  backgroundSize: '400% 400%', animation: 'gradientMove 12s ease infinite',
-  fontFamily: '"Inter", sans-serif'
+const containerStyle: React.CSSProperties = {
+  width: '100%',
+  height: '100vh',
+  position: 'fixed',
+  top: 0,
+  left: 0,
+  overflow: 'hidden',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontFamily: '"Inter", sans-serif',
+
+  background: 'linear-gradient(-45deg, #001f4d, #003366, #ff6a00, #ff3c00)',
+  backgroundSize: '400% 400%',
+  animation: 'gradientMove 12s ease infinite',
+};
+
+const glassStyle: React.CSSProperties = {
+  position: 'absolute',
+  width: '100%',
+  height: '100%',
+  backdropFilter: 'blur(40px)',
+  WebkitBackdropFilter: 'blur(40px)',
+  background: 'rgba(255,255,255,0.05)',
+};
+
+const contentStyle: React.CSSProperties = {
+  position: 'relative',
+  zIndex: 2,
+  textAlign: 'center',
+};
+
+const titleStyle: React.CSSProperties = {
+  fontSize: '64px',
+  fontWeight: 200,
+  color: 'white',
+  letterSpacing: '6px',
+  animation: 'fadeSlide 2s ease forwards, glow 4s ease-in-out infinite',
+};
+
+const subTextStyle: React.CSSProperties = {
+  marginTop: '10px',
+  fontSize: '14px',
+  color: 'rgba(255,255,255,0.6)',
+  letterSpacing: '2px',
 };
 
 const userBadgeStyle: React.CSSProperties = {
   position: 'absolute',
-  top: '15px', // Moved closer to the top
-  left: '15px', // Moved closer to the left
+  bottom: '20px',
+  left: '50%',
+  transform: 'translateX(-50%)',
   display: 'flex',
-  alignItems: 'center',
   gap: '6px',
-  zIndex: 100,
-  padding: '4px 10px', // Thinner padding
-  backgroundColor: 'rgba(255, 255, 255, 0.03)',
-  borderRadius: '15px',
-  backdropFilter: 'blur(5px)',
-  border: '1px solid rgba(255, 255, 255, 0.05)'
+  alignItems: 'center',
+  fontSize: '10px',
+  color: 'rgba(255,255,255,0.5)',
 };
 
-const userEmailTextStyle: React.CSSProperties = {
-  color: 'rgba(255, 255, 255, 0.4)', // Dimmed the text more
-  fontSize: '9px', // Smaller font
-  fontWeight: '500',
-  letterSpacing: '0.02rem',
-  fontFamily: 'monospace'
-};
-
-const supportLinkStyle: React.CSSProperties = {
-  position: 'absolute', bottom: '20px', left: '50%', transform: 'translateX(-50%)',
-  color: 'rgba(255, 255, 255, 0.3)', fontSize: '11px', textAlign: 'center', width: '100%',
+const userTextStyle: React.CSSProperties = {
+  fontFamily: 'monospace',
 };
 
 export default Welcomeview;
