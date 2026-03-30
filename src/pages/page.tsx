@@ -1,13 +1,20 @@
+'use client'; // Required for Next.js App Router hooks
+
 import { useState } from 'react';
-import Welcomeview from '../components/welcome'; // Adjust path if needed
-import Session from './session';           // Adjust path if needed
+import Welcomeview from '../components/welcome'; 
+import Session from './session';          
 
 export default function Page() {
     const [token, setToken] = useState<string | null>(null);
     const [isConnecting, setIsConnecting] = useState(false);
+    
+    // Pass this down so the Welcome badge looks legit
+    const [userEmail] = useState("user@malvin.ai"); 
 
-    // This is the actual logic that we "pass" to the button
     const handleWakeMalvin = async () => {
+        // Prevent double-fetching if the auto-trigger hits twice
+        if (isConnecting || token) return;
+
         setIsConnecting(true);
         try {
             const response = await fetch('/api/get-participant-token');
@@ -25,19 +32,28 @@ export default function Page() {
         }
     };
 
-    // If we have a token, show the Chat Session. If not, show Welcome.
     return (
-        <main>
+        <main style={{ backgroundColor: '#000', minHeight: '100vh' }}>
             {token ? (
-                <Session 
-                    token={token} 
-                    serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL || ''} 
-                    onDisconnect={() => setToken(null)} 
-                />
+                <div style={{ animation: 'fadeIn 0.8s ease-out' }}>
+                    <style>{`
+                        @keyframes fadeIn {
+                            from { opacity: 0; transform: scale(1.05); }
+                            to { opacity: 1; transform: scale(1); }
+                        }
+                    `}</style>
+                    <Session 
+                        token={token} 
+                        userEmail={userEmail}
+                        serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL || ''} 
+                        onDisconnect={() => setToken(null)} 
+                    />
+                </div>
             ) : (
                 <Welcomeview 
                     onWakeClick={handleWakeMalvin} 
                     isConnecting={isConnecting} 
+                    userEmail={userEmail}
                 />
             )}
         </main>

@@ -8,27 +8,26 @@ import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { auth } from './firebase';
 
 // --- SUB-COMPONENT ---
-// This ensures the hook only runs when we are 100% sure a user exists.
 function MalvinInterface({ user, handleSignOut }) {
-  // Passing user.uid here ensures the LiveKit token is linked to this specific user
+  // Logic hook for LiveKit session
   const { wakeMalvin, token, loading: sessionLoading, setToken } = useMalvinActivation(user.uid);
 
   return (
     <div className="app-container" style={{ backgroundColor: '#000', minHeight: '100vh', color: 'white' }}>
       
-      {/* USER CAPSULE (Top Right) */}
+      {/* USER CAPSULE (Top Right) - Kept subtle to match new UI */}
       <div style={{
-        position: 'fixed', top: '15px', right: '15px', display: 'flex',
+        position: 'fixed', top: '25px', right: '25px', display: 'flex',
         alignItems: 'center', gap: '8px', zIndex: 2000,
-        backgroundColor: 'rgba(255, 255, 255, 0.08)', padding: '4px 10px',
-        borderRadius: '20px', backdropFilter: 'blur(10px)', border: '1px solid rgba(255, 255, 255, 0.1)'
+        backgroundColor: 'rgba(255, 255, 255, 0.05)', padding: '6px 12px',
+        borderRadius: '20px', backdropFilter: 'blur(15px)', border: '1px solid rgba(255, 255, 255, 0.1)'
       }}>
-        <span style={{ fontSize: '10px', color: '#00ff88', fontWeight: 'bold' }}>●</span>
+        <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#32d74b' }} />
         <button onClick={handleSignOut} style={{
-          background: 'none', border: 'none', color: 'rgba(255,255,255,0.7)',
-          cursor: 'pointer', fontSize: '11px', fontWeight: '500'
+          background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)',
+          cursor: 'pointer', fontSize: '10px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px'
         }}>
-          Log out
+          Sign Out
         </button>
       </div>
 
@@ -37,14 +36,14 @@ function MalvinInterface({ user, handleSignOut }) {
         <Session 
           token={token} 
           serverUrl={import.meta.env.VITE_LIVEKIT_URL} 
-          userEmail={user.email} // Passed to the session for UI display
+          userEmail={user.email} 
           onDisconnect={() => setToken(null)} 
         />
       ) : (
         <Welcomeview 
           onWakeClick={wakeMalvin} 
           isConnecting={sessionLoading} 
-          userEmail={user?.email} // <--- Added this to show email on Welcome screen
+          userEmail={user?.email} 
         />
       )}
     </div>
@@ -56,15 +55,24 @@ function App() {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
 
+  // 1. Handle Auth State
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       setAuthLoading(false);
-      if (currentUser) {
-        console.log("🚀 Malvin User Identified:", currentUser.uid);
-      }
     });
     return () => unsubscribe();
+  }, []);
+
+  // 2. Handle PWA Service Worker (Fixed placement)
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/service-worker.js')
+          .then(reg => console.log('Malvin PWA Registered'))
+          .catch(err => console.error('PWA Registration failed', err));
+      });
+    }
   }, []);
 
   const handleSignOut = async () => {
@@ -75,25 +83,20 @@ function App() {
     }
   };
 
-  // Loading state while Firebase checks the session
   if (authLoading) {
     return (
       <div style={{ 
         backgroundColor: '#000', height: '100vh', display: 'flex', 
         alignItems: 'center', justifyContent: 'center', color: '#444',
-        fontSize: '12px', letterSpacing: '2px' 
+        fontSize: '10px', letterSpacing: '4px' 
       }}>
-        INITIALIZING...
+        MALVIN
       </div>
     );
   }
 
-  // If no user is logged in, show the Login screen.
-  if (!user) {
-    return <Login />;
-  }
+  if (!user) return <Login />;
 
-  // If user exists, render the Malvin Interface.
   return <MalvinInterface user={user} handleSignOut={handleSignOut} />;
 }
 
