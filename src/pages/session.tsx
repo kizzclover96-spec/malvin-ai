@@ -62,7 +62,7 @@ const MicIcon = ({ enabled, size = 22 }: { enabled?: boolean, size?: number }) =
   </svg>
 );
 
-// --- FEATURE VISUALIZATIONS ---
+// --- ANIMATED FEATURE ICONS ---
 const BrowserIcon = ({ size = 60 }) => (
   <div style={{ position: 'relative' }}>
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={neonBlue} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
@@ -94,6 +94,7 @@ const StyleIcon = ({ size = 60 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={neonBlue} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ animation: 'rotate 4s linear infinite' }}><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
 );
 
+// --- COMPONENT: FEATURE SHOWCASE ---
 const FeatureShowcase = () => {
   const [step, setStep] = useState(0);
   const features = [
@@ -127,7 +128,6 @@ const FeatureShowcase = () => {
         @keyframes goldGlow { 0%, 100% { box-shadow: 0 0 5px rgba(255, 215, 0, 0.3); border-color: rgba(255, 215, 0, 0.5); } 50% { box-shadow: 0 0 15px rgba(255, 215, 0, 0.6); border-color: ${premiumGold}; } }
         @keyframes twinkle { 0%, 100% { opacity: 0.3; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.2); } }
         @keyframes dashboardGlow { 0%, 100% { box-shadow: 0 0 5px rgba(191, 0, 255, 0.2); border-color: rgba(191, 0, 255, 0.5); } 50% { box-shadow: 0 0 15px rgba(191, 0, 255, 0.5); border-color: ${neonPurple}; } }
-        @keyframes pulseDead { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.92); } }
         @keyframes swing { 0%, 100% { transform: rotate(-10deg); } 50% { transform: rotate(10deg); } }
         @keyframes flip { 0% { transform: rotateY(0deg); opacity: 0; } 50% { opacity: 1; } 100% { transform: rotateY(-180deg); opacity: 0; } }
       `}</style>
@@ -169,30 +169,6 @@ const BackgroundChat = ({ visibleMessages }: { visibleMessages: any[] }) => {
   );
 };
 
-// --- AI FACE ---
-function MalvinVoiceIsland({ agent, disabled, onToggleDisable }: any) {
-  const isAgentSpeaking = useIsSpeaking(agent);
-  const [blink, setBlink] = useState(false);
-
-  useEffect(() => {
-    const interval = setInterval(() => { if (!disabled) { setBlink(true); setTimeout(() => setBlink(false), 150); } }, 4000);
-    return () => clearInterval(interval);
-  }, [disabled]);
-
-  return (
-    <div onClick={onToggleDisable} style={{ width: '110px', height: '42px', backgroundColor: 'rgba(10, 10, 10, 0.9)', borderRadius: '21px', border: `1.5px solid ${disabled ? neonRed : neonBlue}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.3s ease', boxShadow: disabled ? `0 0 20px ${neonRed}77` : isAgentSpeaking ? `0 0 15px ${neonBlue}55` : `0 0 5px ${neonBlue}22` }}>
-      {disabled ? (
-        <svg width="45" height="18" viewBox="0 0 60 20" style={{ animation: 'pulseDead 2s infinite' }}><text x="10" y="15" fill={neonRed} fontSize="16" fontWeight="bold">X</text><text x="36" y="15" fill={neonRed} fontSize="16" fontWeight="bold">X</text></svg>
-      ) : (
-        <svg width="45" height="18" viewBox="0 0 60 20">
-          <rect x="12" y={blink ? "9" : (isAgentSpeaking ? "2" : "5")} width="10" height={blink ? "2" : (isAgentSpeaking ? "16" : "10")} rx="1" fill="white" />
-          <rect x="38" y={blink ? "9" : (isAgentSpeaking ? "2" : "5")} width="10" height={blink ? "2" : (isAgentSpeaking ? "16" : "10")} rx="1" fill="white" />
-        </svg>
-      )}
-    </div>
-  );
-}
-
 // --- VIDEO STAGE ---
 function VideoStage({ onDisconnect, userEmail }: { onDisconnect: () => void, userEmail: string }) {
   const [textInput, setTextInput] = useState("");
@@ -200,13 +176,44 @@ function VideoStage({ onDisconnect, userEmail }: { onDisconnect: () => void, use
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isDashboardOpen, setIsDashboardOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'notes' | 'appearance' | 'system'>('notes');
-  const [notes] = useState<string[]>([]);
   
+  // Sidebar State
+  const [notes, setNotes] = useState<string[]>([]);
+  const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
+  const [bgBlur, setBgBlur] = useState(0);
+
   const agent = useRemoteParticipant({ kind: ParticipantKind.AGENT });
+  const isAgentSpeaking = useIsSpeaking(agent);
   const { localParticipant } = useLocalParticipant();
   const { send, chatMessages } = useChat();
   const connectionState = useConnectionState();
-  
+  const bgInputRef = useRef<HTMLInputElement>(null);
+
+  // Persistence Logic
+  const storageKey = `malvin_session_${userEmail.replace(/[^a-zA-Z0-9]/g, '_')}`;
+  useEffect(() => {
+    const saved = localStorage.getItem(storageKey);
+    if (saved) {
+      const data = JSON.parse(saved);
+      if (data.notes) setNotes(data.notes);
+      if (data.backgroundImage) setBackgroundImage(data.backgroundImage);
+      if (data.bgBlur !== undefined) setBgBlur(data.bgBlur);
+    }
+  }, [storageKey]);
+
+  useEffect(() => {
+    localStorage.setItem(storageKey, JSON.stringify({ notes, backgroundImage, bgBlur }));
+  }, [notes, backgroundImage, bgBlur, storageKey]);
+
+  const saveAsPDF = () => {
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(`<html><body><h1>Malvin Session Notes</h1><p>User: ${userEmail}</p><ul>${notes.map(n => `<li>${n}</li>`).join('')}</ul></body></html>`);
+      printWindow.document.close();
+      printWindow.print();
+    }
+  };
+
   const tracks = useTracks([{ source: Track.Source.Camera, pks: [localParticipant?.identity || ''] }, { source: Track.Source.ScreenShare, pks: [localParticipant?.identity || ''] }]);
   const cameraTrack = tracks.find(t => t.source === Track.Source.Camera);
   const screenTrack = tracks.find(t => t.source === Track.Source.ScreenShare);
@@ -232,10 +239,13 @@ function VideoStage({ onDisconnect, userEmail }: { onDisconnect: () => void, use
         </div>
       )}
 
-      {/* MEDIA */}
+      {/* MEDIA BACKGROUND */}
       <div style={{ position: 'absolute', inset: 0, zIndex: 5 }}>
         {screenTrack ? <VideoTrack trackRef={screenTrack} style={{ width: '100%', height: '100%', objectFit: 'contain' }} /> : cameraTrack && localParticipant?.isCameraEnabled ? <VideoTrack trackRef={cameraTrack} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : null}
       </div>
+      {backgroundImage && !screenTrack && !cameraTrack && (
+        <div style={{ position: 'absolute', inset: 0, backgroundImage: `url(${backgroundImage})`, backgroundSize: 'cover', backgroundPosition: 'center', filter: `blur(${bgBlur}px)`, zIndex: 2 }} />
+      )}
 
       <BackgroundChat visibleMessages={chatMessages} />
       {chatMessages.length === 0 && <FeatureShowcase />}
@@ -243,11 +253,33 @@ function VideoStage({ onDisconnect, userEmail }: { onDisconnect: () => void, use
       {/* SIDEBAR */}
       <div style={{ position: 'absolute', top: 0, left: isSettingsOpen ? 0 : '-320px', display: isSettingsOpen ? 'flex' : 'none', width: '280px', height: '100%', backgroundColor: 'rgba(10,10,10,0.98)', borderRight: `1px solid ${neonBlue}44`, zIndex: 200, flexDirection: 'column' }}>
         <div style={{ display: 'flex', marginTop: '70px', padding: '0 20px', borderBottom: '1px solid #222' }}>
-           {['notes', 'appearance', 'system'].map((t) => (
+           {['notes', 'style', 'system'].map((t) => (
              <div key={t} onClick={() => setActiveTab(t as any)} style={{ flex: 1, padding: '10px 0', textAlign: 'center', cursor: 'pointer', fontSize: '11px', color: activeTab === t ? neonBlue : '#444', borderBottom: activeTab === t ? `2px solid ${neonBlue}` : 'none' }}>{t.toUpperCase()}</div>
            ))}
         </div>
+        
         <div style={{ padding: '24px', flex: 1, overflowY: 'auto' }}>
+          {activeTab === 'notes' && (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
+                <span style={{ fontSize: '10px', color: neonBlue }}>NOTEPAD</span>
+                <button onClick={saveAsPDF} style={{ background: 'none', border: `1px solid ${neonBlue}`, color: neonBlue, fontSize: '9px', padding: '2px 5px', borderRadius: '4px' }}>PDF ↓</button>
+              </div>
+              {notes.map((n, i) => <div key={i} style={{ padding: '8px', borderLeft: `2px solid ${neonBlue}`, background: 'rgba(255,255,255,0.02)', marginBottom: '8px', fontSize: '12px' }}>{n}</div>)}
+            </div>
+          )}
+
+          {activeTab === 'style' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <button onClick={() => bgInputRef.current?.click()} style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${neonBlue}`, color: '#fff', padding: '10px', borderRadius: '8px', fontSize: '12px' }}>Upload Background</button>
+              <input type="file" ref={bgInputRef} hidden accept="image/*" onChange={(e) => { const f = e.target.files?.[0]; if(f){ const r = new FileReader(); r.onload = (ev) => setBackgroundImage(ev.target?.result as string); r.readAsDataURL(f); } }} />
+              <div>
+                <label style={{ fontSize: '10px', color: '#555' }}>BLUR: {bgBlur}px</label>
+                <input type="range" min="0" max="20" value={bgBlur} onChange={(e) => setBgBlur(Number(e.target.value))} style={{ width: '100%', accentColor: neonBlue }} />
+              </div>
+            </div>
+          )}
+
           {activeTab === 'system' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '8px', padding: '10px', display: 'flex', justifyContent: 'space-between' }}>
@@ -274,7 +306,14 @@ function VideoStage({ onDisconnect, userEmail }: { onDisconnect: () => void, use
       </div>
 
       <div style={{ position: 'absolute', top: '25px', width: '100%', display: 'flex', justifyContent: 'center', zIndex: 100 }}>
-        {agent && <MalvinVoiceIsland agent={agent} disabled={disabled} onToggleDisable={() => setDisabled(!disabled)} />}
+        {agent && (
+           <div onClick={() => setDisabled(!disabled)} style={{ width: '110px', height: '42px', backgroundColor: 'rgba(10,10,10,0.9)', borderRadius: '21px', border: `1.5px solid ${disabled ? neonRed : neonBlue}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: isAgentSpeaking ? `0 0 15px ${neonBlue}55` : 'none' }}>
+             <svg width="45" height="18" viewBox="0 0 60 20">
+               <rect x="12" y={isAgentSpeaking ? "2" : "5"} width="10" height={isAgentSpeaking ? "16" : "10"} rx="1" fill="white" />
+               <rect x="38" y={isAgentSpeaking ? "2" : "5"} width="10" height={isAgentSpeaking ? "16" : "10"} rx="1" fill="white" />
+             </svg>
+           </div>
+        )}
       </div>
 
       {/* BOTTOM CONTROL BAR */}
@@ -283,6 +322,7 @@ function VideoStage({ onDisconnect, userEmail }: { onDisconnect: () => void, use
           <button onClick={onDisconnect} style={{ ...btnReset, color: neonRed, marginRight: '12px' }}>✕</button>
           <input placeholder="say something..." value={textInput} disabled={disabled} onChange={(e) => setTextInput(e.target.value)} onKeyDown={async (e) => { if (e.key === 'Enter' && textInput.trim()) { await send?.(textInput); setTextInput(""); } }} style={{ flex: 1, background: 'none', border: 'none', color: '#fff', outline: 'none' }} />
           <div style={{ display: 'flex', gap: '14px' }}>
+            <button style={btnReset}><ClipIcon /></button>
             <button onClick={() => localParticipant?.setScreenShareEnabled(!localParticipant.isScreenShareEnabled)} style={btnReset}><ScreenShareIcon enabled={!!localParticipant?.isScreenShareEnabled} /></button>
             <button onClick={() => localParticipant?.setCameraEnabled(!localParticipant.isCameraEnabled)} style={btnReset}><CameraIcon enabled={!!localParticipant?.isCameraEnabled} /></button>
             <button onClick={() => localParticipant?.setMicrophoneEnabled(!localParticipant.isMicrophoneEnabled)} style={btnReset}><MicIcon enabled={!!localParticipant?.isMicrophoneEnabled} /></button>
