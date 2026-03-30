@@ -15,7 +15,7 @@ import {
 interface SessionProps {
   token: string;
   serverUrl: string;
-  userEmail: string; // Pass the logged-in email here
+  userEmail: string;
   onDisconnect: () => void;
 }
 
@@ -29,8 +29,8 @@ const GearIcon = () => (
   </svg>
 );
 
-const CameraIcon = ({ enabled }: { enabled: boolean }) => (
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={neonBlue} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: enabled ? 1 : 0.4 }}>
+const CameraIcon = ({ enabled, size = 22 }: { enabled?: boolean, size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={neonBlue} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: enabled === false ? 0.4 : 1 }}>
     <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>
   </svg>
 );
@@ -41,11 +41,63 @@ const ClipIcon = () => (
   </svg>
 );
 
-const MicIcon = ({ enabled }: { enabled: boolean }) => (
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={neonBlue} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: enabled ? 1 : 0.4 }}>
+const MicIcon = ({ enabled, size = 22 }: { enabled?: boolean, size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={neonBlue} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: enabled === false ? 0.4 : 1 }}>
     <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4M8 22h8" />
   </svg>
 );
+
+// --- COMPONENT: FEATURE SHOWCASE ---
+const FeatureShowcase = () => {
+  const [step, setStep] = useState(0);
+  
+  useEffect(() => {
+    const timer = setInterval(() => setStep(s => (s + 1) % 2), 4000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const containerStyle: CSSProperties = {
+    position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+    display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 12, pointerEvents: 'none'
+  };
+
+  return (
+    <div style={containerStyle}>
+      <style>{`
+        @keyframes fadeInOut { 0%, 10%, 90%, 100% { opacity: 0; transform: scale(0.8); } 20%, 80% { opacity: 1; transform: scale(1); } }
+        @keyframes sparkle { 0%, 100% { opacity: 0; transform: scale(0); } 50% { opacity: 1; transform: scale(1.2); } }
+        @keyframes vibrate { 0% { transform: scale(1); opacity: 0.5; } 50% { transform: scale(1.5); opacity: 0; } 100% { transform: scale(1); opacity: 0; } }
+      `}</style>
+      
+      {step === 0 && (
+        <div style={{ animation: 'fadeInOut 4s infinite', position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <div style={{ position: 'relative' }}>
+            <CameraIcon size={60} />
+            {[...Array(5)].map((_, i) => (
+              <div key={i} style={{
+                position: 'absolute', width: '8px', height: '8px', backgroundColor: '#fff', borderRadius: '50%',
+                top: `${20 + Math.random() * 20}%`, left: `${30 + Math.random() * 40}%`,
+                boxShadow: `0 0 10px ${neonBlue}`, animation: `sparkle 1.5s infinite ${i * 0.3}s`
+              }} />
+            ))}
+          </div>
+          <span style={{ marginTop: '15px', fontSize: '12px', color: neonBlue, letterSpacing: '2px', fontWeight: 'bold' }}>I CAN SEE</span>
+        </div>
+      )}
+
+      {step === 1 && (
+        <div style={{ animation: 'fadeInOut 4s infinite', position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ position: 'absolute', width: '80px', height: '80px', border: `2px solid ${neonBlue}`, borderRadius: '50%', animation: 'vibrate 1.5s infinite' }} />
+            <div style={{ position: 'absolute', width: '100px', height: '100px', border: `1px solid ${neonBlue}`, borderRadius: '50%', animation: 'vibrate 1.5s infinite 0.5s' }} />
+            <MicIcon size={60} />
+          </div>
+          <span style={{ marginTop: '15px', fontSize: '12px', color: neonBlue, letterSpacing: '2px', fontWeight: 'bold' }}>I CAN HEAR</span>
+        </div>
+      )}
+    </div>
+  );
+};
 
 // --- COMPONENT: BACKGROUND CHAT ---
 const BackgroundChat = () => {
@@ -196,7 +248,7 @@ function VideoStage({ onDisconnect, userEmail }: { onDisconnect: () => void, use
   const triggerActivity = () => setActivitySignal(prev => prev + 1);
   const agent = useRemoteParticipant({ kind: ParticipantKind.AGENT });
   const { localParticipant } = useLocalParticipant();
-  const { send } = useChat();
+  const { send, chatMessages } = useChat();
   
   const tracks = useTracks([{ source: Track.Source.Camera, pks: [localParticipant?.identity || ''] }]);
   const cameraTrack = tracks.find(t => t.participant.identity === localParticipant?.identity);
@@ -255,10 +307,15 @@ function VideoStage({ onDisconnect, userEmail }: { onDisconnect: () => void, use
   useEffect(() => {
     if (!localParticipant) return;
     const handleData = (payload: Uint8Array, _p: any, _k: any, topic?: string) => {
+      // NOTE LISTENER: Ensure the topic matches what your AI is sending
       if (topic === "note_update") {
         try {
           const data = JSON.parse(new TextDecoder().decode(payload));
-          if (data.notes) setNotes(data.notes);
+          if (Array.isArray(data.notes)) {
+             setNotes(data.notes);
+          } else if (data.note) {
+             setNotes(prev => [...prev, data.note]);
+          }
         } catch (e) { console.error("Parse error", e); }
       }
     };
@@ -296,6 +353,9 @@ function VideoStage({ onDisconnect, userEmail }: { onDisconnect: () => void, use
       <div style={{ position: 'absolute', inset: 0, backgroundColor: (backgroundImage || localParticipant?.isCameraEnabled) ? 'rgba(0,0,0,0.4)' : '#000', zIndex: 10 }} />
 
       <BackgroundChat />
+      
+      {/* Feature Animation (Only if no chat messages yet) */}
+      {chatMessages.length === 0 && <FeatureShowcase />}
 
       {/* Sidebar */}
       <div style={{
