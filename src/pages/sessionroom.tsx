@@ -68,26 +68,24 @@ export default function SessionRoom() {
 
       {/* --- CENTRAL AI CORE --- */}
       <div style={{
-        position: 'absolute', top: '35%', left: '50%', transform: 'translate(-50%, -50%)',
-        display: 'flex', flexDirection: 'column', alignItems: 'center',
-        width: '100%' // Ensures container doesn't overflow
+        position: 'absolute', top: '40%', left: '50%', transform: 'translate(-50%, -50%)',
+        display: 'flex', flexDirection: 'column', alignItems: 'center'
       }}>
         <div style={{
-          width: '80px', height: '120px', // Slightly smaller for better mobile fit
-          backgroundColor: '#ffffff',
+          width: '100px', height: '140px', backgroundColor: '#ffffff',
           border: '3px solid #eee', borderRadius: '50px',
           display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative',
           boxShadow: isSleeping ? 'none' : '0 0 20px rgba(0, 242, 255, 0.1)'
         }}>
-          <div style={{ display: 'flex', gap: '12px' }}>
+          <div style={{ display: 'flex', gap: '15px' }}>
             <div style={{
-              width: '10px', height: isSleeping ? '2px' : '10px',
+              width: '12px', height: isSleeping ? '2px' : '12px',
               backgroundColor: '#00f2ff', borderRadius: '50%',
               transition: 'all 0.5s ease',
               animation: isSleeping ? 'none' : 'blink 4s infinite'
             }} />
             <div style={{
-              width: '10px', height: isSleeping ? '2px' : '10px',
+              width: '12px', height: isSleeping ? '2px' : '12px',
               backgroundColor: '#00f2ff', borderRadius: '50%',
               transition: 'all 0.5s ease',
               animation: isSleeping ? 'none' : 'blink 4s infinite'
@@ -100,35 +98,33 @@ export default function SessionRoom() {
             </>
           )}
         </div>
-        <p style={{ marginTop: '15px', color: isSleeping ? '#ccc' : '#00f2ff', fontSize: '0.7rem', letterSpacing: '2px' }}>
+        <p style={{ marginTop: '20px', color: isSleeping ? '#ccc' : '#00f2ff', fontSize: '0.8rem', letterSpacing: '2px' }}>
           {isSleeping ? "SYSTEM_STANDBY" : "MALVIN_ACTIVE"}
         </p>
       </div>
 
       {/* HEADER */}
-      <div style={{ padding: '15px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ padding: '20px 30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <button onClick={() => setIsMenuOpen(!isMenuOpen)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
-          <Menu size={28} color="#00f2ff" />
+          <Menu size={32} color="#00f2ff" />
         </button>
-        <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#f0f0f0', border: '1px solid #ddd', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <User size={20} color="#666" />
+        <div style={{ width: '45px', height: '45px', borderRadius: '50%', backgroundColor: '#f0f0f0', border: '1px solid #ddd', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <User size={24} color="#666" />
         </div>
       </div>
 
       {/* CHAT AREA */}
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#bbb' }}>
-        <p style={{ fontSize: '0.9rem' }}>Malvin is listening...</p>
+        <p>Malvin is listening...</p>
       </div>
 
       {/* CONTROLS */}
       <div style={{
-        padding: '10px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px',
-        marginBottom: '10px' // Added space for bottom of phone screens
+        padding: '20px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', width: '100%'
       }}>
         <div style={{
           display: 'flex', alignItems: 'center', backgroundColor: '#ffffff',
-          borderRadius: '50px', padding: '8px 12px', 
-          width: '90%', maxWidth: '600px', // CHANGED: This makes it responsive
+          borderRadius: '50px', padding: '10px 15px', width: '600px', 
           border: '2px solid #eee', boxShadow: '0 10px 25px rgba(0, 0, 0, 0.08)',
           position: 'relative', overflow: 'visible' 
         }}>
@@ -136,27 +132,28 @@ export default function SessionRoom() {
             <button 
               onClick={() => setShowExtras(!showExtras)}
               style={{
-                width: '40px', height: '40px', borderRadius: '50%',
+                width: '45px', height: '45px', borderRadius: '50%',
                 backgroundColor: '#e0e0e0', border: '2px solid #2337C6', cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100
               }}
             >
-              <Plus size={24} color="#00f2ff" strokeWidth={3} style={{ 
+              <Plus size={30} color="#00f2ff" strokeWidth={3} style={{ 
                 transform: showExtras ? 'rotate(45deg)' : 'rotate(0deg)',
-                transition: 'transform 0.3s ease'
+                transition: 'transform 0.3s ease',
+                minWidth: '30px', minHeight: '30px'
               }} />
             </button>
 
             {showExtras && (
               <>
-                <button onClick={() => alert('Cam')} style={floatingCircleStyle(0, '-5px')}>
-                   <Camera size={24} color="#2337C6" strokeWidth={2} />
+                <button onClick={() => alert('Cam')} style={floatingCircleStyle(0, '-10px')}>
+                   <Camera size={28} color="#2337C6" strokeWidth={2} style={{ minWidth: '28px' }} />
                 </button>
                 <button onClick={() => alert('File')} style={floatingCircleStyle(0.05, '45px')}>
-                   <Paperclip size={24} color="#2337C6" strokeWidth={2} />
+                   <Paperclip size={28} color="#2337C6" strokeWidth={2} style={{ minWidth: '28px' }} />
                 </button>
-                <button onClick={() => alert('Screen')} style={floatingCircleStyle(0.1, '95px')}>
-                   <MonitorUp size={24} color="#2337C6" strokeWidth={2} />
+                <button onClick={() => alert('Screen')} style={floatingCircleStyle(0.1, '100px')}>
+                   <MonitorUp size={28} color="#2337C6" strokeWidth={2} style={{ minWidth: '28px' }} />
                 </button>
               </>
             )}
@@ -164,32 +161,32 @@ export default function SessionRoom() {
 
           <input 
             type="text"
-            placeholder="Type..."
+            placeholder="Type your message..."
             value={input}
             onChange={(e) => setInput(e.target.value)}
             style={{
               flex: 1, border: 'none', background: 'none',
-              padding: '0 10px', outline: 'none', fontSize: '1rem',
+              padding: '0 20px', outline: 'none', fontSize: '1.1rem',
               color: '#000000', width: '100%', minWidth: '0'
             }}
           />
 
-          {input && <Send size={24} color="#2337C6" style={{ cursor: 'pointer', flexShrink: 0 }} />}
+          {input && <Send size={28} color="#2337C6" style={{ cursor: 'pointer', flexShrink: 0 }} />}
         </div>
 
         <button 
           onClick={() => setIsMicOn(!isMicOn)}
           style={{
-            width: '55px', height: '55px', borderRadius: '50%',
+            width: '65px', height: '65px', borderRadius: '50%',
             backgroundColor: '#2337C6', border: '2px solid #2337C6', cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             flexShrink: 0
           }}
         >
           {isMicOn ? (
-            <Mic size={28} color="#f0f0f0" strokeWidth={2.5} /> 
+            <Mic size={34} color="#f0f0f0" strokeWidth={2.5} style={{ minWidth: '36px' }} /> 
           ) : (
-            <MicOff size={28} color="#adacac" strokeWidth={2.5} />
+            <MicOff size={34} color="#adacac" strokeWidth={2.5} style={{ minWidth: '36px' }} />
           )}
         </button>
       </div>
