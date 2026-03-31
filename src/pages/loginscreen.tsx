@@ -40,7 +40,7 @@ export default function Login() {
       width: '100vw', 
       height: '100vh',
       // Corrected Image Path
-      backgroundImage: 'url("/Malvin self.png")', 
+      backgroundImage: 'url("/loginscreen.png")', 
       backgroundSize: 'cover',
       backgroundPosition: 'center',
       backgroundRepeat: 'no-repeat',
