@@ -125,7 +125,7 @@ export default function SessionRoom() {
           onClick={() => setIsMicOn(!isMicOn)}
           style={{
             width: '65px', height: '65px', borderRadius: '50%',
-            backgroundColor: '#00f2ff', border: '20%', bordercolor: '#2337C6' cursor: 'pointer',
+            backgroundColor: '#00f2ff', border: '20%', bordercolor: '#2337C6', cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             flexShrink: 0
           }}
