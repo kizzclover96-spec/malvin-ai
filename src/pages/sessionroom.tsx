@@ -10,152 +10,154 @@ export default function SessionRoom() {
   const [isMicOn, setIsMicOn] = useState(false);
   const [showExtras, setShowExtras] = useState(false);
 
-  // Function stubs for the actions
-  const openCamera = () => alert("Camera sequence initialized...");
-  const openFiles = () => alert("Accessing local files...");
-  const startScreenShare = () => alert("Initializing screen broadcast...");
+  // Style for the extra floating circles
+  const floatingCircleStyle = (delay) => ({
+    width: '45px',
+    height: '45px',
+    borderRadius: '50%',
+    backgroundColor: '#e0e0e0', // Whitish Grey
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    border: 'none',
+    position: 'absolute',
+    bottom: '70px', // Floats above the capsule
+    transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+    animation: `popIn 0.3s ${delay}s both`,
+    boxShadow: '0 4px 10px rgba(0,0,0,0.1)'
+  });
 
   return (
     <div style={{
       width: '100vw', height: '100vh',
-      backgroundColor: '#ffffff', // Clean white background
+      backgroundColor: '#ffffff',
       display: 'flex', flexDirection: 'column',
-      fontFamily: 'sans-serif', position: 'relative', overflow: 'hidden'
+      fontFamily: 'sans-serif', position: 'relative'
     }}>
-
-      {/* --- HEADER SECTION --- */}
-      <div style={{
-        padding: '20px 30px',
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        zIndex: 100
-      }}>
-        {/* Dropdown Toggle */}
-        <button 
-          onClick={() => setIsMenuOpen(!isMenuOpen)}
-          style={{ background: 'none', border: 'none', cursor: 'pointer' }}
-        >
-          <Menu size={28} color="#00f2ff" />
+      
+      {/* --- HEADER --- */}
+      <div style={{ padding: '20px 30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <button onClick={() => setIsMenuOpen(!isMenuOpen)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+          <Menu size={32} color="#00f2ff" />
         </button>
-
-        {/* Profile Icon */}
-        <div style={{
-          width: '40px', height: '40px', borderRadius: '50%',
-          backgroundColor: '#f0f0f0', border: '1px solid #ddd',
-          display: 'flex', alignItems: 'center', justifyContent: 'center'
-        }}>
-          <User size={20} color="#666" />
+        <div style={{ width: '45px', height: '45px', borderRadius: '50%', backgroundColor: '#f0f0f0', border: '1px solid #ddd', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <User size={24} color="#666" />
         </div>
       </div>
 
-      {/* --- SIDE DROPDOWN MENU --- */}
-      <div style={{
-        position: 'absolute', top: 0, left: isMenuOpen ? 0 : '-300px',
-        width: '280px', height: '100%', backgroundColor: '#fff',
-        boxShadow: '2px 0 10px rgba(0,0,0,0.1)', zIndex: 200,
-        transition: 'left 0.3s ease', padding: '80px 20px'
-      }}>
-        <h3 style={{ color: '#00f2ff', letterSpacing: '2px' }}>HISTORY</h3>
-        <p style={{ color: '#999', fontSize: '0.8rem' }}>No recent sessions found.</p>
-        <button 
-          onClick={() => setIsMenuOpen(false)}
-          style={{ marginTop: '20px', color: '#666', cursor: 'pointer', border: 'none', background: 'none' }}
-        >
-          Close Menu
-        </button>
+      {/* --- CHAT AREA --- */}
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#bbb' }}>
+        <p>Malvin is listening...</p>
       </div>
 
-      {/* --- MAIN CHAT DISPLAY AREA --- */}
-      <div style={{ flex: 1, padding: '20px', textAlign: 'center', color: '#ccc' }}>
-        {/* Messages would render here */}
-        <p style={{ marginTop: '20%' }}>Start a new session with Malvin</p>
-      </div>
-
-      {/* --- FOOTER / CAPSULE SECTION --- */}
+      {/* --- CONTROLS SECTION --- */}
       <div style={{
-        padding: '20px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '15px'
+        padding: '30px',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: '20px',
+        position: 'relative'
       }}>
         
-        {/* Main Capsule */}
+        {/* THE CAPSULE */}
         <div style={{
-          display: 'flex', alignItems: 'center',
-          backgroundColor: '#f5f5f5', borderRadius: '40px',
-          padding: '8px 15px', width: '80%', maxWidth: '600px',
-          border: '1px solid #eee', boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
+          display: 'flex',
+          alignItems: 'center',
+          backgroundColor: '#ffffff',
+          borderRadius: '50px',
+          padding: '10px 20px',
+          width: '65%', // Standardized length
+          maxWidth: '500px',
+          border: '2px solid #eee', // More visible
+          boxShadow: '0 10px 25px rgba(0, 0, 0, 0.08)',
+          position: 'relative'
         }}>
           
-          {/* Plus Circle & Extras */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {/* PLUS CIRCLE CONTAINER */}
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
             <button 
               onClick={() => setShowExtras(!showExtras)}
               style={{
-                width: '35px', height: '35px', borderRadius: '50%',
-                backgroundColor: '#e0e0e0', border: 'none', cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                transition: 'transform 0.3s ease'
+                width: '45px',
+                height: '45px',
+                borderRadius: '50%',
+                backgroundColor: '#e0e0e0', // Whitish grey
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 10
               }}
             >
-              <Plus size={20} color="#00f2ff" style={{ transform: showExtras ? 'rotate(45deg)' : 'rotate(0deg)' }} />
+              <Plus size={24} color="#00f2ff" strokeWidth={3} style={{ 
+                transform: showExtras ? 'rotate(45deg)' : 'rotate(0deg)',
+                transition: 'transform 0.3s ease'
+              }} />
             </button>
 
-            {/* Extra Tools (Conditional Rendering) */}
+            {/* FLOATING EXTRA BUTTONS */}
             {showExtras && (
-              <div style={{ display: 'flex', gap: '8px', animation: 'fadeIn 0.3s forwards' }}>
-                <button onClick={openCamera} style={extraButtonStyle}><Camera size={16} color="#00f2ff" /></button>
-                <button onClick={openFiles} style={extraButtonStyle}><Paperclip size={16} color="#00f2ff" /></button>
-                <button onClick={startScreenShare} style={extraButtonStyle}><MonitorUp size={16} color="#00f2ff" /></button>
-              </div>
+              <>
+                <button onClick={() => alert('Camera')} style={{ ...floatingCircleStyle(0), left: '-10px' }}>
+                  <Camera size={22} color="#00f2ff" />
+                </button>
+                <button onClick={() => alert('Files')} style={{ ...floatingCircleStyle(0.05), left: '45px' }}>
+                  <Paperclip size={22} color="#00f2ff" />
+                </button>
+                <button onClick={() => alert('Screen')} style={{ ...floatingCircleStyle(0.1), left: '100px' }}>
+                  <MonitorUp size={22} color="#00f2ff" />
+                </button>
+              </>
             )}
           </div>
 
-          {/* Text Input */}
           <input 
             type="text"
-            placeholder="Ask Malvin anything..."
+            placeholder="Type your message..."
             value={input}
             onChange={(e) => setInput(e.target.value)}
             style={{
               flex: 1, border: 'none', background: 'none',
-              padding: '10px 15px', outline: 'none', fontSize: '1rem', color: '#333'
+              padding: '0 20px', outline: 'none', fontSize: '1.1rem'
             }}
           />
-          
-          {input && <Send size={20} color="#00f2ff" style={{ cursor: 'pointer' }} />}
+
+          {input && <Send size={24} color="#00f2ff" style={{ cursor: 'pointer' }} />}
         </div>
 
-        {/* Mic Circle */}
+        {/* MIC CIRCLE */}
         <button 
           onClick={() => setIsMicOn(!isMicOn)}
           style={{
-            width: '50px', height: '50px', borderRadius: '50%',
-            backgroundColor: '#00f2ff', border: 'none', cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: isMicOn ? '0 0 15px rgba(0, 242, 255, 0.5)' : 'none',
-            transition: 'all 0.2s ease'
+            width: '65px', // Large circle
+            height: '65px',
+            borderRadius: '50%',
+            backgroundColor: '#00f2ff', // Neon Blue
+            border: 'none',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 6px 20px rgba(0, 242, 255, 0.3)'
           }}
         >
-          {isMicOn ? <Mic size={24} color="#f0f0f0" /> : <MicOff size={24} color="#f0f0f0" />}
+          {isMicOn ? (
+            <Mic size={32} color="#f0f0f0" strokeWidth={2.5} /> // 50% visibility
+          ) : (
+            <MicOff size={32} color="#f0f0f0" strokeWidth={2.5} />
+          )}
         </button>
       </div>
 
       <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateX(-10px); }
-          to { opacity: 1; transform: translateX(0); }
+        @keyframes popIn {
+          from { opacity: 0; transform: scale(0.5) translateY(20px); }
+          to { opacity: 1; transform: scale(1) translateY(0); }
         }
       `}</style>
     </div>
   );
 }
-
-// Reusable style for the small circles
-const extraButtonStyle = {
-  width: '32px',
-  height: '32px',
-  borderRadius: '50%',
-  backgroundColor: '#e0e0e0',
-  border: 'none',
-  cursor: 'pointer',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center'
-};
