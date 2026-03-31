@@ -45,7 +45,6 @@ export default function Login() {
       backgroundPosition: 'center',
       backgroundRepeat: 'no-repeat',
       // ------------------------------
-      color: '#ffffff', 
       display: 'flex', 
       flexDirection: 'column',
       zIndex: 9999, 
