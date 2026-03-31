@@ -44,7 +44,7 @@ function App() {
         />
       ) : (
         /* 3. SESSION ACTIVE */
-        <SessionRoom user={user} />
+        <SessionRoom userEmail={user.email} />
       )}
     </div>
   );
