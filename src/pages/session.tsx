@@ -18,7 +18,7 @@ interface SessionProps {
   serverUrl: string;
   userEmail: string;
   onDisconnect: () => void;
-  onSignOut: () => void; // Added onSignOut prop
+  onSignOut: () => void; // Added for the new header button
 }
 
 const neonBlue = "#00d2ff";
@@ -28,13 +28,13 @@ const premiumGold = "#FFD700";
 
 // --- ICONS ---
 const GearIcon = () => (
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={neonBlue} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={neonBlue} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z" />
   </svg>
 );
 
-const StarIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill={premiumGold} stroke={premiumGold} strokeWidth="1" style={{ marginRight: '8px' }}>
+const StarIcon = ({ size = 18 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill={premiumGold} stroke={premiumGold} strokeWidth="1">
     <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
   </svg>
 );
@@ -63,16 +63,78 @@ const MicIcon = ({ enabled, size = 22 }: { enabled?: boolean, size?: number }) =
   </svg>
 );
 
+// --- ANIMATED FEATURE ICONS ---
+const BrowserIcon = ({ size = 60 }) => (
+  <div style={{ position: 'relative' }}>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={neonBlue} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+    <div style={{ position: 'absolute', top: '50%', left: '15%', width: '70%', height: '2px', background: neonBlue, boxShadow: `0 0 10px ${neonBlue}`, animation: 'scan 2s linear infinite' }} />
+  </div>
+);
+const LocationIcon = ({ size = 60 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={neonBlue} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ animation: 'bounce 1s infinite alternate' }}><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+);
+const CookbookIcon = ({ size = 60 }) => (
+  <div style={{ position: 'relative' }}>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={neonBlue} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+    <div style={{ position: 'absolute', right: '10px', top: '5px', width: '20px', height: '40px', borderLeft: `1.5px solid ${neonBlue}`, animation: 'flip 1.5s infinite', transformOrigin: 'left' }} />
+  </div>
+);
+const BrainstormIcon = ({ size = 60 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={neonBlue} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ animation: 'pulseGlow 2s infinite' }}><path d="M18 3a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3H6a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3V6a3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3h12a3 3 0 0 0 3-3 3 3 0 0 0-3-3z"/></svg>
+);
+const FeatureScreenShareIcon = ({ size = 60 }) => (
+  <div style={{ position: 'relative' }}>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={neonBlue} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><polyline points="8 21 12 17 16 21"/></svg>
+    <div style={{ position: 'absolute', top: '6px', left: '6px', width: '12px', height: '8px', border: `1px solid ${neonBlue}`, animation: 'blink 2s infinite' }} />
+  </div>
+);
+const NoteIcon = ({ size = 60 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={neonBlue} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ animation: 'float 3s ease-in-out infinite' }}><path d="M15.5 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8.5L15.5 3Z"/><path d="M15 3v6h6"/></svg>
+);
+const StyleIcon = ({ size = 60 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={neonBlue} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ animation: 'rotate 4s linear infinite' }}><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
+);
+
 // --- COMPONENT: FEATURE SHOWCASE ---
 const FeatureShowcase = () => {
+  const [step, setStep] = useState(0);
+  const features = [
+    { word: "SIGHT", icon: <CameraIcon size={60} /> },
+    { word: "SPEECH", icon: <MicIcon size={60} enabled={true} /> },
+    { word: "ATTACH", icon: <ClipIcon size={60} animated={true} /> },
+    { word: "BROWSE", icon: <BrowserIcon size={60} /> },
+    { word: "LOCATE", icon: <LocationIcon size={60} /> },
+    { word: "COOK", icon: <CookbookIcon size={60} /> },
+    { word: "NOTES", icon: <NoteIcon size={60} /> },
+    { word: "STYLE", icon: <StyleIcon size={60} /> },
+    { word: "STREAM", icon: <FeatureScreenShareIcon size={60} /> },
+    { word: "IDEATE", icon: <BrainstormIcon size={60} /> },
+  ];
+
+  useEffect(() => {
+    const timer = setInterval(() => setStep(s => (s + 1) % features.length), 2000);
+    return () => clearInterval(timer);
+  }, [features.length]);
+
   return (
     <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 12, pointerEvents: 'none' }}>
       <style>{`
+        @keyframes fadeInOut { 0%, 100% { opacity: 0; transform: scale(0.9); } 20%, 80% { opacity: 1; transform: scale(1); } }
         @keyframes scan { 0% { transform: translateY(-15px); opacity: 0; } 50% { opacity: 1; } 100% { transform: translateY(15px); opacity: 0; } }
         @keyframes pulseGlow { 0%, 100% { filter: drop-shadow(0 0 2px ${neonBlue}); } 50% { filter: drop-shadow(0 0 15px ${neonBlue}); } }
+        @keyframes bounce { from { transform: translateY(0); } to { transform: translateY(-10px); } }
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+        @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
         @keyframes goldGlow { 0%, 100% { box-shadow: 0 0 5px rgba(255, 215, 0, 0.3); border-color: rgba(255, 215, 0, 0.5); } 50% { box-shadow: 0 0 15px rgba(255, 215, 0, 0.6); border-color: #FFD700; }}
         @keyframes twinkle { 0%, 100% { opacity: 0.3; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.2); }}
       `}</style>
+      <div key={step} style={{ animation: 'fadeInOut 2s infinite', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        {features[step].icon}
+        <span style={{ marginTop: '20px', fontSize: '10px', color: neonBlue, letterSpacing: '4px', fontWeight: '900', textTransform: 'uppercase' }}>
+          {features[step].word}
+        </span>
+      </div>
     </div>
   );
 };
@@ -98,41 +160,29 @@ const BackgroundChat = ({ visibleMessages }: { visibleMessages: any[] }) => {
   }, [localParticipant]);
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [visibleMessages, isAgentTyping]);
 
   return (
     <div style={{ position: 'absolute', inset: 0, zIndex: 15, display: 'flex', justifyContent: 'center', pointerEvents: 'none' }}>
-      <div
-        ref={scrollRef}
-        style={{
-          width: '90%', maxWidth: '450px', padding: '120px 10px 180px 10px',
-          overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px',
-          pointerEvents: 'auto', maskImage: 'linear-gradient(to bottom, transparent, black 10%, black 90%, transparent)',
-          WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 10%, black 90%, transparent)',
-        }}
-      >
+      <div ref={scrollRef} style={{ width: '90%', maxWidth: '450px', padding: '120px 10px 180px 10px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px', pointerEvents: 'auto', maskImage: 'linear-gradient(to bottom, transparent, black 10%, black 90%, transparent)', WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 10%, black 90%, transparent)' }}>
         {visibleMessages.map((msg, index) => {
           const isMe = !msg.from || msg.from.identity === localParticipant?.identity;
           const isAgent = !isMe;
           return (
-            <div key={msg.id || index} style={{
-              maxWidth: '85%', alignSelf: isAgent ? 'flex-start' : 'flex-end',
-              display: 'flex', flexDirection: 'column', alignItems: isAgent ? 'flex-start' : 'flex-end',
-            }}>
-              <div style={{
-                padding: '10px 16px', borderRadius: '18px',
-                backgroundColor: isAgent ? 'rgba(245, 245, 245, 0.92)' : `${neonBlue}E6`,
-                color: isAgent ? '#111' : '#fff', fontSize: '0.92rem', lineHeight: '1.4',
-                boxShadow: '0 4px 15px rgba(0,0,0,0.25)',
-                borderBottomLeftRadius: isAgent ? '4px' : '18px',
-                borderBottomRightRadius: isAgent ? '18px' : '4px',
-              }}>{msg.message}</div>
+            <div key={msg.id || index} style={{ maxWidth: '85%', alignSelf: isAgent ? 'flex-start' : 'flex-end', display: 'flex', flexDirection: 'column', alignItems: isAgent ? 'flex-start' : 'flex-end' }}>
+              <div style={{ padding: '10px 16px', borderRadius: '18px', backgroundColor: isAgent ? 'rgba(245, 245, 245, 0.92)' : `${neonBlue}E6`, color: isAgent ? '#111' : '#fff', fontSize: '0.92rem', lineHeight: '1.4', boxShadow: '0 4px 15px rgba(0,0,0,0.25)', borderBottomLeftRadius: isAgent ? '4px' : '18px', borderBottomRightRadius: isAgent ? '18px' : '4px' }}>{msg.message}</div>
+              <span style={{ fontSize: '9px', color: '#fff', opacity: 0.5, marginTop: '4px', padding: '0 5px', textTransform: 'uppercase' }}>{isAgent ? (msg.from?.name || 'Malvin') : 'You'}</span>
             </div>
           );
         })}
+        {isAgentTyping && (
+          <div style={{ alignSelf: 'flex-start', padding: '12px 18px', borderRadius: '18px', backgroundColor: 'rgba(245, 245, 245, 0.92)' }}>
+            <div style={{ display: 'flex', gap: '3px' }}>
+              <div style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#444' }} /><div style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#444' }} /><div style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#444' }} />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -142,29 +192,34 @@ const BackgroundChat = ({ visibleMessages }: { visibleMessages: any[] }) => {
 function MalvinVoiceIsland({ agent, disabled, onToggleDisable, activitySignal }: any) {
   const isAgentSpeaking = useIsSpeaking(agent);
   const [blink, setBlink] = useState(false);
+  const [sleeping, setSleeping] = useState(false);
 
   useEffect(() => {
     const interval = setInterval(() => {
-      if (!disabled) {
+      if (!sleeping && !disabled) {
         setBlink(true);
         setTimeout(() => setBlink(false), 150);
       }
     }, 4000);
     return () => clearInterval(interval);
-  }, [disabled]);
+  }, [sleeping, disabled]);
+
+  useEffect(() => {
+    setSleeping(false);
+    const timer = setTimeout(() => setSleeping(true), 60000);
+    return () => clearTimeout(timer);
+  }, [activitySignal]);
 
   return (
-    <div onClick={onToggleDisable} style={{
-      width: '110px', height: '42px', backgroundColor: 'rgba(10, 10, 10, 0.9)',
-      borderRadius: '21px', border: `1.5px solid ${disabled ? neonRed : neonBlue}`,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      cursor: 'pointer', position: 'relative', transition: 'all 0.3s ease',
-      boxShadow: disabled ? `0 0 20px ${neonRed}77` : isAgentSpeaking ? `0 0 15px ${neonBlue}55` : `0 0 5px ${neonBlue}22`,
-    }}>
-      <svg width="45" height="18" viewBox="0 0 60 20">
-        <rect x="12" y={blink ? "9" : (isAgentSpeaking ? "2" : "5")} width="10" height={blink ? "2" : (isAgentSpeaking ? "16" : "10")} rx="1" fill="white" />
-        <rect x="38" y={blink ? "9" : (isAgentSpeaking ? "2" : "5")} width="10" height={blink ? "2" : (isAgentSpeaking ? "16" : "10")} rx="1" fill="white" />
-      </svg>
+    <div onClick={onToggleDisable} style={{ width: '110px', height: '42px', backgroundColor: 'rgba(10, 10, 10, 0.9)', borderRadius: '21px', border: `1.5px solid ${disabled ? neonRed : neonBlue}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', position: 'relative', transition: 'all 0.3s ease', boxShadow: disabled ? `0 0 20px ${neonRed}77` : isAgentSpeaking ? `0 0 15px ${neonBlue}55` : `0 0 5px ${neonBlue}22` }}>
+      {disabled ? (
+        <svg width="45" height="18" viewBox="0 0 60 20"><text x="10" y="15" fill={neonRed} fontSize="16" fontWeight="bold">X</text><text x="36" y="15" fill={neonRed} fontSize="16" fontWeight="bold">X</text></svg>
+      ) : (
+        <svg width="45" height="18" viewBox="0 0 60 20">
+          <rect x="12" y={blink ? "9" : (isAgentSpeaking ? "2" : "5")} width="10" height={blink ? "2" : (isAgentSpeaking ? "16" : "10")} rx="1" fill="white" />
+          <rect x="38" y={blink ? "9" : (isAgentSpeaking ? "2" : "5")} width="10" height={blink ? "2" : (isAgentSpeaking ? "16" : "10")} rx="1" fill="white" />
+        </svg>
+      )}
     </div>
   );
 }
@@ -188,13 +243,20 @@ function VideoStage({ onDisconnect, userEmail, onSignOut }: { onDisconnect: () =
   const connectionState = useConnectionState();
   
   const visibleMessages = useMemo(() => chatMessages.filter(m => (m.timestamp || 0) > chatVisibleTime), [chatMessages, chatVisibleTime]);
-
-  const tracks = useTracks([
-    { source: Track.Source.Camera, pks: [localParticipant?.identity || ''] },
-    { source: Track.Source.ScreenShare, pks: [localParticipant?.identity || ''] }
-  ]);
+  const tracks = useTracks([{ source: Track.Source.Camera, pks: [localParticipant?.identity || ''] }, { source: Track.Source.ScreenShare, pks: [localParticipant?.identity || ''] }]);
   const cameraTrack = tracks.find(t => t.source === Track.Source.Camera);
   const screenTrack = tracks.find(t => t.source === Track.Source.ScreenShare);
+  const bgInputRef = useRef<HTMLInputElement>(null);
+
+  const saveAsPDF = () => {
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      const content = `<html><body><h1>Notes</h1><p>${userEmail}</p>${notes.map(n => `<div>${n}</div>`).join('')}</body></html>`;
+      printWindow.document.write(content);
+      printWindow.document.close();
+      printWindow.print();
+    }
+  };
 
   const handleSendMessage = async () => {
     if (disabled || !textInput.trim() || !send) return;
@@ -203,49 +265,55 @@ function VideoStage({ onDisconnect, userEmail, onSignOut }: { onDisconnect: () =
     triggerActivity();
   };
 
-  const btnReset: CSSProperties = { background: 'none', border: 'none', padding: 0, margin: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' };
+  const btnReset: CSSProperties = { background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' };
 
   return (
     <div style={{ position: 'fixed', inset: 0, backgroundColor: '#000', color: '#fff', overflow: 'hidden', fontFamily: 'sans-serif' }}>
       
-      {/* MEDIA CONTENT */}
+      {/* MEDIA */}
       <div style={{ position: 'absolute', inset: 0, zIndex: 5 }}>
         {screenTrack ? <VideoTrack trackRef={screenTrack} style={{ width: '100%', height: '100%', objectFit: 'contain' }} /> : cameraTrack && localParticipant?.isCameraEnabled ? <VideoTrack trackRef={cameraTrack} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : null}
       </div>
-
+      {backgroundImage && !screenTrack && !cameraTrack && <div style={{ position: 'absolute', inset: 0, backgroundImage: `url(${backgroundImage})`, backgroundSize: 'cover', filter: `blur(${bgBlur}px)`, zIndex: 2 }} />}
       <div style={{ position: 'absolute', inset: 0, backgroundColor: (backgroundImage || localParticipant?.isCameraEnabled || screenTrack) ? 'rgba(0,0,0,0.4)' : '#000', zIndex: 10 }} />
 
       <BackgroundChat visibleMessages={visibleMessages} />
+      {visibleMessages.length === 0 && <FeatureShowcase />}
 
-      {/* HEADER: GEAR, PREMIUM, AND SIGN OUT ALIGNED */}
-      <div style={{ position: 'absolute', top: '25px', left: '25px', right: '25px', zIndex: 201, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <button onClick={() => setIsSettingsOpen(!isSettingsOpen)} style={{ ...btnReset, opacity: disabled ? 0.2 : 1 }} disabled={disabled}><GearIcon /></button>
-          <button style={{ position: 'relative', background: 'rgba(255, 215, 0, 0.05)', border: '1px solid #FFD700', color: '#FFD700', padding: '3px 10px', borderRadius: '8px', fontSize: '9px', fontWeight: '900', letterSpacing: '1px', textTransform: 'uppercase', cursor: 'pointer', display: 'flex', alignItems: 'center', animation: 'goldGlow 3s infinite' }}>
-            GO PREMIUM
-          </button>
+      {/* SIDEBAR */}
+      <div style={{ position: 'absolute', top: 0, left: isSettingsOpen ? 0 : '-320px', display: isSettingsOpen ? 'flex' : 'none', width: '280px', height: '100%', backgroundColor: 'rgba(10,10,10,0.98)', borderRight: `1px solid ${neonBlue}44`, zIndex: 200, transition: 'left 0.4s ease', flexDirection: 'column', backdropFilter: 'blur(10px)' }}>
+        <div style={{ display: 'flex', marginTop: '70px', padding: '0 20px', borderBottom: '1px solid #222' }}>
+          {['notes', 'appearance', 'system'].map((t) => (
+            <div key={t} onClick={() => setActiveTab(t as any)} style={{ flex: 1, padding: '10px 0', textAlign: 'center', cursor: 'pointer', fontSize: '11px', color: activeTab === t ? neonBlue : '#444', borderBottom: activeTab === t ? `2px solid ${neonBlue}` : 'none' }}>{t.toUpperCase()}</div>
+          ))}
         </div>
-        
-        <button onClick={onSignOut} style={{ background: 'rgba(255, 255, 255, 0.08)', border: '1px solid rgba(255, 255, 255, 0.1)', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', fontSize: '10px', fontWeight: '500', padding: '4px 12px', borderRadius: '15px', backdropFilter: 'blur(10px)', textTransform: 'uppercase' }}>
-          Log out
-        </button>
+        <div style={{ padding: '24px', flex: 1, overflowY: 'auto' }}>
+          {activeTab === 'notes' && <div><button onClick={saveAsPDF} style={{ background: 'none', border: `1px solid ${neonBlue}`, color: neonBlue, fontSize: '10px', cursor: 'pointer' }}>PDF ↓</button>{notes.map((n, i) => <div key={i} style={{ padding: '10px', borderLeft: `2px solid ${neonBlue}`, fontSize: '12px', marginTop: '5px' }}>{n}</div>)}</div>}
+          {activeTab === 'appearance' && <div><button onClick={() => bgInputRef.current?.click()} style={{ background: 'rgba(255,255,255,0.05)', color: '#fff', padding: '10px', cursor: 'pointer' }}>🖼️ BG</button><input type="file" ref={bgInputRef} hidden onChange={(e) => { const file = e.target.files?.[0]; if (file) { const reader = new FileReader(); reader.onloadend = () => setBackgroundImage(reader.result as string); reader.readAsDataURL(file); } }} /></div>}
+          {activeTab === 'system' && <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}><button onClick={() => setIsDashboardOpen(true)} style={{ background: neonPurple, color: '#fff', padding: '10px', borderRadius: '8px', cursor: 'pointer' }}>DASHBOARD</button></div>}
+        </div>
       </div>
 
-      {/* CENTER AI FACE */}
+      {/* HEADER: GEAR, PREMIUM, LOGOUT ALIGNED */}
+      <div style={{ position: 'absolute', top: '25px', left: '25px', right: '25px', zIndex: 201, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+          <button onClick={() => setIsSettingsOpen(!isSettingsOpen)} style={btnReset}><GearIcon /></button>
+          <button style={{ background: 'rgba(255, 215, 0, 0.05)', border: '1px solid #FFD700', color: '#FFD700', padding: '4px 12px', borderRadius: '8px', fontSize: '10px', fontWeight: '900', cursor: 'pointer', animation: 'goldGlow 3s infinite' }}>GO PREMIUM</button>
+        </div>
+        <button onClick={onSignOut} style={{ background: 'rgba(255, 255, 255, 0.08)', border: '1px solid rgba(255, 255, 255, 0.1)', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', fontSize: '10px', fontWeight: '600', padding: '5px 14px', borderRadius: '15px', backdropFilter: 'blur(10px)' }}>LOG OUT</button>
+      </div>
+
       <div style={{ position: 'absolute', top: '25px', width: '100%', display: 'flex', justifyContent: 'center', zIndex: 100 }}>
         {agent && <MalvinVoiceIsland agent={agent} disabled={disabled} activitySignal={activitySignal} onToggleDisable={() => setDisabled(prev => !prev)} />}
       </div>
 
-      {/* BOTTOM CONTROL BAR - REDUCED WIDTH */}
+      {/* BOTTOM CONTROL BAR: SLIMMED */}
       <div style={{ position: 'absolute', bottom: '30px', left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 100 }}>
-        <div style={{
-          width: '80%', maxWidth: '380px', height: '52px', backgroundColor: 'rgba(15,15,15,0.95)',
-          borderRadius: '26px', border: `1px solid ${disabled ? '#333' : neonBlue}`,
-          display: 'flex', alignItems: 'center', padding: '0 15px'
-        }}>
+        <div style={{ width: '80%', maxWidth: '380px', height: '52px', backgroundColor: 'rgba(15,15,15,0.95)', borderRadius: '26px', border: `1px solid ${disabled ? '#333' : neonBlue}`, display: 'flex', alignItems: 'center', padding: '0 15px' }}>
           <button onClick={onDisconnect} style={{ ...btnReset, color: neonRed, marginRight: '12px' }}>✕</button>
           <input placeholder={disabled ? "Offline..." : "say something..."} value={textInput} disabled={disabled} onChange={(e) => { setTextInput(e.target.value); triggerActivity(); }} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} style={{ flex: 1, background: 'none', border: 'none', color: disabled ? '#444' : '#fff', outline: 'none', fontSize: '14px' }} />
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginLeft: '10px' }}>
+          <div style={{ display: 'flex', gap: '14px' }}>
+            <button onClick={async () => { if(!disabled && localParticipant) { await localParticipant.setScreenShareEnabled(!localParticipant.isScreenShareEnabled); triggerActivity(); } }} style={btnReset}><ScreenShareIcon enabled={!disabled && !!localParticipant?.isScreenShareEnabled} /></button>
             <button onClick={async () => { if(!disabled && localParticipant) { await localParticipant.setCameraEnabled(!localParticipant.isCameraEnabled); triggerActivity(); } }} style={btnReset}><CameraIcon enabled={!disabled && !!localParticipant?.isCameraEnabled} /></button>
             <button onClick={async () => { if(!disabled && localParticipant) { await localParticipant.setMicrophoneEnabled(!localParticipant.isMicrophoneEnabled); triggerActivity(); } }} style={btnReset}><MicIcon enabled={!disabled && !!localParticipant?.isMicrophoneEnabled} /></button>
           </div>
