@@ -1,5 +1,5 @@
 import React from 'react';
-import { Session } from './Session'; // adjust path if needed
+import { Session } from './pages/Session'; // adjust path if needed
 import Welcomeview from './Welcomeview'; // adjust path if needed
 import useMalvinActivation from './hooks/useMalvinActivation'; // adjust path if needed
 
