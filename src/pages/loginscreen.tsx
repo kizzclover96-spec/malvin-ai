@@ -53,7 +53,7 @@ export default function Login() {
     }}>
       
       <div style={{ flex: 1.5 }}></div>
-      
+      {/*The frosted glass*/}
       <div style={{ 
         display: 'flex', 
         justifyContent: 'center', 
@@ -91,6 +91,51 @@ export default function Login() {
           }}>
             THE FUTURE IN YOUR PALMS
           </p>
+
+          {/* --- EMAIL & PASSWORD SECTION --- */}
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '20px' }}>
+            <input 
+              type="email" 
+              placeholder="Email Address" 
+              style={{
+                padding: '15px',
+                borderRadius: '12px',
+                border: '1px solid rgba(255, 255, 255, 0.3)',
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                color: '#fff',
+                outline: 'none',
+                fontSize: '1rem'
+              }}
+            />
+            <input 
+              type="password" 
+              placeholder="Password" 
+              style={{
+                padding: '15px',
+                borderRadius: '12px',
+                border: '1px solid rgba(255, 255, 255, 0.3)',
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                color: '#fff',
+                outline: 'none',
+                fontSize: '1rem'
+              }}
+            />
+            <button style={{
+              padding: '15px',
+              borderRadius: '12px',
+              border: 'none',
+              backgroundColor: '#0066ff', // A nice blue for the main sign-in
+              color: '#fff',
+              fontWeight: 'bold',
+              fontSize: '1rem',
+              cursor: 'pointer',
+              marginTop: '10px'
+            }}>
+              Sign In
+            </button>
+          </div>
+
+          <div style={{ margin: '15px 0', opacity: 0.5, fontSize: '0.8rem' }}>OR</div>
           
           <button 
             onClick={handleGoogleLogin} 
