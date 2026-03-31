@@ -559,7 +559,7 @@ function VideoStage({ onDisconnect, userEmail }: { onDisconnect: () => void, use
             <button onClick={async () => { if(!disabled && localParticipant) { await localParticipant.setScreenShareEnabled(!localParticipant.isScreenShareEnabled); triggerActivity(); } }} style={btnReset}>
               <ScreenShareIcon enabled={!disabled && !!localParticipant?.isScreenShareEnabled} />
             </button>
-            <button onClick={async () => { if (!disabled && localParticipant) { const isEnabled = localParticipant.isCameraEnabled; await localParticipant.setCameraEnabled(!isEnabled); if (!isEnabled) { await localParticipant.setCameraEnabled(true);} triggerActivity();}}} style={btnReset}><CameraIcon enabled={!disabled && !!localParticipant?.isCameraEnabled} /></button>
+            <button onClick={async () => { if(!disabled && localParticipant) { await localParticipant.setCameraEnabled(!localParticipant.isCameraEnabled); triggerActivity();} }} style={btnReset}><CameraIcon enabled={!disabled && !!localParticipant?.isCameraEnabled} /></button>
             <button onClick={async () => { if(!disabled && localParticipant) { await localParticipant.setMicrophoneEnabled(!localParticipant.isMicrophoneEnabled); triggerActivity(); } }} style={btnReset}><MicIcon enabled={!disabled && !!localParticipant?.isMicrophoneEnabled} /></button>
           </div>
         </div>
