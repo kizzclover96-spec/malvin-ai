@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "./firebase"; 
 import Login from "./pages/loginscreen"; 
-import Welcomeview from "./pages/Welcomeview"; // Import the new welcome screen
+import Welcomeview from "./pages/welcomeview"; // Import the new welcome screen
 
 function App() {
   const [user, setUser] = useState(null);
