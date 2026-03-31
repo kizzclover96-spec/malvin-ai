@@ -123,7 +123,8 @@ export default function SessionRoom() {
             onChange={(e) => setInput(e.target.value)}
             style={{
               flex: 1, border: 'none', background: 'none',
-              padding: '0 20px', outline: 'none', fontSize: '1.1rem', color="#000000"
+              padding: '0 20px', outline: 'none', fontSize: '1.1rem'
+              color: '#000000'
             }}
           />
 
