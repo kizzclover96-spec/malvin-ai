@@ -40,7 +40,7 @@ export default function Login() {
       width: '100vw', 
       height: '100vh',
       // --- IMAGE BACKGROUND LOGIC ---
-      backgroundImage: '.\public\loginscreen.png', // Matches your filename in the public folder
+      backgroundImage: '\public\Malvin self.png', // Matches your filename in the public folder
       backgroundSize: 'cover',
       backgroundPosition: 'center',
       backgroundRepeat: 'no-repeat',
