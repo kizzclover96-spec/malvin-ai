@@ -372,7 +372,9 @@ function VideoStage({ onDisconnect, userEmail }: { onDisconnect: () => void, use
           const data = JSON.parse(new TextDecoder().decode(payload));
           if (Array.isArray(data.notes)) setNotes(data.notes);
           else if (data.note) setNotes(prev => [...prev, data.note]);
-        } catch (e) { console.error("Parse error", e); }
+        } catch (e) { 
+          console.error("Note update error", e); 
+        }
       }
     };
     localParticipant.on('dataReceived', handleData);
