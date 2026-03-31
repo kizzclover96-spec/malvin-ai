@@ -6,6 +6,7 @@ import Login from "./pages/loginscreen"; // The file we just fixed
 function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  
 
   // This "Watcher" detects if a user is logged in or not
   useEffect(() => {
