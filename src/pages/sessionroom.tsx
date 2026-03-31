@@ -120,13 +120,26 @@ export default function SessionRoom() {
 
       {/* CONTROLS */}
       <div style={{
-        padding: '20px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', width: '100%', boxSizing: 'border-box'
+        padding: '20px', 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        gap: '10px', 
+        width: '100%', 
+        boxSizing: 'border-box' // Essential for sticking to screen edges
       }}>
         <div style={{
-          display: 'flex', alignItems: 'center', backgroundColor: '#ffffff', flex: 1,
-          borderRadius: '50px', padding: '10px 15px', maxwidth: '600px', 
-          border: '2px solid #eee', boxShadow: '0 10px 25px rgba(0, 0, 0, 0.08)',
-          position: 'relative', overflow: 'visible' 
+          display: 'flex', 
+          alignItems: 'center', 
+          backgroundColor: '#ffffff', 
+          flex: 1,
+          borderRadius: '50px', 
+          padding: '10px 15px', 
+          maxWidth: '600px', // Fixed the typo here (capital W)
+          border: '2px solid #eee', 
+          boxShadow: '0 10px 25px rgba(0, 0, 0, 0.08)',
+          position: 'relative', 
+          overflow: 'visible' 
         }}>
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
             <button 
