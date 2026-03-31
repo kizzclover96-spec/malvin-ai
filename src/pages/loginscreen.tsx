@@ -39,22 +39,21 @@ export default function Login() {
       left: 0, 
       width: '100vw', 
       height: '100vh',
-      // --- IMAGE BACKGROUND LOGIC ---
-      backgroundImage: '\public\Malvin self.png', // Matches your filename in the public folder
+      // Corrected Image Path
+      backgroundImage: 'url("/Malvin self.png")', 
       backgroundSize: 'cover',
       backgroundPosition: 'center',
       backgroundRepeat: 'no-repeat',
-      // ------------------------------
+      backgroundColor: '#000', // Backup color
       display: 'flex', 
       flexDirection: 'column',
       zIndex: 9999, 
-      fontFamily: 'sans-serif'
+      fontFamily: 'sans-serif',
+      color: '#ffffff'
     }}>
       
-      {/* Spacer to push the card down */}
       <div style={{ flex: 1.5 }}></div>
       
-      {/* The Frosted Glass Container */}
       <div style={{ 
         display: 'flex', 
         justifyContent: 'center', 
@@ -64,11 +63,12 @@ export default function Login() {
         <div style={{ 
           textAlign: 'center', 
           padding: '50px 30px', 
-          backgroundColor: 'rgba(255, 255, 255, 0.1)', // Light white tint
+          backgroundColor: 'rgba(255, 255, 255, 0.1)', 
           width: '85%', 
           maxWidth: '450px', 
           borderRadius: '32px', 
-          backdropFilter: 'blur(15px)', // This creates the "glass" look over your photo
+          backdropFilter: 'blur(15px)', 
+          WebkitBackdropFilter: 'blur(15px)', // Fix for Safari
           border: '1px solid rgba(255, 255, 255, 0.2)', 
           boxShadow: '0 20px 40px rgba(0, 0, 0, 0.4)'
         }}>
@@ -114,7 +114,6 @@ export default function Login() {
         </div>
       </div>
 
-      {/* Footer */}
       <div style={{ 
         flex: 1, 
         display: 'flex', 
