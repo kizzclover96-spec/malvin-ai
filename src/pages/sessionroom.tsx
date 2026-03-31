@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   Plus, Mic, MicOff, Camera, Paperclip, 
   MonitorUp, Menu, User, Send 
@@ -10,19 +10,24 @@ export default function SessionRoom() {
   const [isMicOn, setIsMicOn] = useState(false);
   const [showExtras, setShowExtras] = useState(false);
 
-  // Style for the extra floating circles
+  // Prevent browser-level scrolling
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = 'unset'; };
+  }, []);
+
   const floatingCircleStyle = (delay) => ({
     width: '45px',
     height: '45px',
     borderRadius: '50%',
-    backgroundColor: '#e0e0e0', // Whitish Grey
+    backgroundColor: '#e0e0e0',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     cursor: 'pointer',
     border: 'none',
     position: 'absolute',
-    bottom: '70px', // Floats above the capsule
+    bottom: '70px',
     transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
     animation: `popIn 0.3s ${delay}s both`,
     boxShadow: '0 4px 10px rgba(0,0,0,0.1)'
@@ -30,10 +35,16 @@ export default function SessionRoom() {
 
   return (
     <div style={{
-      width: '100vw', height: '100vh',
+      width: '100vw', 
+      height: '100vh',
       backgroundColor: '#ffffff',
-      display: 'flex', flexDirection: 'column',
-      fontFamily: 'sans-serif', position: 'relative'
+      display: 'flex', 
+      flexDirection: 'column',
+      fontFamily: 'sans-serif', 
+      position: 'fixed', // Fixed ensures it stays locked to the screen
+      top: 0,
+      left: 0,
+      overflow: 'hidden' // Disables internal scrolling
     }}>
       
       {/* --- HEADER --- */}
@@ -68,47 +79,38 @@ export default function SessionRoom() {
           backgroundColor: '#ffffff',
           borderRadius: '50px',
           padding: '10px 20px',
-          width: '65%', // Standardized length
+          width: '65%', 
           maxWidth: '500px',
-          border: '2px solid #eee', // More visible
+          border: '2px solid #eee', 
           boxShadow: '0 10px 25px rgba(0, 0, 0, 0.08)',
           position: 'relative'
         }}>
           
-          {/* PLUS CIRCLE CONTAINER */}
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
             <button 
               onClick={() => setShowExtras(!showExtras)}
               style={{
-                width: '45px',
-                height: '45px',
-                borderRadius: '50%',
-                backgroundColor: '#e0e0e0', // Whitish grey
-                border: 'none',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: 10
+                width: '45px', height: '45px', borderRadius: '50%',
+                backgroundColor: '#e0e0e0', border: 'none', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10
               }}
             >
-              <Plus size={24} color="#00f2ff" strokeWidth={3} style={{ 
+              <Plus size={28} color="#00f2ff" strokeWidth={4} style={{ 
                 transform: showExtras ? 'rotate(45deg)' : 'rotate(0deg)',
                 transition: 'transform 0.3s ease'
               }} />
             </button>
 
-            {/* FLOATING EXTRA BUTTONS */}
             {showExtras && (
               <>
                 <button onClick={() => alert('Camera')} style={{ ...floatingCircleStyle(0), left: '-10px' }}>
-                  <Camera size={22} color="#00f2ff" />
+                  <Camera size={26} color="#00f2ff" strokeWidth={2.5} />
                 </button>
                 <button onClick={() => alert('Files')} style={{ ...floatingCircleStyle(0.05), left: '45px' }}>
-                  <Paperclip size={22} color="#00f2ff" />
+                  <Paperclip size={26} color="#00f2ff" strokeWidth={2.5} />
                 </button>
                 <button onClick={() => alert('Screen')} style={{ ...floatingCircleStyle(0.1), left: '100px' }}>
-                  <MonitorUp size={22} color="#00f2ff" />
+                  <MonitorUp size={26} color="#00f2ff" strokeWidth={2.5} />
                 </button>
               </>
             )}
@@ -125,29 +127,23 @@ export default function SessionRoom() {
             }}
           />
 
-          {input && <Send size={24} color="#00f2ff" style={{ cursor: 'pointer' }} />}
+          {input && <Send size={26} color="#00f2ff" style={{ cursor: 'pointer' }} />}
         </div>
 
         {/* MIC CIRCLE */}
         <button 
           onClick={() => setIsMicOn(!isMicOn)}
           style={{
-            width: '65px', // Large circle
-            height: '65px',
-            borderRadius: '50%',
-            backgroundColor: '#00f2ff', // Neon Blue
-            border: 'none',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
+            width: '65px', height: '65px', borderRadius: '50%',
+            backgroundColor: '#00f2ff', border: 'none', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
             boxShadow: '0 6px 20px rgba(0, 242, 255, 0.3)'
           }}
         >
           {isMicOn ? (
-            <Mic size={32} color="#f0f0f0" strokeWidth={2.5} /> // 50% visibility
+            <Mic size={34} color="#f0f0f0" strokeWidth={2.5} /> 
           ) : (
-            <MicOff size={32} color="#f0f0f0" strokeWidth={2.5} />
+            <MicOff size={34} color="#f0f0f0" strokeWidth={2.5} />
           )}
         </button>
       </div>
