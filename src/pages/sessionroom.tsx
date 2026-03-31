@@ -76,7 +76,7 @@ export default function SessionRoom() {
               onClick={() => setShowExtras(!showExtras)}
               style={{
                 width: '45px', height: '45px', borderRadius: '50%',
-                backgroundColor: '#e0e0e0', border: '20%' '#2337C6', cursor: 'pointer',
+                backgroundColor: '#e0e0e0', border: '20%', bordercolor: '#2337C6', cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100
               }}
             >
@@ -85,7 +85,7 @@ export default function SessionRoom() {
                 transform: showExtras ? 'rotate(45deg)' : 'rotate(0deg)',
                 transition: 'transform 0.3s ease',
                 minWidth: '30px', minHeight: '30px', 
-                border: '20%' '#2337C6'
+                border: '20%' 
               }} />
             </button>
 
@@ -125,7 +125,7 @@ export default function SessionRoom() {
           onClick={() => setIsMicOn(!isMicOn)}
           style={{
             width: '65px', height: '65px', borderRadius: '50%',
-            backgroundColor: '#00f2ff', border: 'none', cursor: 'pointer',
+            backgroundColor: '#00f2ff', border: '20%', bordercolor: '#2337C6' cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             flexShrink: 0
           }}
