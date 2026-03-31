@@ -34,53 +34,80 @@ export default function Login() {
 
   return (
     <div style={{
-      position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
-      backgroundColor: '#ffffff', color: '#000000', display: 'flex', flexDirection: 'column',
-      zIndex: 9999, fontFamily: 'sans-serif'
+      position: 'fixed', 
+      top: 0, 
+      left: 0, 
+      width: '100vw', 
+      height: '100vh',
+      // --- IMAGE BACKGROUND LOGIC ---
+      backgroundImage: '.\public\loginscreen.png', // Matches your filename in the public folder
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      backgroundRepeat: 'no-repeat',
+      // ------------------------------
+      color: '#ffffff', 
+      display: 'flex', 
+      flexDirection: 'column',
+      zIndex: 9999, 
+      fontFamily: 'sans-serif'
     }}>
-      {/* Top Spacer to push content towards center */}
-      <div style={{ flex: 1 }}></div>
       
-      {/* The Grey Rectangle Container */}
+      {/* Spacer to push the card down */}
+      <div style={{ flex: 1.5 }}></div>
+      
+      {/* The Frosted Glass Container */}
       <div style={{ 
         display: 'flex', 
         justifyContent: 'center', 
-        width: '100%' 
+        width: '100%',
+        paddingBottom: '20px'
       }}>
         <div style={{ 
           textAlign: 'center', 
-          padding: '60px 20px', 
-          backgroundColor: 'rgba(50, 50, 50, 0.8)', 
-          width: '80%', 
-          maxWidth: '800px', 
-          borderRadius: '24px', 
-          backdropFilter: 'blur(10px)',
-          color: '#fff' // Ensures text inside the dark grey box is white
+          padding: '50px 30px', 
+          backgroundColor: 'rgba(255, 255, 255, 0.1)', // Light white tint
+          width: '85%', 
+          maxWidth: '450px', 
+          borderRadius: '32px', 
+          backdropFilter: 'blur(15px)', // This creates the "glass" look over your photo
+          border: '1px solid rgba(255, 255, 255, 0.2)', 
+          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.4)'
         }}>
           <h1 style={{ 
-            fontSize: '4rem', 
-            letterSpacing: '1.2rem', 
+            fontSize: '3rem', 
+            letterSpacing: '0.8rem', 
             fontWeight: '900', 
             textTransform: 'uppercase', 
-            margin: '0 0 2.5rem 0' 
+            margin: '0 0 0.5rem 0',
+            color: '#fff'
           }}>
             MALVIN
           </h1>
+
+          <p style={{ 
+            opacity: 0.7, 
+            marginBottom: '2.5rem', 
+            fontSize: '0.8rem', 
+            letterSpacing: '0.2rem' 
+          }}>
+            THE FUTURE IN YOUR PALMS
+          </p>
           
           <button 
             onClick={handleGoogleLogin} 
             style={{
-              padding: '20px 50px', 
-              borderRadius: '50px', 
+              width: '100%', 
+              padding: '18px 0', 
+              borderRadius: '16px', 
               border: 'none',
               backgroundColor: '#fff', 
               color: '#000', 
-              fontSize: '1.1rem', 
-              fontWeight: 'bold', 
+              fontSize: '1rem', 
+              fontWeight: '800', 
               cursor: 'pointer',
-              transition: 'transform 0.2s'
+              transition: 'transform 0.2s ease',
             }}
-            onMouseDown={(e) => (e.currentTarget.style.transform = 'scale(0.95)')}
+            onMouseDown={(e) => (e.currentTarget.style.transform = 'scale(0.96)')}
             onMouseUp={(e) => (e.currentTarget.style.transform = 'scale(1)')}
           >
             Continue with Google
@@ -88,23 +115,21 @@ export default function Login() {
         </div>
       </div>
 
-      {/* Bottom Footer Section */}
+      {/* Footer */}
       <div style={{ 
         flex: 1, 
         display: 'flex', 
-        flexDirection: 'column', 
-        justifyContent: 'flex-end', 
         alignItems: 'center', 
-        paddingBottom: '50px' 
+        justifyContent: 'center',
+        paddingBottom: '30px' 
       }}>
         <p style={{ 
           opacity: 0.5, 
-          letterSpacing: '0.2rem', 
-          fontSize: '0.8rem', 
-          textTransform: 'uppercase',
-          color: '#000' // Keeps footer black to match your white background
+          letterSpacing: '0.3rem', 
+          fontSize: '0.65rem', 
+          textTransform: 'uppercase'
         }}>
-          The future in your palms
+          MALVIN AI • 2024
         </p>
       </div>
     </div>
