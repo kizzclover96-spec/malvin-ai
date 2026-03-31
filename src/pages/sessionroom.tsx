@@ -16,7 +16,6 @@ export default function SessionRoom() {
     return () => { document.body.style.overflow = 'unset'; };
   }, []);
 
-  // Timer for sleeping
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsSleeping(true);
@@ -52,12 +51,18 @@ export default function SessionRoom() {
     }}>
       
       <style>{`
-        @keyframes popIn { from { opacity: 0; transform: scale(0.5) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
-        @keyframes blink { 0%, 90%, 100% { transform: scaleY(1); } 95% { transform: scaleY(0.1); } }
-        @keyframes floatZ { 
-          0% { transform: translateY(0) scale(0.5); opacity: 0; } 
-          50% { opacity: 1; } 
-          100% { transform: translateY(-50px) translateX(20px) scale(1.2); opacity: 0; } 
+        @keyframes popIn {
+          from { opacity: 0; transform: scale(0.5) translateY(10px); }
+          to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes blink {
+          0%, 90%, 100% { transform: scaleY(1); }
+          95% { transform: scaleY(0.1); }
+        }
+        @keyframes floatZ {
+          0% { transform: translateY(0) scale(0.5); opacity: 0; }
+          50% { opacity: 1; }
+          100% { transform: translateY(-50px) translateX(20px) scale(1.2); opacity: 0; }
         }
       `}</style>
 
@@ -108,19 +113,21 @@ export default function SessionRoom() {
         </div>
       </div>
 
-      <div style={{ flex: 1 }} />
+      {/* CHAT AREA */}
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#bbb' }}>
+        <p>Malvin is listening...</p>
+      </div>
 
       {/* CONTROLS */}
-      <div style={{ padding: '20px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '20px' }}>
-        
+      <div style={{
+        padding: '20px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '20px'
+      }}>
         <div style={{
           display: 'flex', alignItems: 'center', backgroundColor: '#ffffff',
-          borderRadius: '50px', padding: '10px 15px', width: '600px',
+          borderRadius: '50px', padding: '10px 15px', width: '600px', 
           border: '2px solid #eee', boxShadow: '0 10px 25px rgba(0, 0, 0, 0.08)',
-          position: 'relative', overflow: 'visible'
+          position: 'relative', overflow: 'visible' 
         }}>
-          
-          {/* THE DIV WRAPPER FOR ICONS */}
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
             <button 
               onClick={() => setShowExtras(!showExtras)}
@@ -132,7 +139,8 @@ export default function SessionRoom() {
             >
               <Plus size={30} color="#00f2ff" strokeWidth={3} style={{ 
                 transform: showExtras ? 'rotate(45deg)' : 'rotate(0deg)',
-                transition: 'transform 0.3s ease'
+                transition: 'transform 0.3s ease',
+                minWidth: '30px', minHeight: '30px'
               }} />
             </button>
 
@@ -170,8 +178,9 @@ export default function SessionRoom() {
           onClick={() => setIsMicOn(!isMicOn)}
           style={{
             width: '65px', height: '65px', borderRadius: '50%',
-            backgroundColor: '#2337C6', cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+            backgroundColor: '#2337C6', border: '2px solid #2337C6', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            flexShrink: 0
           }}
         >
           {isMicOn ? (
