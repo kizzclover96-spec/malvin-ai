@@ -62,14 +62,14 @@ export default function Login() {
       }}>
         <div style={{ 
           textAlign: 'center', 
-          padding: '50px 30px', 
+          padding: '80px 30px', 
           backgroundColor: 'rgba(255, 255, 255, 0.1)', 
           width: '85%', 
           maxWidth: '450px', 
           borderRadius: '32px', 
           backdropFilter: 'blur(15px)', 
           WebkitBackdropFilter: 'blur(15px)', // Fix for Safari
-          border: '1px solid rgba(255, 255, 255, 0.2)', 
+          border: '2px solid rgba(255, 255, 255, 0.2)', 
           boxShadow: '0 20px 40px rgba(0, 0, 0, 0.4)'
         }}>
           <h1 style={{ 
@@ -77,7 +77,7 @@ export default function Login() {
             letterSpacing: '0.8rem', 
             fontWeight: '900', 
             textTransform: 'uppercase', 
-            margin: '0 0 0.5rem 0',
+            margin: '0 0 0.1rem 0',
             color: '#fff'
           }}>
             MALVIN
@@ -85,7 +85,7 @@ export default function Login() {
 
           <p style={{ 
             opacity: 0.7, 
-            marginBottom: '2.5rem', 
+            marginBottom: '4rem', 
             fontSize: '0.8rem', 
             letterSpacing: '0.2rem' 
           }}>
