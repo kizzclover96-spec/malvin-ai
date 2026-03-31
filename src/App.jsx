@@ -14,6 +14,7 @@ function MalvinInterface({ user, handleSignOut }) {
           serverUrl={import.meta.env.VITE_LIVEKIT_URL}
           userEmail={user.email}
           onDisconnect={() => setToken(null)}
+          onSignOut={handleSignOut}
         />
       ) : sessionLoading ? (
         // ✅ Only show while waking AI
