@@ -117,7 +117,7 @@ export default function SessionRoom() {
             }}
           />
 
-          {input && <Send size={28} color="#00f2ff" style={{ cursor: 'pointer', flexShrink: 0 }} />}
+          {input && <Send size={28} color="#2337C6" style={{ cursor: 'pointer', flexShrink: 0 }} />}
         </div>
 
         {/* MIC */}
@@ -125,15 +125,15 @@ export default function SessionRoom() {
           onClick={() => setIsMicOn(!isMicOn)}
           style={{
             width: '65px', height: '65px', borderRadius: '50%',
-            backgroundColor: '#00f2ff', border: '20%', bordercolor: '#2337C6', cursor: 'pointer',
+            backgroundColor: '#2337C6', border: '20%', bordercolor: '#2337C6', cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             flexShrink: 0
           }}
         >
           {isMicOn ? (
-            <Mic size={36} color="#f0f0f0" strokeWidth={2.5} style={{ minWidth: '36px' }} /> 
+            <Mic size={34} color="#f0f0f0" strokeWidth={2.5} style={{ minWidth: '36px' }} /> 
           ) : (
-            <MicOff size={36} color="#f0f0f0" strokeWidth={2.5} style={{ minWidth: '36px' }} />
+            <MicOff size={34} color="#adacac" strokeWidth={2.5} style={{ minWidth: '36px' }} />
           )}
         </button>
       </div>
