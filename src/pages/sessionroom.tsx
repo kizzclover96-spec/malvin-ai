@@ -104,13 +104,13 @@ export default function SessionRoom() {
             {showExtras && (
               <>
                 <button onClick={() => alert('Camera')} style={{ ...floatingCircleStyle(0), left: '-10px' }}>
-                  <Camera size={26} color="#00f2ff" strokeWidth={2.5} />
+                  <Camera size={50} color="#00f2ff" strokeWidth={2.5} />
                 </button>
                 <button onClick={() => alert('Files')} style={{ ...floatingCircleStyle(0.05), left: '45px' }}>
-                  <Paperclip size={26} color="#00f2ff" strokeWidth={2.5} />
+                  <Paperclip size={50} color="#00f2ff" strokeWidth={2.5} />
                 </button>
                 <button onClick={() => alert('Screen')} style={{ ...floatingCircleStyle(0.1), left: '100px' }}>
-                  <MonitorUp size={26} color="#00f2ff" strokeWidth={2.5} />
+                  <MonitorUp size={50} color="#00f2ff" strokeWidth={2.5} />
                 </button>
               </>
             )}
@@ -123,7 +123,7 @@ export default function SessionRoom() {
             onChange={(e) => setInput(e.target.value)}
             style={{
               flex: 1, border: 'none', background: 'none',
-              padding: '0 20px', outline: 'none', fontSize: '1.1rem'
+              padding: '0 20px', outline: 'none', fontSize: '1.1rem', color=#000000
             }}
           />
 
