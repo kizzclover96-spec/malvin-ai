@@ -19,7 +19,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     const localParticipant = { isMicrophoneEnabled: true, isCameraEnabled: false, isScreenShareEnabled: false, setMicrophoneEnabled: async (v:any)=>v, setCameraEnabled: async (v:any)=>v, setScreenShareEnabled: async (v:any)=>v };
     const triggerActivity = () => {};
     const handleSendMessage = () => setTextInput("");
-    const MicIcon = ({enabled}: any) => <span style={{color: enabled ? 'white' : 'red'}}>🎤</span>;
+    
 
     // TIMER LOGIC
     React.useEffect(() => {
@@ -101,7 +101,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                         />
                     </div>
                     {/* mic*/}
-                    <div style={btnReset}><MicIcon enabled={!disabled && !!localParticipant?.isMicrophoneEnabled}
+                    <div style={btnReset}><MicIcon enabled={!disabled && !!localParticipant?.isMicrophoneEnabled}>
                         <div className="mic-button">
                             <button onClick={async () => { if(!disabled && localParticipant) { await localParticipant.setMicrophoneEnabled(!localParticipant.isMicrophoneEnabled); triggerActivity(); } }}></button>
                         </div>
