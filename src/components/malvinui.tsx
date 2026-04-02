@@ -84,7 +84,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                             borderRight: '1px solid rgba(255, 255, 255, 0.1)', // Subtle white line
                             padding: '20px',
                             flexDirection: 'column',
-                            display: 'flex'
+                            display: 'flex',
 
                             /* --- THE GLASS LOOK --- */
                             backgroundColor: 'rgba(255, 255, 255, 0.03)',   // 1. Semi-transparent white
