@@ -9,6 +9,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     const [activeTab, setActiveTab] = React.useState('Session'); 
     
     // Define colors so the icons don't crash
+    const premiumGold = "#FFD700";
     const neonBlue = "#00e1ff";
     const neonPurple = "#9d00ff";
     const glassWhite = "rgba(255, 255, 255, 0.8)";
@@ -36,6 +37,12 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     };
 
     // ICONS (Using your SVG code)
+    const StarIcon = ({ size = 18 }: { size?: number }) => (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill={premiumGold} stroke={premiumGold} strokeWidth="1">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+        </svg>
+    );
+
     const CameraIcon = ({ enabled, size = 22 }: any) => (
         <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={enabled === false ? ghostWhite : glassWhite} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
     );
@@ -79,9 +86,22 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
         <span style={{ fontWeight: isActive ? '600' : '400', opacity: isActive ? 1 : 0.8 }}>{label}</span>
     </button>
 );
+    const GlobalStyles = () => (
+  <style>{`
+        @keyframes goldGlow { 
+        0%, 100% { box-shadow: 0 0 5px rgba(255, 215, 0, 0.2); border-color: rgba(255, 215, 0, 0.4); } 
+        50% { box-shadow: 0 0 15px rgba(255, 215, 0, 0.5); border-color: #FFD700; }
+        }
+        @keyframes twinkle { 
+        0%, 100% { opacity: 0.3; transform: scale(0.8) rotate(0deg); } 
+        50% { opacity: 1; transform: scale(1.2) rotate(15deg); }
+        }
+    `}</style>
+    );
 
     return (
-        <div className="main-full-ui" style={{ display: 'flex', height: '100vh', width: '100vw', backgroundColor: "black" }}>
+        <div className="main-full-ui" style={{ display: 'flex', height: '100vh', width: '100vw', backgroundColor: "black" }}> 
+            <GlobalStyles />
             <div className="background-blobs">
                 <div className="blob purple"></div>
                 <div className="blob blue"></div>
@@ -159,7 +179,6 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
 
                     {/* --- NEW ELITE PREMIUM BUTTON --- */}
                     <div style={{ position: 'relative', marginTop: '4px', width: '100%' }}>
-                        {/* Floating Twinkle Star */}
                         <div style={{ 
                             position: 'absolute', 
                             top: '-6px', 
@@ -180,9 +199,6 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                                 padding: '10px 14px',
                                 borderRadius: '12px',
                                 cursor: 'pointer',
-                                transition: 'all 0.3s ease',
-                                
-                                /* YOUR GOLD STYLE */
                                 background: 'rgba(255, 215, 0, 0.08)', 
                                 border: '1px solid #FFD700', 
                                 color: '#FFD700', 
@@ -198,6 +214,8 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                             <span>Go Premium</span>
                         </button>
                     </div>
+                
+                
 
                     <SidebarBtn label="Settings"
                         isActive={activeTab === 'Settings'} 
