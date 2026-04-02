@@ -61,12 +61,12 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                 <div className="blob pink"></div>
             </div>
             {/* 1. LEFT */}
-            <div className="left-section" style={{ width: '250px', borderRight: '1px solid #222', padding: '20px' }}>
+            <div className="left-section" style={{ flex: 1, borderRight: '1px solid #222', padding: '20px' }}>
                 <div style={{color: 'white'}}>User: {userEmail}</div>
             </div>
 
             {/* 2. MIDDLE */}
-            <div className="middle-section" style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="middle-section" style={{ flex: 4, position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
                 <div className="status-pill-container">
                     <div className="status-pill">
                         <span className="live-dot"></span>
@@ -121,7 +121,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
             </div>
 
             {/* 3. RIGHT */}
-            <div className="right-section" style={{ width: '200px', borderLeft: '1px solid #222', color: 'white', padding: '20px' }}>
+            <div className="right-section" style={{ flex: 1, borderLeft: '1px solid #222', color: 'white', padding: '20px' }}>
                 <ul><li>Chat</li><li>Settings</li></ul>
             </div>
         </div>
