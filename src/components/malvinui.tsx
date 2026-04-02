@@ -1,4 +1,5 @@
 import React from "react";
+import ".../global.css";
 
 const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     // 1. STATE & VARS (Fixed missing references)
@@ -55,8 +56,12 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
 
             {/* 2. MIDDLE */}
             <div className="middle-section" style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                <div style={{ position: 'absolute', top: '20px', left: '20px' }} className="status-pill">
-                    <span className="live-dot"></span> <span style={{color:'white', fontSize:'12px', marginLeft:'8px'}}>LIVE SESSION {formatTime()}</span>
+                <div className="status-pill-container">
+                    <div className="status-pill">
+                        <span className="live-dot"></span>
+                        <span className="status-text">LIVE SESSION</span>
+                        <span className="status-timer">{formatTime()}</span>
+                    </div>
                 </div>
 
                 <div className="ai-face" style={{fontSize: '100px', color: 'white'}}>O</div>
