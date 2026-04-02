@@ -1,3 +1,263 @@
+.main-full-ui {
+  position: relative;
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  /* Base dark color */
+  background-color: #050505; 
+}
+
+/* This is the magic "Moving Blend" layer */
+.main-full-ui::before {
+  content: "";
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  /* The blend of colors from your image */
+  background: radial-gradient(circle at 50% 50%, 
+    rgba(76, 0, 255, 0.15), 
+    rgba(0, 225, 255, 0.1), 
+    rgba(255, 0, 157, 0.1), 
+    transparent 50%);
+  filter: blur(80px);
+  animation: moveGradient 15s infinite alternate ease-in-out;
+  z-index: 0; /* Keeps it behind your text/buttons */
+}
+
+@keyframes moveGradient {
+  from {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  to {
+    transform: translate(-10%, -10%) rotate(10deg);
+  }
+}
+
+/* Ensure your sections sit on TOP of the color */
+.left-section, .middle-section, .right-section {
+  position: relative;
+  z-index: 1;
+}
+
+
+.mic-button {
+  /* 1. Make it a Square first */
+  width: 60px;
+  height: 60px;
+
+  /* 2. The Magic Trick: 50% makes it a circle */
+  border-radius: 50%;
+
+  /* 3. Look & Feel */
+  background: rgba(255, 255, 255, 0.1); /* Glass effect */
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  font-size: 24px;
+  
+  /* 4. Centering the Icon inside */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  /* 5. Interaction */
+  cursor: pointer;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(5px);
+}
+
+/* Style the actual button tag inside the div */
+.mic-button button {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+}
+.mic-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.1); /* Grows slightly when you hover */
+  box-shadow: 0 0 15px rgba(0, 225, 255, 0.5); /* Neon glow! */
+}
+/* 1. RESET & CORE LAYOUT */
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden; /* Prevents accidental scrolling/bouncing */
+  position: fixed;  /* Best for mobile "App-like" feel */
+  background-color: #000;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+}
+
+/* 2. THE MOVING GRADIENT (Malvin's Idle State) */
+@keyframes gradientMove {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.moving-gradient {
+  background: linear-gradient(-45deg, #000000, #051937, #004d7a, #008793, #00bf72);
+  background-size: 400% 400%;
+  animation: gradientMove 15s ease infinite;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.extra-buttons-popup {
+  position: absolute;
+  bottom: 65px; /* Moves them above the pill */
+  left: -10px;
+  display: flex;
+  flex-direction: column; /* Stacked vertically */
+  gap: 12px;
+  background: rgba(15, 15, 25, 0.8);
+  padding: 10px;
+  border-radius: 20px;
+  border: 1px solid rgba(0, 225, 255, 0.2); /* Neon border */
+  backdrop-filter: blur(10px);
+  animation: popUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.popup-item {
+  background: rgba(255, 255, 255, 0.05); /* Almost invisible background */
+  border: 1px solid rgba(255, 255, 255, 0.1); /* Very thin white border */
+  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  
+  /* THIS is what makes it blend with your background */
+  backdrop-filter: blur(12px); 
+  
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.popup-item:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateY(-3px); /* Lifts up slightly */
+  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.3);
+}
+
+/* Adds a tiny soft glow to the white icon paths */
+.icon-shadow {
+  filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.2));
+}
+
+@keyframes popUp {
+  from { opacity: 0; transform: translateY(20px) scale(0.5); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.status-pill {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.live-dot {
+  width: 8px;
+  height: 8px;
+  background-color: #00ff88; /* Connection Green */
+  border-radius: 50%;
+  box-shadow: 0 0 10px #00ff88;
+  animation: blink 2s infinite;
+}
+
+.status-text {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.status-timer {
+  color: rgba(255, 255, 255, 0.5);
+  font-family: monospace; /* Keeps numbers from jumping around */
+  font-size: 13px;
+  border-left: 1px solid rgba(255, 255, 255, 0.2);
+  padding-left: 10px;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* 3. LIVEKIT COMPONENT TWEAKS */
+.lk-audio-bar {
+  background-color: #00d2ff; /* Matched to Neon Blue */
+  border-radius: 5px;
+  box-shadow: 0 0 10px rgba(0, 210, 255, 0.5);
+}
+
+/* 4. BACKGROUND CONVERSATION SCROLLBAR */
+/* This makes the scrollbar nearly invisible but functional */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(0, 210, 255, 0.2); /* Subtle neon blue tint */
+  border-radius: 10px;
+}
+
+/* 5. TEXT READABILITY (The "HUD" Look) */
+.custom-scrollbar p {
+  transition: all 0.4s ease;
+  /* This glow ensures you can read text over a busy video background */
+  text-shadow: 0 2px 4px rgba(0,0,0,0.9), 0 0 20px rgba(0,0,0,0.5);
+}
+
+/* 6. UI BUTTON HOVERS */
+button {
+  transition: transform 0.1s ease, opacity 0.2s ease;
+}
+
+button:active {
+  transform: scale(0.92);
+}
+
+/* 7. SETTINGS INPUTS (Inside Sidebar) */
+input[type="range"] {
+  cursor: pointer;
+}
+
+input[type="text"]::placeholder {
+  color: #444;
+  font-style: italic;
+}
+
+
 html, body, #root {
   margin: 0;
   padding: 0;
