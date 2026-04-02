@@ -76,7 +76,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                 </div>
                 {/* bottom */}
                 <div className="ai-face" style={{fontSize: '100px', color: 'white'}}>O</div>
-                <div style={{gap: '15px' display: 'flex', alignItems: 'center',  width: '100%', justifyContent: 'center', marginBottom: '20px'}}>
+                <div style={{gap: '15px', display: 'flex', alignItems: 'center',  width: '100%', justifyContent: 'center', marginBottom: '20px'}}>
                     {/* pill */}
                     <div className="input-pill" style={{ display: 'flex', alignItems: 'center', background: '#211f31', borderRadius: '30px', padding: '10px 20px', width: '400px' }}>
                         {/* + */}
