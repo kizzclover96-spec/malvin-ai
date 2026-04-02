@@ -197,9 +197,11 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }} >
                     <div className="left buttom-panel" style={{ padding: '15px', height: '100px',
                             borderRight: '1px solid rgba(255, 255, 255, 0.1)', // Subtle white line
-                            padding: '20px',
+                            padding: '15px 20px',
                             flexDirection: 'column',
                             display: 'flex',
+                            justifyContent: 'flex-start', /* 1. Pushes content to the TOP */
+                            alignItems: 'flex-start',
 
                             /* --- THE GLASS LOOK --- */
                             backgroundColor: 'rgba(255, 255, 255, 0.03)',   // 1. Semi-transparent white
@@ -208,7 +210,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                             borderRadius: '16px', // Smooth corners
                             border: '1px solid rgba(255, 255, 255, 0.1)'
                         }}>
-                        <p style={{ color: 'white', margin: 0, fontWeight: '400' }}>activities</p>
+                        <p style={{ color: 'white', margin: 0, fontWeight: '400', opacity: 0.6 }}>activities</p>
                             
                     </div>
                     <div className="Right-panel" style={{ padding: '15px', height: '100px',
