@@ -144,9 +144,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                                     <button className="popup-item" style={btnReset}><ClipIcon/></button>
                                 </div>
                             )}
-                            <button onClick={() => setShowExtras(!showExtras)} style={{...btnReset, color:'white', fontSize:'24px', width: '40px', height: '40px', backgroundColor: 'rgba(255, 255, 255, 0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s', cursor: 'pointer'}}
-                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.2)'}
-                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)'}>+</button>
+                            <button onClick={() => setShowExtras(!showExtras)} style={{...btnReset, color:'white', fontSize:'28x', width: '40px', height: '40px', backgroundColor: 'rgba(255, 255, 255, 0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: '0', paddingBottom: '4px', transition: 'background 0.2s', cursor: 'pointer'}} >+</button>
                         </div>
                         <input 
                             placeholder="say something..." 
@@ -168,7 +166,14 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                             }}
                             >
                             {/* Put the Icon INSIDE the button, and close it with /> */}
-                            <MicIcon enabled={!disabled && !!localParticipant?.isMicrophoneEnabled} />
+                            <MicIcon enabled={!disabled && !!localParticipant?.isMicrophoneEnabled} 
+                             style={{ 
+                                    color: 'white',        // Forces it to white
+                                    strokeWidth: '2.5px',   // Makes the lines thicker (default is usually 2)
+                                    width: '24px',          // Ensure size is consistent
+                                    height: '24px' 
+                                }}
+                            />
                             </button>
                         </div>
                     </div>
