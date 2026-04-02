@@ -125,7 +125,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                 <div className="ai-face" style={{fontSize: '100px', color: 'white'}}>O</div>
 
                 {/* bottom */}
-                <div style={{gap: '25px', display: 'flex', alignItems: 'center',  width: '100%', justifyContent: 'center', marginBottom: '20px'}}>
+                <div style={{gap: '25px', display: 'flex', alignItems: 'center',  width: '100%', justifyContent: 'center', marginBottom: '0px'}}>
                     {/* pill */}
                     <div className="input-pill" style={{ display: 'flex', alignItems: 'center', background: '#211f31', borderRadius: '50px', padding: '10px 20px', width: '400px', backgroundColor: 'rgba(255, 255, 255, 0.03)',   // 1. Semi-transparent white
                             backdropFilter: 'blur(12px)',                  // 2. The "Frosted" blur
