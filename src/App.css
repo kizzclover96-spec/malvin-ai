@@ -1,71 +1,91 @@
+/* The main dark background */
 .main-full-ui {
   position: relative;
-  display: flex;
+  background-color: #08080a; /* Very dark blue/black */
   height: 100vh;
   width: 100vw;
-  overflow: hidden;
-  /* Base dark color */
-  background-color: #050505; 
+  overflow: hidden; /* This hides the blobs when they move off-screen */
+  display: flex;
 }
 
-/* This is the magic "Moving Blend" layer */
-.main-full-ui::before {
-  content: "";
+/* Container for the blobs */
+.background-blobs {
   position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  /* The blend of colors from your image */
-  background: radial-gradient(circle at 50% 50%, 
-    rgba(76, 0, 255, 0.15), 
-    rgba(0, 225, 255, 0.1), 
-    rgba(255, 0, 157, 0.1), 
-    transparent 50%);
-  filter: blur(80px);
-  animation: moveGradient 15s infinite alternate ease-in-out;
-  z-index: 0; /* Keeps it behind your text/buttons */
+  width: 100%;
+  height: 100%;
+  filter: blur(120px); /* This smudges the circles into smoke */
+  z-index: 0;
 }
 
-@keyframes moveGradient {
-  from {
-    transform: translate(0, 0) rotate(0deg);
-  }
-  to {
-    transform: translate(-10%, -10%) rotate(10deg);
-  }
+.blob {
+  position: absolute;
+  border-radius: 50%;
+  opacity: 0.5;
+  animation: move 20s infinite alternate;
+}
+
+/* Individual Colors based on your image */
+.purple {
+  width: 500px;
+  height: 500px;
+  background: #6a0dad;
+  top: -100px;
+  left: -100px;
+}
+
+.blue {
+  width: 600px;
+  height: 600px;
+  background: #00d4ff;
+  bottom: -150px;
+  right: -100px;
+  animation-duration: 25s; /* Moves at a different speed */
+}
+
+.pink {
+  width: 400px;
+  height: 400px;
+  background: #ff007f;
+  top: 40%;
+  left: 30%;
+  animation-duration: 18s;
+}
+
+/* The movement animation */
+@keyframes move {
+  from { transform: translate(0, 0) scale(1); }
+  to { transform: translate(100px, 50px) scale(1.2); }
 }
 
 /* Ensure your sections sit on TOP of the color */
 .left-section, .middle-section, .right-section {
-  position: relative;
-  z-index: 1;
+   flex: 3;
+  z-index: 1; /* Makes sure the UI is ABOVE the colorful blobs */
+  background: rgba(255, 255, 255, 0.03); /* Tiny bit of white for the "glass" look */
+  backdrop-filter: blur(20px); /* This blurs the moving blobs behind the UI */
+  border: 1px solid rgba(255, 255, 255, 0.1); /* Subtle border like the image */
+  margin: 10px;
+  border-radius: 24px;
 }
 
-
 .mic-button {
-  /* 1. Make it a Square first */
-  width: 60px;
-  height: 60px;
-
-  /* 2. The Magic Trick: 50% makes it a circle */
-  border-radius: 50%;
-
-  /* 3. Look & Feel */
-  background: rgba(255, 255, 255, 0.1); /* Glass effect */
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: white;
-  font-size: 24px;
+  width: 45px;
+  height: 45px;
+  border-radius: 50%; /* Makes it a perfect circle */
+  border: none;
+  cursor: pointer;
   
-  /* 4. Centering the Icon inside */
+  /* The color blend from your image */
+  background: linear-gradient(135deg, #8a2be2, #ff007f); 
+  
+  /* The "Glow" effect */
+  box-shadow: 0 0 15px rgba(138, 43, 226, 0.5);
+  
   display: flex;
   justify-content: center;
   align-items: center;
-
-  /* 5. Interaction */
-  cursor: pointer;
-  transition: all 0.3s ease;
-  backdrop-filter: blur(5px);
+  color: white;
+  transition: transform 0.2s;
 }
 
 /* Style the actual button tag inside the div */

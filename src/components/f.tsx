@@ -1,5 +1,4 @@
-import React from "react";
-import "./global.css";
+
 
 const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     // 1. STATE & VARS (Fixed missing references)
@@ -46,7 +45,6 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     const ClipIcon = ({ size = 22 }: any) => (
         <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={neonBlue} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" /></svg>
     );
-
     const MicIcon = ({ enabled, size = 22 }: { enabled?: boolean, size?: number }) => (
         <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={neonBlue} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: enabled === false ? 0.4 : 1 }}>
             <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4M8 22h8" />
@@ -55,11 +53,6 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
 
     return (
         <div className="main-full-ui" style={{ display: 'flex', height: '100vh', width: '100vw', backgroundColor: "black" }}>
-            <div className="background-blobs">
-                <div className="blob purple"></div>
-                <div className="blob blue"></div>
-                <div className="blob pink"></div>
-            </div>
             {/* 1. LEFT */}
             <div className="left-section" style={{ width: '250px', borderRight: '1px solid #222', padding: '20px' }}>
                 <div style={{color: 'white'}}>User: {userEmail}</div>
@@ -74,20 +67,21 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                         <span className="status-timer">{formatTime()}</span>
                     </div>
                 </div>
-                {/* bottom */}
+
                 <div className="ai-face" style={{fontSize: '100px', color: 'white'}}>O</div>
-                
-                    {/* pill */}
+                {/* bottom*/}
+                <div style={{ position: 'absolute', bottom: '30px', display: 'flex', gap: '20px', alignItems: 'center' }}>
+                    {/* mic */}
+                    <div className="mic-button">
+                        <button style={btnReset}><MicIcon enabled={true}/></button>
+                    </div>
+
                     <div className="input-pill" style={{ display: 'flex', alignItems: 'center', background: '#211f31', borderRadius: '30px', padding: '10px 20px', width: '400px' }}>
-                        {/* + */}
                         <div style={{ position: 'relative' }}>
                             {showExtras && (
                                 <div className="extra-buttons-popup" style={{ position: 'absolute', bottom: '50px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                    <button className="popup-item" style={btnReset}><CameraIcon enabled={!disabled && !!localParticipant?.isCameraEnabled}
-                                     onClick={async () => { if(!disabled && localParticipant) { await localParticipant.setCameraEnabled(!localParticipant.isCameraEnabled); triggerActivity(); } }} />
-                                    </button>
-                                    <button className="popup-item" style={btnReset}><ScreenShareIcon enabled={!disabled && !!localParticipant?.isScreenShareEnabled}
-                                    onClick={async () => { if(!disabled && localParticipant) { await localParticipant.setScreenShareEnabled(!localParticipant.isScreenShareEnabled); triggerActivity(); } }} /></button>
+                                    <button className="popup-item" style={btnReset}><CameraIcon enabled={true}/></button>
+                                    <button className="popup-item" style={btnReset}><ScreenShareIcon enabled={true}/></button>
                                     <button className="popup-item" style={btnReset}><ClipIcon/></button>
                                 </div>
                             )}
@@ -100,12 +94,6 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                             style={{ flex: 1, background: 'none', border: 'none', color: 'white', marginLeft: '15px', outline: 'none' }} 
                         />
                     </div>
-                    {/* mic*/}
-                    <div style={btnReset}><MicIcon enabled={!disabled && !!localParticipant?.isMicrophoneEnabled} {{ position: 'absolute', bottom: '30px', display: 'flex', gap: '20px', alignItems: 'center' }}>
-                        <div className="mic-button">
-                            <button onClick={async () => { if(!disabled && localParticipant) { await localParticipant.setMicrophoneEnabled(!localParticipant.isMicrophoneEnabled); triggerActivity(); } }} /></button>
-                        </div>
-                    </div>    
                 </div>
             </div>
 
@@ -117,4 +105,4 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     );
 };
 
-export default Malvinui;
+export defau
