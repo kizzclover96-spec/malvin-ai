@@ -59,13 +59,23 @@
 
 /* Ensure your sections sit on TOP of the color */
 .left-section, .middle-section, .right-section {
-   flex: 3;
   z-index: 1; /* Makes sure the UI is ABOVE the colorful blobs */
   background: rgba(255, 255, 255, 0.03); /* Tiny bit of white for the "glass" look */
   backdrop-filter: blur(20px); /* This blurs the moving blobs behind the UI */
   border: 1px solid rgba(255, 255, 255, 0.1); /* Subtle border like the image */
   margin: 10px;
   border-radius: 24px;
+}
+.left-section {
+    flex: 1;
+}
+
+.middle-section {
+    flex: 2; /* This makes the middle twice as wide as the others */
+}
+
+.right-section {
+    flex: 1;
 }
 
 .mic-button {
