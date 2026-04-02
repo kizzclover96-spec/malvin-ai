@@ -89,7 +89,36 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
             </div>
             {/* 1. LEFT */}
             <div className="left-section" style={{ flex: 1, display: 'flex', borderRight: '1px solid #222', padding: '20px', gap: '10px', display: 'flex', flexDirection: 'column'}}>
-                <div style={{color: 'white'}}>MALIVIN</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{
+                        width: '40px',
+                        height: '40px',
+                        borderRadius: '50%',
+                        overflow: 'hidden',
+                        border: '1.5px solid #bf00ff', // That Neon Purple "Manly" Ring
+                        flexShrink: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backgroundColor: 'rgba(255, 255, 255, 0.05)'
+                    }}>
+                        <img 
+                            src="/Malvin self.png" 
+                            alt="Malvin AI"
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                        />
+                    </div>
+                    
+                    <span style={{ 
+                        color: 'white', 
+                        fontWeight: '800', 
+                        letterSpacing: '2px', 
+                        fontSize: '18px',
+                        fontFamily: 'sans-serif' // Or your custom font
+                    }}>
+                        MALVIN
+                    </span>
+                </div>
                 <div className="left top panel" style={{ width: '200px',flex: 1, gap: '10px',
                         borderRight: '1px solid rgba(255, 255, 255, 0.1)', // Subtle white line
                         padding: '20px',
