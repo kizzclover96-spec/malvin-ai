@@ -68,6 +68,7 @@
 }
 .left-section {
     flex: 1;
+    min-width: 250px;
 }
 
 .middle-section {
@@ -76,6 +77,7 @@
 
 .right-section {
     flex: 1;
+    min-width: 250px;
 }
 
 .mic-button {
