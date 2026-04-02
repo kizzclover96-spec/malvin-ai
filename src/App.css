@@ -71,7 +71,7 @@
 }
 
 .middle-section {
-    flex: 2; /* This makes the middle twice as wide as the others */
+    flex: 4; /* This makes the middle twice as wide as the others */
 }
 
 .right-section {
