@@ -61,7 +61,52 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                 <div className="blob pink"></div>
             </div>
             {/* 1. LEFT */}
-            <div className="left-section" style={{ flex: 1, borderRight: '1px solid #222', padding: '20px' }}>
+            <div className="left-section" style={{ flex: 1, borderRight: '1px solid #222', padding: '20px', gap: '15px', display: 'flex', flexDirection: 'column', height: '100%'}}>
+                <div style={{color: 'white'}}>MALIVIN</div>
+                <div className="left top panel" style={{ width: '120px',flex: 1, 
+                        borderRight: '1px solid rgba(255, 255, 255, 0.1)', // Subtle white line
+                        padding: '20px',
+                        display: 'flex',
+                        flexDirection: 'column',
+
+                        /* --- THE GLASS LOOK --- */
+                        backgroundColor: 'rgba(255, 255, 255, 0.03)',   // 1. Semi-transparent white
+                        backdropFilter: 'blur(12px)',                  // 2. The "Frosted" blur
+                        WebkitBackdropFilter: 'blur(12px)',
+                        borderRadius: '16px', // Smooth corners
+                        border: '1px solid rgba(255, 255, 255, 0.1)'
+                    }}>
+
+                </div>
+                    {/* button left section */}
+                <div>
+                    <div className="left buttom-panel" style={{ flex: 1, 
+                            borderRight: '1px solid rgba(255, 255, 255, 0.1)', // Subtle white line
+                            padding: '20px',
+                            flexDirection: 'column',
+
+                            /* --- THE GLASS LOOK --- */
+                            backgroundColor: 'rgba(255, 255, 255, 0.03)',   // 1. Semi-transparent white
+                            backdropFilter: 'blur(12px)',                  // 2. The "Frosted" blur
+                            WebkitBackdropFilter: 'blur(12px)',
+                            borderRadius: '16px', // Smooth corners
+                            border: '1px solid rgba(255, 255, 255, 0.1)'
+                        }}>
+                        <p style={{ color: 'white', margin: 0, fontWeight: '600' }}>Malvin AI</p>
+                        <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '12px', margin: '5px 0 0 0' }}>Your intelligent collaborator partner</p>
+                            
+                    </div>
+                    <div className="left-user-panel" style={{ width: '100px',flex: 1, 
+                            padding: '20px',
+                            backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                            backdropFilter: 'blur(12px)',
+                            borderRadius: '16px',
+                            border: '1px solid rgba(255, 255, 255, 0.1)'
+                        }}>
+                        <div style={{ color: 'white', fontSize: '14px' }}>{username || "User"}</div>
+                        <div style={{ color: 'white', fontSize: '11px', opacity: 0.4 }}>{userEmail}</div>
+                    </div>       
+                </div>
                 <div style={{color: 'white'}}>User: {userEmail}</div>
             </div>
 
