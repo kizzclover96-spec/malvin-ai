@@ -116,7 +116,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
             {/* 2. MIDDLE */}
             <div className="middle-section" style={{ flex: 4, position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', padding: '40px' }}>
                 <div className="status-pill-container" style={{ display: 'flex', alignItems: 'stretch', justifyContent: 'space-between', width: '100%', paddingBottom: '20px', alignSelf: 'stretch'}}>
-                    <div className="status-pill" style={{ marginTop: '-15px', marginLeft: '-12px' }}>
+                    <div className="status-pill" style={{ marginTop: '-17px', marginLeft: '-12px' }}>
                         <span className="live-dot"></span>
                         <span className="status-text">LIVE SESSION</span>
                         <span className="status-timer">{formatTime()}</span>
@@ -125,7 +125,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                 <div className="ai-face" style={{fontSize: '100px', color: 'white'}}>O</div>
 
                 {/* bottom */}
-                <div style={{gap: '25px', display: 'flex', alignItems: 'center',  width: '100%', justifyContent: 'center', marginBottom: '-10px'}}>
+                <div style={{gap: '25px', display: 'flex', alignItems: 'center',  width: '100%', justifyContent: 'center', marginBottom: '-13px'}}>
                     {/* pill */}
                     <div className="input-pill" style={{ display: 'flex', alignItems: 'center', background: '#211f31', borderRadius: '50px', padding: '10px 20px', width: '400px', backgroundColor: 'rgba(255, 255, 255, 0.03)',   // 1. Semi-transparent white
                             backdropFilter: 'blur(12px)',                  // 2. The "Frosted" blur
