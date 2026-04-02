@@ -63,7 +63,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
             {/* 1. LEFT */}
             <div className="left-section" style={{ flex: 1, display: 'flex', borderRight: '1px solid #222', padding: '20px', gap: '15px', display: 'flex', flexDirection: 'column', height: '100%'}}>
                 <div style={{color: 'white'}}>MALIVIN</div>
-                <div className="left top panel" style={{ width: '180px',flex: 1, 
+                <div className="left top panel" style={{ width: '200px',flex: 1, 
                         borderRight: '1px solid rgba(255, 255, 255, 0.1)', // Subtle white line
                         padding: '20px',
                         display: 'flex',
@@ -79,12 +79,12 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
 
                 </div>
                     {/* button left section */}
-                <div>
+                <div style={{ gap: '20px' }} >
                     <div className="left buttom-panel" style={{ flex: 1, 
                             borderRight: '1px solid rgba(255, 255, 255, 0.1)', // Subtle white line
                             padding: '20px',
                             flexDirection: 'column',
-                            display: 'flex',
+                            display: 'flex'
 
                             /* --- THE GLASS LOOK --- */
                             backgroundColor: 'rgba(255, 255, 255, 0.03)',   // 1. Semi-transparent white
@@ -97,7 +97,8 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                         <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '12px', margin: '5px 0 0 0' }}>Your intelligent collaborator partner</p>
                             
                     </div>
-                    <div className="left-user-panel" style={{ width: '100px',flex: 1, 
+                    <div className="left-user-panel" style={{ flex: 1,
+                            flexDirection: 'column', 
                             display: 'flex',
                             padding: '20px',
                             backgroundColor: 'rgba(255, 255, 255, 0.03)',
@@ -106,10 +107,9 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                             border: '1px solid rgba(255, 255, 255, 0.1)'
                         }}>
                         <div style={{ color: 'white', fontSize: '14px' }}>{typeof username !== 'undefined' ? username : "Guest User"}</div>
-                        <div style={{ color: 'white', fontSize: '11px', opacity: 0.4 }}>{userEmail}</div>
                     </div>       
                 </div>
-                <div style={{color: 'white'}}>User: {userEmail}</div>
+                <div style={{color: 'white', fontSize: '11px', opacity: 0.4 }}>User: {userEmail}</div>
             </div>
 
             {/* 2. MIDDLE */}
