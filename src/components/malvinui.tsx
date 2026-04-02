@@ -79,7 +79,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
 
                 </div>
                     {/* button left section */}
-                <div style={{ gap: '20px' }} >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }} >
                     <div className="left buttom-panel" style={{ padding: '15px', 
                             borderRight: '1px solid rgba(255, 255, 255, 0.1)', // Subtle white line
                             padding: '20px',
@@ -105,7 +105,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                             backdropFilter: 'blur(12px)',
                             borderRadius: '16px',
                             border: '1px solid rgba(255, 255, 255, 0.1)'
-                        }}>
+                        }}> 
                         <div style={{ color: 'white', fontSize: '14px' }}>{typeof username !== 'undefined' ? username : "Guest User"}</div>
                         <div style={{color: 'white', fontSize: '11px', opacity: 0.4 }}>User: {userEmail}</div>
                     </div>       
