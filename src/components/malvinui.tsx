@@ -101,11 +101,22 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                         />
                     </div>
                     {/* mic*/}
+                    {/* mic */}
                     <div style={btnReset}>
-                        <div className="mic-button">
-                            <button onClick={async () => { if(!disabled && localParticipant) { await localParticipant.setMicrophoneEnabled(!localParticipant.isMicrophoneEnabled); triggerActivity(); } }}><MicIcon enabled={!disabled && !!localParticipant?.isMicrophoneEnabled}></button>
-                        </div>
-                    </div>    
+                    <div className="mic-button">
+                        <button 
+                        onClick={async () => { 
+                            if(!disabled && localParticipant) { 
+                            await localParticipant.setMicrophoneEnabled(!localParticipant.isMicrophoneEnabled); 
+                            triggerActivity(); 
+                            } 
+                        }}
+                        >
+                        {/* Put the Icon INSIDE the button, and close it with /> */}
+                        <MicIcon enabled={!disabled && !!localParticipant?.isMicrophoneEnabled} />
+                        </button>
+                    </div>
+                    
                 </div>
             </div>
 
