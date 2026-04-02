@@ -135,7 +135,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                         {/* + */}
                         <div style={{ position: 'relative' }}>
                             {showExtras && (
-                                <div className="extra-buttons-popup" style={{ position: 'absolute', bottom: '50px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                <div className="extra-buttons-popup" style={{ position: 'absolute', bottom: '50px', display: 'flex', flexDirection: 'row', gap: '10px' }}>
                                     <button className="popup-item" style={btnReset}><CameraIcon enabled={!disabled && !!localParticipant?.isCameraEnabled}
                                      onClick={async () => { if(!disabled && localParticipant) { await localParticipant.setCameraEnabled(!localParticipant.isCameraEnabled); triggerActivity(); } }} />
                                     </button>
