@@ -6,6 +6,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     const [showExtras, setShowExtras] = React.useState(false);
     const [seconds, setSeconds] = React.useState(0);
     const [textInput, setTextInput] = React.useState("");
+    const [activeTab, setActiveTab] = React.useState('Session'); 
     
     // Define colors so the icons don't crash
     const neonBlue = "#00e1ff";
@@ -53,10 +54,14 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
         </svg>
     );
 
-    const SidebarBtn = ({ children, label }) => (
+    const SidebarBtn = ({ children, label, isActive, onClick }) => (
     <button 
         style={{ ...btnReset, display: 'flex',alignItems: 'center', padding: '10px 14px', borderRadius: '12px', color: 'white', fontSize: '14px', gap: '12px', transition: 'all 0.2s ease', cursor: 'pointer', width: '100%',
-            backgroundColor: 'transparent',
+            backgroundColor: 'transparent', backgroundColor: isActive ? 'rgba(191, 0, 255, 0.1)' : 'transparent',
+            
+            /* --- THE NEON PURPLE LOOK --- */
+            border: isActive ? '1px solid #bf00ff' : '1px solid transparent',
+            boxShadow: isActive ? '0 0 15px rgba(191, 0, 255, 0.4)' : 'none',
         }}
         onMouseEnter={(e) => {
             e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
@@ -67,10 +72,10 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
             e.currentTarget.style.transform = 'translateX(0px)';
         }}
         >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.7 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: isActive ? 1 : 0.7 }}>
             {children}
         </div>
-        <span style={{ fontWeight: '400', opacity: 0.8, letterSpacing: '0.3px' }}>{label}</span>
+        <span style={{ fontWeight: isActive ? '600' : '400', opacity: isActive ? 1 : 0.8 }}>{label}</span>
     </button>
 );
 
@@ -97,23 +102,40 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                         borderRadius: '16px', // Smooth corners
                         border: '1px solid rgba(255, 255, 255, 0.1)'
                     }}>
-                    <SidebarBtn label="Memories">
+                    <SidebarBtn 
+                        label="Session" 
+                        isActive={activeTab === 'Session'} 
+                        onClick={() => setActiveTab('Session')}
+                    >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3z"/></svg>
+                    </SidebarBtn>
+                    <SidebarBtn label="Memories"
+                        isActive={activeTab === 'Memories'} 
+                        onClick={() => setActiveTab('Memories')}>
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 8V12L15 15"/><circle cx="12" cy="12" r="10"/></svg>
                     </SidebarBtn>
 
-                    <SidebarBtn label="Dashboard">
+                    <SidebarBtn label="Dashboard"
+                        isActive={activeTab === 'Dashboard'} 
+                        onClick={() => setActiveTab('Dashboard')}>
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
                     </SidebarBtn>
 
-                    <SidebarBtn label="Tools">
+                    <SidebarBtn label="Tools"
+                        isActive={activeTab === 'Tools'} 
+                        onClick={() => setActiveTab('Tools')}>
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
                     </SidebarBtn>
 
-                    <SidebarBtn label="Premium">
+                    <SidebarBtn label="Premium"
+                        isActive={activeTab === 'Premium'} 
+                        onClick={() => setActiveTab('Premium')}>
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6-3 6 3v6l-6 3-6-3V9Z"/><path d="m12 3 10 5v10l-10 5L2 18V8l10-5Z"/></svg>
                     </SidebarBtn>
 
-                    <SidebarBtn label="Settings">
+                    <SidebarBtn label="Settings"
+                        isActive={activeTab === 'Settings'} 
+                        onClick={() => setActiveTab('Settings')}>
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
                     </SidebarBtn>
 
