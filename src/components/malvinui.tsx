@@ -1,5 +1,5 @@
 import React from "react";
-import ".../global.css";
+import "../global.css";
 
 const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     // 1. STATE & VARS (Fixed missing references)
