@@ -74,8 +74,9 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                         <span className="status-timer">{formatTime()}</span>
                     </div>
                 </div>
-                {/* bottom */}
                 <div className="ai-face" style={{fontSize: '100px', color: 'white'}}>O</div>
+
+                {/* bottom */}
                 <div style={{gap: '15px', display: 'flex', alignItems: 'center',  width: '100%', justifyContent: 'center', marginBottom: '20px'}}>
                     {/* pill */}
                     <div className="input-pill" style={{ display: 'flex', alignItems: 'center', background: '#211f31', borderRadius: '30px', padding: '10px 20px', width: '400px' }}>
@@ -103,20 +104,20 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                     {/* mic*/}
                     {/* mic */}
                     <div style={btnReset}>
-                    <div className="mic-button">
-                        <button 
-                        onClick={async () => { 
-                            if(!disabled && localParticipant) { 
-                            await localParticipant.setMicrophoneEnabled(!localParticipant.isMicrophoneEnabled); 
-                            triggerActivity(); 
-                            } 
-                        }}
-                        >
-                        {/* Put the Icon INSIDE the button, and close it with /> */}
-                        <MicIcon enabled={!disabled && !!localParticipant?.isMicrophoneEnabled} />
-                        </button>
+                        <div className="mic-button">
+                            <button 
+                            onClick={async () => { 
+                                if(!disabled && localParticipant) { 
+                                await localParticipant.setMicrophoneEnabled(!localParticipant.isMicrophoneEnabled); 
+                                triggerActivity(); 
+                                } 
+                            }}
+                            >
+                            {/* Put the Icon INSIDE the button, and close it with /> */}
+                            <MicIcon enabled={!disabled && !!localParticipant?.isMicrophoneEnabled} />
+                            </button>
+                        </div>
                     </div>
-                    
                 </div>
             </div>
 
