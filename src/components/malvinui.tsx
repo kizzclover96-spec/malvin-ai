@@ -157,44 +157,47 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
                     </SidebarBtn>
 
-                    <SidebarBtn 
-                        label="Premium" 
-                        isActive={activeTab === 'Premium'} 
-                        onClick={() => setActiveTab('Premium')}
-                    >
-                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%' }}>
-                            
-                            {/* THE STARS (Only show when active or always for extra flair) */}
-                            {activeTab === 'Premium' && (
-                                <>
-                                    <span className="star star-1">⭐</span>
-                                    <span className="star star-2">✨</span>
-                                    <span className="star star-3">⭐</span>
-                                </>
-                            )}
+                    {/* --- NEW ELITE PREMIUM BUTTON --- */}
+                    <div style={{ position: 'relative', marginTop: '4px', width: '100%' }}>
+                        {/* Floating Twinkle Star */}
+                        <div style={{ 
+                            position: 'absolute', 
+                            top: '-6px', 
+                            left: '-6px', 
+                            zIndex: 10,
+                            animation: 'twinkle 2s infinite' 
+                        }}>
+                            <StarIcon size={12} />
+                        </div>
 
-                            <div className={activeTab === 'Premium' ? "premium-glow" : ""} style={{
+                        <button 
+                            onClick={() => setActiveTab('Premium')}
+                            style={{ 
+                                ...btnReset,
                                 display: 'flex',
                                 alignItems: 'center',
-                                gap: '12px',
                                 width: '100%',
                                 padding: '10px 14px',
                                 borderRadius: '12px',
-                                background: activeTab === 'Premium' ? 'linear-gradient(45deg, #bf953f, #fcf6ba, #b38728, #fbf5b7, #aa771c)' : 'transparent',
+                                cursor: 'pointer',
                                 transition: 'all 0.3s ease',
-                            }}>
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill={activeTab === 'Premium' ? "black" : "white"} stroke={activeTab === 'Premium' ? "black" : "white"} strokeWidth="2">
-                                    <path d="m6 9 6-3 6 3v6l-6 3-6-3V9Z"/><path d="m12 3 10 5v10l-10 5L2 18V8l10-5Z"/>
-                                </svg>
-                                <span style={{ 
-                                    color: activeTab === 'Premium' ? 'black' : 'white', 
-                                    fontWeight: activeTab === 'Premium' ? '800' : '400' 
-                                }}>
-                                    Premium
-                                </span>
-                            </div>
-                        </div>
-                    </SidebarBtn>
+                                
+                                /* YOUR GOLD STYLE */
+                                background: 'rgba(255, 215, 0, 0.08)', 
+                                border: '1px solid #FFD700', 
+                                color: '#FFD700', 
+                                fontSize: '10px', 
+                                fontWeight: '900', 
+                                letterSpacing: '1.2px', 
+                                textTransform: 'uppercase',
+                                animation: 'goldGlow 3s infinite',
+                                gap: '12px'
+                            }}
+                        >
+                            <StarIcon size={14} />
+                            <span>Go Premium</span>
+                        </button>
+                    </div>
 
                     <SidebarBtn label="Settings"
                         isActive={activeTab === 'Settings'} 
