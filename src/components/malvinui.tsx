@@ -56,6 +56,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
 
     const SidebarBtn = ({ children, label, isActive, onClick }) => (
     <button 
+        onClick={onClick}
         style={{ ...btnReset, display: 'flex',alignItems: 'center', padding: '10px 14px', borderRadius: '12px', color: 'white', fontSize: '14px', gap: '12px', transition: 'all 0.2s ease', cursor: 'pointer', width: '100%',
             backgroundColor: 'transparent', backgroundColor: isActive ? 'rgba(191, 0, 255, 0.1)' : 'transparent',
             
