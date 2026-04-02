@@ -63,7 +63,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
             {/* 1. LEFT */}
             <div className="left-section" style={{ flex: 1, display: 'flex', borderRight: '1px solid #222', padding: '20px', gap: '15px', display: 'flex', flexDirection: 'column', height: '100%'}}>
                 <div style={{color: 'white'}}>MALIVIN</div>
-                <div className="left top panel" style={{ width: '120px',flex: 1, 
+                <div className="left top panel" style={{ width: '180px',flex: 1, 
                         borderRight: '1px solid rgba(255, 255, 255, 0.1)', // Subtle white line
                         padding: '20px',
                         display: 'flex',
