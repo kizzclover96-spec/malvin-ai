@@ -302,11 +302,11 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                 {/* --- TOP RIGHT SECURITY & MENU --- */}
                 <div style={{ 
                     position: 'absolute', 
-                    top: '30px', 
-                    right: '30px', 
+                    top: '10px', 
+                    right: '20px', 
                     display: 'flex', 
                     alignItems: 'center', 
-                    gap: '20px',
+                    gap: '10px',
                     zIndex: 100 
                 }}>
                     {/* TRUST SHIELD */}
