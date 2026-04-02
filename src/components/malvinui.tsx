@@ -125,7 +125,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                 <div className="ai-face" style={{fontSize: '100px', color: 'white'}}>O</div>
 
                 {/* bottom */}
-                <div style={{gap: '20px', display: 'flex', alignItems: 'center',  width: '100%', justifyContent: 'center', marginBottom: '-14px'}}>
+                <div style={{gap: '10px', display: 'flex', alignItems: 'center',  width: '100%', justifyContent: 'center', marginBottom: '-14px'}}>
                     {/* pill */}
                     <div className="input-pill" style={{ display: 'flex', alignItems: 'center', background: '#211f31', borderRadius: '50px', padding: '10px 20px', width: '600px', backgroundColor: 'rgba(255, 255, 255, 0.03)',   // 1. Semi-transparent white
                             backdropFilter: 'blur(12px)',                  // 2. The "Frosted" blur
@@ -178,7 +178,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
             {/* 3. RIGHT */}
             <div className="Right-section" style={{ flex: 1, display: 'flex', borderRight: '1px solid #222', padding: '20px', gap: '10px', display: 'flex', flexDirection: 'column'}}>
                 <div style={{color: 'white'}}>Participants</div>
-                <div className="Right-top panel" style={{ width: '200px', height: '100px',flex: 1, 
+                <div className="Right-top panel" style={{ width: '200px', height: '100px', 
                         borderRight: '1px solid rgba(255, 255, 255, 0.1)', // Subtle white line
                         padding: '20px',
                         display: 'flex',
@@ -195,7 +195,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                 </div>
                     {/* button right section */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }} >
-                    <div className="left buttom-panel" style={{ padding: '15px', 
+                    <div className="left buttom-panel" style={{ padding: '15px', height: '100px',
                             borderRight: '1px solid rgba(255, 255, 255, 0.1)', // Subtle white line
                             padding: '20px',
                             flexDirection: 'column',
@@ -211,7 +211,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                         <p style={{ color: 'white', margin: 0, fontWeight: '400' }}>activities</p>
                             
                     </div>
-                    <div className="Right-panel" style={{ padding: '15px',
+                    <div className="Right-panel" style={{ padding: '15px', height: '100px',
                             flexDirection: 'column', 
                             display: 'flex',
                             padding: '20px',
