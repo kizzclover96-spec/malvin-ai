@@ -68,7 +68,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
             {/* 2. MIDDLE */}
             <div className="middle-section" style={{ flex: 4, position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', padding: '40px' }}>
                 <div className="status-pill-container" style={{ display: 'flex', alignItems: 'stretch', justifyContent: 'space-between', width: '100%', paddingBottom: '20px', alignSelf: 'stretch'}}>
-                    <div className="status-pill" style={{ marginTop: '-10px', marginLeft: '-10px' }}>
+                    <div className="status-pill" style={{ marginTop: '-12px', marginLeft: '-12px' }}>
                         <span className="live-dot"></span>
                         <span className="status-text">LIVE SESSION</span>
                         <span className="status-timer">{formatTime()}</span>
