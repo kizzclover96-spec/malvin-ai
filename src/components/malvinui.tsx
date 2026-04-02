@@ -7,7 +7,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     const [seconds, setSeconds] = React.useState(0);
     const [textInput, setTextInput] = React.useState("");
     const [activeTab, setActiveTab] = React.useState('Session'); 
-    const [showTrustMsg, setShowTrustMsg] = useState(false);
+    const [showTrustMsg, setShowTrustMsg] = React.useState(false);
     
     // Define colors so the icons don't crash
     const premiumGold = "#FFD700";
@@ -96,6 +96,10 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
         @keyframes twinkle { 
         0%, 100% { opacity: 0.3; transform: scale(0.8) rotate(0deg); } 
         50% { opacity: 1; transform: scale(1.2) rotate(15deg); }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
     `}</style>
     );
