@@ -139,6 +139,19 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                         onClick={() => setActiveTab('Settings')}>
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
                     </SidebarBtn>
+                    <SidebarBtn 
+                        label="Notes" 
+                        isActive={activeTab === 'Notes'} 
+                        onClick={() => setActiveTab('Notes')}
+                    >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                            <line x1="16" y1="13" x2="8" y2="13"/>
+                            <line x1="16" y1="17" x2="8" y2="17"/>
+                            <line x1="10" y1="9" x2="8" y2="9"/>
+                        </svg>
+                    </SidebarBtn>
 
 
                 </div>
@@ -157,6 +170,25 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                             borderRadius: '16px', // Smooth corners
                             border: '1px solid rgba(255, 255, 255, 0.1)'
                         }}>
+                        {/* THE CIRCLE WRAPPER */}
+                        <div style={{
+                            width: '45px',
+                            height: '45px',
+                            borderRadius: '50%',
+                            overflow: 'hidden', // Ensures the image stays a circle
+                            border: '1.5px solid #bf00ff', // Optional: Neon Purple Ring
+                            flexShrink: 0, // Prevents the circle from squashing
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            backgroundColor: 'rgba(255, 255, 255, 0.05)'
+                        }}>
+                            <img 
+                                src="/Malvin self.png" 
+                                alt="Malvin AI"
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                            />
+                        </div>
                         <p style={{ color: 'white', margin: 0, fontWeight: '600' }}>Malvin AI</p>
                         <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '12px', margin: '5px 0 0 0' }}>Your intelligent collaborator partner</p>
                             
