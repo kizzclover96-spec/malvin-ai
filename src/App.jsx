@@ -3,7 +3,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "./firebase"; 
 import Login from "./pages/loginscreen"; 
 import Welcomeview from "./pages/welcomeview"; 
-import SessionRoom from "./pages/sessionroom"; // Import the session room we just built
+import Malvinui from "./components/malvinui"; // Import the session room we just built
 
 function App() {
   const [user, setUser] = useState(null);
@@ -44,7 +44,7 @@ function App() {
         />
       ) : (
         /* 3. SESSION ACTIVE */
-        <SessionRoom userEmail={user.email} />
+        <Malvinui userEmail={user.email} />
       )}
     </div>
   );
