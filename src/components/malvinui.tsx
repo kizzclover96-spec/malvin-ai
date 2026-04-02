@@ -80,7 +80,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                 </div>
                     {/* button left section */}
                 <div style={{ gap: '20px' }} >
-                    <div className="left buttom-panel" style={{ flex: 1, 
+                    <div className="left buttom-panel" style={{ padding: '15px', 
                             borderRight: '1px solid rgba(255, 255, 255, 0.1)', // Subtle white line
                             padding: '20px',
                             flexDirection: 'column',
@@ -97,7 +97,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                         <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '12px', margin: '5px 0 0 0' }}>Your intelligent collaborator partner</p>
                             
                     </div>
-                    <div className="left-user-panel" style={{ flex: 1,
+                    <div className="left-user-panel" style={{ padding: '15px',
                             flexDirection: 'column', 
                             display: 'flex',
                             padding: '20px',
@@ -107,9 +107,10 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                             border: '1px solid rgba(255, 255, 255, 0.1)'
                         }}>
                         <div style={{ color: 'white', fontSize: '14px' }}>{typeof username !== 'undefined' ? username : "Guest User"}</div>
+                        <div style={{color: 'white', fontSize: '11px', opacity: 0.4 }}>User: {userEmail}</div>
                     </div>       
                 </div>
-                <div style={{color: 'white', fontSize: '11px', opacity: 0.4 }}>User: {userEmail}</div>
+                
             </div>
 
             {/* 2. MIDDLE */}
@@ -124,9 +125,13 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                 <div className="ai-face" style={{fontSize: '100px', color: 'white'}}>O</div>
 
                 {/* bottom */}
-                <div style={{gap: '15px', display: 'flex', alignItems: 'center',  width: '100%', justifyContent: 'center', marginBottom: '20px'}}>
+                <div style={{gap: '13px', display: 'flex', alignItems: 'center',  width: '100%', justifyContent: 'center', marginBottom: '20px'}}>
                     {/* pill */}
-                    <div className="input-pill" style={{ display: 'flex', alignItems: 'center', background: '#211f31', borderRadius: '30px', padding: '10px 20px', width: '400px' }}>
+                    <div className="input-pill" style={{ display: 'flex', alignItems: 'center', background: '#211f31', borderRadius: '30px', padding: '10px 20px', width: '400px', backgroundColor: 'rgba(255, 255, 255, 0.03)',   // 1. Semi-transparent white
+                            backdropFilter: 'blur(12px)',                  // 2. The "Frosted" blur
+                            WebkitBackdropFilter: 'blur(12px)',
+                            borderRadius: '16px', // Smooth corners
+                            border: '1px solid rgba(255, 255, 255, 0.1)'}}>
                         {/* + */}
                         <div style={{ position: 'relative' }}>
                             {showExtras && (
@@ -139,7 +144,9 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                                     <button className="popup-item" style={btnReset}><ClipIcon/></button>
                                 </div>
                             )}
-                            <button onClick={() => setShowExtras(!showExtras)} style={{...btnReset, color:'white', fontSize:'24px'}}>+</button>
+                            <button onClick={() => setShowExtras(!showExtras)} style={{...btnReset, color:'white', fontSize:'24px', width: '40px', height: '40px', backgroundColor: 'rgba(255, 255, 255, 0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s', cursor: 'pointer'}}
+                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.2)'}
+                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)'}>+</button>
                         </div>
                         <input 
                             placeholder="say something..." 
