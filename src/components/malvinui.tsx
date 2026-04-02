@@ -302,7 +302,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                 {/* --- TOP RIGHT SECURITY & MENU --- */}
                 <div style={{ 
                     position: 'absolute', 
-                    top: '13px', 
+                    top: '15px', 
                     right: '20px', 
                     display: 'flex', 
                     alignItems: 'center', 
@@ -338,7 +338,6 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                                 border: '1px solid rgba(255, 255, 255, 0.1)',
                                 borderRadius: '16px',
                                 padding: '20px',
-                                boxShadow: '0 20px 40px rgba(0,0,0,0.6)',
                                 zIndex: 101,
                                 animation: 'fadeIn 0.2s ease-out'
                             }}>
