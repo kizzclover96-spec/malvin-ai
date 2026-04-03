@@ -15,6 +15,7 @@ import {
 
 const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     // 1. STATE & VARS (Fixed missing references)
+    const { localParticipant } = useLocalParticipant();
     const [showExtras, setShowExtras] = React.useState(false);
     const [seconds, setSeconds] = React.useState(0);
     const [textInput, setTextInput] = React.useState("");
@@ -37,11 +38,6 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
 
     // Placeholder logic (Replace with your real props/hooks later)
     const disabled = false;
-    const [localParticipant, setLocalParticipant] = React.useState({
-        isMicrophoneEnabled: true,
-        isCameraEnabled: false,
-        isScreenShareEnabled: false,
-    });
 
     const triggerActivity = () => {};
     const handleSendMessage = () => setTextInput("");
@@ -69,37 +65,26 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     };
 
     function VideoStage({ participant }: { participant: any }) {
-        // 1. Get all tracks from the local user
-        const { localParticipant } = useLocalParticipant();
         const tracks = useTracks([
-            { source: Track.Source.Camera, participantIdentity: localParticipant?.identity },
-            { source: Track.Source.ScreenShare, participantIdentity: localParticipant?.identity }
+            { source: Track.Source.Camera, participantIdentity: participant?.identity },
+            { source: Track.Source.ScreenShare, participantIdentity: participant?.identity }
         ]);
 
-        // 2. Identify which one to show (Prioritize ScreenShare, then Camera)
         const screenTrack = tracks.find(t => t.source === Track.Source.ScreenShare);
         const cameraTrack = tracks.find(t => t.source === Track.Source.Camera);
         const activeTrack = screenTrack || cameraTrack;
 
         return (
-            <div className="video-stage" style={{
-                flex: 1, width: '100%', maxWidth: '800px', height: '450px',
-                backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: '24px',
-                position: 'relative', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)'
-            }}>
-                {/* If a track exists AND camera is enabled in state, show it */}
+            <div className="video-stage" style={{ /* your styles */ }}>
+                {/* Logic: If track exists AND LiveKit says camera is on */}
                 {activeTrack && participant.isCameraEnabled ? (
                     <VideoTrack 
                         trackRef={activeTrack} 
                         style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
                     />
                 ) : (
-                    /* Fallback when camera is OFF */
-                    <div style={{ 
-                        display: 'flex', flexDirection: 'column', alignItems: 'center', 
-                        justifyContent: 'center', height: '100%', color: 'rgba(255,255,255,0.2)' 
-                    }}>
-                        <div style={{ fontSize: '50px', marginBottom: '10px' }}>📷</div>
+                    <div style={{ /* fallback styles */ }}>
+                        <div style={{ fontSize: '50px' }}>📷</div>
                         <p>Camera is Muted</p>
                     </div>
                 )}
