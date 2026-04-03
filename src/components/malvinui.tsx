@@ -682,7 +682,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     );
 };
 
-export default function Malvinui({ token, serverUrl, userEmail, onDisconnect }: SessionProps) {
+export default function Session({ token, serverUrl, userEmail, onDisconnect }: SessionProps) {
   return (
     <LiveKitRoom token={token} serverUrl={serverUrl} connect={true} audio={true} video={false} onDisconnected={onDisconnect}>
       <LayoutContextProvider>
