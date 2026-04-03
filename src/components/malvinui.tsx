@@ -535,7 +535,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                     </div>
                 </div>
                 
-                <VideoStage participant={localParticipant} />
+                <VideoStage userEmail={userEmail} />
 
                 {/* bottom */}
                 <div style={{gap: '10px', display: 'flex', alignItems: 'center',  width: '100%', justifyContent: 'center', marginBottom: '-14px'}}>
@@ -694,7 +694,7 @@ export default function Session({ token, serverUrl, userEmail, onDisconnect }: S
     <LiveKitRoom token={token} serverUrl={serverUrl} connect={true} audio={true} video={false} onDisconnected={onDisconnect}>
       <LayoutContextProvider>
         <RoomAudioRenderer />
-        <VideoStage onDisconnect={onDisconnect} userEmail={userEmail} />
+        <Malvinui userEmail={userEmail} onDisconnect={onDisconnect} />
       </LayoutContextProvider>
     </LiveKitRoom>
   );
