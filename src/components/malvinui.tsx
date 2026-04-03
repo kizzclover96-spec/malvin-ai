@@ -37,7 +37,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     };
 
     const VideoStage = ({ participant }: any) => {
-        const videoRef = useRef<HTMLVideoElement>(null);
+        const videoRef = React.useRef(null);
         const isLive = participant?.isCameraEnabled || participant?.isScreenShareEnabled;
 
         useEffect(() => {
@@ -472,7 +472,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                                     <button className="popup-item" style={btnReset} onClick={() => fileInputRef.current.click()} ><ClipIcon/></button>
                                 </div>
                             )}
-                            <button onClick={() => setShowExtras(!showExtras)} style={{...btnReset, color:'white', fontSize:'28x', width: '40px', height: '40px', backgroundColor: 'rgba(255, 255, 255, 0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: '0', paddingBottom: '4px', transition: 'background 0.2s', cursor: 'pointer'}} >+</button>
+                            <button onClick={() => setShowExtras(!showExtras)} style={{...btnReset, color:'white', fontSize:'28px', width: '40px', height: '40px', backgroundColor: 'rgba(255, 255, 255, 0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: '0', paddingBottom: '4px', transition: 'background 0.2s', cursor: 'pointer'}} >+</button>
                         </div>
                         <input 
                             placeholder="say something..." 
