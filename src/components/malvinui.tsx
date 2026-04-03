@@ -42,14 +42,18 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     const triggerActivity = () => {};
     const handleSendMessage = () => setTextInput("");
     
-    const toggleCamera = () => {
-        setLocalParticipant(prev => ({ ...prev, isCameraEnabled: !prev.isCameraEnabled }));
-        triggerActivity();
+    const toggleCamera = async () => {
+        if (localParticipant) {
+            const enabled = !localParticipant.isCameraEnabled;
+            await localParticipant.setCameraEnabled(enabled);
+            setCurrentActivity(enabled ? "Camera Live" : "Camera Off");
+        }
     };
 
-    const toggleMic = () => {
-        setLocalParticipant(prev => ({ ...prev, isMicrophoneEnabled: !prev.isMicrophoneEnabled }));
-        triggerActivity();
+    const toggleMic = async () => {
+        if (localParticipant) {
+            await localParticipant.setMicrophoneEnabled(!localParticipant.isMicrophoneEnabled);
+        }
     };
 
     const toggleScreen = () => {
