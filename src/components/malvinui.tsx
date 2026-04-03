@@ -15,7 +15,6 @@ import {
 
 const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     // 1. STATE & VARS (Fixed missing references)
-    const { localParticipant } = useLocalParticipant();
     const [showExtras, setShowExtras] = React.useState(false);
     const [seconds, setSeconds] = React.useState(0);
     const [textInput, setTextInput] = React.useState("");
@@ -38,6 +37,11 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
 
     // Placeholder logic (Replace with your real props/hooks later)
     const disabled = false;
+    const [localParticipant, setLocalParticipant] = React.useState({
+        isMicrophoneEnabled: true,
+        isCameraEnabled: false,
+        isScreenShareEnabled: false,
+    });
 
     const triggerActivity = () => {};
     const handleSendMessage = () => setTextInput("");
@@ -64,45 +68,83 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
         border: '1px solid rgba(255, 255, 255, 0.1)',
     };
 
-    /*function VideoStage({ participant }: { participant: any }) {
-        // 1. Get all tracks from the local user
+    const VideoStage = ({ onDisconnect, userEmail }: { onDisconnect: () => void, userEmail?: string }) => {
         const { localParticipant } = useLocalParticipant();
+        
+        // FIX: Changed 'pks' to 'participantIdentities'
         const tracks = useTracks([
-            { source: Track.Source.Camera, participantIdentity: localParticipant?.identity },
-            { source: Track.Source.ScreenShare, participantIdentity: localParticipant?.identity }
+            { source: Track.Source.Camera, participantIdentities: [localParticipant?.identity || ''] },
+            { source: Track.Source.ScreenShare, participantIdentities: [localParticipant?.identity || ''] }
         ]);
 
-        // 2. Identify which one to show (Prioritize ScreenShare, then Camera)
         const screenTrack = tracks.find(t => t.source === Track.Source.ScreenShare);
         const cameraTrack = tracks.find(t => t.source === Track.Source.Camera);
+        
+        // Priority: If I'm sharing my screen, show that. Otherwise show camera.
         const activeTrack = screenTrack || cameraTrack;
 
         return (
-            <div className="video-stage" style={{
-                flex: 1, width: '100%', maxWidth: '800px', height: '450px',
-                backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: '24px',
-                position: 'relative', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)'
-            }}>
-                {/* If a track exists AND camera is enabled in state, show it */}
-                /*{activeTrack && participant.isCameraEnabled ? (
-                    <VideoTrack 
-                        trackRef={activeTrack} 
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                    />
-                ) : (
-                    /* Fallback when camera is OFF */
-                    /*<div style={{ 
-                        display: 'flex', flexDirection: 'column', alignItems: 'center', 
-                        justifyContent: 'center', height: '100%', color: 'rgba(255,255,255,0.2)' 
-                    }}>
-                        <div style={{ fontSize: '50px', marginBottom: '10px' }}>📷</div>
-                        <p>Camera is Muted</p>
-                    </div>
-                )}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px', width: '100%' }}>
+                
+                {/* THE VIDEO BOX */}
+                <div className="video-stage" style={{
+                    width: '100%', 
+                    maxWidth: '800px', 
+                    height: '450px',
+                    backgroundColor: 'rgba(0,0,0,0.6)', 
+                    borderRadius: '24px',
+                    position: 'relative', 
+                    overflow: 'hidden', 
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                }}>
+                    {activeTrack ? (
+                        <VideoTrack 
+                            trackRef={activeTrack} 
+                            style={{ 
+                                width: '100%', 
+                                height: '100%', 
+                                objectFit: screenTrack ? 'contain' : 'cover' 
+                            }} 
+                        />
+                    ) : (
+                        <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.2)' }}>
+                            <div style={{ fontSize: '50px' }}>⚡</div>
+                            <p>Waiting for Feed</p>
+                            <p style={{ fontSize: '12px' }}>User: {userEmail}</p>
+                        </div>
+                    )}
+                </div>
+
+                {/* THE CONTROLS (Must be inside VideoStage to access localParticipant) */}
+                <div style={{ display: 'flex', gap: '15px' }}>
+                    <button 
+                        onClick={async () => await localParticipant?.setScreenShareEnabled(!localParticipant.isScreenShareEnabled)} 
+                        style={btnReset}
+                    >
+                        <ScreenShareIcon enabled={!!localParticipant?.isScreenShareEnabled} />
+                    </button>
+                    
+                    <button 
+                        onClick={async () => await localParticipant?.setCameraEnabled(!localParticipant.isCameraEnabled)} 
+                        style={btnReset}
+                    >
+                        <CameraIcon enabled={!!localParticipant?.isCameraEnabled} />
+                    </button>
+
+                    <button 
+                        onClick={async () => await localParticipant?.setMicrophoneEnabled(!localParticipant.isMicrophoneEnabled)} 
+                        style={btnReset}
+                    >
+                        <MicIcon enabled={!!localParticipant?.isMicrophoneEnabled} />
+                    </button>
+                </div>
             </div>
         );
-    }
-    */
+    };
+    
 
     // TIMER LOGIC
     React.useEffect(() => {
@@ -486,7 +528,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                     </div>
                 </div>
                 
-                {/*<VideoStage participant={localParticipant} />*/}
+                <VideoStage participant={localParticipant} />
 
                 {/* bottom */}
                 <div style={{gap: '10px', display: 'flex', alignItems: 'center',  width: '100%', justifyContent: 'center', marginBottom: '-14px'}}>
@@ -546,13 +588,11 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                     <div style={btnReset}>
                         <div className="mic-button">
                             <button 
-                            onClick={async () => {
+                            onClick={() => {
                                 const newStatus = !localParticipant.isMicrophoneEnabled;
-                                // This actually mutes/unmutes the mic
-                                await localParticipant.setMicrophoneEnabled(newStatus);
-                                
                                 setLocalParticipant(prev => ({ ...prev, isMicrophoneEnabled: newStatus }));
-                                setCurrentActivity(newStatus ? "Mic Live" : "Mic Muted");
+                                setCurrentActivity(newStatus ? "Microphone Live" : "Microphone Muted");
+                                setActivityIcon(newStatus ? "🎙️" : "🔇");
                             }}
                             >
                             {/* Put the Icon INSIDE the button, and close it with /> */}
@@ -642,4 +682,13 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     );
 };
 
-export default Malvinui;
+export default function Malvinui({ token, serverUrl, userEmail, onDisconnect }: SessionProps) {
+  return (
+    <LiveKitRoom token={token} serverUrl={serverUrl} connect={true} audio={true} video={false} onDisconnected={onDisconnect}>
+      <LayoutContextProvider>
+        <RoomAudioRenderer />
+        <VideoStage onDisconnect={onDisconnect} userEmail={userEmail} />
+      </LayoutContextProvider>
+    </LiveKitRoom>
+  );
+}
