@@ -9,6 +9,11 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     const [activeTab, setActiveTab] = React.useState('Session'); 
     const [showTrustMsg, setShowTrustMsg] = React.useState(false);
     const [isMenuOpen, setIsMenuOpen] = React.useState(false);
+    const [currentActivity, setCurrentActivity] = React.useState("No recent activity");
+    const [activityIcon, setActivityIcon] = React.useState("✨");
+    const fileInputRef = React.useRef(null);
+    // Refs
+    const fileInputRef = useRef<HTMLInputElement>(null);
     
     // Define colors so the icons don't crash
     const premiumGold = "#FFD700";
@@ -23,6 +28,45 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     const localParticipant = { isMicrophoneEnabled: true, isCameraEnabled: false, isScreenShareEnabled: false, setMicrophoneEnabled: async (v:any)=>v, setCameraEnabled: async (v:any)=>v, setScreenShareEnabled: async (v:any)=>v };
     const triggerActivity = () => {};
     const handleSendMessage = () => setTextInput("");
+    
+    const glassStyle: React.CSSProperties = {
+        backgroundColor: 'rgba(255, 255, 255, 0.03)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+        borderRadius: '16px',
+        border: '1px solid rgba(255, 255, 255, 0.1)',
+    };
+
+    const VideoStage = ({ participant }: any) => {
+        const videoRef = useRef<HTMLVideoElement>(null);
+        const isLive = participant?.isCameraEnabled || participant?.isScreenShareEnabled;
+
+        useEffect(() => {
+            if (videoRef.current && participant?.videoStream) {
+                videoRef.current.srcObject = participant.videoStream;
+            }
+        }, [participant?.videoStream]);
+
+        return (
+            <div style={{
+                width: '100%', maxWidth: '900px', aspectRatio: '16/9',
+                backgroundColor: 'rgba(0, 0, 0, 0.6)', borderRadius: '24px',
+                overflow: 'hidden', display: 'flex', alignItems: 'center',
+                justifyContent: 'center', position: 'relative', border: '1px solid rgba(255,255,255,0.05)'
+            }}>
+                <video 
+                    ref={videoRef} autoPlay playsInline muted 
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: isLive ? 'block' : 'none' }} 
+                />
+                {!isLive && (
+                    <div style={{ textAlign: 'center', opacity: 0.3 }}>
+                        <div style={{ fontSize: '40px', marginBottom: '10px' }}>📷</div>
+                        <p style={{ color: 'white', fontSize: '14px' }}>Camera is currently off</p>
+                    </div>
+                )}
+            </div>
+        );
+    };
     
 
     // TIMER LOGIC
@@ -406,7 +450,8 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                         <span className="status-timer">{formatTime()}</span>
                     </div>
                 </div>
-                <div className="ai-face" style={{fontSize: '100px', color: 'white'}}>O</div>
+                
+                <VideoStage participant={{ isCameraEnabled: false }} />
 
                 {/* bottom */}
                 <div style={{gap: '10px', display: 'flex', alignItems: 'center',  width: '100%', justifyContent: 'center', marginBottom: '-14px'}}>
@@ -421,11 +466,11 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                             {showExtras && (
                                 <div className="extra-buttons-popup" style={{ position: 'absolute', bottom: '50px', display: 'flex', flexDirection: 'row', gap: '10px' }}>
                                     <button className="popup-item" style={btnReset}><CameraIcon enabled={!disabled && !!localParticipant?.isCameraEnabled}
-                                     onClick={async () => { if(!disabled && localParticipant) { await localParticipant.setCameraEnabled(!localParticipant.isCameraEnabled); triggerActivity(); } }} />
+                                     onClick={async () => { if(!disabled && localParticipant) { await localParticipant.setCameraEnabled(!localParticipant.isCameraEnabled); triggerActivity(); const isOn = localParticipant.isCameraEnabled; setCurrentActivity(isOn ? "Camera is Live" : "Camera turned off"); setActivityIcon(isOn ? "📷" : "🚫"); } }} />
                                     </button>
                                     <button className="popup-item" style={btnReset}><ScreenShareIcon enabled={!disabled && !!localParticipant?.isScreenShareEnabled}
-                                    onClick={async () => { if(!disabled && localParticipant) { await localParticipant.setScreenShareEnabled(!localParticipant.isScreenShareEnabled); triggerActivity(); } }} /></button>
-                                    <button className="popup-item" style={btnReset}><ClipIcon/></button>
+                                    onClick={async () => { if(!disabled && localParticipant) { await localParticipant.setScreenShareEnabled(!localParticipant.isScreenShareEnabled); triggerActivity(); setCurrentActivity("Screen sharing"); setActivityIcon("🖥️"); } }} /></button>
+                                    <button className="popup-item" style={btnReset} onClick={() => fileInputRef.current.click()} ><ClipIcon/></button>
                                 </div>
                             )}
                             <button onClick={() => setShowExtras(!showExtras)} style={{...btnReset, color:'white', fontSize:'28x', width: '40px', height: '40px', backgroundColor: 'rgba(255, 255, 255, 0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: '0', paddingBottom: '4px', transition: 'background 0.2s', cursor: 'pointer'}} >+</button>
@@ -445,8 +490,9 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                             onClick={async () => { 
                                 if(!disabled && localParticipant) { 
                                 await localParticipant.setMicrophoneEnabled(!localParticipant.isMicrophoneEnabled); 
-                                triggerActivity(); 
-                                } 
+                                triggerActivity();  const isMuted = !localParticipant.isMicrophoneEnabled;
+                                setCurrentActivity(isMuted ? "Microphone Muted" : "Microphone Live"); 
+                                setActivityIcon(isMuted ? "🔇" : "🎙️"); }
                             }}
                             >
                             {/* Put the Icon INSIDE the button, and close it with /> */}
@@ -460,6 +506,22 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                             />
                             </button>
                         </div>
+                        <input 
+                            type="file" 
+                            ref={fileInputRef} 
+                            style={{ display: 'none' }} 
+                            onChange={(e) => {
+                                const file = e.target.files[0];
+                                if (file) {
+                                    // Update your Activity Box!
+                                    setCurrentActivity(`Uploaded: ${file.name}`);
+                                    setActivityIcon("📁");
+                                    
+                                    // Logic for actually uploading the file goes here
+                                    console.log("Selected file:", file);
+                                }
+                            }} 
+                        />
                     </div>
                 </div>
             </div>
@@ -484,23 +546,24 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                 </div>
                     {/* button right section */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }} >
-                    <div className="left buttom-panel" style={{ padding: '15px', height: '100px',
-                            borderRight: '1px solid rgba(255, 255, 255, 0.1)', // Subtle white line
-                            padding: '15px 20px',
-                            flexDirection: 'column',
-                            display: 'flex',
-                            justifyContent: 'flex-start', /* 1. Pushes content to the TOP */
-                            alignItems: 'flex-start',
-
-                            /* --- THE GLASS LOOK --- */
-                            backgroundColor: 'rgba(255, 255, 255, 0.03)',   // 1. Semi-transparent white
-                            backdropFilter: 'blur(12px)',                  // 2. The "Frosted" blur
-                            WebkitBackdropFilter: 'blur(12px)',
-                            borderRadius: '16px', // Smooth corners
-                            border: '1px solid rgba(255, 255, 255, 0.1)'
-                        }}>
-                        <p style={{ color: 'white', margin: 0, fontWeight: '400', opacity: 0.6 }}>activities</p>
-                            
+                    <div className="activities-panel" style={{ 
+                        padding: '20px', 
+                        height: '100px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                        backdropFilter: 'blur(12px)',
+                        borderRadius: '16px',
+                        border: '1px solid rgba(255, 255, 255, 0.1)'
+                    }}>
+                        <p style={{ color: 'white', margin: 0, fontWeight: '400', opacity: 0.6, fontSize: '12px' }}>
+                            activities
+                        </p>
+                        
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '15px' }}>
+                            <span style={{ fontSize: '18px' }}>{activityIcon}</span>
+                            <span style={{ color: 'white', fontSize: '13px' }}>{currentActivity}</span>
+                        </div>
                     </div>
                     <div className="Right-panel" style={{ padding: '15px', height: '100px',
                             flexDirection: 'column', 
