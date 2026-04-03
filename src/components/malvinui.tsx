@@ -1,5 +1,17 @@
 import React, { useEffect, useRef, useState } from "react";
 import '../App.css';
+import {
+  LiveKitRoom,
+  RoomAudioRenderer,
+  VideoTrack,
+  useTracks,
+  useRemoteParticipant,
+  useIsSpeaking,
+  LayoutContextProvider,
+  useLocalParticipant,
+  useChat,
+  useConnectionState,
+} from '@livekit/components-react';
 
 const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     // 1. STATE & VARS (Fixed missing references)
@@ -30,7 +42,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
         isCameraEnabled: false,
         isScreenShareEnabled: false,
     });
-    
+
     const triggerActivity = () => {};
     const handleSendMessage = () => setTextInput("");
     
@@ -56,36 +68,44 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
         border: '1px solid rgba(255, 255, 255, 0.1)',
     };
 
-    const VideoStage = ({ participant }: any) => {
-        const videoRef = React.useRef(null);
-        const isLive = participant?.isCameraEnabled || participant?.isScreenShareEnabled;
+    function VideoStage({ participant }: { participant: any }) {
+        // 1. Get all tracks from the local user
+        const { localParticipant } = useLocalParticipant();
+        const tracks = useTracks([
+            { source: Track.Source.Camera, participantIdentity: localParticipant?.identity },
+            { source: Track.Source.ScreenShare, participantIdentity: localParticipant?.identity }
+        ]);
 
-        React.useEffect(() => {
-            if (videoRef.current && participant?.videoStream) {
-                videoRef.current.srcObject = participant.videoStream;
-            }
-        }, [participant?.videoStream]);
+        // 2. Identify which one to show (Prioritize ScreenShare, then Camera)
+        const screenTrack = tracks.find(t => t.source === Track.Source.ScreenShare);
+        const cameraTrack = tracks.find(t => t.source === Track.Source.Camera);
+        const activeTrack = screenTrack || cameraTrack;
 
         return (
-            <div style={{
-                width: '100%', maxWidth: '900px', aspectRatio: '16/9',
-                backgroundColor: 'rgba(0, 0, 0, 0.6)', borderRadius: '24px',
-                overflow: 'hidden', display: 'flex', alignItems: 'center',
-                justifyContent: 'center', position: 'relative', border: '1px solid rgba(255,255,255,0.05)'
+            <div className="video-stage" style={{
+                flex: 1, width: '100%', maxWidth: '800px', height: '450px',
+                backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: '24px',
+                position: 'relative', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)'
             }}>
-                <video 
-                    ref={videoRef} autoPlay playsInline muted 
-                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: isLive ? 'block' : 'none' }} 
-                />
-                {!isLive && (
-                    <div style={{ textAlign: 'center', opacity: 0.3 }}>
-                        <div style={{ fontSize: '40px', marginBottom: '10px' }}>📷</div>
-                        <p style={{ color: 'white', fontSize: '14px' }}>Camera is currently off</p>
+                {/* If a track exists AND camera is enabled in state, show it */}
+                {activeTrack && participant.isCameraEnabled ? (
+                    <VideoTrack 
+                        trackRef={activeTrack} 
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                    />
+                ) : (
+                    /* Fallback when camera is OFF */
+                    <div style={{ 
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', 
+                        justifyContent: 'center', height: '100%', color: 'rgba(255,255,255,0.2)' 
+                    }}>
+                        <div style={{ fontSize: '50px', marginBottom: '10px' }}>📷</div>
+                        <p>Camera is Muted</p>
                     </div>
                 )}
             </div>
         );
-    };
+    }
     
 
     // TIMER LOGIC
@@ -488,11 +508,14 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                                     <button 
                                         className="popup-item" 
                                         style={btnReset}
-                                        onClick={() => {
+                                        onClick={async () => {
                                             const newStatus = !localParticipant.isCameraEnabled;
+                                            // This actually tells the hardware to turn on/off
+                                            await localParticipant.setCameraEnabled(newStatus); 
+                                            
+                                            // This updates your UI state
                                             setLocalParticipant(prev => ({ ...prev, isCameraEnabled: newStatus }));
-                                            setCurrentActivity(newStatus ? "Camera is Live" : "Camera turned off");
-                                            setActivityIcon(newStatus ? "📷" : "🚫");
+                                            setCurrentActivity(newStatus ? "Camera Live" : "Camera Off");
                                         }} 
                                     >
                                         <CameraIcon enabled={!disabled && !!localParticipant?.isCameraEnabled} />
@@ -527,11 +550,13 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                     <div style={btnReset}>
                         <div className="mic-button">
                             <button 
-                            onClick={() => {
+                            onClick={async () => {
                                 const newStatus = !localParticipant.isMicrophoneEnabled;
+                                // This actually mutes/unmutes the mic
+                                await localParticipant.setMicrophoneEnabled(newStatus);
+                                
                                 setLocalParticipant(prev => ({ ...prev, isMicrophoneEnabled: newStatus }));
-                                setCurrentActivity(newStatus ? "Microphone Live" : "Microphone Muted");
-                                setActivityIcon(newStatus ? "🎙️" : "🔇");
+                                setCurrentActivity(newStatus ? "Mic Live" : "Mic Muted");
                             }}
                             >
                             {/* Put the Icon INSIDE the button, and close it with /> */}
