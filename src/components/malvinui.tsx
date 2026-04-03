@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import '../App.css';
 
 const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
@@ -12,6 +12,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     const [currentActivity, setCurrentActivity] = React.useState("No recent activity");
     const [activityIcon, setActivityIcon] = React.useState("✨");
     const fileInputRef = React.useRef(null);
+    const username = "User";
     
     
     // Define colors so the icons don't crash
@@ -40,7 +41,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
         const videoRef = React.useRef(null);
         const isLive = participant?.isCameraEnabled || participant?.isScreenShareEnabled;
 
-        useEffect(() => {
+        React.useEffect(() => {
             if (videoRef.current && participant?.videoStream) {
                 videoRef.current.srcObject = participant.videoStream;
             }
@@ -106,7 +107,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
         </svg>
     );
 
-    const SidebarBtn = ({ children, label, isActive, onClick }) => (
+    const SidebarBtn = ({ children, label, isActive, onClick }: any) => (
     <button 
         onClick={onClick}
         style={{ ...btnReset, display: 'flex',alignItems: 'center', padding: '10px 14px', borderRadius: '12px', color: 'white', fontSize: '14px', gap: '12px', transition: 'all 0.2s ease', cursor: 'pointer', width: '100%',
@@ -464,12 +465,12 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                         <div style={{ position: 'relative' }}>
                             {showExtras && (
                                 <div className="extra-buttons-popup" style={{ position: 'absolute', bottom: '50px', display: 'flex', flexDirection: 'row', gap: '10px' }}>
-                                    <button className="popup-item" style={btnReset}><CameraIcon enabled={!disabled && !!localParticipant?.isCameraEnabled}
+                                    <button className="popup-item" style={btnReset}><CameraIcon enabled={!disabled && !!localParticipant?.isCameraEnabled} 
                                      onClick={async () => { if(!disabled && localParticipant) { await localParticipant.setCameraEnabled(!localParticipant.isCameraEnabled); triggerActivity(); const isOn = localParticipant.isCameraEnabled; setCurrentActivity(isOn ? "Camera is Live" : "Camera turned off"); setActivityIcon(isOn ? "📷" : "🚫"); } }} />
                                     </button>
                                     <button className="popup-item" style={btnReset}><ScreenShareIcon enabled={!disabled && !!localParticipant?.isScreenShareEnabled}
                                     onClick={async () => { if(!disabled && localParticipant) { await localParticipant.setScreenShareEnabled(!localParticipant.isScreenShareEnabled); triggerActivity(); setCurrentActivity("Screen sharing"); setActivityIcon("🖥️"); } }} /></button>
-                                    <button className="popup-item" style={btnReset} onClick={() => fileInputRef.current.click()} ><ClipIcon/></button>
+                                    <button className="popup-item" style={btnReset} onClick={() => fileInputRef.current?.click()} ><ClipIcon/></button>
                                 </div>
                             )}
                             <button onClick={() => setShowExtras(!showExtras)} style={{...btnReset, color:'white', fontSize:'28px', width: '40px', height: '40px', backgroundColor: 'rgba(255, 255, 255, 0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: '0', paddingBottom: '4px', transition: 'background 0.2s', cursor: 'pointer'}} >+</button>
