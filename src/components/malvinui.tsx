@@ -14,6 +14,14 @@ import {
 } from '@livekit/components-react';
 import { ParticipantKind, Track } from 'livekit-client';
 
+// Define colors so the icons don't crash
+    const premiumGold = "#FFD700";
+    const neonBlue = "#00e1ff";
+    const neonPurple = "#9d00ff";
+    const glassWhite = "rgba(255, 255, 255, 0.8)";
+    const ghostWhite = "rgba(255, 255, 255, 0.4)";
+    const btnReset = { background: 'none', border: 'none', padding: 0, cursor: 'pointer', outline: 'none' };
+
 const VideoStage = ({ onDisconnect, userEmail }: { onDisconnect: () => void, userEmail?: string }) => {
     const { localParticipant } = useLocalParticipant();
     
@@ -105,13 +113,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     const username = "User";
     
     
-    // Define colors so the icons don't crash
-    const premiumGold = "#FFD700";
-    const neonBlue = "#00e1ff";
-    const neonPurple = "#9d00ff";
-    const glassWhite = "rgba(255, 255, 255, 0.8)";
-    const ghostWhite = "rgba(255, 255, 255, 0.4)";
-    const btnReset = { background: 'none', border: 'none', padding: 0, cursor: 'pointer', outline: 'none' };
+    
 
     // Placeholder logic (Replace with your real props/hooks later)
     const disabled = false;
