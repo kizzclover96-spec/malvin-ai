@@ -13,6 +13,83 @@ import {
   useConnectionState,
 } from '@livekit/components-react';
 
+const VideoStage = ({ onDisconnect, userEmail }: { onDisconnect: () => void, userEmail?: string }) => {
+    const { localParticipant } = useLocalParticipant();
+    
+    // FIX: Changed 'pks' to 'participantIdentities'
+    const tracks = useTracks([
+        { source: Track.Source.Camera, participantIdentities: [localParticipant?.identity || ''] },
+        { source: Track.Source.ScreenShare, participantIdentities: [localParticipant?.identity || ''] }
+    ]);
+
+    const screenTrack = tracks.find(t => t.source === Track.Source.ScreenShare);
+    const cameraTrack = tracks.find(t => t.source === Track.Source.Camera);
+    
+    // Priority: If I'm sharing my screen, show that. Otherwise show camera.
+    const activeTrack = screenTrack || cameraTrack;
+
+    return (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px', width: '100%' }}>
+            
+            {/* THE VIDEO BOX */}
+            <div className="video-stage" style={{
+                width: '100%', 
+                maxWidth: '800px', 
+                height: '450px',
+                backgroundColor: 'rgba(0,0,0,0.6)', 
+                borderRadius: '24px',
+                position: 'relative', 
+                overflow: 'hidden', 
+                border: '1px solid rgba(255,255,255,0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+            }}>
+                {activeTrack ? (
+                    <VideoTrack 
+                        trackRef={activeTrack} 
+                        style={{ 
+                            width: '100%', 
+                            height: '100%', 
+                            objectFit: screenTrack ? 'contain' : 'cover' 
+                        }} 
+                    />
+                ) : (
+                    <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.2)' }}>
+                        <div style={{ fontSize: '50px' }}>⚡</div>
+                        <p>Waiting for Feed</p>
+                        <p style={{ fontSize: '12px' }}>User: {userEmail}</p>
+                    </div>
+                )}
+            </div>
+
+            {/* THE CONTROLS (Must be inside VideoStage to access localParticipant) */}
+            <div style={{ display: 'flex', gap: '15px' }}>
+                <button 
+                    onClick={async () => await localParticipant?.setScreenShareEnabled(!localParticipant.isScreenShareEnabled)} 
+                    style={btnReset}
+                >
+                    <ScreenShareIcon enabled={!!localParticipant?.isScreenShareEnabled} />
+                </button>
+                
+                <button 
+                    onClick={async () => await localParticipant?.setCameraEnabled(!localParticipant.isCameraEnabled)} 
+                    style={btnReset}
+                >
+                    <CameraIcon enabled={!!localParticipant?.isCameraEnabled} />
+                </button>
+
+                <button 
+                    onClick={async () => await localParticipant?.setMicrophoneEnabled(!localParticipant.isMicrophoneEnabled)} 
+                    style={btnReset}
+                >
+                    <MicIcon enabled={!!localParticipant?.isMicrophoneEnabled} />
+                </button>
+            </div>
+        </div>
+    );
+};
+
 const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     // 1. STATE & VARS (Fixed missing references)
     const [showExtras, setShowExtras] = React.useState(false);
@@ -68,82 +145,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
         border: '1px solid rgba(255, 255, 255, 0.1)',
     };
 
-    const VideoStage = ({ onDisconnect, userEmail }: { onDisconnect: () => void, userEmail?: string }) => {
-        const { localParticipant } = useLocalParticipant();
-        
-        // FIX: Changed 'pks' to 'participantIdentities'
-        const tracks = useTracks([
-            { source: Track.Source.Camera, participantIdentities: [localParticipant?.identity || ''] },
-            { source: Track.Source.ScreenShare, participantIdentities: [localParticipant?.identity || ''] }
-        ]);
-
-        const screenTrack = tracks.find(t => t.source === Track.Source.ScreenShare);
-        const cameraTrack = tracks.find(t => t.source === Track.Source.Camera);
-        
-        // Priority: If I'm sharing my screen, show that. Otherwise show camera.
-        const activeTrack = screenTrack || cameraTrack;
-
-        return (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px', width: '100%' }}>
-                
-                {/* THE VIDEO BOX */}
-                <div className="video-stage" style={{
-                    width: '100%', 
-                    maxWidth: '800px', 
-                    height: '450px',
-                    backgroundColor: 'rgba(0,0,0,0.6)', 
-                    borderRadius: '24px',
-                    position: 'relative', 
-                    overflow: 'hidden', 
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                }}>
-                    {activeTrack ? (
-                        <VideoTrack 
-                            trackRef={activeTrack} 
-                            style={{ 
-                                width: '100%', 
-                                height: '100%', 
-                                objectFit: screenTrack ? 'contain' : 'cover' 
-                            }} 
-                        />
-                    ) : (
-                        <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.2)' }}>
-                            <div style={{ fontSize: '50px' }}>⚡</div>
-                            <p>Waiting for Feed</p>
-                            <p style={{ fontSize: '12px' }}>User: {userEmail}</p>
-                        </div>
-                    )}
-                </div>
-
-                {/* THE CONTROLS (Must be inside VideoStage to access localParticipant) */}
-                <div style={{ display: 'flex', gap: '15px' }}>
-                    <button 
-                        onClick={async () => await localParticipant?.setScreenShareEnabled(!localParticipant.isScreenShareEnabled)} 
-                        style={btnReset}
-                    >
-                        <ScreenShareIcon enabled={!!localParticipant?.isScreenShareEnabled} />
-                    </button>
-                    
-                    <button 
-                        onClick={async () => await localParticipant?.setCameraEnabled(!localParticipant.isCameraEnabled)} 
-                        style={btnReset}
-                    >
-                        <CameraIcon enabled={!!localParticipant?.isCameraEnabled} />
-                    </button>
-
-                    <button 
-                        onClick={async () => await localParticipant?.setMicrophoneEnabled(!localParticipant.isMicrophoneEnabled)} 
-                        style={btnReset}
-                    >
-                        <MicIcon enabled={!!localParticipant?.isMicrophoneEnabled} />
-                    </button>
-                </div>
-            </div>
-        );
-    };
+    
     
 
     // TIMER LOGIC
