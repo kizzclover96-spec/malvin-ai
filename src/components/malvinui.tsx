@@ -326,25 +326,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
 
             {/* 2. MIDDLE */}
             <div className="middle-section" style={{ flex: 4, position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', padding: '40px' }}>
-                {/* MOBILE MENU ICON - Only shows when screen is small */}
-                <div 
-                    className="mobile-only-show" 
-                    onClick={() => setIsMenuOpen(true)}
-                    style={{ 
-                        position: 'absolute',
-                        top: '25px',
-                        left: '20px',
-                        cursor: 'pointer', 
-                        color: 'white',
-                        zIndex: 100
-                    }}
-                >
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <line x1="3" y1="12" x2="21" y2="12"></line>
-                        <line x1="3" y1="6" x2="21" y2="6"></line>
-                        <line x1="3" y1="18" x2="21" y2="18"></line>
-                    </svg>
-                </div>
+                
                 {/* --- TOP RIGHT SECURITY & MENU --- */}
                 <div style={{ 
                     position: 'absolute', 
@@ -416,11 +398,6 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                             </div>
                         )}
                     </div>
-
-                    {/* MENU BUTTON */}
-                    <button style={{ ...btnReset, color: 'rgba(255, 255, 255, 0.4)', display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                        {[1,2,3].map(i => <div key={i} style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: 'currentColor' }} />)}
-                    </button>
                 </div>
                 <div className="status-pill-container" style={{ display: 'flex', alignItems: 'stretch', justifyContent: 'space-between', width: '100%', paddingBottom: '20px', alignSelf: 'stretch'}}>
                     <div className="status-pill" style={{ marginTop: '-18px', marginLeft: '-12px' }}>
@@ -538,33 +515,6 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                 </div>
                 
             </div>
-            {/* MOBILE OVERLAY MENU */}
-            {isMenuOpen && (
-                <div style={{
-                    position: 'fixed',
-                    top: 0,
-                    left: 0,
-                    width: '100%',
-                    height: '100%',
-                    backgroundColor: 'rgba(0,0,0,0.9)',
-                    backdropFilter: 'blur(20px)',
-                    zIndex: 2000,
-                    padding: '40px',
-                    display: 'flex',
-                    flexDirection: 'column'
-                }}>
-                    <button 
-                        onClick={() => setIsMenuOpen(false)}
-                        style={{ ...btnReset, color: 'white', alignSelf: 'flex-end', fontSize: '30px' }}
-                    >×</button>
-                    {/* You can map your SidebarButtons here for mobile */}
-                    <div style={{ marginTop: '40px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                        <h2 style={{ color: 'white' }}>Menu</h2>
-                        <div style={{ color: '#bf00ff' }}>Dashboard</div>
-                        <div style={{ color: 'white' }}>Settings</div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 };
