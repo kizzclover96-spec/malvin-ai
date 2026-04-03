@@ -25,10 +25,28 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
 
     // Placeholder logic (Replace with your real props/hooks later)
     const disabled = false;
-    const localParticipant = { isMicrophoneEnabled: true, isCameraEnabled: false, isScreenShareEnabled: false, setMicrophoneEnabled: async (v:any)=>v, setCameraEnabled: async (v:any)=>v, setScreenShareEnabled: async (v:any)=>v };
+    const [localParticipant, setLocalParticipant] = React.useState({
+        isMicrophoneEnabled: true,
+        isCameraEnabled: false,
+        isScreenShareEnabled: false,
+    });
     const triggerActivity = () => {};
     const handleSendMessage = () => setTextInput("");
     
+    const toggleCamera = () => {
+        setLocalParticipant(prev => ({ ...prev, isCameraEnabled: !prev.isCameraEnabled }));
+        triggerActivity();
+    };
+
+    const toggleMic = () => {
+        setLocalParticipant(prev => ({ ...prev, isMicrophoneEnabled: !prev.isMicrophoneEnabled }));
+        triggerActivity();
+    };
+
+    const toggleScreen = () => {
+        setLocalParticipant(prev => ({ ...prev, isScreenShareEnabled: !prev.isScreenShareEnabled }));
+        triggerActivity();
+    };
     const glassStyle: React.CSSProperties = {
         backgroundColor: 'rgba(255, 255, 255, 0.03)',
         backdropFilter: 'blur(12px)',
@@ -465,11 +483,38 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                         <div style={{ position: 'relative' }}>
                             {showExtras && (
                                 <div className="extra-buttons-popup" style={{ position: 'absolute', bottom: '50px', display: 'flex', flexDirection: 'row', gap: '10px' }}>
-                                    <button className="popup-item" style={btnReset}><CameraIcon enabled={!disabled && !!localParticipant?.isCameraEnabled} 
-                                     onClick={async () => { if(!disabled && localParticipant) { await localParticipant.setCameraEnabled(!localParticipant.isCameraEnabled); triggerActivity(); const isOn = localParticipant.isCameraEnabled; setCurrentActivity(isOn ? "Camera is Live" : "Camera turned off"); setActivityIcon(isOn ? "📷" : "🚫"); } }} />
+                                    {/* 1. CAMERA BUTTON */}
+                                    <button 
+                                        className="popup-item" 
+                                        style={btnReset}
+                                        onClick={async () => { 
+                                            if(!disabled && localParticipant) { 
+                                                const newStatus = !localParticipant.isCameraEnabled;
+                                                await localParticipant.setCameraEnabled(newStatus); 
+                                                triggerActivity(); 
+                                                setCurrentActivity(newStatus ? "Camera is Live" : "Camera turned off"); 
+                                                setActivityIcon(newStatus ? "📷" : "🚫"); 
+                                            } 
+                                        }} 
+                                    >
+                                        <CameraIcon enabled={!disabled && !!localParticipant?.isCameraEnabled} />
                                     </button>
-                                    <button className="popup-item" style={btnReset}><ScreenShareIcon enabled={!disabled && !!localParticipant?.isScreenShareEnabled}
-                                    onClick={async () => { if(!disabled && localParticipant) { await localParticipant.setScreenShareEnabled(!localParticipant.isScreenShareEnabled); triggerActivity(); setCurrentActivity("Screen sharing"); setActivityIcon("🖥️"); } }} /></button>
+                                    {/* 2. SCREENSHARE BUTTON */}
+                                    <button 
+                                        className="popup-item" 
+                                        style={btnReset}
+                                        onClick={async () => { 
+                                            if(!disabled && localParticipant) { 
+                                                const newStatus = !localParticipant.isScreenShareEnabled;
+                                                await localParticipant.setScreenShareEnabled(newStatus); 
+                                                triggerActivity(); 
+                                                setCurrentActivity(newStatus ? "Screen sharing" : "Stopped sharing"); 
+                                                setActivityIcon(newStatus ? "🖥️" : "✨"); 
+                                            } 
+                                        }}
+                                    >
+                                        <ScreenShareIcon enabled={!disabled && !!localParticipant?.isScreenShareEnabled} />
+                                    </button>
                                     <button className="popup-item" style={btnReset} onClick={() => fileInputRef.current?.click()} ><ClipIcon/></button>
                                 </div>
                             )}
