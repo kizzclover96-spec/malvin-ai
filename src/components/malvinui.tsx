@@ -12,6 +12,8 @@ import {
   useChat,
   useConnectionState,
 } from '@livekit/components-react';
+import { VideoTrack, useTracks, useLocalParticipant } from '@livekit/components-react';
+import { Track } from 'livekit-client';
 
 const VideoStage = ({ onDisconnect, userEmail }: { onDisconnect: () => void, userEmail?: string }) => {
     const { localParticipant } = useLocalParticipant();
