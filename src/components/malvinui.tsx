@@ -12,8 +12,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     const [currentActivity, setCurrentActivity] = React.useState("No recent activity");
     const [activityIcon, setActivityIcon] = React.useState("✨");
     const fileInputRef = React.useRef(null);
-    // Refs
-    const fileInputRef = useRef<HTMLInputElement>(null);
+    
     
     // Define colors so the icons don't crash
     const premiumGold = "#FFD700";
