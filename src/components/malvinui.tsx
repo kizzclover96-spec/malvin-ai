@@ -30,6 +30,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
         isCameraEnabled: false,
         isScreenShareEnabled: false,
     });
+    
     const triggerActivity = () => {};
     const handleSendMessage = () => setTextInput("");
     
@@ -469,7 +470,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                     </div>
                 </div>
                 
-                <VideoStage participant={{ isCameraEnabled: false }} />
+                <VideoStage participant={localParticipant} />
 
                 {/* bottom */}
                 <div style={{gap: '10px', display: 'flex', alignItems: 'center',  width: '100%', justifyContent: 'center', marginBottom: '-14px'}}>
@@ -487,14 +488,11 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                                     <button 
                                         className="popup-item" 
                                         style={btnReset}
-                                        onClick={async () => { 
-                                            if(!disabled && localParticipant) { 
-                                                const newStatus = !localParticipant.isCameraEnabled;
-                                                await localParticipant.setCameraEnabled(newStatus); 
-                                                triggerActivity(); 
-                                                setCurrentActivity(newStatus ? "Camera is Live" : "Camera turned off"); 
-                                                setActivityIcon(newStatus ? "📷" : "🚫"); 
-                                            } 
+                                        onClick={() => {
+                                            const newStatus = !localParticipant.isCameraEnabled;
+                                            setLocalParticipant(prev => ({ ...prev, isCameraEnabled: newStatus }));
+                                            setCurrentActivity(newStatus ? "Camera is Live" : "Camera turned off");
+                                            setActivityIcon(newStatus ? "📷" : "🚫");
                                         }} 
                                     >
                                         <CameraIcon enabled={!disabled && !!localParticipant?.isCameraEnabled} />
@@ -503,14 +501,11 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                                     <button 
                                         className="popup-item" 
                                         style={btnReset}
-                                        onClick={async () => { 
-                                            if(!disabled && localParticipant) { 
-                                                const newStatus = !localParticipant.isScreenShareEnabled;
-                                                await localParticipant.setScreenShareEnabled(newStatus); 
-                                                triggerActivity(); 
-                                                setCurrentActivity(newStatus ? "Screen sharing" : "Stopped sharing"); 
-                                                setActivityIcon(newStatus ? "🖥️" : "✨"); 
-                                            } 
+                                        onClick={() => {
+                                            const newStatus = !localParticipant.isScreenShareEnabled;
+                                            setLocalParticipant(prev => ({ ...prev, isScreenShareEnabled: newStatus }));
+                                            setCurrentActivity(newStatus ? "Screen sharing" : "Stopped sharing");
+                                            setActivityIcon(newStatus ? "🖥️" : "✨");
                                         }}
                                     >
                                         <ScreenShareIcon enabled={!disabled && !!localParticipant?.isScreenShareEnabled} />
@@ -532,12 +527,11 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                     <div style={btnReset}>
                         <div className="mic-button">
                             <button 
-                            onClick={async () => { 
-                                if(!disabled && localParticipant) { 
-                                await localParticipant.setMicrophoneEnabled(!localParticipant.isMicrophoneEnabled); 
-                                triggerActivity();  const isMuted = !localParticipant.isMicrophoneEnabled;
-                                setCurrentActivity(isMuted ? "Microphone Muted" : "Microphone Live"); 
-                                setActivityIcon(isMuted ? "🔇" : "🎙️"); }
+                            onClick={() => {
+                                const newStatus = !localParticipant.isMicrophoneEnabled;
+                                setLocalParticipant(prev => ({ ...prev, isMicrophoneEnabled: newStatus }));
+                                setCurrentActivity(newStatus ? "Microphone Live" : "Microphone Muted");
+                                setActivityIcon(newStatus ? "🎙️" : "🔇");
                             }}
                             >
                             {/* Put the Icon INSIDE the button, and close it with /> */}
