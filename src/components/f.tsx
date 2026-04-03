@@ -98,7 +98,18 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
             </div>
 
             {/* 3. RIGHT */}
-            <div className="right-section" style={{ width: '200px', borderLeft: '1px solid #222', color: 'white', padding: '20px' }}>
+            <div className="right-section" style={{ width: '200px', borderLeft: '1px solid #222', color: 'white', padding: '20px', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div className="right-panel" style={{ width: '120px',flex: 1, 
+                        borderRight: '1px solid rgba(255, 255, 255, 0.1)', // Subtle white line
+                        padding: '20px',
+                        display: 'flex',
+                        flexDirection: 'column',
+
+                        /* --- THE GLASS LOOK --- */
+                        backgroundColor: 'rgba(255, 255, 255, 0.03)',   // 1. Semi-transparent white
+                        backdropFilter: 'blur(12px)',                  // 2. The "Frosted" blur
+                        WebkitBackdropFilter: 'blur(12px)'
+                }}>
                 <ul><li>Chat</li><li>Settings</li></ul>
             </div>
         </div>
@@ -106,3 +117,118 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
 };
 
 export defau
+
+
+
+
+
+
+
+
+
+
+            {/* 1. LEFT */}
+            <div className="left-section" style={{ flex: 1, display: 'flex', borderRight: '1px solid #222', padding: '20px', gap: '15px', display: 'flex', flexDirection: 'column', height: '100%'}}>
+                <div style={{color: 'white'}}>MALIVIN</div>
+                <div className="left top panel" style={{ width: '120px',flex: 1, 
+                        borderRight: '1px solid rgba(255, 255, 255, 0.1)', // Subtle white line
+                        padding: '20px',
+                        display: 'flex',
+                        flexDirection: 'column',
+
+                        /* --- THE GLASS LOOK --- */
+                        backgroundColor: 'rgba(255, 255, 255, 0.03)',   // 1. Semi-transparent white
+                        backdropFilter: 'blur(12px)',                  // 2. The "Frosted" blur
+                        WebkitBackdropFilter: 'blur(12px)',
+                        borderRadius: '16px', // Smooth corners
+                        border: '1px solid rgba(255, 255, 255, 0.1)'
+                    }}>
+
+                </div>
+                    {/* button left section */}
+                <div>
+                    <div className="left buttom-panel" style={{ flex: 1, 
+                            borderRight: '1px solid rgba(255, 255, 255, 0.1)', // Subtle white line
+                            padding: '20px',
+                            flexDirection: 'column',
+                            display: 'flex',
+
+                            /* --- THE GLASS LOOK --- */
+                            backgroundColor: 'rgba(255, 255, 255, 0.03)',   // 1. Semi-transparent white
+                            backdropFilter: 'blur(12px)',                  // 2. The "Frosted" blur
+                            WebkitBackdropFilter: 'blur(12px)',
+                            borderRadius: '16px', // Smooth corners
+                            border: '1px solid rgba(255, 255, 255, 0.1)'
+                        }}>
+                        <p style={{ color: 'white', margin: 0, fontWeight: '600' }}>Malvin AI</p>
+                        <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '12px', margin: '5px 0 0 0' }}>Your intelligent collaborator partner</p>
+                            
+                    </div>
+                    <div className="left-user-panel" style={{ width: '100px',flex: 1, 
+                            display: 'flex',
+                            padding: '20px',
+                            backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                            backdropFilter: 'blur(12px)',
+                            borderRadius: '16px',
+                            border: '1px solid rgba(255, 255, 255, 0.1)'
+                        }}>
+                        <div style={{ color: 'white', fontSize: '14px' }}>{typeof username !== 'undefined' ? username : "Guest User"}</div>
+                        <div style={{ color: 'white', fontSize: '11px', opacity: 0.4 }}>{userEmail}</div>
+                    </div>       
+                </div>
+                <div style={{color: 'white'}}>User: {userEmail}</div>
+            </div>
+
+
+            const premiumGold = "#FFD700";
+            @keyframes premiumGlow { 0%, 100% { box-shadow: 0 0 5px rgba(255, 215, 0, 0.2); border-color: rgba(255, 215, 0, 0.5); } 50% { box-shadow: 0 0 15px rgba(255, 215, 0, 0.5); border-color: ${premiumGold}; } }
+        
+        @keyframes goldGlow { 0%, 100% { box-shadow: 0 0 5px rgba(255, 215, 0, 0.3); border-color: rgba(255, 215, 0, 0.5); } 50% { box-shadow: 0 0 15px rgba(255, 215, 0, 0.6); border-color: #FFD700; }}
+        @keyframes twinkle { 0%, 100% { opacity: 0.3; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.2); }}
+      `}</style>
+            const StarIcon = ({ size = 18 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill={premiumGold} stroke={premiumGold} strokeWidth="1" style={{ marginRight: '8px' }}>
+    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+  </svg>
+);
+<button style={{ position: 'relative', background: 'rgba(255, 215, 0, 0.05)', border: '1px solid #FFD700', color: '#FFD700', padding: '3px 10px', borderRadius: '8px', fontSize: '9px', fontWeight: '900', letterSpacing: '1px', textTransform: 'uppercase', cursor: 'pointer', display: 'flex', alignItems: 'center', animation: 'goldGlow 3s infinite' }}>
+          <div style={{ position: 'absolute', top: '-6px', left: '-6px', animation: 'twinkle 2s infinite' }}><StarIcon size={12} /></div>
+          GO PREMIUM
+        </button>
+
+
+
+
+
+
+
+
+
+
+const [showallcurrent activity, setallcurrent activity] = React.useState(false);
+const [showactivity, setactivity] = React.useState(false);
+
+  {/* button right section */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }} >
+                    <div className="left buttom-panel" style={{ padding: '15px', height: '100px',
+                            borderRight: '1px solid rgba(255, 255, 255, 0.1)', // Subtle white line
+                            padding: '15px 20px',
+                            flexDirection: 'column',
+                            display: 'flex',
+                            justifyContent: 'flex-start', /* 1. Pushes content to the TOP */
+                            alignItems: 'flex-start',
+
+                            /* --- THE GLASS LOOK --- */
+                            backgroundColor: 'rgba(255, 255, 255, 0.03)',   // 1. Semi-transparent white
+                            backdropFilter: 'blur(12px)',                  // 2. The "Frosted" blur
+                            WebkitBackdropFilter: 'blur(12px)',
+                            borderRadius: '16px', // Smooth corners
+                            border: '1px solid rgba(255, 255, 255, 0.1)'
+                        }}>
+                        <p style={{ color: 'white', margin: 0, fontWeight: '400', opacity: 0.6 }}>activities</p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                        async function current activity(params:type) {
+                        button>micicon<>cameraicon<>paperclipicon<>screenshare< !!OnClick==> set activity=showhowactivity
+                        }
+                    </div>
+                </div>

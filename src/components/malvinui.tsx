@@ -42,18 +42,14 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     const triggerActivity = () => {};
     const handleSendMessage = () => setTextInput("");
     
-    const toggleCamera = async () => {
-        if (localParticipant) {
-            const enabled = !localParticipant.isCameraEnabled;
-            await localParticipant.setCameraEnabled(enabled);
-            setCurrentActivity(enabled ? "Camera Live" : "Camera Off");
-        }
+    const toggleCamera = () => {
+        setLocalParticipant(prev => ({ ...prev, isCameraEnabled: !prev.isCameraEnabled }));
+        triggerActivity();
     };
 
-    const toggleMic = async () => {
-        if (localParticipant) {
-            await localParticipant.setMicrophoneEnabled(!localParticipant.isMicrophoneEnabled);
-        }
+    const toggleMic = () => {
+        setLocalParticipant(prev => ({ ...prev, isMicrophoneEnabled: !prev.isMicrophoneEnabled }));
+        triggerActivity();
     };
 
     const toggleScreen = () => {
@@ -68,34 +64,45 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
         border: '1px solid rgba(255, 255, 255, 0.1)',
     };
 
-    function VideoStage({ participant }: { participant: any }) {
+    /*function VideoStage({ participant }: { participant: any }) {
+        // 1. Get all tracks from the local user
+        const { localParticipant } = useLocalParticipant();
         const tracks = useTracks([
-            { source: Track.Source.Camera, participantIdentity: participant?.identity },
-            { source: Track.Source.ScreenShare, participantIdentity: participant?.identity }
+            { source: Track.Source.Camera, participantIdentity: localParticipant?.identity },
+            { source: Track.Source.ScreenShare, participantIdentity: localParticipant?.identity }
         ]);
 
+        // 2. Identify which one to show (Prioritize ScreenShare, then Camera)
         const screenTrack = tracks.find(t => t.source === Track.Source.ScreenShare);
         const cameraTrack = tracks.find(t => t.source === Track.Source.Camera);
         const activeTrack = screenTrack || cameraTrack;
 
         return (
-            <div className="video-stage" style={{ /* your styles */ }}>
-                {/* Logic: If track exists AND LiveKit says camera is on */}
-                {activeTrack && participant.isCameraEnabled ? (
+            <div className="video-stage" style={{
+                flex: 1, width: '100%', maxWidth: '800px', height: '450px',
+                backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: '24px',
+                position: 'relative', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)'
+            }}>
+                {/* If a track exists AND camera is enabled in state, show it */}
+                /*{activeTrack && participant.isCameraEnabled ? (
                     <VideoTrack 
                         trackRef={activeTrack} 
                         style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
                     />
                 ) : (
-                    <div style={{ /* fallback styles */ }}>
-                        <div style={{ fontSize: '50px' }}>📷</div>
+                    /* Fallback when camera is OFF */
+                    /*<div style={{ 
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', 
+                        justifyContent: 'center', height: '100%', color: 'rgba(255,255,255,0.2)' 
+                    }}>
+                        <div style={{ fontSize: '50px', marginBottom: '10px' }}>📷</div>
                         <p>Camera is Muted</p>
                     </div>
                 )}
             </div>
         );
     }
-    
+    */
 
     // TIMER LOGIC
     React.useEffect(() => {
@@ -479,7 +486,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                     </div>
                 </div>
                 
-                <VideoStage participant={localParticipant} />
+                {/*<VideoStage participant={localParticipant} />*/}
 
                 {/* bottom */}
                 <div style={{gap: '10px', display: 'flex', alignItems: 'center',  width: '100%', justifyContent: 'center', marginBottom: '-14px'}}>
