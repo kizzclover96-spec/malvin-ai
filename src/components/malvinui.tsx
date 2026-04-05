@@ -15,89 +15,67 @@ import {
 import { ParticipantKind, Track } from 'livekit-client';
 
 // Define colors so the icons don't crash
-    const premiumGold = "#FFD700";
-    const neonBlue = "#00e1ff";
-    const neonPurple = "#9d00ff";
-    const glassWhite = "rgba(255, 255, 255, 0.8)";
-    const ghostWhite = "rgba(255, 255, 255, 0.4)";
-    const btnReset = { background: 'none', border: 'none', padding: 0, cursor: 'pointer', outline: 'none' };
+const premiumGold = "#FFD700";
+const neonBlue = "#00e1ff";
+const neonPurple = "#9d00ff";
+const glassWhite = "rgba(255, 255, 255, 0.8)";
+const ghostWhite = "rgba(255, 255, 255, 0.4)";
+const btnReset = { background: 'none', border: 'none', padding: 0, cursor: 'pointer', outline: 'none' };
 
-    const StarIcon = ({ size = 18 }: { size?: number }) => (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill={premiumGold} stroke={premiumGold} strokeWidth="1">
-            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-        </svg>
-    );
+const StarIcon = ({ size = 18 }: { size?: number }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill={premiumGold} stroke={premiumGold} strokeWidth="1">
+        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+    </svg>
+);
 
-    const CameraIcon = ({ enabled, size = 22 }: any) => (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={enabled === false ? ghostWhite : glassWhite} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-    );
+const CameraIcon = ({ enabled, size = 22 }: any) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={enabled === false ? ghostWhite : glassWhite} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+);
 
-    const ScreenShareIcon = ({ enabled, size = 22 }: any) => (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={enabled ? neonPurple : neonBlue} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><polyline points="8 21 12 17 16 21"/></svg>
-    );
+const ScreenShareIcon = ({ enabled, size = 22 }: any) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={enabled ? neonPurple : neonBlue} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><polyline points="8 21 12 17 16 21"/></svg>
+);
 
-    const ClipIcon = ({ size = 22 }: any) => (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={neonBlue} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" /></svg>
-    );
+const ClipIcon = ({ size = 22 }: any) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={neonBlue} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" /></svg>
+);
 
-    const MicIcon = ({ enabled, size = 22 }: { enabled?: boolean, size?: number }) => (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={neonBlue} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: enabled === false ? 0.4 : 1 }}>
-            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4M8 22h8" />
-        </svg>
-    );
+const MicIcon = ({ enabled, size = 22 }: { enabled?: boolean, size?: number }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={neonBlue} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: enabled === false ? 0.4 : 1 }}>
+        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4M8 22h8" /><line x1="1" y1="1" x2="23" y2="23" />
+    </svg>
+);
 
-const VideoStage = ({ onDisconnect, userEmail }: { onDisconnect: () => void, userEmail?: string }) => {
+const VideoStage = () => {
     const { localParticipant } = useLocalParticipant();
-    
-    // FIX: Changed 'pks' to 'participantIdentities'
     const tracks = useTracks([
         { source: Track.Source.Camera, participantIdentities: [localParticipant?.identity || ''] },
         { source: Track.Source.ScreenShare, participantIdentities: [localParticipant?.identity || ''] }
     ]);
 
-    const screenTrack = tracks.find(t => t.source === Track.Source.ScreenShare);
-    const cameraTrack = tracks.find(t => t.source === Track.Source.Camera);
-    
-    // Priority: If I'm sharing my screen, show that. Otherwise show camera.
-    const activeTrack = screenTrack || cameraTrack;
+    // Check if we have an active video stream
+    const activeTrack = tracks.find(t => t.source === Track.Source.ScreenShare) || 
+                        tracks.find(t => t.source === Track.Source.Camera);
+
+    // If no camera and no screen share, don't show the box at all
+    if (!activeTrack) return null;
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px', width: '100%' }}>
-            
-            {/* THE VIDEO BOX */}
-            <div className="video-stage" style={{
-                width: '100%', 
-                maxWidth: '800px', 
-                height: '450px',
-                backgroundColor: 'rgba(0,0,0,0.6)', 
-                borderRadius: '24px',
-                position: 'relative', 
-                overflow: 'hidden', 
-                border: '1px solid rgba(255,255,255,0.1)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-            }}>
-                {activeTrack ? (
-                    <VideoTrack 
-                        trackRef={activeTrack} 
-                        style={{ 
-                            width: '100%', 
-                            height: '100%', 
-                            objectFit: screenTrack ? 'contain' : 'cover' 
-                        }} 
-                    />
-                ) : (
-                    <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.2)' }}>
-                        <div style={{ fontSize: '50px' }}>⚡</div>
-                        <p>Waiting for Feed</p>
-                        <p style={{ fontSize: '12px' }}>User: {userEmail}</p>
-                    </div>
-                )}
-            </div>
-
-            {/* THE CONTROLS (Must be inside VideoStage to access localParticipant) */}
-            
+        <div className="video-container" style={{
+            width: '100%',
+            maxWidth: '800px',
+            height: '450px',
+            backgroundColor: '#000',
+            borderRadius: '24px',
+            overflow: 'hidden',
+            border: '1px solid rgba(255,255,255,0.1)',
+            marginBottom: '20px',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.4)'
+        }}>
+            <VideoTrack 
+                trackRef={activeTrack} 
+                style={{ width: '100%', height: '100%', objectFit: 'contain' }} 
+            />
         </div>
     );
 };
@@ -110,10 +88,30 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     const [activeTab, setActiveTab] = React.useState('Session'); 
     const [showTrustMsg, setShowTrustMsg] = React.useState(false);
     const [isMenuOpen, setIsMenuOpen] = React.useState(false);
-    const [currentActivity, setCurrentActivity] = React.useState("No recent activity");
+
+    // Consistent with React.useState
+    const [activities, setActivities] = React.useState([{ 
+        id: Date.now(), 
+        text: "System Ready", 
+        icon: "✨", 
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
+    }]);
+
     const [activityIcon, setActivityIcon] = React.useState("✨");
     const fileInputRef = React.useRef(null);
     const username = "User";
+
+    // --- HELPER TO LOG NEW ACTIVITIES ---
+    const addActivity = (text, icon = "✨") => {
+        const newEntry = {
+            id: Date.now(),
+            text: text,
+            icon: icon,
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+        // This spreads the existing activities and puts the NEW one at the top
+        setActivities(prev => [newEntry, ...prev]);
+    };
     
     
     
@@ -171,30 +169,30 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     
 
     const SidebarBtn = ({ children, label, isActive, onClick }: any) => (
-    <button 
-        onClick={onClick}
-        style={{ ...btnReset, display: 'flex',alignItems: 'center', padding: '10px 14px', borderRadius: '12px', color: 'white', fontSize: '14px', gap: '12px', transition: 'all 0.2s ease', cursor: 'pointer', width: '100%',
-            backgroundColor: 'transparent', backgroundColor: isActive ? 'rgba(191, 0, 255, 0.1)' : 'transparent',
-            
-            /* --- THE NEON PURPLE LOOK --- */
-            border: isActive ? '1px solid #bf00ff' : '1px solid transparent',
-            boxShadow: isActive ? '0 0 15px rgba(191, 0, 255, 0.4)' : 'none',
-        }}
-        onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
-            e.currentTarget.style.transform = 'translateX(4px)';
-        }}
-        onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'transparent';
-            e.currentTarget.style.transform = 'translateX(0px)';
-        }}
-        >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: isActive ? 1 : 0.7 }}>
-            {children}
-        </div>
-        <span style={{ fontWeight: isActive ? '600' : '400', opacity: isActive ? 1 : 0.8 }}>{label}</span>
-    </button>
-);
+        <button 
+            onClick={onClick}
+            style={{ ...btnReset, display: 'flex',alignItems: 'center', padding: '10px 14px', borderRadius: '12px', color: 'white', fontSize: '14px', gap: '12px', transition: 'all 0.2s ease', cursor: 'pointer', width: '100%',
+                backgroundColor: 'transparent', backgroundColor: isActive ? 'rgba(191, 0, 255, 0.1)' : 'transparent',
+                
+                /* --- THE NEON PURPLE LOOK --- */
+                border: isActive ? '1px solid #bf00ff' : '1px solid transparent',
+                boxShadow: isActive ? '0 0 15px rgba(191, 0, 255, 0.4)' : 'none',
+            }}
+            onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
+                e.currentTarget.style.transform = 'translateX(4px)';
+            }}
+            onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+                e.currentTarget.style.transform = 'translateX(0px)';
+            }}
+            >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: isActive ? 1 : 0.7 }}>
+                {children}
+            </div>
+            <span style={{ fontWeight: isActive ? '600' : '400', opacity: isActive ? 1 : 0.8 }}>{label}</span>
+        </button>
+    );
     const GlobalStyles = () => (
   <style>{`
         @keyframes goldGlow { 
@@ -514,7 +512,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                     </div>
                 </div>
                 
-                <VideoStage userEmail={userEmail} />
+                <VideoStage />
 
                 {/* bottom */}
                 <div style={{gap: '10px', display: 'flex', alignItems: 'center',  width: '100%', justifyContent: 'center', marginBottom: '-14px'}}>
@@ -530,22 +528,33 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                                 <div className="extra-buttons-popup" style={{ position: 'absolute', bottom: '50px', display: 'flex', flexDirection: 'row', gap: '10px' }}>
                                     {/* 1. CAMERA BUTTON */}
                                     <button 
-                                        className="popup-item" 
-                                        style={btnReset}
-                                        onClick={async () => await localParticipant?.setCameraEnabled(!localParticipant.isCameraEnabled)}
-                                            {setLocalParticipant(prev => ({ ...prev, isCameraEnabled: newStatus }));
-                                            setCurrentActivity(newStatus ? "Camera Live" : "Camera Off");
-                                        }><CameraIcon enabled={!!localParticipant?.isCameraEnabled} />
+                                        style={btnReset} 
+                                        onClick={async () => {
+                                            const newState = !localParticipant.isCameraEnabled;
+                                            await localParticipant.setCameraEnabled(newState);
+                                            
+                                            // Update both the single state and the history log
+                                            setCurrentActivity(newState ? "Camera Live" : "Camera Off");
+                                            setActivityIcon(newState ? "📷" : "🚫");
+                                            addActivity(newState ? "Camera Activated" : "Camera Deactivated", newState ? "📷" : "🚫");
+                                        }}
+                                    >
+                                        <CameraIcon enabled={!!localParticipant?.isCameraEnabled} />
                                     </button>
+
                                     {/* 2. SCREENSHARE BUTTON */}
                                     <button 
-                                        className="popup-item" 
-                                        style={btnReset}
-                                        onClick={async () => await localParticipant?.setScreenShareEnabled(!localParticipant.isScreenShareEnabled)};
-                                            {setCurrentActivity(newStatus ? "Screen sharing" : "Stopped sharing");
-                                            setActivityIcon(newStatus ? "🖥️" : "✨");
-                                        }
-                                    ><ScreenShareIcon enabled={!!localParticipant?.isScreenShareEnabled} />
+                                        style={btnReset} 
+                                        onClick={async () => {
+                                            const newState = !localParticipant.isScreenShareEnabled;
+                                            await localParticipant.setScreenShareEnabled(newState);
+                                            
+                                            setCurrentActivity(newState ? "Screen Sharing" : "Stopped Sharing");
+                                            setActivityIcon(newState ? "🖥️" : "⏹️");
+                                            addActivity(newState ? "Screen Sharing Activated" : "Screen Sharing Deactivated", newState ? "🖥️" : "⏹️");
+                                        }}
+                                    >
+                                        <ScreenShareIcon enabled={!!localParticipant?.isScreenShareEnabled} />
                                     </button>
                                     <button className="popup-item" style={btnReset} onClick={() => fileInputRef.current?.click()} ><ClipIcon/></button>
                                 </div>
@@ -564,17 +573,16 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                     <div style={btnReset}>
                         <div className="mic-button">
                             <button 
-                            onClick={() => {
-                                const newStatus = !localParticipant.isMicrophoneEnabled;
-                                setLocalParticipant(prev => ({ ...prev, isMicrophoneEnabled: newStatus }));
-                                setCurrentActivity(newStatus ? "Microphone Live" : "Microphone Muted");
-                                setActivityIcon(newStatus ? "🎙️" : "🔇");
+                            onClick={async () => {
+                                const newState = !localParticipant.isMicrophoneEnabled;
+                                await localParticipant.setMicrophoneEnabled(newState);
+                                addActivity(newState ? "Mic Activated" : "Mic Deactivated", newState ? "🎙️" : "🔇");
                             }}
                             >
                             {/* Put the Icon INSIDE the button, and close it with /> */}
-                            <MicIcon enabled={!disabled && !!localParticipant?.isMicrophoneEnabled} 
+                            <MicIcon enabled={!!localParticipant?.isMicrophoneEnabled}
                              style={{ 
-                                    color: 'white',        // Forces it to white
+                                    color: localParticipant?.isMicrophoneEnabled ? 'white' : 'rgba(255,255,255,0.4)',       // Forces it to white
                                     strokeWidth: '2.5px',   // Makes the lines thicker (default is usually 2)
                                     width: '24px',          // Ensure size is consistent
                                     height: '24px' 
@@ -621,26 +629,42 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
 
                 </div>
                     {/* button right section */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }} >
-                    <div className="activities-panel" style={{ 
-                        padding: '20px', 
-                        height: '100px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        backgroundColor: 'rgba(255, 255, 255, 0.03)',
-                        backdropFilter: 'blur(12px)',
-                        borderRadius: '16px',
-                        border: '1px solid rgba(255, 255, 255, 0.1)'
-                    }}>
-                        <p style={{ color: 'white', margin: 0, fontWeight: '400', opacity: 0.6, fontSize: '12px' }}>
-                            activities
-                        </p>
-                        
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '15px' }}>
-                            <span style={{ fontSize: '18px' }}>{activityIcon}</span>
-                            <span style={{ color: 'white', fontSize: '13px' }}>{currentActivity}</span>
-                        </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <div className="activities-panel" style={{ 
+                    padding: '20px', 
+                    minHeight: '120px',
+                    maxHeight: '400px', // Prevents it from taking over the whole screen
+                    overflowY: 'auto',   // Adds scrollbar when history gets long
+                    display: 'flex',
+                    flexDirection: 'column',
+                    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                    backdropFilter: 'blur(12px)',
+                    WebkitBackdropFilter: 'blur(12px)',
+                    borderRadius: '16px',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    scrollbarWidth: 'none' // Hides scrollbar for a cleaner look (Firefox)
+                }}>
+                    <p style={{ color: 'white', margin: '0 0 15px 0', fontWeight: '400', opacity: 0.6, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                        Activity Log
+                    </p>
+                    
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        {activities.map((item) => (
+                            <div key={item.id} style={{ 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'space-between',
+                                animation: 'fadeIn 0.3s ease-out' 
+                            }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <span style={{ fontSize: '16px' }}>{item.icon}</span>
+                                    <span style={{ color: 'white', fontSize: '13px', fontWeight: '500' }}>{item.text}</span>
+                                </div>
+                                <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '10px' }}>{item.time}</span>
+                            </div>
+                        ))}
                     </div>
+                </div>
                     <div className="Right-panel" style={{ padding: '15px', height: '100px',
                             flexDirection: 'column', 
                             display: 'flex',
