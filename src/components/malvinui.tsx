@@ -694,8 +694,6 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                         border: '1px solid rgba(255, 255, 255, 0.1)'
                     }}> 
                 </div>       
-                </div>
-                
             </div>
         </div>
     );
