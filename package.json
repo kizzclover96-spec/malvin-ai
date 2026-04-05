@@ -17,6 +17,7 @@
     "@livekit/components-react": "^2.9.20",
     "@livekit/components-styles": "^1.2.0",
     "firebase": "^12.10.0",
+    "framer-motion": "^12.38.0",
     "jspdf": "^4.2.1",
     "livekit-client": "^2.18.0",
     "livekit-server-sdk": "^2.15.0",

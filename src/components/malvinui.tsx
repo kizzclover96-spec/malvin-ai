@@ -13,7 +13,6 @@ import {
   useConnectionState,
 } from '@livekit/components-react';
 import { ParticipantKind, Track } from 'livekit-client';
-import { motion, AnimatePresence } from 'framer-motion';
 
 // Define colors so the icons don't crash
 const premiumGold = "#FFD700";
