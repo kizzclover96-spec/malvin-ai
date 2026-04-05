@@ -542,16 +542,22 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                                         <CameraIcon enabled={!!localParticipant?.isCameraEnabled} />
                                     </button>
 
-                                    {/* 2. SCREENSHARE BUTTON */}
+                                    {/* SCREENSHARE BUTTON */}
                                     <button 
                                         style={btnReset} 
                                         onClick={async () => {
-                                            const newState = !localParticipant.isScreenShareEnabled;
-                                            await localParticipant.setScreenShareEnabled(newState);
-                                            
-                                            setCurrentActivity(newState ? "Screen Sharing" : "Stopped Sharing");
-                                            setActivityIcon(newState ? "🖥️" : "⏹️");
-                                            addActivity(newState ? "Screen Sharing Activated" : "Screen Sharing Deactivated", newState ? "🖥️" : "⏹️");
+                                            try {
+                                                // Toggle the actual hardware
+                                                const isSharing = !localParticipant.isScreenShareEnabled;
+                                                await localParticipant.setScreenShareEnabled(isSharing);
+                                                
+                                                // Update the UI & Activity Log
+                                                addActivity(isSharing ? "Screen Sharing Started" : "Screen Sharing Stopped", "🖥️");
+                                                setActivityIcon(isSharing ? "🖥️" : "⏹️");
+                                            } catch (error) {
+                                                console.error("Screen share failed:", error);
+                                                addActivity("Screen Share Denied", "⚠️");
+                                            }
                                         }}
                                     >
                                         <ScreenShareIcon enabled={!!localParticipant?.isScreenShareEnabled} />
@@ -571,42 +577,44 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                     {/* mic*/}
                     {/* mic */}
                     <div style={btnReset}>
-                        <div className="mic-button">
-                            <button 
+                        {/* MIC BUTTON */}
+                        <button 
+                            style={btnReset}
                             onClick={async () => {
-                                const newState = !localParticipant.isMicrophoneEnabled;
-                                await localParticipant.setMicrophoneEnabled(newState);
-                                addActivity(newState ? "Mic Activated" : "Mic Deactivated", newState ? "🎙️" : "🔇");
+                                const isMuted = !localParticipant.isMicrophoneEnabled;
+                                await localParticipant.setMicrophoneEnabled(isMuted);
+                                
+                                addActivity(isMuted ? "Mic Unmuted" : "Mic Muted", isMuted ? "🎙️" : "🔇");
+                                setActivityIcon(isMuted ? "🎙️" : "🔇");
                             }}
-                            >
-                            {/* Put the Icon INSIDE the button, and close it with /> */}
-                            <MicIcon enabled={!!localParticipant?.isMicrophoneEnabled}
-                             style={{ 
-                                    color: localParticipant?.isMicrophoneEnabled ? 'white' : 'rgba(255,255,255,0.4)',       // Forces it to white
-                                    strokeWidth: '2.5px',   // Makes the lines thicker (default is usually 2)
-                                    width: '24px',          // Ensure size is consistent
+                        >
+                            <MicIcon 
+                                enabled={!!localParticipant?.isMicrophoneEnabled} 
+                                style={{ 
+                                    color: localParticipant?.isMicrophoneEnabled ? 'white' : 'rgba(255,255,255,0.4)',
+                                    width: '24px',
                                     height: '24px' 
-                                }}
+                                }} 
                             />
-                            </button>
-                        </div>
-                        <input 
-                            type="file" 
-                            ref={fileInputRef} 
-                            style={{ display: 'none' }} 
-                            onChange={(e) => {
-                                const file = e.target.files[0];
-                                if (file) {
-                                    // Update your Activity Box!
-                                    setCurrentActivity(`Uploaded: ${file.name}`);
-                                    setActivityIcon("📁");
-                                    
-                                    // Logic for actually uploading the file goes here
-                                    console.log("Selected file:", file);
-                                }
-                            }} 
-                        />
+                        </button>
                     </div>
+                    <input 
+                        type="file" 
+                        ref={fileInputRef} 
+                        style={{ display: 'none' }} 
+                        onChange={(e) => {
+                            const file = e.target.files[0];
+                            if (file) {
+                                // Update your Activity Box!
+                                setCurrentActivity(`Uploaded: ${file.name}`);
+                                setActivityIcon("📁");
+                                
+                                // Logic for actually uploading the file goes here
+                                console.log("Selected file:", file);
+                            }
+                        }}  
+                    />
+                    
                 </div>
             </div>
 
