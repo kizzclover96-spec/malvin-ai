@@ -883,10 +883,9 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                         </div>
                     </div>
                 </div>
-                <div className="Right-panel" style={{ padding: '15px', height: '100px',
+                <div className="Right-panel" style={{ flex: 2, padding: '15px', height: '100px', minHeight: '300px',
                         flexDirection: 'column', 
                         display: 'flex',
-                        padding: '20px',
                         backgroundColor: 'rgba(255, 255, 255, 0.03)',
                         backdropFilter: 'blur(12px)',
                         borderRadius: '16px',
@@ -896,7 +895,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                         GALLERIA
                     </p>
                     {/* THE CYCLER GOES HERE */}
-                    <div style={{ flex: 1 }}>
+                    <div style={{ flex: 1, height: '300px', width: '100%', borderRadius: '14px', overflow: 'hidden', position: 'relative' }}>
                         <ImageCycler interval={4000} /> 
                     </div>
                 </div>       
