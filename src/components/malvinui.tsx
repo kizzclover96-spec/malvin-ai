@@ -24,137 +24,63 @@ const ghostWhite = "rgba(255, 255, 255, 0.4)";
 const btnReset = { background: 'none', border: 'none', padding: 0, cursor: 'pointer', outline: 'none' };
 
 
-const AIOrb = ({ status = 'idle' }: { status?: 'idle' | 'speaking' | 'sleeping' }) => {
-  const [isBlinking, setIsBlinking] = useState(false);
-
-  // Blink Logic: Every 3 seconds
-  useEffect(() => {
-    const blinkInterval = setInterval(() => {
-      setIsBlinking(true);
-      setTimeout(() => setIsBlinking(false), 150);
-    }, 3000);
-    return () => clearInterval(blinkInterval);
-  }, []);
+const AuraBackground = ({ status = 'idle' }) => {
+  const isActive = status === 'speaking' || status === 'listening';
 
   return (
     <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      height: '60vh', // Positions it slightly above center
-      position: 'relative'
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      overflow: 'hidden',
+      zIndex: 0, // Behind everything
+      pointerEvents: 'none'
     }}>
-      
-      {/* 1. Neon Aura Waves (Background) */}
-      <div className="aura-container">
-        <div className="wave wave-1"></div>
-        <div className="wave wave-2"></div>
-      </div>
+      {/* Fume 1: Deep Purple */}
+      <motion.div
+        animate={{
+          x: [-20, 20, -20],
+          y: [-10, 30, -10],
+          scale: isActive ? [1, 1.2, 1] : 1,
+        }}
+        transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+        style={{
+          position: 'absolute',
+          top: '20%',
+          left: '30%',
+          width: '600px',
+          height: '600px',
+          background: 'radial-gradient(circle, rgba(106, 13, 173, 0.15) 0%, rgba(0,0,0,0) 70%)',
+          filter: 'blur(60px)',
+          borderRadius: '50%',
+        }}
+      />
 
-      {/* 2. The Main Orb Body */}
-      <div style={{
-        width: '120px',
-        height: '120px',
-        borderRadius: '50%',
-        background: 'rgba(255, 255, 255, 0.05)',
-        backdropFilter: 'blur(12px)',
-        border: '1px solid rgba(255, 255, 255, 0.2)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        position: 'relative',
-        boxShadow: '0 0 40px rgba(0, 112, 255, 0.2)',
-        animation: status === 'sleeping' ? 'float-slow 6s infinite ease-in-out' : 'float 4s infinite ease-in-out',
-        zIndex: 2
-      }}>
-        
-        {/* 3. The Eyes */}
-        <div style={{ display: 'flex', gap: '20px' }}>
-          {[1, 2].map((i) => (
-            <div key={i} style={{
-              width: '12px',
-              height: isBlinking || status === 'sleeping' ? '2px' : '12px',
-              background: '#fff',
-              borderRadius: '50%',
-              boxShadow: '0 0 10px #fff',
-              transition: 'all 0.15s ease-in-out',
-              opacity: status === 'sleeping' ? 0.4 : 1
-            }} />
-          ))}
-        </div>
-
-        {/* 4. Sleep "Zzz" Animation */}
-        {status === 'sleeping' && (
-          <div className="zzz-container">
-            <span className="z z1">Z</span>
-            <span className="z z2">z</span>
-            <span className="z z3">z</span>
-          </div>
-        )}
-      </div>
-
-      <style>{`
-        /* Floating Animation */
-        @keyframes float {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-15px); }
-        }
-        @keyframes float-slow {
-          0%, 100% { transform: translateY(0px) scale(0.98); }
-          50% { transform: translateY(-8px) scale(1); }
-        }
-
-        /* Aura Waves */
-        .aura-container {
-          position: absolute;
-          width: 400px;
-          height: 200px;
-          overflow: hidden;
-          pointer-events: none;
-        }
-        .wave {
-          position: absolute;
-          width: 100%;
-          height: 100%;
-          background: linear-gradient(90deg, transparent, rgba(0, 112, 255, 0.1), rgba(160, 32, 240, 0.1), rgba(255, 0, 200, 0.1), transparent);
-          animation: wave-flow 8s infinite linear;
-          filter: blur(20px);
-        }
-        .wave-2 { animation-delay: -4s; opacity: 0.5; }
-
-        @keyframes wave-flow {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(100%); }
-        }
-
-        /* Sleep Z's */
-        .zzz-container {
-          position: absolute;
-          top: -40px;
-          right: -20px;
-        }
-        .z {
-          position: absolute;
-          color: white;
-          font-family: 'Arial', sans-serif;
-          font-weight: bold;
-          opacity: 0;
-          animation: z-anim 4s infinite;
-        }
-        .z1 { animation-delay: 0s; font-size: 20px; }
-        .z2 { animation-delay: 1.3s; font-size: 16px; }
-        .z3 { animation-delay: 2.6s; font-size: 12px; }
-
-        @keyframes z-anim {
-          0% { transform: translate(0, 0) scale(0.5); opacity: 0; }
-          30% { opacity: 0.8; }
-          100% { transform: translate(30px, -50px) scale(1.5); opacity: 0; }
-        }
-      `}</style>
+      {/* Fume 2: Neon Blue / Cyan */}
+      <motion.div
+        animate={{
+          x: [30, -30, 30],
+          y: [20, -40, 20],
+          opacity: isActive ? 0.6 : 0.3,
+        }}
+        transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
+        style={{
+          position: 'absolute',
+          bottom: '10%',
+          right: '20%',
+          width: '500px',
+          height: '500px',
+          background: 'radial-gradient(circle, rgba(0, 242, 255, 0.1) 0%, rgba(0,0,0,0) 70%)',
+          filter: 'blur(80px)',
+          borderRadius: '50%',
+        }}
+      />
     </div>
   );
 };
+
 
 const StarIcon = ({ size = 18 }: { size?: number }) => (
     <svg width={size} height={size} viewBox="0 0 24 24" fill={premiumGold} stroke={premiumGold} strokeWidth="1">
@@ -586,6 +512,8 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
             {/* 2. MIDDLE */}
             <div className="middle-section" style={{ flex: 4, position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', padding: '40px' }}>
                 
+                {/* --- THE NEON FUMES --- */}
+                <AuraBackground status={localParticipant ? 'idle' : 'sleeping'} />
                 {/* --- TOP RIGHT SECURITY & MENU --- */}
                 <div style={{ 
                     position: 'absolute', 
