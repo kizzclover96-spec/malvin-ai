@@ -95,8 +95,7 @@ const AIOrb = ({ status }: { status: string }) => {
 
 import { useState, useEffect } from 'react';
 
-const ImageCycler = ({ interval = 5000 }) => {
-  // Replace these URLs with your actual image paths or API links
+const ImageCycler = ({ interval = 3000 }) => {
   const images = [
     "/AI Chip with Rainbow Glow~Bold, bright, and….png",
     "/Download.png",
@@ -108,10 +107,9 @@ const ImageCycler = ({ interval = 5000 }) => {
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setCurrentIndex((prevIndex) => (prevIndex + 1) % images.length);
+      setCurrentIndex((prev) => (prev + 1) % images.length);
     }, interval);
-
-    return () => clearInterval(timer); // Cleanup on unmount
+    return () => clearInterval(timer);
   }, [images.length, interval]);
 
   return (
@@ -120,26 +118,36 @@ const ImageCycler = ({ interval = 5000 }) => {
       height: '100%',
       position: 'relative',
       borderRadius: '12px',
-      overflow: 'hidden',
-      backgroundColor: 'rgba(0,0,0,0.2)'
+      overflow: 'hidden', // Crucial to hide the image while it's 'off-screen'
+      backgroundColor: '#000'
     }}>
-      {/* Background Image with a fade transition */}
+      <style>{`
+        @keyframes slideLeft {
+          from { transform: translateX(100%); }
+          to { transform: translateX(0%); }
+        }
+      `}</style>
+
       <div 
+        key={currentIndex} 
         style={{
           width: '100%',
           height: '100%',
-          backgroundImage: `url(${images[currentIndex]})`,
+          backgroundImage: `url("${encodeURI(images[currentIndex])}")`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
-          transition: 'background-image 1s ease-in-out', // Smooth crossfade
+          animation: 'slideLeft 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards',
+          position: 'absolute',
+          inset: 0
         }}
       />
       
-      {/* Optional: Dark overlay to keep text readable if you add any */}
+      {/* Visual Overlay for that UI feel */}
       <div style={{
         position: 'absolute',
         inset: 0,
-        background: 'linear-gradient(to bottom, transparent, rgba(0,0,0,0.4))'
+        background: 'linear-gradient(to bottom, transparent, rgba(0,0,0,0.4))',
+        pointerEvents: 'none'
       }} />
     </div>
   );
