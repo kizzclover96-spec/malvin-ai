@@ -93,6 +93,58 @@ const AIOrb = ({ status }: { status: string }) => {
   );
 };
 
+import { useState, useEffect } from 'react';
+
+const ImageCycler = ({ interval = 5000 }) => {
+  // Replace these URLs with your actual image paths or API links
+  const images = [
+    "/AI Chip with Rainbow Glow~Bold, bright, and….png",
+    "/Download.png",
+    "/Zootopia 4K Wallpaper.png",
+    "/Malvin self.png"
+  ];
+
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentIndex((prevIndex) => (prevIndex + 1) % images.length);
+    }, interval);
+
+    return () => clearInterval(timer); // Cleanup on unmount
+  }, [images.length, interval]);
+
+  return (
+    <div style={{
+      width: '100%',
+      height: '100%',
+      position: 'relative',
+      borderRadius: '12px',
+      overflow: 'hidden',
+      backgroundColor: 'rgba(0,0,0,0.2)'
+    }}>
+      {/* Background Image with a fade transition */}
+      <div 
+        style={{
+          width: '100%',
+          height: '100%',
+          backgroundImage: `url(${images[currentIndex]})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          transition: 'background-image 1s ease-in-out', // Smooth crossfade
+        }}
+      />
+      
+      {/* Optional: Dark overlay to keep text readable if you add any */}
+      <div style={{
+        position: 'absolute',
+        inset: 0,
+        background: 'linear-gradient(to bottom, transparent, rgba(0,0,0,0.4))'
+      }} />
+    </div>
+  );
+};
+
 
 const StarIcon = ({ size = 18 }: { size?: number }) => (
     <svg width={size} height={size} viewBox="0 0 24 24" fill={premiumGold} stroke={premiumGold} strokeWidth="1">
@@ -832,6 +884,13 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                         borderRadius: '16px',
                         border: '1px solid rgba(255, 255, 255, 0.1)'
                     }}> 
+                    <p style={{ fontSize: '12px', opacity: 0.6, marginBottom: '8px', paddingLeft: '5px' }}>
+                        GALLERIA
+                    </p>
+                    {/* THE CYCLER GOES HERE */}
+                    <div style={{ flex: 1 }}>
+                        <ImageCycler interval={4000} /> 
+                    </div>
                 </div>       
             </div>
         </div>
