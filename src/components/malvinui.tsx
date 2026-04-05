@@ -41,8 +41,8 @@ const ClipIcon = ({ size = 22 }: any) => (
 );
 
 const MicIcon = ({ enabled, size = 22 }: { enabled?: boolean, size?: number }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={neonBlue} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: enabled === false ? 0.4 : 1 }}>
-        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4M8 22h8" /><line x1="1" y1="1" x2="23" y2="23" />
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: enabled === false ? 0.6 : 1, transition: 'all 0.2s ease' }}>
+        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4M8 22h8" /> {!enabled && ( <line x1="1" y1="1" x2="23" y2="23" /> )}
     </svg>
 );
 
