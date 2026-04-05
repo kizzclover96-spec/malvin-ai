@@ -570,26 +570,50 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                             style={{ flex: 1, background: 'none', border: 'none', color: 'white', marginLeft: '15px', outline: 'none' }} 
                         />
                     </div>
-                    {/* mic*/}
                     {/* mic */}
-                    <div style={btnReset}>
-                        {/* MIC BUTTON */}
+                    {/* MIC BUTTON HOUSING */}
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '50px',
+                        height: '50px',
+                        borderRadius: '50%',
+                        // Neon Gradient: Dark Blue to Purple
+                        background: 'linear-gradient(135deg, #001f3f 0%, #6a0dad 100%)',
+                        // Neon Glow effect
+                        boxShadow: localParticipant?.isMicrophoneEnabled 
+                            ? '0 0 15px rgba(0, 112, 255, 0.6), 0 0 20px rgba(160, 32, 240, 0.4)' 
+                            : 'none',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        transition: 'all 0.3s ease'
+                    }}>
                         <button 
-                            style={btnReset}
+                            style={{
+                                ...btnReset,
+                                width: '100%',
+                                height: '100%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer'
+                            }}
                             onClick={async () => {
-                                const isMuted = !localParticipant.isMicrophoneEnabled;
-                                await localParticipant.setMicrophoneEnabled(isMuted);
+                                // Correct logic: we want to enable if it is currently disabled
+                                const nextState = !localParticipant.isMicrophoneEnabled;
+                                await localParticipant.setMicrophoneEnabled(nextState);
                                 
-                                addActivity(isMuted ? "Mic Unmuted" : "Mic Muted", isMuted ? "🎙️" : "🔇");
-                                setActivityIcon(isMuted ? "🎙️" : "🔇");
+                                addActivity(nextState ? "Mic Unmuted" : "Mic Muted", nextState ? "🎙️" : "🔇");
                             }}
                         >
                             <MicIcon 
+                                // The "enabled" prop usually controls the cross-line in LiveKit icons
                                 enabled={!!localParticipant?.isMicrophoneEnabled} 
                                 style={{ 
                                     color: localParticipant?.isMicrophoneEnabled ? 'white' : 'rgba(255,255,255,0.4)',
                                     width: '24px',
-                                    height: '24px' 
+                                    height: '24px',
+                                    transition: 'color 0.3s ease'
                                 }} 
                             />
                         </button>
