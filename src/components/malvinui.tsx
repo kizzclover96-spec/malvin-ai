@@ -592,7 +592,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                         <span className="status-timer">{formatTime()}</span>
                     </div>
                 </div>
-                <AIOrb status={localParticipant ? 'idle' : 'sleeping'} />
+                
                 <VideoStage />
 
                 {/* bottom */}
