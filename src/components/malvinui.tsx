@@ -82,6 +82,7 @@ const VideoStage = () => {
 
 const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     // 1. STATE & VARS (Fixed missing references)
+    const { localParticipant } = useLocalParticipant();
     const [showExtras, setShowExtras] = React.useState(false);
     const [seconds, setSeconds] = React.useState(0);
     const [textInput, setTextInput] = React.useState("");
@@ -118,11 +119,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
 
     // Placeholder logic (Replace with your real props/hooks later)
     const disabled = false;
-    const [localParticipant, setLocalParticipant] = React.useState({
-        isMicrophoneEnabled: true,
-        isCameraEnabled: false,
-        isScreenShareEnabled: false,
-    });
+    
 
     const triggerActivity = () => {};
     const handleSendMessage = () => setTextInput("");
@@ -548,6 +545,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                                         onClick={async () => {
                                             try {
                                                 // Toggle the actual hardware
+                                                if (!localParticipant) return;
                                                 const isSharing = !localParticipant.isScreenShareEnabled;
                                                 await localParticipant.setScreenShareEnabled(isSharing);
                                                 
@@ -603,17 +601,31 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                         ref={fileInputRef} 
                         style={{ display: 'none' }} 
                         onChange={(e) => {
-                            const file = e.target.files[0];
-                            if (file) {
-                                // Update your Activity Box!
-                                setCurrentActivity(`Uploaded: ${file.name}`);
-                                setActivityIcon("📁");
+                            try {
+                                const file = e.target.files?.[0];
                                 
-                                // Logic for actually uploading the file goes here
-                                console.log("Selected file:", file);
+                                if (file) {
+                                    // 1. Update the main status pill
+                                    setCurrentActivity(`Uploaded: ${file.name}`);
+                                    setActivityIcon("📁");
+
+                                    // 2. Add to your new Activity History Log
+                                    addActivity(`File Uploaded: ${file.name}`, "📁");
+
+                                    // 3. Logic for actually handling the file (e.g., sending to server)
+                                    console.log("File ready for processing:", file.name);
+                                }
+                            } catch (error) {
+                                // This catches unexpected errors
+                                console.error("File selection failed:", error);
+                                addActivity("File Upload Failed", "⚠️");
                             }
-                        }}  
+                            
+                            // Reset input so the user can upload the same file again if they want
+                            e.target.value = '';
+                        }}
                     />
+                    
                     
                 </div>
             </div>
@@ -636,53 +648,54 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                     }}>
 
                 </div>
-                    {/* button right section */}
+                {/* button right section */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                <div className="activities-panel" style={{ 
-                    padding: '20px', 
-                    minHeight: '120px',
-                    maxHeight: '400px', // Prevents it from taking over the whole screen
-                    overflowY: 'auto',   // Adds scrollbar when history gets long
-                    display: 'flex',
-                    flexDirection: 'column',
-                    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-                    backdropFilter: 'blur(12px)',
-                    WebkitBackdropFilter: 'blur(12px)',
-                    borderRadius: '16px',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    scrollbarWidth: 'none' // Hides scrollbar for a cleaner look (Firefox)
-                }}>
-                    <p style={{ color: 'white', margin: '0 0 15px 0', fontWeight: '400', opacity: 0.6, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                        Activity Log
-                    </p>
-                    
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                        {activities.map((item) => (
-                            <div key={item.id} style={{ 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                justifyContent: 'space-between',
-                                animation: 'fadeIn 0.3s ease-out' 
-                            }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                    <span style={{ fontSize: '16px' }}>{item.icon}</span>
-                                    <span style={{ color: 'white', fontSize: '13px', fontWeight: '500' }}>{item.text}</span>
+                    <div className="activities-panel" style={{ 
+                        padding: '20px', 
+                        minHeight: '120px',
+                        maxHeight: '400px', // Prevents it from taking over the whole screen
+                        overflowY: 'auto',   // Adds scrollbar when history gets long
+                        display: 'flex',
+                        flexDirection: 'column',
+                        backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                        backdropFilter: 'blur(12px)',
+                        WebkitBackdropFilter: 'blur(12px)',
+                        borderRadius: '16px',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        scrollbarWidth: 'none' // Hides scrollbar for a cleaner look (Firefox)
+                    }}>
+                        <p style={{ color: 'white', margin: '0 0 15px 0', fontWeight: '400', opacity: 0.6, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                            Activity Log
+                        </p>
+                        
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                            {activities.map((item) => (
+                                <div key={item.id} style={{ 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    justifyContent: 'space-between',
+                                    animation: 'fadeIn 0.3s ease-out' 
+                                }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                        <span style={{ fontSize: '16px' }}>{item.icon}</span>
+                                        <span style={{ color: 'white', fontSize: '13px', fontWeight: '500' }}>{item.text}</span>
+                                    </div>
+                                    <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '10px' }}>{item.time}</span>
                                 </div>
-                                <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '10px' }}>{item.time}</span>
-                            </div>
-                        ))}
+                            ))}
+                        </div>
                     </div>
                 </div>
-                    <div className="Right-panel" style={{ padding: '15px', height: '100px',
-                            flexDirection: 'column', 
-                            display: 'flex',
-                            padding: '20px',
-                            backgroundColor: 'rgba(255, 255, 255, 0.03)',
-                            backdropFilter: 'blur(12px)',
-                            borderRadius: '16px',
-                            border: '1px solid rgba(255, 255, 255, 0.1)'
-                        }}> 
-                    </div>       
+                <div className="Right-panel" style={{ padding: '15px', height: '100px',
+                        flexDirection: 'column', 
+                        display: 'flex',
+                        padding: '20px',
+                        backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                        backdropFilter: 'blur(12px)',
+                        borderRadius: '16px',
+                        border: '1px solid rgba(255, 255, 255, 0.1)'
+                    }}> 
+                </div>       
                 </div>
                 
             </div>
