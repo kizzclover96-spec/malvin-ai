@@ -23,59 +23,72 @@ const ghostWhite = "rgba(255, 255, 255, 0.4)";
 const btnReset = { background: 'none', border: 'none', padding: 0, cursor: 'pointer', outline: 'none' };
 
 
-const AuraBackground = ({ status = 'idle' }) => {
-  const isActive = status === 'speaking' || status === 'listening';
-
+const AuraBackground = () => {
   return (
     <div style={{
       position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
+      inset: 0,
       overflow: 'hidden',
-      zIndex: 0, // Behind everything
+      zIndex: 0,
       pointerEvents: 'none'
     }}>
-      {/* Fume 1: Deep Purple */}
-      <motion.div
-        animate={{
-          x: [-20, 20, -20],
-          y: [-10, 30, -10],
-          scale: isActive ? [1, 1.2, 1] : 1,
-        }}
-        transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-        style={{
-          position: 'absolute',
-          top: '20%',
-          left: '30%',
-          width: '600px',
-          height: '600px',
-          background: 'radial-gradient(circle, rgba(106, 13, 173, 0.15) 0%, rgba(0,0,0,0) 70%)',
-          filter: 'blur(60px)',
-          borderRadius: '50%',
-        }}
-      />
+      <style>{`
+        @keyframes fumeDrift {
+          0% { transform: translate(0, 0) scale(1); opacity: 0.3; }
+          33% { transform: translate(5%, 5%) scale(1.1); opacity: 0.5; }
+          66% { transform: translate(-3%, 7%) scale(0.9); opacity: 0.4; }
+          100% { transform: translate(0, 0) scale(1); opacity: 0.3; }
+        }
+        .neon-fume {
+          position: absolute;
+          border-radius: 50%;
+          filter: blur(90px);
+          mix-blend-mode: screen;
+        }
+      `}</style>
 
-      {/* Fume 2: Neon Blue / Cyan */}
-      <motion.div
-        animate={{
-          x: [30, -30, 30],
-          y: [20, -40, 20],
-          opacity: isActive ? 0.6 : 0.3,
-        }}
-        transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
-        style={{
-          position: 'absolute',
-          bottom: '10%',
-          right: '20%',
-          width: '500px',
-          height: '500px',
-          background: 'radial-gradient(circle, rgba(0, 242, 255, 0.1) 0%, rgba(0,0,0,0) 70%)',
-          filter: 'blur(80px)',
-          borderRadius: '50%',
-        }}
-      />
+      {/* Purple Smoke */}
+      <div className="neon-fume" style={{
+        top: '10%',
+        left: '15%',
+        width: '60vw',
+        height: '60vh',
+        background: 'radial-gradient(circle, rgba(168, 85, 247, 0.25) 0%, rgba(0,0,0,0) 70%)',
+        animation: 'fumeDrift 15s ease-in-out infinite',
+      }} />
+
+      {/* Blue Smoke */}
+      <div className="neon-fume" style={{
+        bottom: '5%',
+        right: '10%',
+        width: '55vw',
+        height: '55vh',
+        background: 'radial-gradient(circle, rgba(0, 242, 255, 0.15) 0%, rgba(0,0,0,0) 70%)',
+        animation: 'fumeDrift 18s ease-in-out infinite reverse',
+      }} />
+    </div>
+  );
+};
+
+const AIOrb = ({ status }: { status: string }) => {
+  return (
+    <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <style>{`
+        @keyframes pulseCore {
+          0% { transform: scale(1); box-shadow: 0 0 20px rgba(168, 85, 247, 0.4); }
+          50% { transform: scale(1.05); box-shadow: 0 0 40px rgba(168, 85, 247, 0.7); }
+          100% { transform: scale(1); box-shadow: 0 0 20px rgba(168, 85, 247, 0.4); }
+        }
+      `}</style>
+      <div style={{
+        width: '100px',
+        height: '100px',
+        borderRadius: '50%',
+        background: 'linear-gradient(135deg, #fff 0%, #a855f7 50%, #6366f1 100%)',
+        animation: 'pulseCore 3s ease-in-out infinite',
+        zIndex: 2,
+        border: '1px solid rgba(255,255,255,0.3)'
+      }} />
     </div>
   );
 };
@@ -511,8 +524,8 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
             {/* 2. MIDDLE */}
             <div className="middle-section" style={{ flex: 4, position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', padding: '40px' }}>
                 
-                {/* --- THE NEON FUMES --- */}
-                <AuraBackground status={localParticipant ? 'idle' : 'sleeping'} />
+                {/* THE SMOKE AREA */}
+                <AuraBackground />
                 {/* --- TOP RIGHT SECURITY & MENU --- */}
                 <div style={{ 
                     position: 'absolute', 
