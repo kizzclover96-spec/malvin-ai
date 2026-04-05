@@ -544,19 +544,17 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                                         style={btnReset} 
                                         onClick={async () => {
                                             try {
-                                                // Toggle the actual hardware
                                                 if (!localParticipant) return;
                                                 const isSharing = !localParticipant.isScreenShareEnabled;
                                                 await localParticipant.setScreenShareEnabled(isSharing);
                                                 
-                                                // Update the UI & Activity Log
                                                 addActivity(isSharing ? "Screen Sharing Started" : "Screen Sharing Stopped", "🖥️");
                                                 setActivityIcon(isSharing ? "🖥️" : "⏹️");
                                             } catch (error) {
                                                 console.error("Screen share failed:", error);
                                                 addActivity("Screen Share Denied", "⚠️");
                                             }
-                                        }}
+                                        }} // <--- Use only TWO here. One for the 'try/catch', one for the 'onClick'.
                                     >
                                         <ScreenShareIcon enabled={!!localParticipant?.isScreenShareEnabled} />
                                     </button>
