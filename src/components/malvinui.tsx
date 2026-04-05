@@ -13,6 +13,7 @@ import {
   useConnectionState,
 } from '@livekit/components-react';
 import { ParticipantKind, Track } from 'livekit-client';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // Define colors so the icons don't crash
 const premiumGold = "#FFD700";
@@ -21,6 +22,139 @@ const neonPurple = "#9d00ff";
 const glassWhite = "rgba(255, 255, 255, 0.8)";
 const ghostWhite = "rgba(255, 255, 255, 0.4)";
 const btnReset = { background: 'none', border: 'none', padding: 0, cursor: 'pointer', outline: 'none' };
+
+
+const AIOrb = ({ status = 'idle' }: { status?: 'idle' | 'speaking' | 'sleeping' }) => {
+  const [isBlinking, setIsBlinking] = useState(false);
+
+  // Blink Logic: Every 3 seconds
+  useEffect(() => {
+    const blinkInterval = setInterval(() => {
+      setIsBlinking(true);
+      setTimeout(() => setIsBlinking(false), 150);
+    }, 3000);
+    return () => clearInterval(blinkInterval);
+  }, []);
+
+  return (
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      height: '60vh', // Positions it slightly above center
+      position: 'relative'
+    }}>
+      
+      {/* 1. Neon Aura Waves (Background) */}
+      <div className="aura-container">
+        <div className="wave wave-1"></div>
+        <div className="wave wave-2"></div>
+      </div>
+
+      {/* 2. The Main Orb Body */}
+      <div style={{
+        width: '120px',
+        height: '120px',
+        borderRadius: '50%',
+        background: 'rgba(255, 255, 255, 0.05)',
+        backdropFilter: 'blur(12px)',
+        border: '1px solid rgba(255, 255, 255, 0.2)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        position: 'relative',
+        boxShadow: '0 0 40px rgba(0, 112, 255, 0.2)',
+        animation: status === 'sleeping' ? 'float-slow 6s infinite ease-in-out' : 'float 4s infinite ease-in-out',
+        zIndex: 2
+      }}>
+        
+        {/* 3. The Eyes */}
+        <div style={{ display: 'flex', gap: '20px' }}>
+          {[1, 2].map((i) => (
+            <div key={i} style={{
+              width: '12px',
+              height: isBlinking || status === 'sleeping' ? '2px' : '12px',
+              background: '#fff',
+              borderRadius: '50%',
+              boxShadow: '0 0 10px #fff',
+              transition: 'all 0.15s ease-in-out',
+              opacity: status === 'sleeping' ? 0.4 : 1
+            }} />
+          ))}
+        </div>
+
+        {/* 4. Sleep "Zzz" Animation */}
+        {status === 'sleeping' && (
+          <div className="zzz-container">
+            <span className="z z1">Z</span>
+            <span className="z z2">z</span>
+            <span className="z z3">z</span>
+          </div>
+        )}
+      </div>
+
+      <style>{`
+        /* Floating Animation */
+        @keyframes float {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-15px); }
+        }
+        @keyframes float-slow {
+          0%, 100% { transform: translateY(0px) scale(0.98); }
+          50% { transform: translateY(-8px) scale(1); }
+        }
+
+        /* Aura Waves */
+        .aura-container {
+          position: absolute;
+          width: 400px;
+          height: 200px;
+          overflow: hidden;
+          pointer-events: none;
+        }
+        .wave {
+          position: absolute;
+          width: 100%;
+          height: 100%;
+          background: linear-gradient(90deg, transparent, rgba(0, 112, 255, 0.1), rgba(160, 32, 240, 0.1), rgba(255, 0, 200, 0.1), transparent);
+          animation: wave-flow 8s infinite linear;
+          filter: blur(20px);
+        }
+        .wave-2 { animation-delay: -4s; opacity: 0.5; }
+
+        @keyframes wave-flow {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+
+        /* Sleep Z's */
+        .zzz-container {
+          position: absolute;
+          top: -40px;
+          right: -20px;
+        }
+        .z {
+          position: absolute;
+          color: white;
+          font-family: 'Arial', sans-serif;
+          font-weight: bold;
+          opacity: 0;
+          animation: z-anim 4s infinite;
+        }
+        .z1 { animation-delay: 0s; font-size: 20px; }
+        .z2 { animation-delay: 1.3s; font-size: 16px; }
+        .z3 { animation-delay: 2.6s; font-size: 12px; }
+
+        @keyframes z-anim {
+          0% { transform: translate(0, 0) scale(0.5); opacity: 0; }
+          30% { opacity: 0.8; }
+          100% { transform: translate(30px, -50px) scale(1.5); opacity: 0; }
+        }
+      `}</style>
+    </div>
+  );
+};
 
 const StarIcon = ({ size = 18 }: { size?: number }) => (
     <svg width={size} height={size} viewBox="0 0 24 24" fill={premiumGold} stroke={premiumGold} strokeWidth="1">
@@ -40,7 +174,7 @@ const ClipIcon = ({ size = 22 }: any) => (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={neonBlue} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" /></svg>
 );
 
-const MicIcon = ({ enabled, size = 22 }: { enabled?: boolean, size?: number }) => { const showMuteLine = enabled === false;
+const MicIcon = ({ enabled, size = 22 }: { enabled?: boolean, size?: number }) => { const isMuted = enabled === false;
     return (
         <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: showMuteLine ? 0.5 : 1, transition: 'all 0.2s ease' }}>
             <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4M8 22h8" /> {showMuteLine && (<line x1="1" y1="1" x2="23" y2="23" /> )}
@@ -510,7 +644,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                         <span className="status-timer">{formatTime()}</span>
                     </div>
                 </div>
-                
+                <AIOrb status={localParticipant ? 'idle' : 'sleeping'} />
                 <VideoStage />
 
                 {/* bottom */}
@@ -588,7 +722,10 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                             ? '0 0 15px rgba(0, 112, 255, 0.6), 0 0 20px rgba(160, 32, 240, 0.4)' 
                             : 'none',
                         border: '1px solid rgba(255, 255, 255, 0.1)',
-                        transition: 'all 0.3s ease'
+                        opacity: localParticipant?.sid ? 1 : 0.3, // Dim it until connected
+                        pointerEvents: localParticipant?.sid ? 'auto' : 'none', // Disable clicks
+                        transition: 'opacity 0.5s ease'
+                        
                     }}>
                         <button 
                             style={{
@@ -601,16 +738,25 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                                 cursor: 'pointer'
                             }}
                             onClick={async () => {
+                                // 1. HARD GUARD: If these are undefined, the engine isn't ready.
+                                if (!localParticipant || !localParticipant.sid) {
+                                    console.warn("Connection not established. Please wait a moment.");
+                                    addActivity("Connecting...", "⏳");
+                                    return; 
+                                }
+
                                 try {
-                                    if (!localParticipant) return;
                                     const nextState = !localParticipant.isMicrophoneEnabled;
+                                    
+                                    // 2. Set a longer timeout or just await the engine
                                     await localParticipant.setMicrophoneEnabled(nextState);
                                     
                                     addActivity(nextState ? "Mic Unmuted" : "Mic Muted", nextState ? "🎙️" : "🔇");
                                     setActivityIcon(nextState ? "🎙️" : "🔇");
                                 } catch (error) {
+                                    // If it still times out, we catch it here
                                     console.error("Mic unable to use:", error);
-                                    addActivity("Mic access Denied", "⚠️");
+                                    addActivity("Mic Sync Error", "⚠️");
                                 }
                             }}
                         >
