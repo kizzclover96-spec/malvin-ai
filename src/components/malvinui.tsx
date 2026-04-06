@@ -236,19 +236,22 @@ function MalvinVoiceIsland({ agent, disabled, onToggleDisable, activitySignal }:
 
   useEffect(() => {
     const interval = setInterval(() => {
-      if (!sleeping && !disabled) {
+      if (!sleeping && !disabled && agent) { // Added agent check here
         setBlink(true);
         setTimeout(() => setBlink(false), 150);
       }
     }, 4000);
     return () => clearInterval(interval);
-  }, [sleeping, disabled]);
+  }, [sleeping, disabled, agent]);
 
   useEffect(() => {
     setSleeping(false);
     const timer = setTimeout(() => setSleeping(true), 60000);
     return () => clearTimeout(timer);
   }, [activitySignal]);
+
+  const neonBlue = "#00f2ff";
+  const neonRed = "#ff0055";
 
   return (
     <div onClick={onToggleDisable} style={{ width: '110px', height: '42px', backgroundColor: 'rgba(10, 10, 10, 0.9)', borderRadius: '21px', border: `1.5px solid ${disabled ? neonRed : neonBlue}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', position: 'relative', transition: 'all 0.3s ease', boxShadow: disabled ? `0 0 20px ${neonRed}77` : isAgentSpeaking ? `0 0 15px ${neonBlue}55` : `0 0 5px ${neonBlue}22` }}>
