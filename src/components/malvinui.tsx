@@ -227,6 +227,57 @@ const MicIcon = ({ enabled, size = 22 }: { enabled?: boolean, size?: number }) =
     );    
 };
 
+// --- AI FACE COMPONENT ---
+const MalvinVoiceIsland({ agent, disabled, onToggleDisable, activitySignal }: any) {
+  const isAgentSpeaking = useIsSpeaking(agent);
+  const [blink, setBlink] = useState(false);
+  const [sleeping, setSleeping] = useState(false);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!sleeping && !disabled) {
+        setBlink(true);
+        setTimeout(() => setBlink(false), 150);
+      }
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [sleeping, disabled]);
+
+  useEffect(() => {
+    setSleeping(false);
+    const timer = setTimeout(() => setSleeping(true), 60000);
+    return () => clearTimeout(timer);
+  }, [activitySignal]);
+
+  return (
+    <div onClick={onToggleDisable} style={{ width: '110px', height: '42px', backgroundColor: 'rgba(10, 10, 10, 0.9)', borderRadius: '21px', border: `1.5px solid ${disabled ? neonRed : neonBlue}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', position: 'relative', transition: 'all 0.3s ease', boxShadow: disabled ? `0 0 20px ${neonRed}77` : isAgentSpeaking ? `0 0 15px ${neonBlue}55` : `0 0 5px ${neonBlue}22` }}>
+      <style>{`@keyframes floatZ { 0% { transform: translate(0, 0) scale(0.5); opacity: 0; } 20% { opacity: 1; } 100% { transform: translate(10px, -25px) scale(1.3); opacity: 0; } } @keyframes pulseDead { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.92); } }`}</style>
+      {disabled ? (
+        <svg width="45" height="18" viewBox="0 0 60 20" style={{ animation: 'pulseDead 2s infinite' }}>
+          <text x="10" y="15" fill={neonRed} fontSize="16" fontWeight="bold">X</text>
+          <text x="36" y="15" fill={neonRed} fontSize="16" fontWeight="bold">X</text>
+        </svg>
+      ) : sleeping ? (
+        <>
+          <svg width="45" height="18" viewBox="0 0 60 20">
+            <rect x="12" y="10" width="10" height="2" rx="1" fill="white" opacity="0.6" />
+            <rect x="38" y="10" width="10" height="2" rx="1" fill="white" opacity="0.6" />
+          </svg>
+          {[0, 1, 2].map((i) => (
+            <div key={i} style={{ position: 'absolute', right: '10px', top: '-5px', color: 'white', fontSize: i === 0 ? '12px' : '8px', animation: `floatZ 3s infinite ${i * 0.8}s linear`, opacity: 0 }}>Z</div>
+          ))}
+        </>
+      ) : (
+        <svg width="45" height="18" viewBox="0 0 60 20">
+          <rect x="12" y={blink ? "9" : (isAgentSpeaking ? "2" : "5")} width="10" height={blink ? "2" : (isAgentSpeaking ? "16" : "10")} rx="1" fill="white" />
+          <rect x="38" y={blink ? "9" : (isAgentSpeaking ? "2" : "5")} width="10" height={blink ? "2" : (isAgentSpeaking ? "16" : "10")} rx="1" fill="white" />
+        </svg>
+      )}
+    </div>
+  );
+}
+
+
 const VideoStage = () => {
     const { localParticipant } = useLocalParticipant();
     const tracks = useTracks([
@@ -609,7 +660,22 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
 
             {/* 2. MIDDLE */}
             <div className="middle-section" style={{ flex: 4, position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', padding: '40px' }}>
-                
+                {/* 🏝️ THE VOICE ISLAND ANCHOR */}
+                <div style={{ 
+                    position: 'absolute', 
+                    top: '20px', 
+                    zIndex: 100, 
+                    width: '100%', 
+                    display: 'flex', 
+                    justifyContent: 'center' 
+                }}>
+                    <MalvinVoiceIsland 
+                        agent={agent} 
+                        disabled={disabled} 
+                        onToggleDisable={onToggleDisable} 
+                        activitySignal={activitySignal} 
+                    />
+                </div>
                 {/* THE SMOKE AREA */}
                 <AuraBackground />
                 {/* --- TOP RIGHT SECURITY & MENU --- */}
