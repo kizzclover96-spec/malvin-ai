@@ -335,6 +335,53 @@ const VideoStage = () => {
     );
 };
 
+// 1. Move this OUTSIDE of Malvinui
+const MalvinHybridCycler = React.memo(({ content }: { content: any[] }) => {
+    const [index, setIndex] = useState(0);
+
+    useEffect(() => {
+        if (!content || content.length === 0) return;
+
+        const timer = setInterval(() => {
+            setIndex((prev) => (prev + 1) % content.length);
+        }, 10000); // 10 Seconds
+
+        return () => clearInterval(timer);
+    }, [content.length]); // Only restarts if the list size changes
+
+    const current = content[index];
+    if (!current) return null;
+
+    return (
+        <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
+            <div 
+                key={index} 
+                style={{
+                    position: 'absolute',
+                    inset: 0,
+                    animation: 'slideLeft 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '20px'
+                }}
+            >
+                {current.type === 'image' ? (
+                    <img 
+                        src={current.value} 
+                        alt="Insight" 
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '12px' }} 
+                    />
+                ) : (
+                    <p style={{ fontSize: '18px', color: 'white', textAlign: 'center', fontStyle: 'italic', lineHeight: '1.6' }}>
+                        "{current.value}"
+                    </p>
+                )}
+            </div>
+        </div>
+    );
+});
+
 const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     // 1. STATE & VARS (Fixed missing references)
     const { localParticipant } = useLocalParticipant();
@@ -349,73 +396,26 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
         setDisabled(!disabled);
         addActivity(disabled ? "System Restored" : "System Paused", "⚠️");
     };
+    
+    
+    const businessContent = useMemo(() => [
+        { type: 'text', value: "Execution is everything." },
+        { type: 'image', value: "/Transform your practice with data-driven….png" }, // Make sure names are simple!
+        { type: 'text', value: "Solve a real problem, build a real business." },
+        { type: 'text', value: "Growth happens outside the comfort zone." },
+        { type: 'image', value: "/social media managing.png" },
+        { type: 'text', value: "Don't build a product; solve a problem. The product is just the vehicle." },
+        { type: 'image', value: "/Best investment strategies for 2026.png" },
+        { type: 'image', value: "/Starting and growing profitable business in….png" },
+        { type: 'text', value: "Your network is your net worth. Build bridges before you need to cross them." },
+        { type: 'image', value: "/Boost business with social media marketing.png" },
+        { type: 'image', value: "/Simple Investing Tips for a Richer Future.png" },
+        { type: 'text', value: "The biggest risk is taking no risk at all in a rapidly changing world." }
 
-    const MalvinHybridCycler = ({ content }: { content: any[] }) => {
-        const [index, setIndex] = useState(0);
+        // ... all your other items
+    ], []);
 
-        useEffect(() => {
-            // Only start if we have content
-            if (content.length === 0) return;
-
-            const timer = setInterval(() => {
-                setIndex((prev) => (prev + 1) % content.length);
-            }, 10000); // 10000ms = 10 Seconds
-
-            return () => clearInterval(timer);
-        }, [content.length]); // Only reset if the list size changes
-
-        const current = content[index];
         
-        // Safety check: if current is missing, return null
-        if (!current) return null;
-
-        const isImage = current.type === 'image';
-
-        return (
-            <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
-                {/* The 'key={index}' is vital—it triggers the slide animation every time the number changes */}
-                <div 
-                    key={index} 
-                    style={{
-                        position: 'absolute',
-                        inset: 0,
-                        animation: 'slideLeft 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        padding: '20px'
-                    }}
-                >
-                    {isImage ? (
-                        <img 
-                            src={encodeURI(current.value)} 
-                            alt="Business Insight" 
-                            style={{ 
-                                width: '100%', 
-                                height: '100%', 
-                                objectFit: 'cover', 
-                                borderRadius: '12px',
-                                boxShadow: '0 10px 20px rgba(0,0,0,0.3)'
-                            }} 
-                        />
-                    ) : (
-                        <p style={{ 
-                            fontSize: '18px', // Slightly larger for 10s viewing
-                            color: 'white', 
-                            textAlign: 'center', 
-                            fontWeight: '500', 
-                            fontStyle: 'italic',
-                            lineHeight: '1.6',
-                            maxWidth: '80%'
-                        }}>
-                            "{current.value}"
-                        </p>
-                    )}
-                </div>
-            </div>
-        );
-    };
-
 
     const ActionPill = ({ icon, label, onClick, color = 'white' }: any) => (
         <button 
@@ -889,24 +889,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                     zIndex: 10 
                 }}>
                     {/* CARD 1: STRATEGY & QUOTES */}
-                    <div style={{ ...glassStyle, flex: 1, height: '180px', overflow: 'hidden' }}>
-                        <MalvinHybridCycler 
-                            content={[
-                                { type: 'text', value: "Execution is everything." },
-                                { type: 'image', value: "/Transform your practice with data-driven….png" }, // Make sure names are simple!
-                                { type: 'text', value: "Solve a real problem, build a real business." },
-                                { type: 'text', value: "Growth happens outside the comfort zone." },
-                                { type: 'image', value: "/social media managing.png" },
-                                { type: 'text', value: "Don't build a product; solve a problem. The product is just the vehicle." },
-                                { type: 'image', value: "/Best investment strategies for 2026.png" },
-                                { type: 'image', value: "/Starting and growing profitable business in….png" },
-                                { type: 'text', value: "Your network is your net worth. Build bridges before you need to cross them." },
-                                { type: 'image', value: "/Boost business with social media marketing.png" },
-                                { type: 'image', value: "/Simple Investing Tips for a Richer Future.png" },
-                                { type: 'text', value: "The biggest risk is taking no risk at all in a rapidly changing world." },
-                            ]} 
-                        />
-                    </div>
+                    <MalvinHybridCycler content={businessContent} />
 
                     {/* CARD 2: VENTURE ANALYTICS */}
                     <div style={{ ...glassStyle, flex: 1, padding: '24px', minHeight: '180px' }}>
