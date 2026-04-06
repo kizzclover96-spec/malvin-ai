@@ -229,14 +229,25 @@ const MicIcon = ({ enabled, size = 22 }: { enabled?: boolean, size?: number }) =
 };
 
 // --- AI FACE COMPONENT ---
+// 1. The "Eyes" only exist if the agent exists
+const VoiceIslandEyes = ({ agent, blink }: any) => {
+  const isSpeaking = useIsSpeaking(agent); 
+  return (
+    <svg width="45" height="18" viewBox="0 0 60 20">
+      <rect x="12" y={blink ? "9" : (isSpeaking ? "2" : "5")} width="10" height={blink ? "2" : (isSpeaking ? "16" : "10")} rx="1" fill="white" />
+      <rect x="38" y={blink ? "9" : (isSpeaking ? "2" : "5")} width="10" height={blink ? "2" : (isSpeaking ? "16" : "10")} rx="1" fill="white" />
+    </svg>
+  );
+};
+
+// 2. The Main Island Container
 function MalvinVoiceIsland({ agent, disabled, onToggleDisable, activitySignal }: any) {
-  const isAgentSpeaking = useIsSpeaking(agent);
   const [blink, setBlink] = useState(false);
   const [sleeping, setSleeping] = useState(false);
 
   useEffect(() => {
     const interval = setInterval(() => {
-      if (!sleeping && !disabled && agent) { // Added agent check here
+      if (!sleeping && !disabled && agent) {
         setBlink(true);
         setTimeout(() => setBlink(false), 150);
       }
@@ -254,28 +265,36 @@ function MalvinVoiceIsland({ agent, disabled, onToggleDisable, activitySignal }:
   const neonRed = "#ff0055";
 
   return (
-    <div onClick={onToggleDisable} style={{ width: '110px', height: '42px', backgroundColor: 'rgba(10, 10, 10, 0.9)', borderRadius: '21px', border: `1.5px solid ${disabled ? neonRed : neonBlue}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', position: 'relative', transition: 'all 0.3s ease', boxShadow: disabled ? `0 0 20px ${neonRed}77` : isAgentSpeaking ? `0 0 15px ${neonBlue}55` : `0 0 5px ${neonBlue}22` }}>
-      <style>{`@keyframes floatZ { 0% { transform: translate(0, 0) scale(0.5); opacity: 0; } 20% { opacity: 1; } 100% { transform: translate(10px, -25px) scale(1.3); opacity: 0; } } @keyframes pulseDead { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.92); } }`}</style>
+    <div onClick={onToggleDisable} style={{ 
+      width: '110px', height: '42px', backgroundColor: 'rgba(10, 10, 10, 0.9)', borderRadius: '21px', 
+      border: `1.5px solid ${disabled ? neonRed : neonBlue}`, display: 'flex', alignItems: 'center', 
+      justifyContent: 'center', cursor: 'pointer', position: 'relative', transition: 'all 0.3s ease',
+      boxShadow: disabled ? `0 0 20px ${neonRed}77` : `0 0 5px ${neonBlue}22` 
+    }}>
+      <style>{`
+        @keyframes floatZ { 0% { transform: translate(0, 0) scale(0.5); opacity: 0; } 20% { opacity: 1; } 100% { transform: translate(10px, -25px) scale(1.3); opacity: 0; } } 
+        @keyframes pulseDead { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.92); } }
+      `}</style>
+      
       {disabled ? (
         <svg width="45" height="18" viewBox="0 0 60 20" style={{ animation: 'pulseDead 2s infinite' }}>
           <text x="10" y="15" fill={neonRed} fontSize="16" fontWeight="bold">X</text>
           <text x="36" y="15" fill={neonRed} fontSize="16" fontWeight="bold">X</text>
         </svg>
-      ) : sleeping ? (
+      ) : (agent && !sleeping) ? (
+        /* ✅ Only call the component with the hook if agent IS DEFINED */
+        <VoiceIslandEyes agent={agent} blink={blink} />
+      ) : (
+        /* 💤 Show sleeping eyes if no agent or sleeping */
         <>
           <svg width="45" height="18" viewBox="0 0 60 20">
             <rect x="12" y="10" width="10" height="2" rx="1" fill="white" opacity="0.6" />
             <rect x="38" y="10" width="10" height="2" rx="1" fill="white" opacity="0.6" />
           </svg>
-          {[0, 1, 2].map((i) => (
+          {agent && [0, 1, 2].map((i) => (
             <div key={i} style={{ position: 'absolute', right: '10px', top: '-5px', color: 'white', fontSize: i === 0 ? '12px' : '8px', animation: `floatZ 3s infinite ${i * 0.8}s linear`, opacity: 0 }}>Z</div>
           ))}
         </>
-      ) : (
-        <svg width="45" height="18" viewBox="0 0 60 20">
-          <rect x="12" y={blink ? "9" : (isAgentSpeaking ? "2" : "5")} width="10" height={blink ? "2" : (isAgentSpeaking ? "16" : "10")} rx="1" fill="white" />
-          <rect x="38" y={blink ? "9" : (isAgentSpeaking ? "2" : "5")} width="10" height={blink ? "2" : (isAgentSpeaking ? "16" : "10")} rx="1" fill="white" />
-        </svg>
       )}
     </div>
   );
