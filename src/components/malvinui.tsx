@@ -21,6 +21,7 @@ const neonPurple = "#9d00ff";
 const glassWhite = "rgba(255, 255, 255, 0.8)";
 const ghostWhite = "rgba(255, 255, 255, 0.4)";
 const btnReset = { background: 'none', border: 'none', padding: 0, cursor: 'pointer', outline: 'none' };
+const agent = useRemoteParticipant({ kind: ParticipantKind.AGENT });
 
 
 const AuraBackground = () => {
