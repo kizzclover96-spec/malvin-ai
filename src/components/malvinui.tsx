@@ -33,77 +33,63 @@ const AuraBackground = () => {
       pointerEvents: 'none'
     }}>
       <style>{`
-        @keyframes waveMove1 {
-          0% { transform: translateX(-30%) translateY(0%) rotate(-8deg); }
-          50% { transform: translateX(20%) translateY(-10%) rotate(5deg); }
-          100% { transform: translateX(-30%) translateY(0%) rotate(-8deg); }
+        @keyframes waveFlow1 {
+          0% { transform: translateX(-20%) translateY(0%) rotate(0deg); }
+          50% { transform: translateX(20%) translateY(-10%) rotate(8deg); }
+          100% { transform: translateX(-20%) translateY(0%) rotate(0deg); }
         }
 
-        @keyframes waveMove2 {
-          0% { transform: translateX(30%) translateY(0%) rotate(8deg); }
-          50% { transform: translateX(-20%) translateY(10%) rotate(-5deg); }
-          100% { transform: translateX(30%) translateY(0%) rotate(8deg); }
+        @keyframes waveFlow2 {
+          0% { transform: translateX(20%) translateY(0%) rotate(0deg); }
+          50% { transform: translateX(-20%) translateY(10%) rotate(-8deg); }
+          100% { transform: translateX(20%) translateY(0%) rotate(0deg); }
         }
 
-        .wave {
+        .aura-wave {
           position: absolute;
-          width: 1400px;
-          height: 500px;
+          width: 900px;
+          height: 400px;
           filter: blur(120px);
-          opacity: 0.8;
+          opacity: 0.6;
           mix-blend-mode: screen;
         }
       `}</style>
 
-      {/* PURPLE / PINK WAVE */}
+      {/* PURPLE WAVE */}
       <div
-        className="wave"
+        className="aura-wave"
         style={{
-          top: '30%',
-          left: '-20%',
-          background: `
-            linear-gradient(
-              90deg,
-              rgba(168,85,247,0.9),
-              rgba(236,72,153,0.7),
-              rgba(59,130,246,0.5),
-              transparent
-            )
-          `,
-          animation: 'waveMove1 12s ease-in-out infinite'
+          top: '20%',
+          left: '-10%',
+          background: 'linear-gradient(90deg, rgba(168,85,247,0.6), rgba(236,72,153,0.4), transparent)',
+          animation: 'waveFlow1 12s ease-in-out infinite',
+          opacity: 0.7,
         }}
       />
 
       {/* BLUE WAVE */}
       <div
-        className="wave"
+        className="aura-wave"
         style={{
-          bottom: '20%',
-          right: '-20%',
-          background: `
-            linear-gradient(
-              90deg,
-              rgba(59,130,246,0.9),
-              rgba(99,102,241,0.7),
-              rgba(168,85,247,0.5),
-              transparent
-            )
-          `,
-          animation: 'waveMove2 14s ease-in-out infinite'
+          bottom: '10%',
+          right: '-10%',
+          background: 'linear-gradient(90deg, rgba(59,130,246,0.6), rgba(99,102,241,0.4), transparent)',
+          animation: 'waveFlow2 14s ease-in-out infinite',
+          opacity: 0.7,
         }}
       />
 
-      {/* CENTER GLOW (VERY IMPORTANT) */}
+      {/* EXTRA GLOW CENTER */}
       <div
         style={{
           position: 'absolute',
+          width: '500px',
+          height: '500px',
           top: '50%',
           left: '50%',
           transform: 'translate(-50%, -50%)',
-          width: '600px',
-          height: '600px',
-          background: 'radial-gradient(circle, rgba(168,85,247,0.3), transparent 70%)',
-          filter: 'blur(120px)',
+          background: 'radial-gradient(circle, rgba(168,85,247,0.25), transparent 70%)',
+          filter: 'blur(100px)',
         }}
       />
     </div>
@@ -705,7 +691,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                         <span className="status-timer">{formatTime()}</span>
                     </div>
                 </div>
-                <AIOrb/>
+                
                 <VideoStage />
 
                 {/* bottom */}
