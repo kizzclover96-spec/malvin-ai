@@ -33,46 +33,72 @@ const AuraBackground = () => {
       pointerEvents: 'none'
     }}>
       <style>{`
-        @keyframes fumeDrift {
-          0% { transform: translate(0, 0) scale(1); opacity: 0.3; }
-          33% { transform: translate(5%, 5%) scale(1.1); opacity: 0.5; }
-          66% { transform: translate(-3%, 7%) scale(0.9); opacity: 0.4; }
-          100% { transform: translate(0, 0) scale(1); opacity: 0.3; }
+        @keyframes waveFlow1 {
+          0% { transform: translateX(-20%) translateY(0%) rotate(0deg); }
+          50% { transform: translateX(20%) translateY(-10%) rotate(8deg); }
+          100% { transform: translateX(-20%) translateY(0%) rotate(0deg); }
         }
-        .neon-fume {
+
+        @keyframes waveFlow2 {
+          0% { transform: translateX(20%) translateY(0%) rotate(0deg); }
+          50% { transform: translateX(-20%) translateY(10%) rotate(-8deg); }
+          100% { transform: translateX(20%) translateY(0%) rotate(0deg); }
+        }
+
+        .aura-wave {
           position: absolute;
-          border-radius: 50%;
-          filter: blur(90px);
+          width: 900px;
+          height: 400px;
+          filter: blur(120px);
+          opacity: 0.6;
           mix-blend-mode: screen;
         }
       `}</style>
 
-      {/* Purple Smoke */}
-      <div className="neon-fume" style={{
-        top: '10%',
-        left: '15%',
-        width: '60vw',
-        height: '60vh',
-        background: 'radial-gradient(circle, rgba(168, 85, 247, 0.25) 0%, rgba(0,0,0,0) 70%)',
-        animation: 'fumeDrift 15s ease-in-out infinite',
-      }} />
+      {/* PURPLE WAVE */}
+      <div
+        className="aura-wave"
+        style={{
+          top: '20%',
+          left: '-10%',
+          background: 'linear-gradient(90deg, rgba(168,85,247,0.6), rgba(236,72,153,0.4), transparent)',
+          animation: 'waveFlow1 12s ease-in-out infinite',
+          opacity: 0.7,
+        }}
+      />
 
-      {/* Blue Smoke */}
-      <div className="neon-fume" style={{
-        bottom: '5%',
-        right: '10%',
-        width: '55vw',
-        height: '55vh',
-        background: 'radial-gradient(circle, rgba(0, 242, 255, 0.15) 0%, rgba(0,0,0,0) 70%)',
-        animation: 'fumeDrift 18s ease-in-out infinite reverse',
-      }} />
+      {/* BLUE WAVE */}
+      <div
+        className="aura-wave"
+        style={{
+          bottom: '10%',
+          right: '-10%',
+          background: 'linear-gradient(90deg, rgba(59,130,246,0.6), rgba(99,102,241,0.4), transparent)',
+          animation: 'waveFlow2 14s ease-in-out infinite',
+          opacity: 0.7,
+        }}
+      />
+
+      {/* EXTRA GLOW CENTER */}
+      <div
+        style={{
+          position: 'absolute',
+          width: '500px',
+          height: '500px',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          background: 'radial-gradient(circle, rgba(168,85,247,0.25), transparent 70%)',
+          filter: 'blur(100px)',
+        }}
+      />
     </div>
   );
 };
 
 const AIOrb = ({ status }: { status: string }) => {
   return (
-    <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div style={{ position: 'relative', zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 80px rgba(168, 85, 247, 0.6), 0 0 120px rgba(99, 102, 241, 0.4)' }}>
       <style>{`
         @keyframes pulseCore {
           0% { transform: scale(1); box-shadow: 0 0 20px rgba(168, 85, 247, 0.4); }
@@ -665,7 +691,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                         <span className="status-timer">{formatTime()}</span>
                     </div>
                 </div>
-                
+                <AIOrb/>
                 <VideoStage />
 
                 {/* bottom */}
