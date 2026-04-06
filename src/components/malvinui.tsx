@@ -354,48 +354,64 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
         const [index, setIndex] = useState(0);
 
         useEffect(() => {
+            // Only start if we have content
+            if (content.length === 0) return;
+
             const timer = setInterval(() => {
-            setIndex((prev) => (prev + 1) % content.length);
-            }, 4000); // Change every 4 seconds
+                setIndex((prev) => (prev + 1) % content.length);
+            }, 10000); // 10000ms = 10 Seconds
+
             return () => clearInterval(timer);
-        }, [content.length]);
+        }, [content.length]); // Only reset if the list size changes
 
         const current = content[index];
+        
+        // Safety check: if current is missing, return null
+        if (!current) return null;
+
         const isImage = current.type === 'image';
 
         return (
             <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
-            <div 
-                key={index} 
-                style={{
-                position: 'absolute',
-                inset: 0,
-                animation: 'slideLeft 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '20px'
-                }}
-            >
-                {isImage ? (
-                <img 
-                    src={current.value} 
-                    alt="Business Insight" 
-                    style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} 
-                />
-                ) : (
-                <p style={{ 
-                    fontSize: '16px', 
-                    color: 'white', 
-                    textAlign: 'center', 
-                    fontWeight: '500', 
-                    fontStyle: 'italic',
-                    lineHeight: '1.6'
-                }}>
-                    "{current.value}"
-                </p>
-                )}
-            </div>
+                {/* The 'key={index}' is vital—it triggers the slide animation every time the number changes */}
+                <div 
+                    key={index} 
+                    style={{
+                        position: 'absolute',
+                        inset: 0,
+                        animation: 'slideLeft 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '20px'
+                    }}
+                >
+                    {isImage ? (
+                        <img 
+                            src={encodeURI(current.value)} 
+                            alt="Business Insight" 
+                            style={{ 
+                                width: '100%', 
+                                height: '100%', 
+                                objectFit: 'cover', 
+                                borderRadius: '12px',
+                                boxShadow: '0 10px 20px rgba(0,0,0,0.3)'
+                            }} 
+                        />
+                    ) : (
+                        <p style={{ 
+                            fontSize: '18px', // Slightly larger for 10s viewing
+                            color: 'white', 
+                            textAlign: 'center', 
+                            fontWeight: '500', 
+                            fontStyle: 'italic',
+                            lineHeight: '1.6',
+                            maxWidth: '80%'
+                        }}>
+                            "{current.value}"
+                        </p>
+                    )}
+                </div>
             </div>
         );
     };
@@ -528,46 +544,46 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
         </button>
     );
     const GlobalStyles = () => (
-  <style>{`
-        @keyframes goldGlow { 
-        0%, 100% { box-shadow: 0 0 5px rgba(255, 215, 0, 0.2); border-color: rgba(255, 215, 0, 0.4); } 
-        50% { box-shadow: 0 0 15px rgba(255, 215, 0, 0.5); border-color: #FFD700; }
-        }
-        @keyframes twinkle { 
-        0%, 100% { opacity: 0.3; transform: scale(0.8) rotate(0deg); } 
-        50% { opacity: 1; transform: scale(1.2) rotate(15deg); }
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        @media (max-width: 768px) {
-            .left-section, .Right-section {
-            display: none !important; /* Hide sidebars on mobile */
+        <style>{`
+            @keyframes goldGlow { 
+            0%, 100% { box-shadow: 0 0 5px rgba(255, 215, 0, 0.2); border-color: rgba(255, 215, 0, 0.4); } 
+            50% { box-shadow: 0 0 15px rgba(255, 215, 0, 0.5); border-color: #FFD700; }
             }
-            
-            .middle-section {
-            flex: 1 !important;
-            width: 100vw !important;
-            padding: 20px !important;
+            @keyframes twinkle { 
+            0%, 100% { opacity: 0.3; transform: scale(0.8) rotate(0deg); } 
+            50% { opacity: 1; transform: scale(1.2) rotate(15deg); }
             }
+            @keyframes fadeIn {
+                from { opacity: 0; transform: translateY(-10px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+            @media (max-width: 768px) {
+                .left-section, .Right-section {
+                display: none !important; /* Hide sidebars on mobile */
+                }
+                
+                .middle-section {
+                flex: 1 !important;
+                width: 100vw !important;
+                padding: 20px !important;
+                }
 
-            .mobile-menu-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.9);
-            backdrop-filter: blur(10px);
-            z-index: 999;
-            display: flex;
-            flex-direction: column;
-            padding: 40px 20px;
-            animation: fadeIn 0.3s ease;
+                .mobile-menu-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0,0,0,0.9);
+                backdrop-filter: blur(10px);
+                z-index: 999;
+                display: flex;
+                flex-direction: column;
+                padding: 40px 20px;
+                animation: fadeIn 0.3s ease;
+                }
             }
-        }
-    `}</style>
+        `}</style>
     );
 
     return (
