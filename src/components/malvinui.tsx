@@ -323,6 +323,10 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     const [showTrustMsg, setShowTrustMsg] = React.useState(false);
     const [isMenuOpen, setIsMenuOpen] = React.useState(false);
     const agent = useRemoteParticipant({ kind: ParticipantKind.AGENT });
+    const onToggleDisable = () => {
+        setDisabled(!disabled);
+        addActivity(disabled ? "System Restored" : "System Paused", "⚠️");
+    };
 
     // Consistent with React.useState
     const [activities, setActivities] = React.useState([{ 
