@@ -881,7 +881,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                 
                 <VideoStage />
                 {/*center*/}
-                <div style={{  flex: 1, display: 'flex', position: 'relative', justifyContent: 'center', paddingBottom: '8px', paddingTop: '100px', alignItems: 'center', flexDirection: 'column',  gap: '8px', width: '100%', maxWidth: '850px', marginBottom: '30px', zIndex: 10 }}>
+                <div style={{ display: 'flex', position: 'absolute', bottom: '100px', left: '50%', transform: 'translateX(-50%)', alignItems: 'center', flexDirection: 'column',  gap: '8px', width: '100%', maxWidth: '850px', zIndex: 10 }}>
                     <div style={{ 
                         display: 'flex', 
                         gap: '20px', 
