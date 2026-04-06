@@ -880,56 +880,59 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                 </div>
                 
                 <VideoStage />
-                <div style={{ 
-                    display: 'flex', 
-                    gap: '20px', 
-                    width: '100%', 
-                    maxWidth: '850px', 
-                    marginBottom: '30px',
-                    zIndex: 10 
-                }}>
-                    {/* CARD 1: STRATEGY & QUOTES */}
-                    <MalvinHybridCycler content={businessContent} />
-
-                    {/* CARD 2: VENTURE ANALYTICS */}
-                    <div style={{ ...glassStyle, flex: 1, padding: '24px', minHeight: '180px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '15px' }}>
-                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: neonBlue, boxShadow: `0 0 10px ${neonBlue}` }} />
-                            <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', fontWeight: 'bold', letterSpacing: '1.5px' }}>MARKET PULSE</span>
+                {/*center*/}
+                <div style={{  flex: 1, display: 'flex', position: 'relative', paddingTop: '100px', alignItems: 'center', flexDirection: 'column',  gap: '10px', width: '100%', maxWidth: '850px', marginBottom: '30px', zIndex: 10 }}>
+                    <div style={{ 
+                        display: 'flex', 
+                        gap: '20px', 
+                        width: '100%', 
+                        maxWidth: '850px', 
+                        marginBottom: '30px',
+                        zIndex: 10 
+                    }}>
+                        {/* CARD 1: STRATEGY & QUOTES */}
+                        <div style={{ ...glassStyle, flex: 1, padding: '24px', Height: '180px', overflow: 'hidden' }}>
+                         <MalvinHybridCycler content={businessContent} />
                         </div>
-                        
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                <span style={{ color: 'white', opacity: 0.7, fontSize: '13px' }}>Startup Sentiment</span>
-                                <span style={{ color: '#00ff88', fontSize: '13px', fontWeight: 'bold' }}>Bullish</span>
+                        {/* CARD 2: VENTURE ANALYTICS */}
+                        <div style={{ ...glassStyle, flex: 1, padding: '24px', minHeight: '180px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '15px' }}>
+                                <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: neonBlue, boxShadow: `0 0 10px ${neonBlue}` }} />
+                                <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', fontWeight: 'bold', letterSpacing: '1.5px' }}>MARKET PULSE</span>
                             </div>
-                            <div style={{ width: '100%', height: '4px', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '2px' }}>
-                                <div style={{ width: '75%', height: '100%', backgroundColor: neonBlue, borderRadius: '2px', boxShadow: `0 0 10px ${neonBlue}` }} />
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '5px' }}>
-                                <span style={{ color: 'white', opacity: 0.7, fontSize: '13px' }}>AI Integration Rate</span>
-                                <span style={{ color: neonPurple, fontSize: '13px', fontWeight: 'bold' }}>+22%</span>
+                            
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span style={{ color: 'white', opacity: 0.7, fontSize: '13px' }}>Startup Sentiment</span>
+                                    <span style={{ color: '#00ff88', fontSize: '13px', fontWeight: 'bold' }}>Bullish</span>
+                                </div>
+                                <div style={{ width: '100%', height: '4px', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '2px' }}>
+                                    <div style={{ width: '75%', height: '100%', backgroundColor: neonBlue, borderRadius: '2px', boxShadow: `0 0 10px ${neonBlue}` }} />
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '5px' }}>
+                                    <span style={{ color: 'white', opacity: 0.7, fontSize: '13px' }}>AI Integration Rate</span>
+                                    <span style={{ color: neonPurple, fontSize: '13px', fontWeight: 'bold' }}>+22%</span>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-                <div style={{ 
-                    display: 'flex', 
-                    gap: '12px', 
-                    marginBottom: '15px', 
-                    overflowX: 'auto', 
-                    padding: '5px',
-                    width: '100%',
-                    maxWidth: '600px',
-                    scrollbarWidth: 'none' // Hides scrollbar on Firefox
-                }}>
-                    <style>{`div::-webkit-scrollbar { display: none; }`}</style>
+                    <div style={{ 
+                        display: 'flex', 
+                        gap: '12px', 
+                        marginBottom: '15px', 
+                        overflowX: 'auto', 
+                        padding: '5px',
+                        width: '100%',
+                        maxWidth: '600px',
+                        scrollbarWidth: 'none' // Hides scrollbar on Firefox
+                    }}>
+                        <style>{`div::-webkit-scrollbar { display: none; }`}</style>
 
-                    <ActionPill icon="💡" label="Create an Idea" onClick={() => setTextInput("I have a new business idea...")} />
-                    <ActionPill icon="📈" label="Work on my Plan" onClick={() => setTextInput("Let's review my current business plan.")} />
-                    <ActionPill icon="💎" label="Go Premium" color={premiumGold} onClick={() => setShowExtras(true)} />
+                        <ActionPill icon="💡" label="Create an Idea" onClick={() => setTextInput("I have a new business idea...")} />
+                        <ActionPill icon="📈" label="Work on my Plan" onClick={() => setTextInput("Let's review my current business plan.")} />
+                        <ActionPill icon="💎" label="Go Premium" color={premiumGold} onClick={() => setShowExtras(true)} />
+                    </div>
                 </div>
-
                 {/* bottom */}
                 <div style={{gap: '10px', display: 'flex', alignItems: 'center',  width: '100%', justifyContent: 'center', marginBottom: '-14px'}}>
                     {/* pill */}
