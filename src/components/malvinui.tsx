@@ -327,6 +327,8 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
         setDisabled(!disabled);
         addActivity(disabled ? "System Restored" : "System Paused", "⚠️");
     };
+    const [disabled, setDisabled] = React.useState(false);
+    const onToggleDisable = () => setDisabled(!disabled);
 
     // Consistent with React.useState
     const [activities, setActivities] = React.useState([{ 
@@ -679,7 +681,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                         agent={agent} 
                         disabled={disabled} 
                         onToggleDisable={onToggleDisable} 
-                        activitySignal={activitySignal} 
+                        activitySignal={seconds}
                     />
                 </div>
                 {/* THE SMOKE AREA */}
