@@ -21,7 +21,7 @@ const neonPurple = "#9d00ff";
 const glassWhite = "rgba(255, 255, 255, 0.8)";
 const ghostWhite = "rgba(255, 255, 255, 0.4)";
 const btnReset = { background: 'none', border: 'none', padding: 0, cursor: 'pointer', outline: 'none' };
-const agent = useRemoteParticipant({ kind: ParticipantKind.AGENT });
+
 
 
 const AuraBackground = () => {
@@ -322,6 +322,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     const [activeTab, setActiveTab] = React.useState('Session'); 
     const [showTrustMsg, setShowTrustMsg] = React.useState(false);
     const [isMenuOpen, setIsMenuOpen] = React.useState(false);
+    const agent = useRemoteParticipant({ kind: ParticipantKind.AGENT });
 
     // Consistent with React.useState
     const [activities, setActivities] = React.useState([{ 
