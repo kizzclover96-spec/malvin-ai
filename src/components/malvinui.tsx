@@ -881,13 +881,13 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                 
                 <VideoStage />
                 {/*center*/}
-                <div style={{  flex: 1, display: 'flex', position: 'relative', justifyContent: 'flex-end', paddingBottom: '40px', paddingTop: '100px', alignItems: 'center', flexDirection: 'column',  gap: '10px', width: '100%', maxWidth: '850px', marginBottom: '30px', zIndex: 10 }}>
+                <div style={{  flex: 1, display: 'flex', position: 'relative', justifyContent: 'flex-end', paddingBottom: '15px', paddingTop: '100px', alignItems: 'center', flexDirection: 'column',  gap: '8px', width: '100%', maxWidth: '850px', marginBottom: '30px', zIndex: 10 }}>
                     <div style={{ 
                         display: 'flex', 
                         gap: '20px', 
                         width: '100%', 
                         maxWidth: '850px', 
-                        marginBottom: '30px',
+                        marginBottom: '25px',
                         zIndex: 10 
                     }}>
                         {/* CARD 1: STRATEGY & QUOTES */}
