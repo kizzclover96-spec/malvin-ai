@@ -349,6 +349,82 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
         setDisabled(!disabled);
         addActivity(disabled ? "System Restored" : "System Paused", "⚠️");
     };
+
+    const MalvinHybridCycler = ({ content }: { content: any[] }) => {
+        const [index, setIndex] = useState(0);
+
+        useEffect(() => {
+            const timer = setInterval(() => {
+            setIndex((prev) => (prev + 1) % content.length);
+            }, 4000); // Change every 4 seconds
+            return () => clearInterval(timer);
+        }, [content.length]);
+
+        const current = content[index];
+        const isImage = current.type === 'image';
+
+        return (
+            <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
+            <div 
+                key={index} 
+                style={{
+                position: 'absolute',
+                inset: 0,
+                animation: 'slideLeft 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '20px'
+                }}
+            >
+                {isImage ? (
+                <img 
+                    src={current.value} 
+                    alt="Business Insight" 
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} 
+                />
+                ) : (
+                <p style={{ 
+                    fontSize: '16px', 
+                    color: 'white', 
+                    textAlign: 'center', 
+                    fontWeight: '500', 
+                    fontStyle: 'italic',
+                    lineHeight: '1.6'
+                }}>
+                    "{current.value}"
+                </p>
+                )}
+            </div>
+            </div>
+        );
+    };
+
+
+    const ActionPill = ({ icon, label, onClick, color = 'white' }: any) => (
+        <button 
+            onClick={onClick}
+            style={{
+                ...btnReset,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 16px',
+                backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                borderRadius: '20px',
+                color: color,
+                fontSize: '13px',
+                whiteSpace: 'nowrap',
+                transition: 'all 0.2s ease'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)'}
+        >
+            <span>{icon}</span>
+            {label}
+        </button>
+    );
    
 
     // Consistent with React.useState
@@ -788,6 +864,72 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                 </div>
                 
                 <VideoStage />
+                <div style={{ 
+                    display: 'flex', 
+                    gap: '20px', 
+                    width: '100%', 
+                    maxWidth: '850px', 
+                    marginBottom: '30px',
+                    zIndex: 10 
+                }}>
+                    {/* CARD 1: STRATEGY & QUOTES */}
+                    <div style={{ ...glassStyle, flex: 1, height: '180px', overflow: 'hidden' }}>
+                        <MalvinHybridCycler 
+                            content={[
+                                { type: 'text', value: "Execution is everything." },
+                                { type: 'image', value: "/Transform your practice with data-driven….png" }, // Make sure names are simple!
+                                { type: 'text', value: "Solve a real problem, build a real business." },
+                                { type: 'text', value: "Growth happens outside the comfort zone." },
+                                { type: 'image', value: "/social media managing.png" },
+                                { type: 'text', value: "Don't build a product; solve a problem. The product is just the vehicle." },
+                                { type: 'image', value: "/Best investment strategies for 2026.png" },
+                                { type: 'image', value: "/Starting and growing profitable business in….png" },
+                                { type: 'text', value: "Your network is your net worth. Build bridges before you need to cross them." },
+                                { type: 'image', value: "/Boost business with social media marketing.png" },
+                                { type: 'image', value: "/Simple Investing Tips for a Richer Future.png" },
+                                { type: 'text', value: "The biggest risk is taking no risk at all in a rapidly changing world." },
+                            ]} 
+                        />
+                    </div>
+
+                    {/* CARD 2: VENTURE ANALYTICS */}
+                    <div style={{ ...glassStyle, flex: 1, padding: '24px', minHeight: '180px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '15px' }}>
+                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: neonBlue, boxShadow: `0 0 10px ${neonBlue}` }} />
+                            <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', fontWeight: 'bold', letterSpacing: '1.5px' }}>MARKET PULSE</span>
+                        </div>
+                        
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <span style={{ color: 'white', opacity: 0.7, fontSize: '13px' }}>Startup Sentiment</span>
+                                <span style={{ color: '#00ff88', fontSize: '13px', fontWeight: 'bold' }}>Bullish</span>
+                            </div>
+                            <div style={{ width: '100%', height: '4px', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '2px' }}>
+                                <div style={{ width: '75%', height: '100%', backgroundColor: neonBlue, borderRadius: '2px', boxShadow: `0 0 10px ${neonBlue}` }} />
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '5px' }}>
+                                <span style={{ color: 'white', opacity: 0.7, fontSize: '13px' }}>AI Integration Rate</span>
+                                <span style={{ color: neonPurple, fontSize: '13px', fontWeight: 'bold' }}>+22%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div style={{ 
+                    display: 'flex', 
+                    gap: '12px', 
+                    marginBottom: '15px', 
+                    overflowX: 'auto', 
+                    padding: '5px',
+                    width: '100%',
+                    maxWidth: '600px',
+                    scrollbarWidth: 'none' // Hides scrollbar on Firefox
+                }}>
+                    <style>{`div::-webkit-scrollbar { display: none; }`}</style>
+
+                    <ActionPill icon="💡" label="Create an Idea" onClick={() => setTextInput("I have a new business idea...")} />
+                    <ActionPill icon="📈" label="Work on my Plan" onClick={() => setTextInput("Let's review my current business plan.")} />
+                    <ActionPill icon="💎" label="Go Premium" color={premiumGold} onClick={() => setShowExtras(true)} />
+                </div>
 
                 {/* bottom */}
                 <div style={{gap: '10px', display: 'flex', alignItems: 'center',  width: '100%', justifyContent: 'center', marginBottom: '-14px'}}>
