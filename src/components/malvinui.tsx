@@ -881,7 +881,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                 
                 <VideoStage />
                 {/*center*/}
-                <div style={{  flex: 1, display: 'flex', position: 'relative', justifyContent: 'flex-end', paddingBottom: '10px', paddingTop: '100px', alignItems: 'center', flexDirection: 'column',  gap: '8px', width: '100%', maxWidth: '850px', marginBottom: '30px', zIndex: 10 }}>
+                <div style={{  flex: 1, display: 'flex', position: 'relative', justifyContent: 'center', paddingBottom: '8px', paddingTop: '100px', alignItems: 'center', flexDirection: 'column',  gap: '8px', width: '100%', maxWidth: '850px', marginBottom: '30px', zIndex: 10 }}>
                     <div style={{ 
                         display: 'flex', 
                         gap: '20px', 
@@ -891,7 +891,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                         zIndex: 10 
                     }}>
                         {/* CARD 1: STRATEGY & QUOTES */}
-                        <div style={{ ...glassStyle, flex: 1, padding: '15px', Height: '180px', overflow: 'hidden' }}>
+                        <div style={{ ...glassStyle, flex: 1, padding: '10px', Height: '180px', overflow: 'hidden' }}>
                          <MalvinHybridCycler content={businessContent} />
                         </div>
                         {/* CARD 2: VENTURE ANALYTICS */}
