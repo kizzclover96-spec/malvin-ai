@@ -397,6 +397,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
         addActivity(disabled ? "System Restored" : "System Paused", "⚠️");
     };
     
+    const [showUserMenu, setShowUserMenu] = React.useState(false);
     
     const businessContent = useMemo(() => [
         { type: 'text', value: "Execution is everything." },
@@ -763,17 +764,96 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                         <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '12px', margin: '5px 0 0 0' }}>Your intelligent collaborator partner</p>
                             
                     </div>
-                    <div className="left-user-panel" style={{ padding: '15px',
-                            flexDirection: 'column', 
-                            display: 'flex',
-                            padding: '20px',
-                            backgroundColor: 'rgba(255, 255, 255, 0.03)',
-                            backdropFilter: 'blur(12px)',
-                            borderRadius: '16px',
-                            border: '1px solid rgba(255, 255, 255, 0.1)'
-                        }}> 
-                        <div style={{ color: 'white', fontSize: '14px' }}>{typeof username !== 'undefined' ? username : "Guest User"}</div>
-                        <div style={{color: 'white', fontSize: '11px', opacity: 0.4 }}>User: {userEmail}</div>
+                    {/* --- USER ACCOUNT SECTION --- */}
+                    <div style={{ position: 'relative', width: '100%' }}>
+
+                        {/* 🚪 LOGOUT POPUP MENU */}
+                        {showUserMenu && (
+                            <div style={{
+                                position: 'absolute',
+                                bottom: '100%', // Sits directly on top of the panel
+                                left: '0',
+                                right: '0',
+                                marginBottom: '10px',
+                                backgroundColor: 'rgba(20, 20, 20, 0.9)', // Darker for contrast
+                                backdropFilter: 'blur(20px)',
+                                WebkitBackdropFilter: 'blur(20px)',
+                                borderRadius: '12px',
+                                padding: '8px',
+                                border: '1px solid rgba(255, 255, 255, 0.1)',
+                                boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+                                zIndex: 100,
+                                animation: 'slideUp 0.2s ease-out'
+                            }}>
+                                <button 
+                                    onClick={handleLogout}
+                                    style={{
+                                        ...btnReset, // Using your existing reset
+                                        width: '100%',
+                                        padding: '12px',
+                                        backgroundColor: 'rgba(255, 59, 48, 0.1)',
+                                        border: '1px solid rgba(255, 59, 48, 0.2)',
+                                        borderRadius: '8px',
+                                        color: '#ff3b30',
+                                        fontSize: '11px',
+                                        fontWeight: '800',
+                                        letterSpacing: '1px',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: '10px',
+                                        transition: 'all 0.2s ease'
+                                    }}
+                                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 59, 48, 0.2)'}
+                                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 59, 48, 0.1)'}
+                                >
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                                        <polyline points="16 17 21 12 16 7" />
+                                        <line x1="21" y1="12" x2="9" y2="12" />
+                                    </svg>
+                                    LOG OUT
+                                </button>
+                            </div>
+                        )}
+
+                        {/* 👤 THE USER PANEL (Trigger) */}
+                        <div 
+                            className="left-user-panel" 
+                            onClick={() => setShowUserMenu(!showUserMenu)}
+                            style={{ 
+                                padding: '15px 20px',
+                                flexDirection: 'column', 
+                                display: 'flex',
+                                backgroundColor: showUserMenu ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.03)',
+                                backdropFilter: 'blur(12px)',
+                                borderRadius: '16px',
+                                border: showUserMenu ? `1px solid ${neonPurple}` : '1px solid rgba(255, 255, 255, 0.1)',
+                                cursor: 'pointer',
+                                transition: 'all 0.3s ease',
+                                position: 'relative'
+                            }}
+                        > 
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div style={{ color: 'white', fontSize: '14px', fontWeight: '600' }}>
+                                    {typeof username !== 'undefined' ? username : "Guest User"}
+                                </div>
+                                {/* Small indicator arrow */}
+                                <div style={{ 
+                                    color: 'white', 
+                                    opacity: 0.3, 
+                                    fontSize: '10px',
+                                    transform: showUserMenu ? 'rotate(180deg)' : 'rotate(0deg)',
+                                    transition: 'transform 0.3s ease'
+                                }}>
+                                    ▲
+                                </div>
+                            </div>
+                            <div style={{ color: 'white', fontSize: '11px', opacity: 0.4, marginTop: '4px' }}>
+                                {userEmail}
+                            </div>
+                        </div> 
                     </div>       
                 </div>
                 
