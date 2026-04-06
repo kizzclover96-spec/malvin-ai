@@ -30,104 +30,89 @@ const AuraBackground = () => {
       inset: 0,
       overflow: 'hidden',
       zIndex: 0,
-      pointerEvents: 'none',
+      pointerEvents: 'none'
     }}>
       <style>{`
-        @keyframes floatWave1 {
-          0% { transform: translateX(-10%) translateY(0%) scale(1); }
-          50% { transform: translateX(10%) translateY(-5%) scale(1.05); }
-          100% { transform: translateX(-10%) translateY(0%) scale(1); }
+        @keyframes waveMove1 {
+          0% { transform: translateX(-30%) translateY(0%) rotate(-8deg); }
+          50% { transform: translateX(20%) translateY(-10%) rotate(5deg); }
+          100% { transform: translateX(-30%) translateY(0%) rotate(-8deg); }
         }
 
-        @keyframes floatWave2 {
-          0% { transform: translateX(10%) translateY(0%) scale(1); }
-          50% { transform: translateX(-10%) translateY(5%) scale(1.05); }
-          100% { transform: translateX(10%) translateY(0%) scale(1); }
+        @keyframes waveMove2 {
+          0% { transform: translateX(30%) translateY(0%) rotate(8deg); }
+          50% { transform: translateX(-20%) translateY(10%) rotate(-5deg); }
+          100% { transform: translateX(30%) translateY(0%) rotate(8deg); }
         }
 
-        .wave-svg {
+        .wave {
           position: absolute;
-          width: 160%;
-          height: 120%;
-          left: -30%;
-          top: -10%;
-          filter: blur(80px);
-          opacity: 0.9;
+          width: 1400px;
+          height: 500px;
+          filter: blur(120px);
+          opacity: 0.8;
           mix-blend-mode: screen;
         }
       `}</style>
 
-      {/* 🌈 MAIN WAVE (PURPLE → PINK → BLUE) */}
-      <svg
-        className="wave-svg"
-        style={{ animation: 'floatWave1 18s ease-in-out infinite' }}
-        viewBox="0 0 1440 600"
-        preserveAspectRatio="none"
-      >
-        <defs>
-          <linearGradient id="grad1" x1="0%" y1="50%" x2="100%" y2="50%">
-            <stop offset="0%" stopColor="#a855f7" />
-            <stop offset="40%" stopColor="#ec4899" />
-            <stop offset="80%" stopColor="#3b82f6" />
-            <stop offset="100%" stopColor="transparent" />
-          </linearGradient>
-        </defs>
+      {/* PURPLE / PINK WAVE */}
+      <div
+        className="wave"
+        style={{
+          top: '30%',
+          left: '-20%',
+          background: `
+            linear-gradient(
+              90deg,
+              rgba(168,85,247,0.9),
+              rgba(236,72,153,0.7),
+              rgba(59,130,246,0.5),
+              transparent
+            )
+          `,
+          animation: 'waveMove1 12s ease-in-out infinite'
+        }}
+      />
 
-        <path
-          d="
-            M0,300 
-            C300,200 500,400 800,300 
-            C1100,200 1300,350 1440,280 
-            L1440,600 L0,600 Z
-          "
-          fill="url(#grad1)"
-        />
-      </svg>
+      {/* BLUE WAVE */}
+      <div
+        className="wave"
+        style={{
+          bottom: '20%',
+          right: '-20%',
+          background: `
+            linear-gradient(
+              90deg,
+              rgba(59,130,246,0.9),
+              rgba(99,102,241,0.7),
+              rgba(168,85,247,0.5),
+              transparent
+            )
+          `,
+          animation: 'waveMove2 14s ease-in-out infinite'
+        }}
+      />
 
-      {/* 🔵 SECOND WAVE */}
-      <svg
-        className="wave-svg"
-        style={{ animation: 'floatWave2 22s ease-in-out infinite' }}
-        viewBox="0 0 1440 600"
-        preserveAspectRatio="none"
-      >
-        <defs>
-          <linearGradient id="grad2" x1="0%" y1="50%" x2="100%" y2="50%">
-            <stop offset="0%" stopColor="#3b82f6" />
-            <stop offset="50%" stopColor="#6366f1" />
-            <stop offset="100%" stopColor="transparent" />
-          </linearGradient>
-        </defs>
-
-        <path
-          d="
-            M0,350 
-            C400,250 600,450 900,350 
-            C1200,250 1400,400 1440,360 
-            L1440,600 L0,600 Z
-          "
-          fill="url(#grad2)"
-        />
-      </svg>
-
-      {/* 💜 CENTER GLOW (CRUCIAL FOR THAT LOOK) */}
-      <div style={{
-        position: 'absolute',
-        top: '50%',
-        left: '50%',
-        transform: 'translate(-50%, -50%)',
-        width: '700px',
-        height: '700px',
-        background: 'radial-gradient(circle, rgba(168,85,247,0.35), transparent 70%)',
-        filter: 'blur(120px)',
-      }} />
+      {/* CENTER GLOW (VERY IMPORTANT) */}
+      <div
+        style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: '600px',
+          height: '600px',
+          background: 'radial-gradient(circle, rgba(168,85,247,0.3), transparent 70%)',
+          filter: 'blur(120px)',
+        }}
+      />
     </div>
   );
 };
 
 const AIOrb = ({ status }: { status: string }) => {
   return (
-    <div style={{ position: 'relative', zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'radial-gradient(circle at 30% 30%, #ffffff, #a855f7, #3b82f6)', boxShadow: `0 0 60px rgba(168,85,247,0.6), 0 0 120px rgba(59,130,246,0.4), inset 0 0 20px rgba(255,255,255,0.4)` }}>
+    <div style={{ position: 'relative', zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 80px rgba(168, 85, 247, 0.6), 0 0 120px rgba(99, 102, 241, 0.4)' }}>
       <style>{`
         @keyframes pulseCore {
           0% { transform: scale(1); box-shadow: 0 0 20px rgba(168, 85, 247, 0.4); }
@@ -637,7 +622,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
             </div>
 
             {/* 2. MIDDLE */}
-            <div className="middle-section" style={{ flex: 4, background: 'radial-gradient(circle at center, #0b0b15 0%, #000 70%)', position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', padding: '40px' }}>
+            <div className="middle-section" style={{ flex: 4, position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', padding: '40px' }}>
                 
                 {/* THE SMOKE AREA */}
                 <AuraBackground />
