@@ -228,7 +228,7 @@ const MicIcon = ({ enabled, size = 22 }: { enabled?: boolean, size?: number }) =
 };
 
 // --- AI FACE COMPONENT ---
-const MalvinVoiceIsland({ agent, disabled, onToggleDisable, activitySignal }: any) {
+function MalvinVoiceIsland({ agent, disabled, onToggleDisable, activitySignal }: any) {
   const isAgentSpeaking = useIsSpeaking(agent);
   const [blink, setBlink] = useState(false);
   const [sleeping, setSleeping] = useState(false);
