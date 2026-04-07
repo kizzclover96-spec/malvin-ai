@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 
 const glassStyle: React.CSSProperties = {
     background: 'rgba(255, 255, 255, 0.03)',
@@ -10,9 +10,23 @@ const glassStyle: React.CSSProperties = {
     color: 'white',
 };
 
+<style>
+{`
+    .pulse-dot {
+        box-shadow: 0 0 0 0 rgba(45, 212, 191, 0.7);
+        animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+        0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(45, 212, 191, 0.7); }
+        70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(45, 212, 191, 0); }
+        100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(45, 212, 191, 0); }
+    }
+`}
+</style>
+
 const Settings = ({ onBack, userBrand, setUserBrand }: any) => {
     const [activeTab, setActiveTab] = useState('Business');
-
+    const fileInputRef = useRef<HTMLInputElement>(null); // Create the reference
     const menuItems = [
         { id: 'Account', icon: '👤' },
         { id: 'AI Behavior', icon: '🧠' },
@@ -109,37 +123,30 @@ const Settings = ({ onBack, userBrand, setUserBrand }: any) => {
                                         {/* Hidden File Input */}
                                         <input 
                                             type="file" 
+                                            ref={fileInputRef}
                                             id="photo-upload" 
                                             style={{ display: 'none' }} 
                                             accept="image/*"
                                             onChange={(e) => {
-                                                const file = e.target.files[0];
+                                                const file = e.target.files?.[0];
                                                 if (file) {
                                                     const reader = new FileReader();
-                                                    reader.onloadend = () => {
-                                                        setUserBrand({...userBrand, profilePic: reader.result});
+                                                    reader.onload = (event) => {
+                                                        // This updates the global state we passed from App.tsx
+                                                        setUserBrand({ ...userBrand, profilePic: event.target?.result });
                                                     };
                                                     reader.readAsDataURL(file);
                                                 }
                                             }}
                                         />
                                         <button 
-                                            onClick={() => document.getElementById('photo-upload').click()}
-                                            style={{ 
-                                                background: 'rgba(255,255,255,0.05)', 
-                                                border: '1px solid rgba(255,255,255,0.1)', 
-                                                color: 'white', 
-                                                padding: '8px 16px', 
-                                                borderRadius: '8px', 
-                                                fontSize: '13px',
-                                                cursor: 'pointer' 
-                                            }}
+                                            onClick={() => fileInputRef.current?.click()} // Trigger the hidden input
+                                            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer' }}
                                         >
                                             Change Photo
                                         </button>
                                     </div>
                                 </div>
-
                                 {/* USER DETAILS */}
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
                                     <div>
@@ -382,6 +389,21 @@ const Settings = ({ onBack, userBrand, setUserBrand }: any) => {
                             <p style={{ textAlign: 'center', fontSize: '11px', opacity: 0.3, marginTop: '40px' }}>
                                 © 2026 Malvin Ecosystem. All rights reserved. Registered Neural Network.
                             </p>
+
+                            <div style={{ 
+                                position: 'fixed', bottom: '40px', right: '40px', 
+                                display: 'flex', alignItems: 'center', gap: '10px',
+                                background: 'rgba(0,0,0,0.6)', padding: '8px 16px', borderRadius: '20px',
+                                border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)'
+                            }}>
+                                {/* Pulse Animation */}
+                                <div className="pulse-dot" style={{ 
+                                    width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#2dd4bf' 
+                                }}></div>
+                                <span style={{ fontSize: '11px', color: 'white', opacity: 0.6, fontWeight: 600 }}>
+                                    NEURAL CORE SYNCED
+                                </span>
+                            </div>
                         </section>
                     )}  
                 </div>
