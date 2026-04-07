@@ -1088,7 +1088,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                                             >
                                                 <div style={{ overflow: 'hidden' }}>
                                                     <div ref={noteRef} style={{ padding: '20px', background: '#1a1a1a' }}>
-                                                        <h2>{currentNoteTitle}</h2>
+                                                        <h2>{currentNote ? "Drafting Strategy..." : "Intel Vault"}</h2>
                                                         <p>{currentNote}</p>
                                                     </div>
                                                     <div style={{ fontSize: '11px', color: 'white', fontWeight: 'bold', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
