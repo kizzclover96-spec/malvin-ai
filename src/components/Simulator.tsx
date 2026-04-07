@@ -139,7 +139,7 @@ const Simulator = ({ onBack }: { onBack: () => void }) => {
                             </div>
 
                             <div>
-                                <label style={{ fontSize: '9px', opacity: 0.4, fontWeight: 'bold', display: 'block', marginBottom: '6px' }}>BUSINESS TYPE</label>
+                                <label style={{ fontSize: '9px', opacity: 0.4, fontWeight: 'bold', display: 'block', marginBottom: '6px' }}>BUSINESS TYPE/PRODUCT</label>
                                 <select value={bizType} onChange={(e) => setBizType(e.target.value)} style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '12px', borderRadius: '12px', fontSize: '13px', outline: 'none' }}>
                                     <option>Brand</option><option>Product</option><option>Startup</option><option value="Other">Other...</option>
                                 </select>
