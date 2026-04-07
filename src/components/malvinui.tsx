@@ -1049,7 +1049,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                                                 <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.3)' }}>{note.date}</div>
                                                 
                                                 <button 
-                                                    onClick={() => e.stopPropagation(); handleDeleteNote(note.id)}
+                                                    onClick={() => { e.stopPropagation(); handleDeleteNote(note.id); }}
                                                     style={{
                                                         background: 'transparent',
                                                         border: 'none',
