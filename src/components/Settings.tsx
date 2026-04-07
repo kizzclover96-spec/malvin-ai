@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 
+const premiumGold = "#FFD700";
 const glassStyle: React.CSSProperties = {
     background: 'rgba(255, 255, 255, 0.03)',
     backdropFilter: 'blur(20px)',
@@ -115,15 +116,12 @@ const Settings = ({ onBack, userBrand, setUserBrand }: any) => {
         <div style={{
             width: '100vw',
             height: '100vh',
+            backgroundColor: '#050505',
             color: 'white',
             fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif',
             display: 'flex',
             overflow: 'hidden',
-            backgroundColor: 'rgba(255, 255, 255, 0.03)',   // 1. Semi-transparent white
-            backdropFilter: 'blur(12px)',                  // 2. The "Frosted" blur
-            WebkitBackdropFilter: 'blur(12px)',
-            borderRadius: '16px', // Smooth corners
-            border: '1px solid rgba(255, 255, 255, 0.1)'
+            
         }}>
             <AuraBackground />
             {/* LEFT SIDEBAR */}
@@ -133,7 +131,9 @@ const Settings = ({ onBack, userBrand, setUserBrand }: any) => {
                 padding: '24px 12px',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '4px'
+                gap: '4px',
+                position: 'relative',
+                zIndex: 1
             }}>
                 <div style={{ padding: '0 12px 24px 12px', fontSize: '12px', fontWeight: 600, opacity: 0.4, letterSpacing: '1px' }}>
                     SETTINGS
@@ -169,7 +169,7 @@ const Settings = ({ onBack, userBrand, setUserBrand }: any) => {
             </div>
 
             {/* RIGHT SIDE PANEL */}
-            <div style={{ flex: 1, padding: '60px 100px', overflowY: 'auto' }}>
+            <div style={{ flex: 1, padding: '60px 100px', overflowY: 'auto', position: 'relative', zIndex: 1 }}>
                 <div style={{ maxWidth: '600px' }}>
 
                     {activeTab === 'Account' && (
@@ -262,7 +262,7 @@ const Settings = ({ onBack, userBrand, setUserBrand }: any) => {
                                         <div style={{ fontSize: '13px', opacity: 0.5, marginTop: '4px' }}>Limited to 3 daily neural simulations.</div>
                                     </div>
                                     <button style={{ 
-                                        background: '#0ea5e9', 
+                                        background: 'premiumGold', 
                                         color: 'white', 
                                         border: 'none', 
                                         padding: '10px 20px', 
@@ -419,7 +419,8 @@ const Settings = ({ onBack, userBrand, setUserBrand }: any) => {
                                 border: '1px solid rgba(255,255,255,0.1)', 
                                 borderRadius: '20px', 
                                 padding: '40px',
-                                lineHeight: '1.8'
+                                lineHeight: '1.8',
+                                boxShadow: '0 20px 50px rgba(0,0,0,0.3)'
                             }}>
                                 {/* CERTIFICATION BADGE */}
                                 <div style={{ 
