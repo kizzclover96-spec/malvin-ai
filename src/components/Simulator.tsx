@@ -41,7 +41,7 @@ const Simulator = ({ onBack }: { onBack: () => void }) => {
             fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
             display: 'flex',
             flexDirection: 'column',
-            padding: '40px',
+            padding: '24px 40px',
             boxSizing: 'border-box',
             overflow: 'hidden',
             position: 'relative'
@@ -59,7 +59,7 @@ const Simulator = ({ onBack }: { onBack: () => void }) => {
             }} />
 
             {/* HEADER */}
-            <div style={{ position: 'relative', zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px' }}>
+            <div style={{ flexShrink: 0, position: 'relative', zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', marginTop: 'auto' }}>
                 <button 
                     onClick={onBack}
                     style={{
@@ -83,11 +83,13 @@ const Simulator = ({ onBack }: { onBack: () => void }) => {
 
             {/* MAIN GRID */}
             <div style={{ 
+                minHeight: 0,
+                display: 'grid',
                 position: 'relative', 
                 zIndex: 1, 
                 display: 'grid', 
-                gridTemplateColumns: '1fr 350px', 
-                gap: '24px', 
+                gridTemplateColumns: '1fr 340px', 
+                gap: '20px', 
                 flex: 1 
             }}>
                 
