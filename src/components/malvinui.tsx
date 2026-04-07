@@ -464,29 +464,38 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     };
     
 
-    const exportToPDF = async () => {
-        if (!currentNote) {
-            alert("Please select or write a note first!");
-            return;
-        }
-
-        const element = noteRef.current;
-        const canvas = await html2canvas(element, {
-            backgroundColor: '#1a1a1a', // Matches your dark theme
-            scale: 2 // Higher quality
-        });
-        
-        const imgData = canvas.toDataURL('image/png');
-        const pdf = new jsPDF();
-        const imgProps = pdf.getImageProperties(imgData);
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-
-        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-        pdf.save(`Strategic_Note_${Date.now()}.pdf`);
-        
-        if (typeof addActivity === 'function') {
-            addActivity("Exported Note to PDF", "📄");
+    const exportToPDF = () => {
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+            const content = `
+                <html>
+                    <head>
+                        <title>Strategic Intel Export</title>
+                        <style>
+                            body { font-family: monospace; padding: 40px; background: white; color: black; }
+                            h1 { color: #bf00ff; border-bottom: 2px solid #bf00ff; padding-bottom: 10px; }
+                            .meta { color: #666; font-size: 12px; margin-bottom: 30px; }
+                            .note-body { white-space: pre-wrap; line-height: 1.6; font-size: 14px; }
+                        </style>
+                    </head>
+                    <body>
+                        <h1>STRATEGIC SESSION NOTES</h1>
+                        <div class="meta">
+                            <strong>SOURCE:</strong> ${userEmail || 'ARCHIVE_USER'}<br>
+                            <strong>TIMESTAMP:</strong> ${new Date().toLocaleString()}
+                        </div>
+                        <div class="note-body">${currentNote}</div>
+                    </body>
+                </html>
+            `;
+            printWindow.document.write(content);
+            printWindow.document.close();
+            
+            // Wait a tiny bit for the styles to load, then trigger print
+            setTimeout(() => {
+                printWindow.print();
+                printWindow.close();
+            }, 250);
         }
     };
 
