@@ -24,6 +24,19 @@ const glassWhite = "rgba(255, 255, 255, 0.8)";
 const ghostWhite = "rgba(255, 255, 255, 0.4)";
 const btnReset = { background: 'none', border: 'none', padding: 0, cursor: 'pointer', outline: 'none' };
 
+const smallActionStyle = {
+    padding: '6px 12px',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    border: '1px solid rgba(255,255,255,0.1)',
+    borderRadius: '6px',
+    color: 'white',
+    fontSize: '9px',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    letterSpacing: '1px',
+    transition: 'all 0.2s'
+};
+
 
 
 const AuraBackground = () => {
@@ -398,7 +411,33 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
         setDisabled(!disabled);
         addActivity(disabled ? "System Restored" : "System Paused", "⚠️");
     };
-    
+
+    const [notes, setNotes] = useState([]); // Array of {id, title, content, date}
+    const [currentNote, setCurrentNote] = useState("");
+    const [isViewingHistory, setIsViewingHistory] = useState(false);
+    const [savedNotes, setSavedNotes] = useState([]); // Stores { id, title, content, date }
+    const [showHistory, setShowHistory] = useState(false);
+
+    const handleSaveNote = () => {
+        if (!currentNote.trim()) return;
+
+        // 1. Generate Title from the first line or first 30 chars
+        const firstLine = currentNote.split('\n')[0];
+        const generatedTitle = firstLine.length > 25 ? firstLine.substring(0, 25) + "..." : firstLine;
+
+        const newNote = {
+            id: Date.now(),
+            title: generatedTitle || "Untitled Strategic Note",
+            content: currentNote,
+            date: new Date().toLocaleDateString()
+        };
+
+        setSavedNotes([newNote, ...savedNotes]);
+        setCurrentNote(""); // Clear editor after saving
+        setShowHistory(true); // Show them their success
+        alert("Strategy Saved to Intel Vault.");
+    };
+
     const [showUserMenu, setShowUserMenu] = React.useState(false);
     const handleLogout = async () => {
         try {
@@ -724,8 +763,17 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                     <SidebarBtn 
                         label="Notes" 
                         isActive={activeTab === 'Notes'} 
-                        onClick={() => setActiveTab('Notes')}
-                    >
+                        onClick={() => {
+                            // 1. Switch the tab
+                            setActiveTab('Notes');
+                            
+                            // 2. Add the activity notification
+                            addActivity("Opened Notes", "📝");
+                            
+                            // 3. Update the status icon (if you're using that state)
+                            setActivityIcon("📝");
+                        }}
+                        >
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
                             <polyline points="14 2 14 8 20 8"/>
@@ -946,58 +994,121 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                 </div>
                 
                 <VideoStage />
-                {/*center*/}
-                <div style={{ display: 'flex', position: 'absolute', bottom: '90px', left: '50%', transform: 'translateX(-50%)', alignItems: 'center', flexDirection: 'column',  gap: '8px', width: '100%', maxWidth: '850px', zIndex: 10 }}>
-                    <div style={{ 
-                        display: 'flex', 
-                        gap: '20px', 
-                        width: '100%', 
-                        maxWidth: '850px', 
-                        marginBottom: '25px',
-                        zIndex: 10 
-                    }}>
-                        {/* CARD 1: STRATEGY & QUOTES */}
-                        <div style={{ ...glassStyle, flex: 1, padding: '5px', Height: '180px', overflow: 'hidden' }}>
-                         <MalvinHybridCycler content={businessContent} />
-                        </div>
-                        {/* CARD 2: VENTURE ANALYTICS */}
-                        <div style={{ ...glassStyle, flex: 1, padding: '24px', minHeight: '180px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '15px' }}>
-                                <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: neonBlue, boxShadow: `0 0 10px ${neonBlue}` }} />
-                                <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', fontWeight: 'bold', letterSpacing: '1.5px' }}>MARKET PULSE</span>
-                            </div>
-                            
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                    <span style={{ color: 'white', opacity: 0.7, fontSize: '13px' }}>Startup Sentiment</span>
-                                    <span style={{ color: '#00ff88', fontSize: '13px', fontWeight: 'bold' }}>Bullish</span>
+                <div style={{ display: 'flex', position: 'absolute', bottom: '90px', left: '50%', transform: 'translateX(-50%)', alignItems: 'center', flexDirection: 'column', gap: '8px', width: '100%', maxWidth: '850px', zIndex: 10 }}>
+                    {activeTab === 'Notes' ? (
+                        /* 📝 THE STRATEGIC NOTEPAD (Shows when Notes is clicked) */
+                        <div style={{ 
+                            ...glassStyle, width: '100%', height: '450px', 
+                            display: 'flex', flexDirection: 'column', overflow: 'hidden',
+                            border: '1px solid rgba(191, 0, 255, 0.3)', // Purple Malvin Tint
+                            animation: 'fadeIn 0.4s ease-out'
+                        }}>
+                            {/* NOTEPAD HEADER */}
+                            <div style={{ padding: '15px 20px', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.2)' }}>
+                                <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+                                    <span style={{ color: '#bf00ff', fontWeight: '900', fontSize: '10px', letterSpacing: '2px' }}>INTEL DRAFT</span>
+                                    {savedNotes.length > 0 && (
+                                        <button 
+                                            onClick={() => setShowHistory(!showHistory)}
+                                            style={{ ...btnReset, color: 'rgba(255,255,255,0.5)', fontSize: '10px', cursor: 'pointer', borderBottom: '1px solid' }}
+                                        >
+                                            {showHistory ? "CLOSE HISTORY" : `PREVIOUS NOTES (${savedNotes.length})`}
+                                        </button>
+                                    )}
                                 </div>
-                                <div style={{ width: '100%', height: '4px', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '2px' }}>
-                                    <div style={{ width: '75%', height: '100%', backgroundColor: neonBlue, borderRadius: '2px', boxShadow: `0 0 10px ${neonBlue}` }} />
-                                </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '5px' }}>
-                                    <span style={{ color: 'white', opacity: 0.7, fontSize: '13px' }}>AI Integration Rate</span>
-                                    <span style={{ color: neonPurple, fontSize: '13px', fontWeight: 'bold' }}>+22%</span>
+                                <div style={{ display: 'flex', gap: '10px' }}>
+                                    <button onClick={handleSaveNote} style={{...smallActionStyle, border: '1px solid #bf00ff'}}>SAVE TO VAULT</button>
+                                    <button style={smallActionStyle}>EXPORT PDF</button>
                                 </div>
                             </div>
-                        </div>
-                    </div>
-                    <div style={{ 
-                        display: 'flex', 
-                        gap: '12px', 
-                        marginBottom: '15px', 
-                        overflowX: 'auto', 
-                        padding: '5px',
-                        width: '100%',
-                        maxWidth: '600px',
-                        scrollbarWidth: 'none' // Hides scrollbar on Firefox
-                    }}>
-                        <style>{`div::-webkit-scrollbar { display: none; }`}</style>
 
-                        <ActionPill icon="💡" label="Create an Idea" onClick={() => setTextInput("I have a new business idea...")} />
-                        <ActionPill icon="📈" label="Work on my Plan" onClick={() => setTextInput("Let's review my current business plan.")} />
-                        <ActionPill icon="💎" label="Go Premium" color={premiumGold} onClick={() => setShowExtras(true)} />
-                    </div>
+                            <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+                                {/* PREVIOUS NOTES SIDE-BAR */}
+                                {showHistory && savedNotes.length > 0 && (
+                                    <div style={{ width: '200px', borderRight: '1px solid rgba(255,255,255,0.1)', backgroundColor: 'rgba(0,0,0,0.3)', overflowY: 'auto', padding: '10px' }}>
+                                        {savedNotes.map(note => (
+                                            <div 
+                                                key={note.id} 
+                                                onClick={() => setCurrentNote(note.content)}
+                                                style={{ padding: '10px', borderRadius: '8px', marginBottom: '8px', backgroundColor: 'rgba(255,255,255,0.05)', cursor: 'pointer', border: '1px solid rgba(255,255,255,0.05)' }}
+                                            >
+                                                <div style={{ fontSize: '11px', color: 'white', fontWeight: 'bold' }}>{note.title}</div>
+                                                <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.3)' }}>{note.date}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {/* THE TYPEWRITER EDITOR */}
+                                <textarea 
+                                    value={currentNote}
+                                    onChange={(e) => setCurrentNote(e.target.value)}
+                                    placeholder="Type your strategic mission details here..."
+                                    style={{
+                                        flex: 1, padding: '25px', backgroundColor: 'transparent', border: 'none',
+                                        color: 'white', fontSize: '15px', outline: 'none', resize: 'none',
+                                        fontFamily: 'monospace', lineHeight: '1.6', caretColor: '#bf00ff'
+                                    }}
+                                />
+                            </div>
+                        </div>
+                    ) : (
+                        {/*center*/}
+                        <>
+                            <div style={{ display: 'flex', position: 'absolute', bottom: '90px', left: '50%', transform: 'translateX(-50%)', alignItems: 'center', flexDirection: 'column',  gap: '8px', width: '100%', maxWidth: '850px', zIndex: 10 }}>
+                                <div style={{ 
+                                    display: 'flex', 
+                                    gap: '20px', 
+                                    width: '100%', 
+                                    maxWidth: '850px', 
+                                    marginBottom: '25px',
+                                    zIndex: 10 
+                                }}>
+                                    {/* CARD 1: STRATEGY & QUOTES */}
+                                    <div style={{ ...glassStyle, flex: 1, padding: '5px', Height: '180px', overflow: 'hidden' }}>
+                                    <MalvinHybridCycler content={businessContent} />
+                                    </div>
+                                    {/* CARD 2: VENTURE ANALYTICS */}
+                                    <div style={{ ...glassStyle, flex: 1, padding: '24px', minHeight: '180px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '15px' }}>
+                                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: neonBlue, boxShadow: `0 0 10px ${neonBlue}` }} />
+                                            <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', fontWeight: 'bold', letterSpacing: '1.5px' }}>MARKET PULSE</span>
+                                        </div>
+                                        
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                                <span style={{ color: 'white', opacity: 0.7, fontSize: '13px' }}>Startup Sentiment</span>
+                                                <span style={{ color: '#00ff88', fontSize: '13px', fontWeight: 'bold' }}>Bullish</span>
+                                            </div>
+                                            <div style={{ width: '100%', height: '4px', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '2px' }}>
+                                                <div style={{ width: '75%', height: '100%', backgroundColor: neonBlue, borderRadius: '2px', boxShadow: `0 0 10px ${neonBlue}` }} />
+                                            </div>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '5px' }}>
+                                                <span style={{ color: 'white', opacity: 0.7, fontSize: '13px' }}>AI Integration Rate</span>
+                                                <span style={{ color: neonPurple, fontSize: '13px', fontWeight: 'bold' }}>+22%</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div style={{ 
+                                    display: 'flex', 
+                                    gap: '12px', 
+                                    marginBottom: '15px', 
+                                    overflowX: 'auto', 
+                                    padding: '5px',
+                                    width: '100%',
+                                    maxWidth: '600px',
+                                    scrollbarWidth: 'none' // Hides scrollbar on Firefox
+                                }}>
+                                    <style>{`div::-webkit-scrollbar { display: none; }`}</style>
+
+                                    <ActionPill icon="💡" label="Create an Idea" onClick={() => setTextInput("I have a new business idea...")} />
+                                    <ActionPill icon="📈" label="Work on my Plan" onClick={() => setTextInput("Let's review my current business plan.")} />
+                                    <ActionPill icon="💎" label="Go Premium" color={premiumGold} onClick={() => setShowExtras(true)} />
+                                </div>
+                            </div>
+                        </>
+                    )}
                 </div>
                 {/* bottom */}
                 <div style={{gap: '10px', display: 'flex', alignItems: 'center',  width: '100%', justifyContent: 'center', marginBottom: '-14px'}}>
