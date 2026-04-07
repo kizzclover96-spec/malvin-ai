@@ -1037,31 +1037,55 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                             <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
                                 {/* PREVIOUS NOTES SIDE-BAR */}
                                 {showHistory && savedNotes.length > 0 && (
-                                    <div style={{ width: '200px', borderRight: '1px solid rgba(255,255,255,0.1)', backgroundColor: 'rgba(0,0,0,0.3)', overflowY: 'auto', padding: '10px' }}>
+                                    <div style={{ width: '220px', borderRight: '1px solid rgba(255,255,255,0.1)', backgroundColor: 'rgba(0,0,0,0.3)', overflowY: 'auto', padding: '10px' }}>
                                         {savedNotes.map(note => (
                                             <div 
                                                 key={note.id} 
                                                 onClick={() => setCurrentNote(note.content)}
-                                                style={{ padding: '10px', borderRadius: '8px', marginBottom: '8px', backgroundColor: 'rgba(255,255,255,0.05)', cursor: 'pointer', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', }}>
-                                            
-                                                
-                                                <div style={{ fontSize: '11px', color: 'white', fontWeight: 'bold', textOverflow: 'ellipsis', overflow: 'hidden' }}>{note.title}</div>
-                                                <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.3)' }}>{note.date}</div>
-                                                
+                                                style={{ 
+                                                    padding: '12px', 
+                                                    borderRadius: '8px', 
+                                                    marginBottom: '8px', 
+                                                    backgroundColor: 'rgba(255,255,255,0.05)', 
+                                                    cursor: 'pointer', 
+                                                    border: '1px solid rgba(255,255,255,0.05)',
+                                                    display: 'flex',          // Added flex to align text and button
+                                                    justifyContent: 'space-between', 
+                                                    alignItems: 'center',
+                                                    transition: 'background 0.2s'
+                                                }}
+                                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'}
+                                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)'}
+                                            >
+                                                <div style={{ overflow: 'hidden' }}>
+                                                    <div style={{ fontSize: '11px', color: 'white', fontWeight: 'bold', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                                                        {note.title}
+                                                    </div>
+                                                    <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.3)', marginTop: '2px' }}>
+                                                        {note.date}
+                                                    </div>
+                                                </div>
+
                                                 <button 
-                                                    onClick={() => { e.stopPropagation(); handleDeleteNote(note.id); }}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation(); // Prevents the note from opening when you click delete
+                                                        handleDeleteNote(note.id);
+                                                    }}
                                                     style={{
                                                         background: 'transparent',
                                                         border: 'none',
-                                                        color: '#ff4d4d', // Red color for delete
+                                                        color: 'rgba(255, 77, 77, 0.6)', // Slightly faded red
                                                         cursor: 'pointer',
-                                                        padding: '5px'
+                                                        padding: '4px',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center'
                                                     }}
                                                     onMouseEnter={(e) => e.currentTarget.style.color = '#ff4d4d'} // Bright red on hover
                                                     onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(255, 77, 77, 0.6)'}
                                                     title="Delete Note"
                                                 >
-                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                                         <polyline points="3 6 5 6 21 6"></polyline>
                                                         <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
                                                     </svg>
