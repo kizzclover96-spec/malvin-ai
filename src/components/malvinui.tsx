@@ -468,6 +468,14 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
         }
     };
     
+    const [userBrand, setUserBrand] = useState({
+        name: "Malvin Enterprise",
+        context: "",
+        currency: "Euro (€)",
+        language: "English (US)",
+        tier: "Basic Free Tier",
+        status: "CEO / Founder"
+    });
 
     const exportToPDF = () => {
         const printWindow = window.open('', '_blank');

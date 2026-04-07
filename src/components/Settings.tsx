@@ -22,14 +22,7 @@ const Settings = ({ onBack, userBrand, setUserBrand }: any) => {
         { id: 'About us' },
     ];
 
-    const [userBrand, setUserBrand] = useState({
-        name: "Malvin Enterprise",
-        context: "",
-        currency: "Euro (€)",
-        language: "English (US)",
-        tier: "Basic Free Tier",
-        status: "CEO / Founder"
-    });
+    
     return (
         <div style={{
             width: '100vw',
