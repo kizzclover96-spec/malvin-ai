@@ -1,5 +1,7 @@
 import { auth } from "../firebase";
 import { signOut } from "firebase/auth";
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 import React, { useEffect, useRef, useState, useMemo } from "react";
 import '../App.css';
 import {
@@ -411,7 +413,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
         setDisabled(!disabled);
         addActivity(disabled ? "System Restored" : "System Paused", "⚠️");
     };
-
+    const noteRef = useRef();
     const [currentNote, setCurrentNote] = useState("");
     const [isViewingHistory, setIsViewingHistory] = useState(false);
     const [savedNotes, setSavedNotes] = useState([]); // Stores { id, title, content, date }
@@ -461,6 +463,33 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
         }
     };
     
+
+    const exportToPDF = async () => {
+        if (!currentNote) {
+            alert("Please select or write a note first!");
+            return;
+        }
+
+        const element = noteRef.current;
+        const canvas = await html2canvas(element, {
+            backgroundColor: '#1a1a1a', // Matches your dark theme
+            scale: 2 // Higher quality
+        });
+        
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF();
+        const imgProps = pdf.getImageProperties(imgData);
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+        pdf.save(`Strategic_Note_${Date.now()}.pdf`);
+        
+        if (typeof addActivity === 'function') {
+            addActivity("Exported Note to PDF", "📄");
+        }
+    };
+
     const businessContent = useMemo(() => [
         { type: 'text', value: "Execution is everything." },
         { type: 'image', value: "/Transform your practice with data-driven….png" }, // Make sure names are simple!
@@ -1010,7 +1039,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                     {activeTab === 'Notes' ? (
                         /* 📝 THE STRATEGIC NOTEPAD (Shows when Notes is clicked) */
                         <div style={{ 
-                            ...glassStyle, width: '100%', height: '450px', 
+                            ...glassStyle, width: '100%', height: '600px', 
                             display: 'flex', flexDirection: 'column', overflow: 'hidden',
                             border: '1px solid rgba(191, 0, 255, 0.3)', // Purple Malvin Tint
                             animation: 'fadeIn 0.4s ease-out'
@@ -1030,7 +1059,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                                 </div>
                                 <div style={{ display: 'flex', gap: '10px' }}>
                                     <button onClick={handleSaveNote} style={{...smallActionStyle, border: '1px solid #bf00ff'}}>SAVE TO VAULT</button>
-                                    <button style={smallActionStyle}>EXPORT PDF</button>
+                                    <button onClick={exportToPDF} style={smallActionStyle}>EXPORT PDF</button>
                                 </div>
                             </div>
 
@@ -1058,6 +1087,10 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                                                 onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)'}
                                             >
                                                 <div style={{ overflow: 'hidden' }}>
+                                                    <div ref={noteRef} style={{ padding: '20px', background: '#1a1a1a' }}>
+                                                        <h2>{currentNoteTitle}</h2>
+                                                        <p>{currentNote}</p>
+                                                    </div>
                                                     <div style={{ fontSize: '11px', color: 'white', fontWeight: 'bold', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
                                                         {note.title}
                                                     </div>
