@@ -13,6 +13,10 @@ const glassStyle: React.CSSProperties = {
 const Simulator = ({ onBack }: { onBack: () => void }) => {
     const [isSimulating, setIsSimulating] = useState(false);
     const [progress, setProgress] = useState(0);
+    const [budget, setBudget] = useState(50);
+    const [strategy, setStrategy] = useState('Ads');
+    const [bizType, setBizType] = useState('Clothing Brand');
+    const [otherBiz, setOtherBiz] = useState('');
 
     const handleStart = () => {
         setIsSimulating(true);
@@ -124,11 +128,153 @@ const Simulator = ({ onBack }: { onBack: () => void }) => {
                 {/* RIGHT: CONTROLS */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                     <div style={glassStyle}>
-                        <h4 style={{ margin: '0 0 15px 0', fontSize: '14px', color: '#0ea5e9' }}>PARAMETERS</h4>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                        <h4 style={{ margin: '0 0 20px 0', fontSize: '14px', color: '#0ea5e9', letterSpacing: '1px' }}>
+                            SYSTEM PARAMETERS
+                        </h4>
+                        
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                            
+                            {/* LOCATION */}
                             <div>
-                                <label style={{ fontSize: '11px', opacity: 0.5, display: 'block', marginBottom: '8px' }}>RISK TOLERANCE</label>
-                                <input type="range" style={{ width: '100%', accentColor: '#0ea5e9' }} />
+                                <label style={{ fontSize: '10px', opacity: 0.5, display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>LOCATION (COUNTRY, CITY)</label>
+                                <input 
+                                    type="text" 
+                                    placeholder="e.g. USA, New York"
+                                    style={{ 
+                                        width: '100%', 
+                                        background: 'rgba(255,255,255,0.05)', 
+                                        border: '1px solid rgba(255,255,255,0.1)', 
+                                        color: 'white', 
+                                        padding: '12px', 
+                                        borderRadius: '12px',
+                                        fontSize: '13px',
+                                        outline: 'none'
+                                    }} 
+                                />
+                            </div>
+                            {/* BUSINESS TYPE */}
+                            <div>
+                                <label style={{ fontSize: '10px', opacity: 0.5, display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>BUSINESS TYPE</label>
+                                <select 
+                                    value={bizType}
+                                    onChange={(e) => setBizType(e.target.value)}
+                                    style={{ 
+                                        width: '100%', 
+                                        background: 'rgba(255,255,255,0.05)', 
+                                        border: '1px solid rgba(255,255,255,0.1)', 
+                                        color: 'white', 
+                                        padding: '12px', 
+                                        borderRadius: '12px',
+                                        fontSize: '13px'
+                                    }}
+                                >
+                                    <option>Clothing Brand</option>
+                                    <option>Restaurant</option>
+                                    <option>Tech Startup</option>
+                                    <option value="Other">Other (Specify below)</option>
+                                </select>
+                                
+                                {/* CONDITIONAL "OTHER" INPUT */}
+                                {bizType === 'Other' && (
+                                    <input 
+                                        type="text" 
+                                        placeholder="Specify business type..."
+                                        value={otherBiz}
+                                        onChange={(e) => setOtherBiz(e.target.value)}
+                                        style={{ 
+                                            width: '100%', 
+                                            background: 'rgba(255,255,255,0.08)', 
+                                            border: '1px solid #0ea5e9', 
+                                            color: 'white', 
+                                            padding: '12px', 
+                                            borderRadius: '12px',
+                                            fontSize: '13px',
+                                            marginTop: '10px',
+                                            outline: 'none'
+                                        }} 
+                                    />
+                                )}
+                            </div>
+
+                            {/* BUDGET */}
+                            <div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                    <label style={{ fontSize: '10px', opacity: 0.5, fontWeight: 'bold' }}>BUDGET RANGE</label>
+                                    <span style={{ fontSize: '12px', color: '#2dd4bf', fontWeight: 'bold' }}>
+                                        €50 — €{budget}
+                                    </span>
+                                </div>
+                                <input 
+                                    type="range" 
+                                    min="50" 
+                                    max="1000" 
+                                    step="10"
+                                    value={budget}
+                                    onChange={(e) => setBudget(parseInt(e.target.value))}
+                                    style={{ 
+                                        width: '100%', 
+                                        height: '4px',
+                                        borderRadius: '5px',
+                                        appearance: 'none',
+                                        background: 'rgba(255,255,255,0.1)',
+                                        outline: 'none',
+                                        accentColor: '#0ea5e9',
+                                        cursor: 'pointer'
+                                    }} 
+                                />
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px', opacity: 0.3, fontSize: '9px' }}>
+                                    <span>MIN: €50</span>
+                                    <span>MAX: €1000+</span>
+                                </div>
+                            </div>
+                            {/* PRIMARY STRATEGY */}
+                            <div>
+                                <label style={{ fontSize: '10px', opacity: 0.5, display: 'block', marginBottom: '10px', fontWeight: 'bold' }}>PRIMARY STRATEGY</label>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                                    {['Ads', 'Organic', 'Influencer', 'Email'].map((opt) => (
+                                        <button 
+                                            key={opt}
+                                            onClick={() => setStrategy(opt)}
+                                            style={{ 
+                                                padding: '10px', 
+                                                background: strategy === opt ? 'rgba(14, 165, 233, 0.2)' : 'rgba(255,255,255,0.05)', 
+                                                border: strategy === opt ? '1px solid #0ea5e9' : '1px solid rgba(255,255,255,0.1)', 
+                                                borderRadius: '12px', 
+                                                color: strategy === opt ? '#0ea5e9' : 'white', 
+                                                fontSize: '12px',
+                                                cursor: 'pointer',
+                                                transition: 'all 0.2s ease'
+                                            }}
+                                        >
+                                            {opt === 'Ads' ? '📢 Ads' : 
+                                            opt === 'Organic' ? '🌿 Organic' : 
+                                            opt === 'Influencer' ? '🤳 Creator' : '📧 Email'}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                            {/* TIME HORIZON */}
+                            <div>
+                                <label style={{ fontSize: '10px', opacity: 0.5, display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>SIMULATION SPAN</label>
+                                <div style={{ display: 'flex', gap: '10px' }}>
+                                    {['30D', '90D', '1Y'].map((period) => (
+                                        <button 
+                                            key={period}
+                                            style={{ 
+                                                flex: 1, 
+                                                padding: '8px', 
+                                                background: 'rgba(255,255,255,0.05)', 
+                                                border: '1px solid rgba(255,255,255,0.1)', 
+                                                borderRadius: '8px', 
+                                                color: 'white', 
+                                                fontSize: '11px',
+                                                cursor: 'pointer'
+                                            }}
+                                        >
+                                            {period}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
                             <div>
                                 <label style={{ fontSize: '11px', opacity: 0.5, display: 'block', marginBottom: '8px' }}>TIMELINE</label>
