@@ -755,7 +755,15 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                             </SidebarBtn>
                             <SidebarBtn label="Memories"
                                 isActive={activeTab === 'Memories'} 
-                                onClick={() => setActiveTab('Memories')}>
+                                onClick={() => setActiveTab('Memories')
+                                    setActiveTab('Memories');
+                                    
+                                    // 2. Add the activity notification
+                                    addActivity("Opened memories", "🧠");
+                                    
+                                    // 3. Update the status icon (if you're using that state)
+                                    setActivityIcon("🧠");
+                                }>
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 8V12L15 15"/><circle cx="12" cy="12" r="10"/></svg>
                             </SidebarBtn>
 
