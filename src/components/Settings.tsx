@@ -70,7 +70,7 @@ const Settings = ({ onBack, userBrand, setUserBrand }: any) => {
                     onClick={onBack}
                     style={{ marginTop: 'auto', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '10px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' }}
                 >
-                    ← Back to Dashboard
+                    ← Back to session
                 </button>
             </div>
 

@@ -695,11 +695,11 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     return (
         <>
            {/* CASE A: FULL SCREEN MEMORIES TAKEOVER */}
-            {showSettings ? (
+            {activeTab === 'Settings' ? (
                 <Settings 
                     userBrand={userBrand} 
                     setUserBrand={setUserBrand} 
-                    onBack={() => setShowSettings(false)} 
+                    onBack={() => setActiveTab('Session')} // Goes back to main view
                 />
             ) : activeTab === 'Memories' ? (
                 <Memories onBack={() => setActiveTab('Session')} />
