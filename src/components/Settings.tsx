@@ -282,7 +282,7 @@ const Settings = ({ onBack, userBrand, setUserBrand }: any) => {
                                     <span style={{ color: '#a855f7' }}>Active</span>
                                 </div>
                             </div>
-                        </sections>
+                        </section>
                     )}  
                     {/* 5. NOTIFICATIONS - The "Alert Source" */}
                     {activeTab === 'Notifications' && (    
