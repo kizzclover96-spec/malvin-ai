@@ -411,7 +411,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
         setDisabled(!disabled);
         addActivity(disabled ? "System Restored" : "System Paused", "⚠️");
     };
-    
+
     const [currentNote, setCurrentNote] = useState("");
     const [isViewingHistory, setIsViewingHistory] = useState(false);
     const [savedNotes, setSavedNotes] = useState([]); // Stores { id, title, content, date }
@@ -1055,8 +1055,8 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                             </div>
                         </div>
                     ) : (
-                        {/*center*/}
                         <>
+                            {/*center*/}
                             <div style={{ display: 'flex', position: 'absolute', bottom: '90px', left: '50%', transform: 'translateX(-50%)', alignItems: 'center', flexDirection: 'column',  gap: '8px', width: '100%', maxWidth: '850px', zIndex: 10 }}>
                                 <div style={{ 
                                     display: 'flex', 
