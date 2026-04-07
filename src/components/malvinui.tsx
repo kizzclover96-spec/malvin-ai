@@ -402,6 +402,7 @@ const MalvinHybridCycler = React.memo(({ content }: { content: any[] }) => {
 
 const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     // 1. STATE & VARS (Fixed missing references)
+    const [showTools, setShowTools] = useState(false);
     const { localParticipant } = useLocalParticipant();
     const [showExtras, setShowExtras] = React.useState(false);
     const [seconds, setSeconds] = React.useState(0);
@@ -701,6 +702,81 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                         <div className="blob blue"></div>
                         <div className="blob pink"></div>
                     </div>
+                    {showTools && (
+                        <div 
+                            onClick={() => setShowTools(false)} // Close when clicking outside
+                            style={{
+                                position: 'absolute',
+                                inset: 0,
+                                zIndex: 100,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                backgroundColor: 'rgba(0,0,0,0.2)' // Dim the background slightly
+                            }}
+                        >
+                            {/* THE GLASS CONTAINER */}
+                            <div 
+                                onClick={(e) => e.stopPropagation()} 
+                                style={{
+                                    width: '280px',
+                                    padding: '24px',
+                                    background: 'rgba(255, 255, 255, 0.08)',
+                                    backdropFilter: 'blur(30px)',
+                                    WebkitBackdropFilter: 'blur(30px)',
+                                    borderRadius: '38px', // More rounded for that Apple feel
+                                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                                    display: 'grid',
+                                    gridTemplateColumns: 'repeat(3, 1fr)', 
+                                    gap: '20px',
+                                    boxShadow: '0 30px 60px rgba(0,0,0,0.5)',
+                                }}
+                            >
+                                {/* SIMULATIONS APP ICON */}
+                                <div 
+                                    onClick={() => {
+                                        setActiveTab('Simulations');
+                                        setShowTools(false);
+                                        addActivity("Launched Simulator", "🎮");
+                                    }}
+                                    style={{ 
+                                        display: 'flex', 
+                                        flexDirection: 'column', 
+                                        alignItems: 'center', 
+                                        cursor: 'pointer',
+                                        transition: 'transform 0.2s cubic-bezier(0.2, 0, 0.2, 1)' 
+                                    }}
+                                    onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
+                                    onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                                >
+                                    <div style={{
+                                        width: '60px',
+                                        height: '60px',
+                                        margin: '0 auto 8px',
+                                        background: 'linear-gradient(135deg, #6366f1, #a855f7)',
+                                        borderRadius: '14px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        boxShadow: '0 10px 20px rgba(168, 85, 247, 0.3)'
+                                    }}>
+                                        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                                        </svg>
+                                    </div>
+                                    <span style={{ fontSize: '11px', fontWeight: '500', color: 'white' }}>
+                                        Simulate
+                                    </span>
+                                </div>
+
+                                {/* Placeholder for more apps */}
+                                <div style={{ opacity: 0.3 }}>
+                                    <div style={{ width: '60px', height: '60px', margin: '0 auto 8px', background: 'rgba(255,255,255,0.1)', borderRadius: '14px' }} />
+                                    <span style={{ fontSize: '11px' }}>Coming...</span>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                     {/* 1. LEFT */}
                     <div className="left-section" style={{ flex: 1, display: 'flex', borderRight: '1px solid #222', padding: '20px', gap: '10px', display: 'flex', flexDirection: 'column'}}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -782,7 +858,11 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
 
                             <SidebarBtn label="Tools"
                                 isActive={activeTab === 'Tools'} 
-                                onClick={() => setActiveTab('Tools')}>
+                                onClick={() => {
+                                    setActiveTab('Tools');
+                                    setShowTools(!showTools); // Toggles the glass pop-out
+                                    addActivity("Accessed Toolset", "🛠️");
+                                }}>
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
                             </SidebarBtn>
 
