@@ -440,6 +440,16 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
         alert("Strategy Saved to Intel Vault.");
     };
 
+    const handleDeleteNote = (id) => {
+        const updatedNotes = savedNotes.filter(note => note.id !== id);
+        setSavedNotes(updatedNotes);
+        
+        // Optional: Add activity log for the delete
+        if (typeof addActivity === 'function') {
+            addActivity("Deleted a note from Vault", "🗑️");
+        }
+    };
+
     const [showUserMenu, setShowUserMenu] = React.useState(false);
     const handleLogout = async () => {
         try {
@@ -1032,10 +1042,30 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                                             <div 
                                                 key={note.id} 
                                                 onClick={() => setCurrentNote(note.content)}
-                                                style={{ padding: '10px', borderRadius: '8px', marginBottom: '8px', backgroundColor: 'rgba(255,255,255,0.05)', cursor: 'pointer', border: '1px solid rgba(255,255,255,0.05)' }}
-                                            >
-                                                <div style={{ fontSize: '11px', color: 'white', fontWeight: 'bold' }}>{note.title}</div>
+                                                style={{ padding: '10px', borderRadius: '8px', marginBottom: '8px', backgroundColor: 'rgba(255,255,255,0.05)', cursor: 'pointer', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', }}>
+                                            
+                                                
+                                                <div style={{ fontSize: '11px', color: 'white', fontWeight: 'bold', textOverflow: 'ellipsis', overflow: 'hidden' }}>{note.title}</div>
                                                 <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.3)' }}>{note.date}</div>
+                                                
+                                                <button 
+                                                    onClick={() => e.stopPropagation(); handleDeleteNote(note.id)}
+                                                    style={{
+                                                        background: 'transparent',
+                                                        border: 'none',
+                                                        color: '#ff4d4d', // Red color for delete
+                                                        cursor: 'pointer',
+                                                        padding: '5px'
+                                                    }}
+                                                    onMouseEnter={(e) => e.currentTarget.style.color = '#ff4d4d'} // Bright red on hover
+                                                    onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(255, 77, 77, 0.6)'}
+                                                    title="Delete Note"
+                                                >
+                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                        <polyline points="3 6 5 6 21 6"></polyline>
+                                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                                    </svg>
+                                                </button>
                                             </div>
                                         ))}
                                     </div>
@@ -1049,7 +1079,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                                     style={{
                                         flex: 1, padding: '25px', backgroundColor: 'transparent', border: 'none',
                                         color: 'white', fontSize: '15px', outline: 'none', resize: 'none',
-                                        fontFamily: 'monospace', lineHeight: '1.6', caretColor: '#bf00ff'
+                                        fontFamily: 'monospace', lineHeight: '1.6', caretColor: '#bf00ff', height: '60vh'
                                     }}
                                 />
                             </div>
