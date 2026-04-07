@@ -1087,11 +1087,8 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                                                 onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)'}
                                             >
                                                 <div style={{ overflow: 'hidden' }}>
-                                                    <div ref={noteRef} style={{ padding: '20px', background: '#1a1a1a' }}>
-                                                        <h2>{currentNote ? "Drafting Strategy..." : "Intel Vault"}</h2>
-                                                        <p>{currentNote}</p>
-                                                    </div>
-                                                    <div style={{ fontSize: '11px', color: 'white', fontWeight: 'bold', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                                                    
+                                                    <div ref={noteRef} style={{ fontSize: '11px', color: 'white', fontWeight: 'bold', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
                                                         {note.title}
                                                     </div>
                                                     <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.3)', marginTop: '2px' }}>
