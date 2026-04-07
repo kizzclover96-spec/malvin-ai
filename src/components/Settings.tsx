@@ -262,15 +262,20 @@ const Settings = ({ onBack, userBrand, setUserBrand }: any) => {
                                         <div style={{ fontSize: '13px', opacity: 0.5, marginTop: '4px' }}>Limited to 3 daily neural simulations.</div>
                                     </div>
                                     <button style={{ 
-                                        background: 'premiumGold', 
+                                        background: premiumGold, 
                                         color: 'white', 
                                         border: 'none', 
                                         padding: '10px 20px', 
                                         borderRadius: '10px', 
                                         fontWeight: 'bold', 
                                         fontSize: '13px',
-                                        cursor: 'pointer' 
-                                    }}>
+                                        cursor: 'pointer',
+                                        boxShadow: '0 4px 15px rgba(255, 215, 0, 0.3)', // Subtle gold glow
+                                        transition: 'transform 0.2s ease' 
+                                    }} 
+                                    onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+                                    onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                                    >
                                         Upgrade to Premium
                                     </button>
                                 </div>
