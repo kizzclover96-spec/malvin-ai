@@ -115,11 +115,15 @@ const Settings = ({ onBack, userBrand, setUserBrand }: any) => {
         <div style={{
             width: '100vw',
             height: '100vh',
-            backgroundColor: '#050505',
             color: 'white',
             fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif',
             display: 'flex',
-            overflow: 'hidden'
+            overflow: 'hidden',
+            backgroundColor: 'rgba(255, 255, 255, 0.03)',   // 1. Semi-transparent white
+            backdropFilter: 'blur(12px)',                  // 2. The "Frosted" blur
+            WebkitBackdropFilter: 'blur(12px)',
+            borderRadius: '16px', // Smooth corners
+            border: '1px solid rgba(255, 255, 255, 0.1)'
         }}>
             <AuraBackground />
             {/* LEFT SIDEBAR */}
