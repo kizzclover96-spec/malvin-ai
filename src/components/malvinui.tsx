@@ -411,8 +411,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
         setDisabled(!disabled);
         addActivity(disabled ? "System Restored" : "System Paused", "⚠️");
     };
-
-    const [notes, setNotes] = useState([]); // Array of {id, title, content, date}
+    
     const [currentNote, setCurrentNote] = useState("");
     const [isViewingHistory, setIsViewingHistory] = useState(false);
     const [savedNotes, setSavedNotes] = useState([]); // Stores { id, title, content, date }
@@ -435,6 +434,9 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
         setSavedNotes([newNote, ...savedNotes]);
         setCurrentNote(""); // Clear editor after saving
         setShowHistory(true); // Show them their success
+        if (typeof addActivity === 'function') {
+            addActivity(`Saved Note: ${newNote.title}`, "💾");
+        }
         alert("Strategy Saved to Intel Vault.");
     };
 
