@@ -60,7 +60,6 @@ const Simulator = ({ onBack }: { onBack: () => void }) => {
 
             {/* HEADER */}
             <div style={{ flexShrink: 0, position: 'relative', zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', marginTop: 'auto' }}>
-                <p style={{ color: 'white', fontSize: '20px' justifycontent: 'center' }}>Run a preview of the future</p>
                 <button 
                     onClick={onBack}
                     style={{
@@ -76,6 +75,9 @@ const Simulator = ({ onBack }: { onBack: () => void }) => {
                 >
                     ← CLOSE
                 </button>
+                <p style={{ flex: 1, textAlign: 'center', color: 'white', fontSize: '16px', opacity: 0.8, margin: 0 }}>
+                    Run a preview of the future
+                </p>
                 <div style={{ textAlign: 'right' }}>
                     <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 600 }}>Scenario Architect</h2>
                     <p style={{ margin: 0, fontSize: '12px', opacity: 0.5 }}>v2.4.0 Engine Active</p>
