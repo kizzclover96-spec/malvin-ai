@@ -75,7 +75,7 @@ const Simulator = ({ onBack }: { onBack: () => void }) => {
                 >
                     ← CLOSE
                 </button>
-                <p style={{ flex: 1, textAlign: 'center', color: 'white', fontSize: '16px', opacity: 0.8, margin: 0 }}>
+                <p style={{ flex: 1, textAlign: 'center', color: 'white', fontSize: '28px', fontWeight: '800', letterSpacing: '-0.5px', opacity: 0.8, margin: 0, textTransform: 'uppercase' }}>
                     Run a preview of the future
                 </p>
                 <div style={{ textAlign: 'right' }}>
