@@ -471,6 +471,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     const [userBrand, setUserBrand] = useState({
         name: "Malvin Enterprise",
         context: "",
+        profilePic: null,
         currency: "Euro (€)",
         language: "English (US)",
         tier: "Basic Free Tier",

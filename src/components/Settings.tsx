@@ -92,26 +92,49 @@ const Settings = ({ onBack, userBrand, setUserBrand }: any) => {
                                         width: '80px', 
                                         height: '80px', 
                                         borderRadius: '50%', 
-                                        background: 'linear-gradient(135deg, #333, #111)', 
+                                        backgroundImage: userBrand.profilePic ? `url(${userBrand.profilePic})` : 'none',
+                                        backgroundSize: 'cover',
+                                        backgroundColor: '#111', 
                                         border: '1px solid rgba(255,255,255,0.1)',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
                                         fontSize: '30px',
-                                        cursor: 'pointer'
+                                        overflow: 'hidden'
                                     }}>
-                                        👤
+                                        {!userBrand.profilePic && '👤'}
                                     </div>
+                                    
                                     <div>
-                                        <button style={{ 
-                                            background: 'rgba(255,255,255,0.05)', 
-                                            border: '1px solid rgba(255,255,255,0.1)', 
-                                            color: 'white', 
-                                            padding: '8px 16px', 
-                                            borderRadius: '8px', 
-                                            fontSize: '13px',
-                                            cursor: 'pointer' 
-                                        }}>
+                                        {/* Hidden File Input */}
+                                        <input 
+                                            type="file" 
+                                            id="photo-upload" 
+                                            style={{ display: 'none' }} 
+                                            accept="image/*"
+                                            onChange={(e) => {
+                                                const file = e.target.files[0];
+                                                if (file) {
+                                                    const reader = new FileReader();
+                                                    reader.onloadend = () => {
+                                                        setUserBrand({...userBrand, profilePic: reader.result});
+                                                    };
+                                                    reader.readAsDataURL(file);
+                                                }
+                                            }}
+                                        />
+                                        <button 
+                                            onClick={() => document.getElementById('photo-upload').click()}
+                                            style={{ 
+                                                background: 'rgba(255,255,255,0.05)', 
+                                                border: '1px solid rgba(255,255,255,0.1)', 
+                                                color: 'white', 
+                                                padding: '8px 16px', 
+                                                borderRadius: '8px', 
+                                                fontSize: '13px',
+                                                cursor: 'pointer' 
+                                            }}
+                                        >
                                             Change Photo
                                         </button>
                                     </div>
