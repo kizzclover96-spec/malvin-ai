@@ -1,6 +1,7 @@
 import { auth } from "../firebase";
 import { signOut } from "firebase/auth";
-import Memories from './memories'; // Ensure the path is correct
+import Memories from './memories'; 
+import Simulator from './Simulator';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import React, { useEffect, useRef, useState, useMemo } from "react";
@@ -694,6 +695,8 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
            {/* CASE A: FULL SCREEN MEMORIES TAKEOVER */}
             {activeTab === 'Memories' ? (
                 <Memories onBack={() => setActiveTab('Session')} />
+            ) : activeTab === 'Simulator' ? (
+                <Simulator onBack={() => setActiveTab('Session')} />
             ) : (
                 <div className="main-full-ui" style={{ display: 'flex', height: '100vh', width: '100vw', backgroundColor: "black" }}> 
                     <GlobalStyles />
@@ -735,7 +738,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                                 {/* SIMULATIONS APP ICON */}
                                 <div 
                                     onClick={() => {
-                                        setActiveTab('Simulations');
+                                        setActiveTab('Simulator');
                                         setShowTools(false);
                                         addActivity("Launched Simulator", "🎮");
                                     }}
