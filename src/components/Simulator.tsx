@@ -10,17 +10,32 @@ const glassStyle: React.CSSProperties = {
     color: 'white'
 };
 
+const premiumGold = "#FFD700";
+
 const Simulator = ({ onBack }: { onBack: () => void }) => {
     const [isSimulating, setIsSimulating] = useState(false);
     const [progress, setProgress] = useState(0);
     const [budget, setBudget] = useState(50);
-    const [strategy, setStrategy] = useState('Ads');
-    const [bizType, setBizType] = useState('Clothing Brand');
-    const [otherBiz, setOtherBiz] = useState('');
+    
+    // NEW: Selection State
+    const [selectedSims, setSelectedSims] = useState<string[]>(['Price']);
+
+    const simulations = [
+        { id: 'Price', label: 'Price Elasticity', icon: '🏷️', color: '#2dd4bf' },
+        { id: 'Ads', label: 'Ad Scale Burn', icon: '📢', color: '#0ea5e9' },
+        { id: 'Supply', label: 'Supply Chain Stress', icon: '📦', color: '#a855f7' },
+        { id: 'Swan', label: 'Black Swan Event', icon: '☄️', color: premiumGold },
+    ];
+
+    const toggleSim = (id: string) => {
+        setSelectedSims(prev => 
+            prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]
+        );
+    };
 
     const handleStart = () => {
+        if (selectedSims.length === 0) return alert("Select at least one simulation module.");
         setIsSimulating(true);
-        // Quick dummy progress bar animation
         let val = 0;
         const interval = setInterval(() => {
             val += 2;
@@ -34,281 +49,121 @@ const Simulator = ({ onBack }: { onBack: () => void }) => {
 
     return (
         <div style={{
-            width: '100vw',
-            height: '100vh',
-            backgroundColor: '#050505',
-            color: 'white',
+            width: '100vw', height: '100vh', backgroundColor: '#050505', color: 'white',
             fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-            display: 'flex',
-            flexDirection: 'column',
-            padding: '24px 40px',
-            boxSizing: 'border-box',
-            overflow: 'hidden',
-            position: 'relative'
+            display: 'flex', flexDirection: 'column', padding: '24px 40px', boxSizing: 'border-box',
+            overflow: 'hidden', position: 'relative'
         }}>
-            {/* BACKGROUND DECOR (iOS GLOW) */}
+            {/* BACKGROUND DECOR */}
             <div style={{
-                position: 'absolute',
-                top: '-10%',
-                right: '-10%',
-                width: '400px',
-                height: '400px',
+                position: 'absolute', top: '-10%', right: '-10%', width: '400px', height: '400px',
                 background: 'radial-gradient(circle, rgba(14, 165, 233, 0.15), transparent 70%)',
-                filter: 'blur(80px)',
-                zIndex: 0
+                filter: 'blur(80px)', zIndex: 0
             }} />
 
             {/* HEADER */}
-            <div style={{ flexShrink: 0, position: 'relative', zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', marginTop: 'auto' }}>
-                <button 
-                    onClick={onBack}
-                    style={{
-                        background: 'rgba(255,255,255,0.05)',
-                        border: '1px solid rgba(255,255,255,0.1)',
-                        color: 'white',
-                        padding: '10px 20px',
-                        borderRadius: '20px',
-                        fontSize: '13px',
-                        cursor: 'pointer',
-                        backdropFilter: 'blur(10px)'
-                    }}
-                >
+            <div style={{ flexShrink: 0, zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <button onClick={onBack} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '10px 20px', borderRadius: '20px', cursor: 'pointer' }}>
                     ← CLOSE
                 </button>
-                <p style={{ flex: 1, textAlign: 'center', color: 'white', fontSize: '28px', fontWeight: '800', letterSpacing: '-0.5px', opacity: 0.8, margin: 0, textTransform: 'uppercase' }}>
-                    Run a preview of the future
+                <p style={{ fontSize: '24px', fontWeight: '800', opacity: 0.8, textTransform: 'uppercase', letterSpacing: '2px' }}>
+                    Neural Projection Lab
                 </p>
                 <div style={{ textAlign: 'right' }}>
-                    <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 600 }}>Scenario Architect</h2>
-                    <p style={{ margin: 0, fontSize: '12px', opacity: 0.5 }}>v2.4.0 Engine Active</p>
+                    <h2 style={{ margin: 0, fontSize: '18px', color: premiumGold }}>Malvin Enterprise</h2>
+                    <p style={{ margin: 0, fontSize: '12px', opacity: 0.5 }}>Simulation Engine v2.4</p>
                 </div>
             </div>
 
-            {/* MAIN GRID */}
-            <div style={{ 
-                minHeight: 0,
-                display: 'grid',
-                position: 'relative', 
-                zIndex: 1, 
-                display: 'grid', 
-                gridTemplateColumns: '1fr 340px', 
-                gap: '20px', 
-                flex: 1 
-            }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: '20px', flex: 1, minHeight: 0 }}>
                 
-                {/* LEFT: SIMULATION VIEWPORT */}
-                <div style={{ 
-                    ...glassStyle, 
-                    display: 'flex', 
-                    flexDirection: 'column', 
-                    justifyContent: 'center', 
-                    alignItems: 'center',
-                    border: '1px solid rgba(14, 165, 233, 0.2)' 
-                }}>
+                {/* LEFT: VIEWPORT */}
+                <div style={{ ...glassStyle, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', border: `1px solid ${isSimulating ? '#0ea5e9' : 'rgba(255,255,255,0.1)'}`, transition: 'all 0.5s ease' }}>
                     {!isSimulating && progress === 0 ? (
                         <div style={{ textAlign: 'center' }}>
-                            <div style={{ fontSize: '50px', marginBottom: '20px' }}>🌐</div>
-                            <h3 style={{ fontSize: '24px', marginBottom: '10px' }}>Ready to Project</h3>
-                            <p style={{ opacity: 0.6, maxWidth: '300px' }}>Configure your parameters on the right to start the neural simulation.</p>
+                            <div style={{ fontSize: '60px', marginBottom: '20px', filter: 'drop-shadow(0 0 20px rgba(14, 165, 233, 0.4))' }}>🧠</div>
+                            <h3 style={{ fontSize: '28px', marginBottom: '10px' }}>Select Neural Modules</h3>
+                            <p style={{ opacity: 0.4 }}>{selectedSims.length} modules armed and ready.</p>
                         </div>
                     ) : (
                         <div style={{ width: '80%', textAlign: 'center' }}>
-                            <h3 style={{ marginBottom: '20px', letterSpacing: '2px' }}>
-                                {progress < 100 ? 'GENERATING REALITY...' : 'SIMULATION COMPLETE'}
-                            </h3>
-                            <div style={{ width: '100%', height: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '10px', overflow: 'hidden' }}>
-                                <div style={{ 
-                                    width: `${progress}%`, 
-                                    height: '100%', 
-                                    background: 'linear-gradient(90deg, #2dd4bf, #0ea5e9)', 
-                                    transition: 'width 0.1s linear',
-                                    boxShadow: '0 0 15px rgba(14, 165, 233, 0.5)'
-                                }} />
+                            <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginBottom: '30px' }}>
+                                {selectedSims.map(id => (
+                                    <div key={id} style={{ padding: '8px 12px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.2)', fontSize: '12px' }}>
+                                        {simulations.find(s => s.id === id)?.label}
+                                    </div>
+                                ))}
                             </div>
-                            <p style={{ marginTop: '15px', fontSize: '12px', opacity: 0.5 }}>{progress}% Synchronized</p>
+                            <h3 style={{ marginBottom: '20px', letterSpacing: '4px', color: progress === 100 ? '#2dd4bf' : 'white' }}>
+                                {progress < 100 ? 'ANALYZING TIMELINES...' : 'PROJECTION STABLE'}
+                            </h3>
+                            <div style={{ width: '100%', height: '4px', background: 'rgba(255,255,255,0.1)', borderRadius: '10px', overflow: 'hidden' }}>
+                                <div style={{ width: `${progress}%`, height: '100%', background: `linear-gradient(90deg, #0ea5e9, ${premiumGold})`, transition: 'width 0.1s linear', boxShadow: '0 0 20px rgba(14, 165, 233, 0.5)' }} />
+                            </div>
+                            <p style={{ marginTop: '20px', fontFamily: 'monospace', opacity: 0.6 }}>SYNC_RATIO: {progress}%</p>
                         </div>
                     )}
                 </div>
 
-                {/* RIGHT: CONTROLS */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                {/* RIGHT: CONFIGURATION */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', overflowY: 'auto' }}>
                     <div style={glassStyle}>
-                        <h4 style={{ margin: '0 0 20px 0', fontSize: '14px', color: '#0ea5e9', letterSpacing: '1px' }}>
-                            SYSTEM PARAMETERS
-                        </h4>
-                        
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-                            
-                            {/* LOCATION */}
-                            <div>
-                                <label style={{ fontSize: '10px', opacity: 0.5, display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>LOCATION (COUNTRY, CITY)</label>
-                                <input 
-                                    type="text" 
-                                    placeholder="e.g. USA, New York"
-                                    style={{ 
-                                        width: '100%', 
-                                        background: 'rgba(255,255,255,0.05)', 
-                                        border: '1px solid rgba(255,255,255,0.1)', 
-                                        color: 'white', 
-                                        padding: '12px', 
-                                        borderRadius: '12px',
-                                        fontSize: '13px',
-                                        outline: 'none'
-                                    }} 
-                                />
-                            </div>
-                            {/* BUSINESS TYPE */}
-                            <div>
-                                <label style={{ fontSize: '10px', opacity: 0.5, display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>BUSINESS TYPE</label>
-                                <select 
-                                    value={bizType}
-                                    onChange={(e) => setBizType(e.target.value)}
-                                    style={{ 
-                                        width: '100%', 
-                                        background: 'rgba(255,255,255,0.05)', 
-                                        border: '1px solid rgba(255,255,255,0.1)', 
-                                        color: 'white', 
-                                        padding: '12px', 
-                                        borderRadius: '12px',
-                                        fontSize: '13px'
+                        <h4 style={{ margin: '0 0 15px 0', fontSize: '12px', color: '#0ea5e9', letterSpacing: '1px' }}>ACTIVE SIMULATIONS</h4>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                            {simulations.map((sim) => (
+                                <button
+                                    key={sim.id}
+                                    onClick={() => toggleSim(sim.id)}
+                                    style={{
+                                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px',
+                                        padding: '15px 10px', borderRadius: '16px', cursor: 'pointer', transition: 'all 0.2s ease',
+                                        background: selectedSims.includes(sim.id) ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.02)',
+                                        border: selectedSims.includes(sim.id) ? `1px solid ${sim.color}` : '1px solid rgba(255,255,255,0.05)',
+                                        color: selectedSims.includes(sim.id) ? 'white' : 'rgba(255,255,255,0.4)',
                                     }}
                                 >
-                                    <option>Clothing Brand</option>
-                                    <option>Restaurant</option>
-                                    <option>Tech Startup</option>
-                                    <option value="Other">Other (Specify below)</option>
-                                </select>
-                                
-                                {/* CONDITIONAL "OTHER" INPUT */}
-                                {bizType === 'Other' && (
-                                    <input 
-                                        type="text" 
-                                        placeholder="Specify business type..."
-                                        value={otherBiz}
-                                        onChange={(e) => setOtherBiz(e.target.value)}
-                                        style={{ 
-                                            width: '100%', 
-                                            background: 'rgba(255,255,255,0.08)', 
-                                            border: '1px solid #0ea5e9', 
-                                            color: 'white', 
-                                            padding: '12px', 
-                                            borderRadius: '12px',
-                                            fontSize: '13px',
-                                            marginTop: '10px',
-                                            outline: 'none'
-                                        }} 
-                                    />
-                                )}
-                            </div>
+                                    <span style={{ fontSize: '20px' }}>{sim.icon}</span>
+                                    <span style={{ fontSize: '10px', fontWeight: 'bold', textAlign: 'center' }}>{sim.label}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
 
-                            {/* BUDGET */}
+                    <div style={glassStyle}>
+                        <h4 style={{ margin: '0 0 20px 0', fontSize: '12px', color: '#0ea5e9', letterSpacing: '1px' }}>GLOBAL CONTEXT</h4>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                             <div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                                    <label style={{ fontSize: '10px', opacity: 0.5, fontWeight: 'bold' }}>BUDGET RANGE</label>
-                                    <span style={{ fontSize: '12px', color: '#2dd4bf', fontWeight: 'bold' }}>
-                                        €50 — €{budget}
-                                    </span>
-                                </div>
-                                <input 
-                                    type="range" 
-                                    min="50" 
-                                    max="1000" 
-                                    step="10"
-                                    value={budget}
-                                    onChange={(e) => setBudget(parseInt(e.target.value))}
-                                    style={{ 
-                                        width: '100%', 
-                                        height: '4px',
-                                        borderRadius: '5px',
-                                        appearance: 'none',
-                                        background: 'rgba(255,255,255,0.1)',
-                                        outline: 'none',
-                                        accentColor: '#0ea5e9',
-                                        cursor: 'pointer'
-                                    }} 
-                                />
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px', opacity: 0.3, fontSize: '9px' }}>
-                                    <span>MIN: €50</span>
-                                    <span>MAX: €1000+</span>
+                                <label style={{ fontSize: '10px', opacity: 0.5, display: 'block', marginBottom: '8px' }}>BUDGET IMPACT (k€)</label>
+                                <input type="range" min="10" max="500" value={budget} onChange={(e) => setBudget(Number(e.target.value))} style={{ width: '100%', accentColor: '#0ea5e9' }} />
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '5px', fontSize: '12px', color: '#2dd4bf' }}>
+                                    <span>Min</span><span>€{budget}k</span>
                                 </div>
                             </div>
-                            {/* PRIMARY STRATEGY */}
+                            
                             <div>
-                                <label style={{ fontSize: '10px', opacity: 0.5, display: 'block', marginBottom: '10px', fontWeight: 'bold' }}>PRIMARY STRATEGY</label>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                                    {['Ads', 'Organic', 'Influencer', 'Email'].map((opt) => (
-                                        <button 
-                                            key={opt}
-                                            onClick={() => setStrategy(opt)}
-                                            style={{ 
-                                                padding: '10px', 
-                                                background: strategy === opt ? 'rgba(14, 165, 233, 0.2)' : 'rgba(255,255,255,0.05)', 
-                                                border: strategy === opt ? '1px solid #0ea5e9' : '1px solid rgba(255,255,255,0.1)', 
-                                                borderRadius: '12px', 
-                                                color: strategy === opt ? '#0ea5e9' : 'white', 
-                                                fontSize: '12px',
-                                                cursor: 'pointer',
-                                                transition: 'all 0.2s ease'
-                                            }}
-                                        >
-                                            {opt === 'Ads' ? '📢 Ads' : 
-                                            opt === 'Organic' ? '🌿 Organic' : 
-                                            opt === 'Influencer' ? '🤳 Creator' : '📧 Email'}
-                                        </button>
+                                <label style={{ fontSize: '10px', opacity: 0.5, display: 'block', marginBottom: '8px' }}>TIME HORIZON</label>
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                    {['Q1', 'Q2', 'Q4', '5Y'].map(t => (
+                                        <div key={t} style={{ flex: 1, textAlign: 'center', padding: '8px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', fontSize: '10px', border: '1px solid rgba(255,255,255,0.1)' }}>{t}</div>
                                     ))}
                                 </div>
-                            </div>
-                            {/* TIME HORIZON */}
-                            <div>
-                                <label style={{ fontSize: '10px', opacity: 0.5, display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>SIMULATION SPAN</label>
-                                <div style={{ display: 'flex', gap: '10px' }}>
-                                    {['30D', '90D', '1Y'].map((period) => (
-                                        <button 
-                                            key={period}
-                                            style={{ 
-                                                flex: 1, 
-                                                padding: '8px', 
-                                                background: 'rgba(255,255,255,0.05)', 
-                                                border: '1px solid rgba(255,255,255,0.1)', 
-                                                borderRadius: '8px', 
-                                                color: 'white', 
-                                                fontSize: '11px',
-                                                cursor: 'pointer'
-                                            }}
-                                        >
-                                            {period}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                            <div>
-                                <label style={{ fontSize: '11px', opacity: 0.5, display: 'block', marginBottom: '8px' }}>TIMELINE</label>
-                                <select style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '8px', borderRadius: '8px' }}>
-                                    <option>30 Days</option>
-                                    <option>90 Days</option>
-                                    <option>1 Year</option>
-                                </select>
                             </div>
                         </div>
                     </div>
 
                     <button 
                         onClick={handleStart}
-                        disabled={isSimulating}
+                        disabled={isSimulating || selectedSims.length === 0}
                         style={{
-                            padding: '20px',
-                            borderRadius: '24px',
-                            border: 'none',
-                            background: isSimulating ? 'rgba(255,255,255,0.05)' : 'linear-gradient(135deg, #2dd4bf, #0ea5e9)',
-                            color: 'white',
-                            fontWeight: 'bold',
-                            fontSize: '16px',
+                            padding: '24px', borderRadius: '24px', border: 'none',
+                            background: isSimulating ? 'rgba(255,255,255,0.05)' : (selectedSims.length > 0 ? 'linear-gradient(135deg, #0ea5e9, #a855f7)' : '#222'),
+                            color: 'white', fontWeight: '800', fontSize: '14px', letterSpacing: '2px',
                             cursor: isSimulating ? 'not-allowed' : 'pointer',
-                            boxShadow: isSimulating ? 'none' : '0 10px 30px rgba(14, 165, 233, 0.3)',
+                            boxShadow: isSimulating ? 'none' : '0 10px 40px rgba(14, 165, 233, 0.3)',
                             transition: 'all 0.3s ease'
                         }}
                     >
-                        {isSimulating ? 'RUNNING...' : 'EXECUTE SIMULATION'}
+                        {isSimulating ? `PROCESSING ${progress}%` : `RUN ${selectedSims.length} SCENARIOS`}
                     </button>
                 </div>
             </div>
