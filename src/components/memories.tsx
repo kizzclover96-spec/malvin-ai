@@ -107,7 +107,9 @@ const Memories = ({ onBack }: { onBack: () => void }) => {
       <div style={{ position: 'relative', zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' }}>
         {/* BACK BUTTON: Now matches Insights size/style */}
         <button 
-            onClick={onBack} 
+            onClick={() => {
+                onBack; addActivity("Exited vault", "🏠");
+            }} 
             style={{ 
                 background: 'rgba(255, 255, 255, 0.05)', 
                 border: '1px solid rgba(255,255,255,0.2)', 

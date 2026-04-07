@@ -753,17 +753,25 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                             >
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3z"/></svg>
                             </SidebarBtn>
-                            <SidebarBtn label="Memories"
+                            <SidebarBtn 
+                                label="Memories"
                                 isActive={activeTab === 'Memories'} 
-                                onClick={() => setActiveTab('Memories');
+                                onClick={() => {
+                                    // 1. Switch the view to the Vault
+                                    setActiveTab('Memories');
                                     
-                                    // 2. Add the activity notification
+                                    // 2. Add the activity notification to your log
                                     addActivity("Opened memories", "🧠");
                                     
-                                    // 3. Update the status icon (if you're using that state)
+                                    // 3. Update the global status icon
                                     setActivityIcon("🧠");
-                                }>
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 8V12L15 15"/><circle cx="12" cy="12" r="10"/></svg>
+                                }}
+                            >
+                                {/* Updated to a "Brain" icon for better iPhone-style consistency */}
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.79-2.74 2.5 2.5 0 0 1-2-4.7 2.5 2.5 0 0 1 2-4.7 2.5 2.5 0 0 1 2.79-2.74A2.5 2.5 0 0 1 9.5 2Z"/>
+                                    <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.79-2.74 2.5 2.5 0 0 0 2-4.7 2.5 2.5 0 0 0-2-4.7 2.5 2.5 0 0 0-2.79-2.74A2.5 2.5 0 0 0 14.5 2Z"/>
+                                </svg>
                             </SidebarBtn>
 
                             <SidebarBtn label="Dashboard"
