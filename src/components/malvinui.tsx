@@ -1,5 +1,6 @@
 import { auth } from "../firebase";
 import { signOut } from "firebase/auth";
+import Memories from './memories'; // Ensure the path is correct
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import React, { useEffect, useRef, useState, useMemo } from "react";
@@ -688,756 +689,763 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     );
 
     return (
-        <div className="main-full-ui" style={{ display: 'flex', height: '100vh', width: '100vw', backgroundColor: "black" }}> 
-            <GlobalStyles />
-            <div className="background-blobs">
-                <div className="blob purple"></div>
-                <div className="blob blue"></div>
-                <div className="blob pink"></div>
-            </div>
-            {/* 1. LEFT */}
-            <div className="left-section" style={{ flex: 1, display: 'flex', borderRight: '1px solid #222', padding: '20px', gap: '10px', display: 'flex', flexDirection: 'column'}}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <div style={{
-                        width: '40px',
-                        height: '40px',
-                        borderRadius: '50%',
-                        overflow: 'hidden',
-                        border: '1.5px solid #bf00ff', // That Neon Purple "Manly" Ring
-                        flexShrink: 0,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        backgroundColor: 'rgba(255, 255, 255, 0.05)'
-                    }}>
-                        <img 
-                            src="/Malvin self.png" 
-                            alt="Malvin AI"
-                            style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                        />
+        <>
+           {/* CASE A: FULL SCREEN MEMORIES TAKEOVER */}
+            {activeTab === 'Memories' ? (
+                <Memories onBack={() => setActiveTab('Session')} />
+            ) : (
+                <div className="main-full-ui" style={{ display: 'flex', height: '100vh', width: '100vw', backgroundColor: "black" }}> 
+                    <GlobalStyles />
+                    <div className="background-blobs">
+                        <div className="blob purple"></div>
+                        <div className="blob blue"></div>
+                        <div className="blob pink"></div>
                     </div>
-                    
-                    <span style={{ 
-                        color: 'white', 
-                        fontWeight: '800', 
-                        letterSpacing: '2px', 
-                        fontSize: '18px',
-                        fontFamily: 'sans-serif' // Or your custom font
-                    }}>
-                        MALVIN
-                    </span>
-                </div>
-                <div className="left top panel" style={{ width: '200px',flex: 1, gap: '10px',
-                        borderRight: '1px solid rgba(255, 255, 255, 0.1)', // Subtle white line
-                        padding: '20px',
-                        display: 'flex',
-                        flexDirection: 'column',
-
-                        /* --- THE GLASS LOOK --- */
-                        backgroundColor: 'rgba(255, 255, 255, 0.03)',   // 1. Semi-transparent white
-                        backdropFilter: 'blur(12px)',                  // 2. The "Frosted" blur
-                        WebkitBackdropFilter: 'blur(12px)',
-                        borderRadius: '16px', // Smooth corners
-                        border: '1px solid rgba(255, 255, 255, 0.1)'
-                    }}>
-                    <SidebarBtn 
-                        label="Session" 
-                        isActive={activeTab === 'Session'} 
-                        onClick={() => setActiveTab('Session')}
-                    >
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3z"/></svg>
-                    </SidebarBtn>
-                    <SidebarBtn label="Memories"
-                        isActive={activeTab === 'Memories'} 
-                        onClick={() => setActiveTab('Memories')}>
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 8V12L15 15"/><circle cx="12" cy="12" r="10"/></svg>
-                    </SidebarBtn>
-
-                    <SidebarBtn label="Dashboard"
-                        isActive={activeTab === 'Dashboard'} 
-                        onClick={() => setActiveTab('Dashboard')}>
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-                    </SidebarBtn>
-
-                    <SidebarBtn label="Tools"
-                        isActive={activeTab === 'Tools'} 
-                        onClick={() => setActiveTab('Tools')}>
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-                    </SidebarBtn>
-
-                    {/* --- NEW ELITE PREMIUM BUTTON --- */}
-                    <div style={{ position: 'relative', marginTop: '4px', width: '100%' }}>
-                        <div style={{ 
-                            position: 'absolute', 
-                            top: '-6px', 
-                            left: '-6px', 
-                            zIndex: 10,
-                            animation: 'twinkle 2s infinite' 
-                        }}>
-                            <StarIcon size={12} />
-                        </div>
-
-                        <button 
-                            onClick={() => setActiveTab('Premium')}
-                            style={{ 
-                                ...btnReset,
+                    {/* 1. LEFT */}
+                    <div className="left-section" style={{ flex: 1, display: 'flex', borderRight: '1px solid #222', padding: '20px', gap: '10px', display: 'flex', flexDirection: 'column'}}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <div style={{
+                                width: '40px',
+                                height: '40px',
+                                borderRadius: '50%',
+                                overflow: 'hidden',
+                                border: '1.5px solid #bf00ff', // That Neon Purple "Manly" Ring
+                                flexShrink: 0,
                                 display: 'flex',
                                 alignItems: 'center',
-                                width: '100%',
-                                padding: '10px 14px',
-                                borderRadius: '12px',
-                                cursor: 'pointer',
-                                background: 'rgba(255, 215, 0, 0.08)', 
-                                border: '1px solid #FFD700', 
-                                color: '#FFD700', 
-                                fontSize: '10px', 
-                                fontWeight: '900', 
-                                letterSpacing: '1.2px', 
-                                textTransform: 'uppercase',
-                                animation: 'goldGlow 3s infinite',
-                                gap: '12px'
-                            }}
-                        >
-                            <StarIcon size={14} />
-                            <span>Go Premium</span>
-                        </button>
+                                justifyContent: 'center',
+                                backgroundColor: 'rgba(255, 255, 255, 0.05)'
+                            }}>
+                                <img 
+                                    src="/Malvin self.png" 
+                                    alt="Malvin AI"
+                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                                />
+                            </div>
+                            
+                            <span style={{ 
+                                color: 'white', 
+                                fontWeight: '800', 
+                                letterSpacing: '2px', 
+                                fontSize: '18px',
+                                fontFamily: 'sans-serif' // Or your custom font
+                            }}>
+                                MALVIN
+                            </span>
+                        </div>
+                        <div className="left top panel" style={{ width: '200px',flex: 1, gap: '10px',
+                                borderRight: '1px solid rgba(255, 255, 255, 0.1)', // Subtle white line
+                                padding: '20px',
+                                display: 'flex',
+                                flexDirection: 'column',
+
+                                /* --- THE GLASS LOOK --- */
+                                backgroundColor: 'rgba(255, 255, 255, 0.03)',   // 1. Semi-transparent white
+                                backdropFilter: 'blur(12px)',                  // 2. The "Frosted" blur
+                                WebkitBackdropFilter: 'blur(12px)',
+                                borderRadius: '16px', // Smooth corners
+                                border: '1px solid rgba(255, 255, 255, 0.1)'
+                            }}>
+                            <SidebarBtn 
+                                label="Session" 
+                                isActive={activeTab === 'Session'} 
+                                onClick={() => setActiveTab('Session')}
+                            >
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3z"/></svg>
+                            </SidebarBtn>
+                            <SidebarBtn label="Memories"
+                                isActive={activeTab === 'Memories'} 
+                                onClick={() => setActiveTab('Memories')}>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 8V12L15 15"/><circle cx="12" cy="12" r="10"/></svg>
+                            </SidebarBtn>
+
+                            <SidebarBtn label="Dashboard"
+                                isActive={activeTab === 'Dashboard'} 
+                                onClick={() => setActiveTab('Dashboard')}>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                            </SidebarBtn>
+
+                            <SidebarBtn label="Tools"
+                                isActive={activeTab === 'Tools'} 
+                                onClick={() => setActiveTab('Tools')}>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                            </SidebarBtn>
+
+                            {/* --- NEW ELITE PREMIUM BUTTON --- */}
+                            <div style={{ position: 'relative', marginTop: '4px', width: '100%' }}>
+                                <div style={{ 
+                                    position: 'absolute', 
+                                    top: '-6px', 
+                                    left: '-6px', 
+                                    zIndex: 10,
+                                    animation: 'twinkle 2s infinite' 
+                                }}>
+                                    <StarIcon size={12} />
+                                </div>
+
+                                <button 
+                                    onClick={() => setActiveTab('Premium')}
+                                    style={{ 
+                                        ...btnReset,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        width: '100%',
+                                        padding: '10px 14px',
+                                        borderRadius: '12px',
+                                        cursor: 'pointer',
+                                        background: 'rgba(255, 215, 0, 0.08)', 
+                                        border: '1px solid #FFD700', 
+                                        color: '#FFD700', 
+                                        fontSize: '10px', 
+                                        fontWeight: '900', 
+                                        letterSpacing: '1.2px', 
+                                        textTransform: 'uppercase',
+                                        animation: 'goldGlow 3s infinite',
+                                        gap: '12px'
+                                    }}
+                                >
+                                    <StarIcon size={14} />
+                                    <span>Go Premium</span>
+                                </button>
+                            </div>
+                        
+                        
+
+                            <SidebarBtn label="Settings"
+                                isActive={activeTab === 'Settings'} 
+                                onClick={() => setActiveTab('Settings')}>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                            </SidebarBtn>
+                            <SidebarBtn 
+                                label="Notes" 
+                                isActive={activeTab === 'Notes'} 
+                                onClick={() => {
+                                    // 1. Switch the tab
+                                    setActiveTab('Notes');
+                                    
+                                    // 2. Add the activity notification
+                                    addActivity("Opened Notes", "📝");
+                                    
+                                    // 3. Update the status icon (if you're using that state)
+                                    setActivityIcon("📝");
+                                }}
+                                >
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+                                    <polyline points="14 2 14 8 20 8"/>
+                                    <line x1="16" y1="13" x2="8" y2="13"/>
+                                    <line x1="16" y1="17" x2="8" y2="17"/>
+                                    <line x1="10" y1="9" x2="8" y2="9"/>
+                                </svg>
+                            </SidebarBtn>
+
+
+                        </div>
+                            {/* button left section */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }} >
+                            <div className="left buttom-panel" style={{ padding: '15px', 
+                                    borderRight: '1px solid rgba(255, 255, 255, 0.1)', // Subtle white line
+                                    padding: '20px',
+                                    flexDirection: 'column',
+                                    display: 'flex',
+
+                                    /* --- THE GLASS LOOK --- */
+                                    backgroundColor: 'rgba(255, 255, 255, 0.03)',   // 1. Semi-transparent white
+                                    backdropFilter: 'blur(12px)',                  // 2. The "Frosted" blur
+                                    WebkitBackdropFilter: 'blur(12px)',
+                                    borderRadius: '16px', // Smooth corners
+                                    border: '1px solid rgba(255, 255, 255, 0.1)'
+                                }}>
+                                {/* THE CIRCLE WRAPPER */}
+                                <div style={{
+                                    width: '45px',
+                                    height: '45px',
+                                    borderRadius: '50%',
+                                    overflow: 'hidden', // Ensures the image stays a circle
+                                    border: '1.5px solid #bf00ff', // Optional: Neon Purple Ring
+                                    flexShrink: 0, // Prevents the circle from squashing
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    backgroundColor: 'rgba(255, 255, 255, 0.05)'
+                                }}>
+                                    <img 
+                                        src="/Malvin self.png" 
+                                        alt="Malvin AI"
+                                        style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                                    />
+                                </div>
+                                <p style={{ color: 'white', margin: 0, fontWeight: '600' }}>Malvin AI</p>
+                                <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '12px', margin: '5px 0 0 0' }}>Your intelligent collaborator partner</p>
+                                    
+                            </div>
+                            {/* --- THE USER PANEL SECTION --- */}
+                            <div style={{ position: 'relative', width: '100%', marginTop: 'auto' }}>
+
+                                {/* 🚪 LOGOUT POPUP MENU */}
+                                {showUserMenu && (
+                                    <div style={{
+                                        position: 'absolute',
+                                        bottom: '100%', 
+                                        left: '0',
+                                        right: '0',
+                                        marginBottom: '10px',
+                                        backgroundColor: 'rgba(15, 15, 15, 0.95)',
+                                        backdropFilter: 'blur(20px)',
+                                        borderRadius: '12px',
+                                        padding: '8px',
+                                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                                        boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+                                        zIndex: 100
+                                    }}>
+                                        <button 
+                                            onClick={handleLogout} // 👈 TRIGGERS FIREBASE SIGNOUT
+                                            style={{
+                                                width: '100%',
+                                                padding: '12px',
+                                                backgroundColor: 'rgba(255, 59, 48, 0.15)',
+                                                border: '1px solid rgba(255, 59, 48, 0.3)',
+                                                borderRadius: '8px',
+                                                color: '#ff3b30',
+                                                fontSize: '11px',
+                                                fontWeight: '800',
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                gap: '10px'
+                                            }}
+                                        >
+                                            LOG OUT
+                                        </button>
+                                    </div>
+                                )}
+
+                                {/* 👤 THE USER PANEL TRIGGER */}
+                                <div 
+                                    className="left-user-panel" 
+                                    onClick={() => setShowUserMenu(!showUserMenu)}
+                                    style={{ 
+                                        padding: '15px 20px',
+                                        flexDirection: 'column', 
+                                        display: 'flex',
+                                        backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                                        backdropFilter: 'blur(12px)',
+                                        borderRadius: '16px',
+                                        border: showUserMenu ? '1px solid #bf00ff' : '1px solid rgba(255, 255, 255, 0.1)',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.3s ease'
+                                    }}
+                                > 
+                                    <div style={{ color: 'white', fontSize: '14px', fontWeight: '600' }}>
+                                        {userEmail?.split('@')[0] || "Guest User"} 
+                                    </div>
+                                    <div style={{ color: 'white', fontSize: '11px', opacity: 0.4, marginTop: '4px' }}>
+                                        {userEmail}
+                                    </div>
+                                </div> 
+                            </div>     
+                        </div>
+                        
                     </div>
-                
-                
 
-                    <SidebarBtn label="Settings"
-                        isActive={activeTab === 'Settings'} 
-                        onClick={() => setActiveTab('Settings')}>
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-                    </SidebarBtn>
-                    <SidebarBtn 
-                        label="Notes" 
-                        isActive={activeTab === 'Notes'} 
-                        onClick={() => {
-                            // 1. Switch the tab
-                            setActiveTab('Notes');
-                            
-                            // 2. Add the activity notification
-                            addActivity("Opened Notes", "📝");
-                            
-                            // 3. Update the status icon (if you're using that state)
-                            setActivityIcon("📝");
-                        }}
-                        >
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
-                            <polyline points="14 2 14 8 20 8"/>
-                            <line x1="16" y1="13" x2="8" y2="13"/>
-                            <line x1="16" y1="17" x2="8" y2="17"/>
-                            <line x1="10" y1="9" x2="8" y2="9"/>
-                        </svg>
-                    </SidebarBtn>
-
-
-                </div>
-                    {/* button left section */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }} >
-                    <div className="left buttom-panel" style={{ padding: '15px', 
-                            borderRight: '1px solid rgba(255, 255, 255, 0.1)', // Subtle white line
-                            padding: '20px',
-                            flexDirection: 'column',
-                            display: 'flex',
-
-                            /* --- THE GLASS LOOK --- */
-                            backgroundColor: 'rgba(255, 255, 255, 0.03)',   // 1. Semi-transparent white
-                            backdropFilter: 'blur(12px)',                  // 2. The "Frosted" blur
-                            WebkitBackdropFilter: 'blur(12px)',
-                            borderRadius: '16px', // Smooth corners
-                            border: '1px solid rgba(255, 255, 255, 0.1)'
+                    {/* 2. MIDDLE */}
+                    <div className="middle-section" style={{ flex: 4, position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', padding: '40px' }}>
+                        {/* 🏝️ THE VOICE ISLAND ANCHOR */}
+                        <div style={{ 
+                            position: 'absolute', 
+                            top: '20px', 
+                            zIndex: 100, 
+                            width: '100%', 
+                            display: 'flex', 
+                            justifyContent: 'center' 
                         }}>
-                        {/* THE CIRCLE WRAPPER */}
-                        <div style={{
-                            width: '45px',
-                            height: '45px',
-                            borderRadius: '50%',
-                            overflow: 'hidden', // Ensures the image stays a circle
-                            border: '1.5px solid #bf00ff', // Optional: Neon Purple Ring
-                            flexShrink: 0, // Prevents the circle from squashing
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            backgroundColor: 'rgba(255, 255, 255, 0.05)'
-                        }}>
-                            <img 
-                                src="/Malvin self.png" 
-                                alt="Malvin AI"
-                                style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                            <MalvinVoiceIsland 
+                                agent={agent} 
+                                disabled={disabled} 
+                                onToggleDisable={onToggleDisable} 
+                                activitySignal={seconds}
                             />
                         </div>
-                        <p style={{ color: 'white', margin: 0, fontWeight: '600' }}>Malvin AI</p>
-                        <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '12px', margin: '5px 0 0 0' }}>Your intelligent collaborator partner</p>
-                            
-                    </div>
-                    {/* --- THE USER PANEL SECTION --- */}
-                    <div style={{ position: 'relative', width: '100%', marginTop: 'auto' }}>
+                        {/* THE SMOKE AREA */}
+                        <AuraBackground />
+                        {/* --- TOP RIGHT SECURITY & MENU --- */}
+                        <div style={{ 
+                            position: 'absolute', 
+                            top: '25px', 
+                            right: '20px', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: '10px',
+                            zIndex: 100 
+                        }}>
+                            {/* TRUST SHIELD */}
+                            <div style={{ position: 'relative' }}>
+                                <div 
+                                    onClick={() => setShowTrustMsg(!showTrustMsg)}
+                                    style={{ 
+                                        cursor: 'pointer', 
+                                        color: showTrustMsg ? '#4ade80' : 'rgba(255, 255, 255, 0.4)',
+                                        transition: 'all 0.3s ease',
+                                        filter: showTrustMsg ? 'drop-shadow(0 0 8px rgba(74, 222, 128, 0.4))' : 'none'
+                                    }}
+                                >
+                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                                        <path d="m9 12 2 2 4-4"/>
+                                    </svg>
+                                </div>
 
-                        {/* 🚪 LOGOUT POPUP MENU */}
-                        {showUserMenu && (
+                                {/* POPUP MESSAGE */}
+                                {showTrustMsg && (
+                                    <div style={{
+                                        position: 'absolute',
+                                        top: '40px',
+                                        right: '0',
+                                        width: '280px',
+                                        backgroundColor: 'rgba(15, 15, 20, 0.95)',
+                                        backdropFilter: 'blur(15px)',
+                                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                                        borderRadius: '16px',
+                                        padding: '20px',
+                                        zIndex: 101,
+                                        animation: 'fadeIn 0.2s ease-out'
+                                    }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+                                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#4ade80' }}></div>
+                                            <span style={{ color: 'white', fontWeight: 'bold', fontSize: '13px' }}>Secure Session</span>
+                                        </div>
+                                        <p style={{ margin: '0 0 12px 0', fontSize: '12px', color: 'rgba(255,255,255,0.7)', lineHeight: '1.6' }}>
+                                            All conversations are end-to-end encrypted. No Malvin personnel will ever ask for your login info.
+                                        </p>
+                                        <div style={{ height: '1px', backgroundColor: 'rgba(255,255,255,0.1)', marginBottom: '12px' }}></div>
+                                        <p style={{ margin: 0, fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>
+                                            Support: 
+                                            <a 
+                                                href="mailto:malvinsupportteam@gmail.com" 
+                                                style={{ 
+                                                    color: '#bf00ff', 
+                                                    textDecoration: 'none', 
+                                                    marginLeft: '5px',
+                                                    fontWeight: 'bold',
+                                                    transition: 'opacity 0.2s'
+                                                }}
+                                                onMouseEnter={(e) => e.currentTarget.style.opacity = '0.7'}
+                                                onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
+                                            >
+                                                malvinsupportteam@gmail.com
+                                            </a>
+                                        </p>
+                                        
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                        <div className="status-pill-container" style={{ display: 'flex', alignItems: 'stretch', justifyContent: 'space-between', width: '100%', paddingBottom: '20px', alignSelf: 'stretch'}}>
+                            <div className="status-pill" style={{ marginTop: '-18px', marginLeft: '-12px' }}>
+                                <span className="live-dot"></span>
+                                <span className="status-text">LIVE SESSION</span>
+                                <span className="status-timer">{formatTime()}</span>
+                            </div>
+                        </div>
+                        
+                        <VideoStage />
+                        <div style={{ display: 'flex', position: 'absolute', bottom: '90px', left: '50%', transform: 'translateX(-50%)', alignItems: 'center', flexDirection: 'column', gap: '8px', width: '100%', maxWidth: '850px', zIndex: 10 }}>
+                            {activeTab === 'Notes' ? (
+                                /* 📝 THE STRATEGIC NOTEPAD (Shows when Notes is clicked) */
+                                <div style={{ 
+                                    ...glassStyle, width: '100%', height: '600px', 
+                                    display: 'flex', flexDirection: 'column', overflow: 'hidden',
+                                    border: '1px solid rgba(191, 0, 255, 0.3)', // Purple Malvin Tint
+                                    animation: 'fadeIn 0.4s ease-out'
+                                }}>
+                                    {/* NOTEPAD HEADER */}
+                                    <div style={{ padding: '15px 20px', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.2)' }}>
+                                        <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+                                            <span style={{ color: '#bf00ff', fontWeight: '900', fontSize: '10px', letterSpacing: '2px' }}>INTEL DRAFT</span>
+                                            {savedNotes.length > 0 && (
+                                                <button 
+                                                    onClick={() => setShowHistory(!showHistory)}
+                                                    style={{ ...btnReset, color: 'rgba(255,255,255,0.5)', fontSize: '10px', cursor: 'pointer', borderBottom: '1px solid' }}
+                                                >
+                                                    {showHistory ? "CLOSE HISTORY" : `PREVIOUS NOTES (${savedNotes.length})`}
+                                                </button>
+                                            )}
+                                        </div>
+                                        <div style={{ display: 'flex', gap: '10px' }}>
+                                            <button onClick={handleSaveNote} style={{...smallActionStyle, border: '1px solid #bf00ff'}}>SAVE TO VAULT</button>
+                                            <button onClick={exportToPDF} style={smallActionStyle}>EXPORT PDF</button>
+                                        </div>
+                                    </div>
+
+                                    <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+                                        {/* PREVIOUS NOTES SIDE-BAR */}
+                                        {showHistory && savedNotes.length > 0 && (
+                                            <div style={{ width: '220px', borderRight: '1px solid rgba(255,255,255,0.1)', backgroundColor: 'rgba(0,0,0,0.3)', overflowY: 'auto', padding: '10px' }}>
+                                                {savedNotes.map(note => (
+                                                    <div 
+                                                        key={note.id} 
+                                                        onClick={() => setCurrentNote(note.content)}
+                                                        style={{ 
+                                                            padding: '12px', 
+                                                            borderRadius: '8px', 
+                                                            marginBottom: '8px', 
+                                                            backgroundColor: 'rgba(255,255,255,0.05)', 
+                                                            cursor: 'pointer', 
+                                                            border: '1px solid rgba(255,255,255,0.05)',
+                                                            display: 'flex',          // Added flex to align text and button
+                                                            justifyContent: 'space-between', 
+                                                            alignItems: 'center',
+                                                            transition: 'background 0.2s'
+                                                        }}
+                                                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'}
+                                                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)'}
+                                                    >
+                                                        <div style={{ overflow: 'hidden' }}>
+                                                            
+                                                            <div ref={noteRef} style={{ fontSize: '11px', color: 'white', fontWeight: 'bold', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                                                                {note.title}
+                                                            </div>
+                                                            <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.3)', marginTop: '2px' }}>
+                                                                {note.date}
+                                                            </div>
+                                                        </div>
+
+                                                        <button 
+                                                            onClick={(e) => {
+                                                                e.stopPropagation(); // Prevents the note from opening when you click delete
+                                                                handleDeleteNote(note.id);
+                                                            }}
+                                                            style={{
+                                                                background: 'transparent',
+                                                                border: 'none',
+                                                                color: 'rgba(255, 77, 77, 0.6)', // Slightly faded red
+                                                                cursor: 'pointer',
+                                                                padding: '4px',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                justifyContent: 'center'
+                                                            }}
+                                                            onMouseEnter={(e) => e.currentTarget.style.color = '#ff4d4d'} // Bright red on hover
+                                                            onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(255, 77, 77, 0.6)'}
+                                                            title="Delete Note"
+                                                        >
+                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                                <polyline points="3 6 5 6 21 6"></polyline>
+                                                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                                            </svg>
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        {/* THE TYPEWRITER EDITOR */}
+                                        <textarea 
+                                            value={currentNote}
+                                            onChange={(e) => setCurrentNote(e.target.value)}
+                                            placeholder="Type your strategic mission details here..."
+                                            style={{
+                                                flex: 1, padding: '25px', backgroundColor: 'transparent', border: 'none',
+                                                color: 'white', fontSize: '15px', outline: 'none', resize: 'none',
+                                                fontFamily: 'monospace', lineHeight: '1.6', caretColor: '#bf00ff', height: '60vh'
+                                            }}
+                                        />
+                                    </div>
+                                </div>
+                            ) : (
+                                <>
+                                    {/*center*/}
+                                    <div style={{ display: 'flex', position: 'absolute', bottom: '90px', left: '50%', transform: 'translateX(-50%)', alignItems: 'center', flexDirection: 'column',  gap: '8px', width: '100%', maxWidth: '850px', zIndex: 10 }}>
+                                        <div style={{ 
+                                            display: 'flex', 
+                                            gap: '20px', 
+                                            width: '100%', 
+                                            maxWidth: '850px', 
+                                            marginBottom: '25px',
+                                            zIndex: 10 
+                                        }}>
+                                            {/* CARD 1: STRATEGY & QUOTES */}
+                                            <div style={{ ...glassStyle, flex: 1, padding: '5px', Height: '180px', overflow: 'hidden' }}>
+                                            <MalvinHybridCycler content={businessContent} />
+                                            </div>
+                                            {/* CARD 2: VENTURE ANALYTICS */}
+                                            <div style={{ ...glassStyle, flex: 1, padding: '24px', minHeight: '180px' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '15px' }}>
+                                                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: neonBlue, boxShadow: `0 0 10px ${neonBlue}` }} />
+                                                    <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', fontWeight: 'bold', letterSpacing: '1.5px' }}>MARKET PULSE</span>
+                                                </div>
+                                                
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                                        <span style={{ color: 'white', opacity: 0.7, fontSize: '13px' }}>Startup Sentiment</span>
+                                                        <span style={{ color: '#00ff88', fontSize: '13px', fontWeight: 'bold' }}>Bullish</span>
+                                                    </div>
+                                                    <div style={{ width: '100%', height: '4px', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '2px' }}>
+                                                        <div style={{ width: '75%', height: '100%', backgroundColor: neonBlue, borderRadius: '2px', boxShadow: `0 0 10px ${neonBlue}` }} />
+                                                    </div>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '5px' }}>
+                                                        <span style={{ color: 'white', opacity: 0.7, fontSize: '13px' }}>AI Integration Rate</span>
+                                                        <span style={{ color: neonPurple, fontSize: '13px', fontWeight: 'bold' }}>+22%</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div style={{ 
+                                            display: 'flex', 
+                                            gap: '12px', 
+                                            marginBottom: '15px', 
+                                            overflowX: 'auto', 
+                                            padding: '5px',
+                                            width: '100%',
+                                            maxWidth: '600px',
+                                            scrollbarWidth: 'none' // Hides scrollbar on Firefox
+                                        }}>
+                                            <style>{`div::-webkit-scrollbar { display: none; }`}</style>
+
+                                            <ActionPill icon="💡" label="Create an Idea" onClick={() => setTextInput("I have a new business idea...")} />
+                                            <ActionPill icon="📈" label="Work on my Plan" onClick={() => setTextInput("Let's review my current business plan.")} />
+                                            <ActionPill icon="💎" label="Go Premium" color={premiumGold} onClick={() => setShowExtras(true)} />
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                        {/* bottom */}
+                        <div style={{gap: '10px', display: 'flex', alignItems: 'center',  width: '100%', justifyContent: 'center', marginBottom: '-14px'}}>
+                            {/* pill */}
+                            <div className="input-pill" style={{ display: 'flex', alignItems: 'center', background: '#211f31', borderRadius: '50px', padding: '10px 20px', width: '600px', backgroundColor: 'rgba(255, 255, 255, 0.03)',   // 1. Semi-transparent white
+                                    backdropFilter: 'blur(12px)',                  // 2. The "Frosted" blur
+                                    WebkitBackdropFilter: 'blur(12px)',
+                                    borderRadius: '50px', // Smooth corners
+                                    border: '1px solid rgba(255, 255, 255, 0.1)'}}>
+                                {/* + */}
+                                <div style={{ position: 'relative' }}>
+                                    {showExtras && (
+                                        <div className="extra-buttons-popup" style={{ position: 'absolute', bottom: '50px', display: 'flex', flexDirection: 'row', gap: '10px' }}>
+                                            {/* 1. CAMERA BUTTON */}
+                                            <button 
+                                                style={btnReset} 
+                                                onClick={async () => {
+                                                    const newState = !localParticipant.isCameraEnabled;
+                                                    await localParticipant.setCameraEnabled(newState);
+                                                    
+                                                    // Update both the single state and the history log
+                                                    setCurrentActivity(newState ? "Camera Live" : "Camera Off");
+                                                    setActivityIcon(newState ? "📷" : "🚫");
+                                                    addActivity(newState ? "Camera Activated" : "Camera Deactivated", newState ? "📷" : "🚫");
+                                                }}
+                                            >
+                                                <CameraIcon enabled={!!localParticipant?.isCameraEnabled} />
+                                            </button>
+
+                                            {/* SCREENSHARE BUTTON */}
+                                            <button 
+                                                style={btnReset} 
+                                                onClick={async () => {
+                                                    try {
+                                                        if (!localParticipant) return;
+                                                        const isSharing = !localParticipant.isScreenShareEnabled;
+                                                        await localParticipant.setScreenShareEnabled(isSharing);
+                                                        
+                                                        addActivity(isSharing ? "Screen Sharing Started" : "Screen Sharing Stopped", "🖥️");
+                                                        setActivityIcon(isSharing ? "🖥️" : "⏹️");
+                                                    } catch (error) {
+                                                        console.error("Screen share failed:", error);
+                                                        addActivity("Screen Share Denied", "⚠️");
+                                                    }
+                                                }} // <--- Use only TWO here. One for the 'try/catch', one for the 'onClick'.
+                                            >
+                                                <ScreenShareIcon enabled={!!localParticipant?.isScreenShareEnabled} />
+                                            </button>
+                                            <button className="popup-item" style={btnReset} onClick={() => fileInputRef.current?.click()} ><ClipIcon/></button>
+                                        </div>
+                                    )}
+                                    <button onClick={() => setShowExtras(!showExtras)} style={{...btnReset, color:'white', fontSize:'28px', width: '40px', height: '40px', backgroundColor: 'rgba(255, 255, 255, 0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: '0', paddingBottom: '4px', transition: 'background 0.2s', cursor: 'pointer'}} >+</button>
+                                </div>
+                                <input 
+                                    placeholder="say something..." 
+                                    value={textInput} 
+                                    onChange={(e)=>setTextInput(e.target.value)}
+                                    style={{ flex: 1, background: 'none', border: 'none', color: 'white', marginLeft: '15px', outline: 'none' }} 
+                                />
+                            </div>
+                            {/* mic */}
+                            {/* MIC BUTTON HOUSING */}
                             <div style={{
-                                position: 'absolute',
-                                bottom: '100%', 
-                                left: '0',
-                                right: '0',
-                                marginBottom: '10px',
-                                backgroundColor: 'rgba(15, 15, 15, 0.95)',
-                                backdropFilter: 'blur(20px)',
-                                borderRadius: '12px',
-                                padding: '8px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                width: '50px',
+                                height: '50px',
+                                borderRadius: '50%',
+                                // Neon Gradient: Dark Blue to Purple
+                                background: 'linear-gradient(135deg, #001f3f 0%, #6a0dad 100%)',
+                                // Neon Glow effect
+                                boxShadow: localParticipant?.isMicrophoneEnabled 
+                                    ? '0 0 15px rgba(0, 112, 255, 0.6), 0 0 20px rgba(160, 32, 240, 0.4)' 
+                                    : 'none',
                                 border: '1px solid rgba(255, 255, 255, 0.1)',
-                                boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
-                                zIndex: 100
+                                opacity: localParticipant?.sid ? 1 : 0.3, // Dim it until connected
+                                pointerEvents: localParticipant?.sid ? 'auto' : 'none', // Disable clicks
+                                transition: 'opacity 0.5s ease'
+                                
                             }}>
                                 <button 
-                                    onClick={handleLogout} // 👈 TRIGGERS FIREBASE SIGNOUT
                                     style={{
+                                        ...btnReset,
                                         width: '100%',
-                                        padding: '12px',
-                                        backgroundColor: 'rgba(255, 59, 48, 0.15)',
-                                        border: '1px solid rgba(255, 59, 48, 0.3)',
-                                        borderRadius: '8px',
-                                        color: '#ff3b30',
-                                        fontSize: '11px',
-                                        fontWeight: '800',
-                                        cursor: 'pointer',
+                                        height: '100%',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
-                                        gap: '10px'
+                                        cursor: 'pointer'
+                                    }}
+                                    onClick={async () => {
+                                        // 1. HARD GUARD: If these are undefined, the engine isn't ready.
+                                        if (!localParticipant || !localParticipant.sid) {
+                                            console.warn("Connection not established. Please wait a moment.");
+                                            addActivity("Connecting...", "⏳");
+                                            return; 
+                                        }
+
+                                        try {
+                                            const nextState = !localParticipant.isMicrophoneEnabled;
+                                            
+                                            // 2. Set a longer timeout or just await the engine
+                                            await localParticipant.setMicrophoneEnabled(nextState);
+                                            
+                                            addActivity(nextState ? "Mic Unmuted" : "Mic Muted", nextState ? "🎙️" : "🔇");
+                                            setActivityIcon(nextState ? "🎙️" : "🔇");
+                                        } catch (error) {
+                                            // If it still times out, we catch it here
+                                            console.error("Mic unable to use:", error);
+                                            addActivity("Mic Sync Error", "⚠️");
+                                        }
                                     }}
                                 >
-                                    LOG OUT
+                                    <MicIcon 
+                                        // The "enabled" prop usually controls the cross-line in LiveKit icons
+                                        enabled={!!localParticipant?.isMicrophoneEnabled} 
+                                        style={{ 
+                                            color: localParticipant?.isMicrophoneEnabled ? 'white' : 'rgba(255,255,255,0.4)',
+                                            width: '24px',
+                                            height: '24px',
+                                            transition: 'color 0.3s ease'
+                                        }} 
+                                    />
                                 </button>
                             </div>
-                        )}
+                            <input 
+                                type="file" 
+                                ref={fileInputRef} 
+                                style={{ display: 'none' }} 
+                                onChange={(e) => {
+                                    try {
+                                        const file = e.target.files?.[0];
+                                        
+                                        if (file) {
+                                            // 1. Update the main status pill
+                                            setCurrentActivity(`Uploaded: ${file.name}`);
+                                            setActivityIcon("📁");
 
-                        {/* 👤 THE USER PANEL TRIGGER */}
-                        <div 
-                            className="left-user-panel" 
-                            onClick={() => setShowUserMenu(!showUserMenu)}
-                            style={{ 
-                                padding: '15px 20px',
+                                            // 2. Add to your new Activity History Log
+                                            addActivity(`File Uploaded: ${file.name}`, "📁");
+
+                                            // 3. Logic for actually handling the file (e.g., sending to server)
+                                            console.log("File ready for processing:", file.name);
+                                        }
+                                    } catch (error) {
+                                        // This catches unexpected errors
+                                        console.error("File selection failed:", error);
+                                        addActivity("File Upload Failed", "⚠️");
+                                    }
+                                    
+                                    // Reset input so the user can upload the same file again if they want
+                                    e.target.value = '';
+                                }}
+                            />
+                            
+                            
+                        </div>
+                    </div>
+
+                    {/* 3. RIGHT */}
+                    <div className="Right-section" style={{ flex: 1, display: 'flex', borderRight: '1px solid #222', padding: '20px', gap: '10px', display: 'flex', flexDirection: 'column'}}>
+                        <div style={{color: 'white'}}>Participants</div>
+                        <div className="Right-top panel" style={{ width: '200px', height: '100px', 
+                                borderRight: '1px solid rgba(255, 255, 255, 0.1)', // Subtle white line
+                                padding: '20px',
+                                display: 'flex',
+                                flexDirection: 'column',
+
+                                /* --- THE GLASS LOOK --- */
+                                backgroundColor: 'rgba(255, 255, 255, 0.03)',   // 1. Semi-transparent white
+                                backdropFilter: 'blur(12px)',                  // 2. The "Frosted" blur
+                                WebkitBackdropFilter: 'blur(12px)',
+                                borderRadius: '16px', // Smooth corners
+                                border: '1px solid rgba(255, 255, 255, 0.1)'
+                            }}>
+
+                        </div>
+                        {/* button right section */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                            <div className="activities-panel" style={{ 
+                                padding: '20px', 
+                                minHeight: '120px',
+                                maxHeight: '400px', // Prevents it from taking over the whole screen
+                                overflowY: 'auto',   // Adds scrollbar when history gets long
+                                display: 'flex',
+                                flexDirection: 'column',
+                                backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                                backdropFilter: 'blur(12px)',
+                                WebkitBackdropFilter: 'blur(12px)',
+                                borderRadius: '16px',
+                                border: '1px solid rgba(255, 255, 255, 0.1)',
+                                scrollbarWidth: 'none' // Hides scrollbar for a cleaner look (Firefox)
+                            }}>
+                                <p style={{ color: 'white', margin: '0 0 15px 0', fontWeight: '400', opacity: 0.6, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                                    Activity Log
+                                </p>
+                                
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                    {activities.map((item) => (
+                                        <div key={item.id} style={{ 
+                                            display: 'flex', 
+                                            alignItems: 'center', 
+                                            justifyContent: 'space-between',
+                                            animation: 'fadeIn 0.3s ease-out' 
+                                        }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                <span style={{ fontSize: '16px' }}>{item.icon}</span>
+                                                <span style={{ color: 'white', fontSize: '13px', fontWeight: '500' }}>{item.text}</span>
+                                            </div>
+                                            <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '10px' }}>{item.time}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                        <div className="Right-panel" style={{ flex: 2, padding: '15px', height: '100px', minHeight: '300px',
                                 flexDirection: 'column', 
                                 display: 'flex',
                                 backgroundColor: 'rgba(255, 255, 255, 0.03)',
                                 backdropFilter: 'blur(12px)',
                                 borderRadius: '16px',
-                                border: showUserMenu ? '1px solid #bf00ff' : '1px solid rgba(255, 255, 255, 0.1)',
-                                cursor: 'pointer',
-                                transition: 'all 0.3s ease'
-                            }}
-                        > 
-                            <div style={{ color: 'white', fontSize: '14px', fontWeight: '600' }}>
-                                {userEmail?.split('@')[0] || "Guest User"} 
+                                border: '1px solid rgba(255, 255, 255, 0.1)'
+                            }}> 
+                            <p style={{ fontSize: '12px', opacity: 0.6, marginBottom: '8px', paddingLeft: '5px' }}>
+                                GALLERIA
+                            </p>
+                            {/* THE CYCLER GOES HERE */}
+                            <div style={{ flex: 1, height: '300px', width: '100%', borderRadius: '14px', overflow: 'hidden', position: 'relative' }}>
+                                <ImageCycler interval={4000} /> 
                             </div>
-                            <div style={{ color: 'white', fontSize: '11px', opacity: 0.4, marginTop: '4px' }}>
-                                {userEmail}
-                            </div>
-                        </div> 
-                    </div>     
-                </div>
-                
-            </div>
-
-            {/* 2. MIDDLE */}
-            <div className="middle-section" style={{ flex: 4, position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', padding: '40px' }}>
-                {/* 🏝️ THE VOICE ISLAND ANCHOR */}
-                <div style={{ 
-                    position: 'absolute', 
-                    top: '20px', 
-                    zIndex: 100, 
-                    width: '100%', 
-                    display: 'flex', 
-                    justifyContent: 'center' 
-                }}>
-                    <MalvinVoiceIsland 
-                        agent={agent} 
-                        disabled={disabled} 
-                        onToggleDisable={onToggleDisable} 
-                        activitySignal={seconds}
-                    />
-                </div>
-                {/* THE SMOKE AREA */}
-                <AuraBackground />
-                {/* --- TOP RIGHT SECURITY & MENU --- */}
-                <div style={{ 
-                    position: 'absolute', 
-                    top: '25px', 
-                    right: '20px', 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '10px',
-                    zIndex: 100 
-                }}>
-                    {/* TRUST SHIELD */}
-                    <div style={{ position: 'relative' }}>
-                        <div 
-                            onClick={() => setShowTrustMsg(!showTrustMsg)}
-                            style={{ 
-                                cursor: 'pointer', 
-                                color: showTrustMsg ? '#4ade80' : 'rgba(255, 255, 255, 0.4)',
-                                transition: 'all 0.3s ease',
-                                filter: showTrustMsg ? 'drop-shadow(0 0 8px rgba(74, 222, 128, 0.4))' : 'none'
-                            }}
-                        >
-                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                                <path d="m9 12 2 2 4-4"/>
-                            </svg>
-                        </div>
-
-                        {/* POPUP MESSAGE */}
-                        {showTrustMsg && (
-                            <div style={{
-                                position: 'absolute',
-                                top: '40px',
-                                right: '0',
-                                width: '280px',
-                                backgroundColor: 'rgba(15, 15, 20, 0.95)',
-                                backdropFilter: 'blur(15px)',
-                                border: '1px solid rgba(255, 255, 255, 0.1)',
-                                borderRadius: '16px',
-                                padding: '20px',
-                                zIndex: 101,
-                                animation: 'fadeIn 0.2s ease-out'
-                            }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
-                                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#4ade80' }}></div>
-                                    <span style={{ color: 'white', fontWeight: 'bold', fontSize: '13px' }}>Secure Session</span>
-                                </div>
-                                <p style={{ margin: '0 0 12px 0', fontSize: '12px', color: 'rgba(255,255,255,0.7)', lineHeight: '1.6' }}>
-                                    All conversations are end-to-end encrypted. No Malvin personnel will ever ask for your login info.
-                                </p>
-                                <div style={{ height: '1px', backgroundColor: 'rgba(255,255,255,0.1)', marginBottom: '12px' }}></div>
-                                <p style={{ margin: 0, fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>
-                                    Support: 
-                                    <a 
-                                        href="mailto:malvinsupportteam@gmail.com" 
-                                        style={{ 
-                                            color: '#bf00ff', 
-                                            textDecoration: 'none', 
-                                            marginLeft: '5px',
-                                            fontWeight: 'bold',
-                                            transition: 'opacity 0.2s'
-                                        }}
-                                        onMouseEnter={(e) => e.currentTarget.style.opacity = '0.7'}
-                                        onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
-                                    >
-                                        malvinsupportteam@gmail.com
-                                    </a>
-                                </p>
-                                
-                            </div>
-                        )}
+                        </div>       
                     </div>
                 </div>
-                <div className="status-pill-container" style={{ display: 'flex', alignItems: 'stretch', justifyContent: 'space-between', width: '100%', paddingBottom: '20px', alignSelf: 'stretch'}}>
-                    <div className="status-pill" style={{ marginTop: '-18px', marginLeft: '-12px' }}>
-                        <span className="live-dot"></span>
-                        <span className="status-text">LIVE SESSION</span>
-                        <span className="status-timer">{formatTime()}</span>
-                    </div>
-                </div>
-                
-                <VideoStage />
-                <div style={{ display: 'flex', position: 'absolute', bottom: '90px', left: '50%', transform: 'translateX(-50%)', alignItems: 'center', flexDirection: 'column', gap: '8px', width: '100%', maxWidth: '850px', zIndex: 10 }}>
-                    {activeTab === 'Notes' ? (
-                        /* 📝 THE STRATEGIC NOTEPAD (Shows when Notes is clicked) */
-                        <div style={{ 
-                            ...glassStyle, width: '100%', height: '600px', 
-                            display: 'flex', flexDirection: 'column', overflow: 'hidden',
-                            border: '1px solid rgba(191, 0, 255, 0.3)', // Purple Malvin Tint
-                            animation: 'fadeIn 0.4s ease-out'
-                        }}>
-                            {/* NOTEPAD HEADER */}
-                            <div style={{ padding: '15px 20px', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.2)' }}>
-                                <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-                                    <span style={{ color: '#bf00ff', fontWeight: '900', fontSize: '10px', letterSpacing: '2px' }}>INTEL DRAFT</span>
-                                    {savedNotes.length > 0 && (
-                                        <button 
-                                            onClick={() => setShowHistory(!showHistory)}
-                                            style={{ ...btnReset, color: 'rgba(255,255,255,0.5)', fontSize: '10px', cursor: 'pointer', borderBottom: '1px solid' }}
-                                        >
-                                            {showHistory ? "CLOSE HISTORY" : `PREVIOUS NOTES (${savedNotes.length})`}
-                                        </button>
-                                    )}
-                                </div>
-                                <div style={{ display: 'flex', gap: '10px' }}>
-                                    <button onClick={handleSaveNote} style={{...smallActionStyle, border: '1px solid #bf00ff'}}>SAVE TO VAULT</button>
-                                    <button onClick={exportToPDF} style={smallActionStyle}>EXPORT PDF</button>
-                                </div>
-                            </div>
-
-                            <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-                                {/* PREVIOUS NOTES SIDE-BAR */}
-                                {showHistory && savedNotes.length > 0 && (
-                                    <div style={{ width: '220px', borderRight: '1px solid rgba(255,255,255,0.1)', backgroundColor: 'rgba(0,0,0,0.3)', overflowY: 'auto', padding: '10px' }}>
-                                        {savedNotes.map(note => (
-                                            <div 
-                                                key={note.id} 
-                                                onClick={() => setCurrentNote(note.content)}
-                                                style={{ 
-                                                    padding: '12px', 
-                                                    borderRadius: '8px', 
-                                                    marginBottom: '8px', 
-                                                    backgroundColor: 'rgba(255,255,255,0.05)', 
-                                                    cursor: 'pointer', 
-                                                    border: '1px solid rgba(255,255,255,0.05)',
-                                                    display: 'flex',          // Added flex to align text and button
-                                                    justifyContent: 'space-between', 
-                                                    alignItems: 'center',
-                                                    transition: 'background 0.2s'
-                                                }}
-                                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'}
-                                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)'}
-                                            >
-                                                <div style={{ overflow: 'hidden' }}>
-                                                    
-                                                    <div ref={noteRef} style={{ fontSize: '11px', color: 'white', fontWeight: 'bold', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                                                        {note.title}
-                                                    </div>
-                                                    <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.3)', marginTop: '2px' }}>
-                                                        {note.date}
-                                                    </div>
-                                                </div>
-
-                                                <button 
-                                                    onClick={(e) => {
-                                                        e.stopPropagation(); // Prevents the note from opening when you click delete
-                                                        handleDeleteNote(note.id);
-                                                    }}
-                                                    style={{
-                                                        background: 'transparent',
-                                                        border: 'none',
-                                                        color: 'rgba(255, 77, 77, 0.6)', // Slightly faded red
-                                                        cursor: 'pointer',
-                                                        padding: '4px',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'center'
-                                                    }}
-                                                    onMouseEnter={(e) => e.currentTarget.style.color = '#ff4d4d'} // Bright red on hover
-                                                    onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(255, 77, 77, 0.6)'}
-                                                    title="Delete Note"
-                                                >
-                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                        <polyline points="3 6 5 6 21 6"></polyline>
-                                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                                                    </svg>
-                                                </button>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-
-                                {/* THE TYPEWRITER EDITOR */}
-                                <textarea 
-                                    value={currentNote}
-                                    onChange={(e) => setCurrentNote(e.target.value)}
-                                    placeholder="Type your strategic mission details here..."
-                                    style={{
-                                        flex: 1, padding: '25px', backgroundColor: 'transparent', border: 'none',
-                                        color: 'white', fontSize: '15px', outline: 'none', resize: 'none',
-                                        fontFamily: 'monospace', lineHeight: '1.6', caretColor: '#bf00ff', height: '60vh'
-                                    }}
-                                />
-                            </div>
-                        </div>
-                    ) : (
-                        <>
-                            {/*center*/}
-                            <div style={{ display: 'flex', position: 'absolute', bottom: '90px', left: '50%', transform: 'translateX(-50%)', alignItems: 'center', flexDirection: 'column',  gap: '8px', width: '100%', maxWidth: '850px', zIndex: 10 }}>
-                                <div style={{ 
-                                    display: 'flex', 
-                                    gap: '20px', 
-                                    width: '100%', 
-                                    maxWidth: '850px', 
-                                    marginBottom: '25px',
-                                    zIndex: 10 
-                                }}>
-                                    {/* CARD 1: STRATEGY & QUOTES */}
-                                    <div style={{ ...glassStyle, flex: 1, padding: '5px', Height: '180px', overflow: 'hidden' }}>
-                                    <MalvinHybridCycler content={businessContent} />
-                                    </div>
-                                    {/* CARD 2: VENTURE ANALYTICS */}
-                                    <div style={{ ...glassStyle, flex: 1, padding: '24px', minHeight: '180px' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '15px' }}>
-                                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: neonBlue, boxShadow: `0 0 10px ${neonBlue}` }} />
-                                            <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', fontWeight: 'bold', letterSpacing: '1.5px' }}>MARKET PULSE</span>
-                                        </div>
-                                        
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                                <span style={{ color: 'white', opacity: 0.7, fontSize: '13px' }}>Startup Sentiment</span>
-                                                <span style={{ color: '#00ff88', fontSize: '13px', fontWeight: 'bold' }}>Bullish</span>
-                                            </div>
-                                            <div style={{ width: '100%', height: '4px', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '2px' }}>
-                                                <div style={{ width: '75%', height: '100%', backgroundColor: neonBlue, borderRadius: '2px', boxShadow: `0 0 10px ${neonBlue}` }} />
-                                            </div>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '5px' }}>
-                                                <span style={{ color: 'white', opacity: 0.7, fontSize: '13px' }}>AI Integration Rate</span>
-                                                <span style={{ color: neonPurple, fontSize: '13px', fontWeight: 'bold' }}>+22%</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div style={{ 
-                                    display: 'flex', 
-                                    gap: '12px', 
-                                    marginBottom: '15px', 
-                                    overflowX: 'auto', 
-                                    padding: '5px',
-                                    width: '100%',
-                                    maxWidth: '600px',
-                                    scrollbarWidth: 'none' // Hides scrollbar on Firefox
-                                }}>
-                                    <style>{`div::-webkit-scrollbar { display: none; }`}</style>
-
-                                    <ActionPill icon="💡" label="Create an Idea" onClick={() => setTextInput("I have a new business idea...")} />
-                                    <ActionPill icon="📈" label="Work on my Plan" onClick={() => setTextInput("Let's review my current business plan.")} />
-                                    <ActionPill icon="💎" label="Go Premium" color={premiumGold} onClick={() => setShowExtras(true)} />
-                                </div>
-                            </div>
-                        </>
-                    )}
-                </div>
-                {/* bottom */}
-                <div style={{gap: '10px', display: 'flex', alignItems: 'center',  width: '100%', justifyContent: 'center', marginBottom: '-14px'}}>
-                    {/* pill */}
-                    <div className="input-pill" style={{ display: 'flex', alignItems: 'center', background: '#211f31', borderRadius: '50px', padding: '10px 20px', width: '600px', backgroundColor: 'rgba(255, 255, 255, 0.03)',   // 1. Semi-transparent white
-                            backdropFilter: 'blur(12px)',                  // 2. The "Frosted" blur
-                            WebkitBackdropFilter: 'blur(12px)',
-                            borderRadius: '50px', // Smooth corners
-                            border: '1px solid rgba(255, 255, 255, 0.1)'}}>
-                        {/* + */}
-                        <div style={{ position: 'relative' }}>
-                            {showExtras && (
-                                <div className="extra-buttons-popup" style={{ position: 'absolute', bottom: '50px', display: 'flex', flexDirection: 'row', gap: '10px' }}>
-                                    {/* 1. CAMERA BUTTON */}
-                                    <button 
-                                        style={btnReset} 
-                                        onClick={async () => {
-                                            const newState = !localParticipant.isCameraEnabled;
-                                            await localParticipant.setCameraEnabled(newState);
-                                            
-                                            // Update both the single state and the history log
-                                            setCurrentActivity(newState ? "Camera Live" : "Camera Off");
-                                            setActivityIcon(newState ? "📷" : "🚫");
-                                            addActivity(newState ? "Camera Activated" : "Camera Deactivated", newState ? "📷" : "🚫");
-                                        }}
-                                    >
-                                        <CameraIcon enabled={!!localParticipant?.isCameraEnabled} />
-                                    </button>
-
-                                    {/* SCREENSHARE BUTTON */}
-                                    <button 
-                                        style={btnReset} 
-                                        onClick={async () => {
-                                            try {
-                                                if (!localParticipant) return;
-                                                const isSharing = !localParticipant.isScreenShareEnabled;
-                                                await localParticipant.setScreenShareEnabled(isSharing);
-                                                
-                                                addActivity(isSharing ? "Screen Sharing Started" : "Screen Sharing Stopped", "🖥️");
-                                                setActivityIcon(isSharing ? "🖥️" : "⏹️");
-                                            } catch (error) {
-                                                console.error("Screen share failed:", error);
-                                                addActivity("Screen Share Denied", "⚠️");
-                                            }
-                                        }} // <--- Use only TWO here. One for the 'try/catch', one for the 'onClick'.
-                                    >
-                                        <ScreenShareIcon enabled={!!localParticipant?.isScreenShareEnabled} />
-                                    </button>
-                                    <button className="popup-item" style={btnReset} onClick={() => fileInputRef.current?.click()} ><ClipIcon/></button>
-                                </div>
-                            )}
-                            <button onClick={() => setShowExtras(!showExtras)} style={{...btnReset, color:'white', fontSize:'28px', width: '40px', height: '40px', backgroundColor: 'rgba(255, 255, 255, 0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: '0', paddingBottom: '4px', transition: 'background 0.2s', cursor: 'pointer'}} >+</button>
-                        </div>
-                        <input 
-                            placeholder="say something..." 
-                            value={textInput} 
-                            onChange={(e)=>setTextInput(e.target.value)}
-                            style={{ flex: 1, background: 'none', border: 'none', color: 'white', marginLeft: '15px', outline: 'none' }} 
-                        />
-                    </div>
-                    {/* mic */}
-                    {/* MIC BUTTON HOUSING */}
-                    <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        width: '50px',
-                        height: '50px',
-                        borderRadius: '50%',
-                        // Neon Gradient: Dark Blue to Purple
-                        background: 'linear-gradient(135deg, #001f3f 0%, #6a0dad 100%)',
-                        // Neon Glow effect
-                        boxShadow: localParticipant?.isMicrophoneEnabled 
-                            ? '0 0 15px rgba(0, 112, 255, 0.6), 0 0 20px rgba(160, 32, 240, 0.4)' 
-                            : 'none',
-                        border: '1px solid rgba(255, 255, 255, 0.1)',
-                        opacity: localParticipant?.sid ? 1 : 0.3, // Dim it until connected
-                        pointerEvents: localParticipant?.sid ? 'auto' : 'none', // Disable clicks
-                        transition: 'opacity 0.5s ease'
-                        
-                    }}>
-                        <button 
-                            style={{
-                                ...btnReset,
-                                width: '100%',
-                                height: '100%',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                cursor: 'pointer'
-                            }}
-                            onClick={async () => {
-                                // 1. HARD GUARD: If these are undefined, the engine isn't ready.
-                                if (!localParticipant || !localParticipant.sid) {
-                                    console.warn("Connection not established. Please wait a moment.");
-                                    addActivity("Connecting...", "⏳");
-                                    return; 
-                                }
-
-                                try {
-                                    const nextState = !localParticipant.isMicrophoneEnabled;
-                                    
-                                    // 2. Set a longer timeout or just await the engine
-                                    await localParticipant.setMicrophoneEnabled(nextState);
-                                    
-                                    addActivity(nextState ? "Mic Unmuted" : "Mic Muted", nextState ? "🎙️" : "🔇");
-                                    setActivityIcon(nextState ? "🎙️" : "🔇");
-                                } catch (error) {
-                                    // If it still times out, we catch it here
-                                    console.error("Mic unable to use:", error);
-                                    addActivity("Mic Sync Error", "⚠️");
-                                }
-                            }}
-                        >
-                            <MicIcon 
-                                // The "enabled" prop usually controls the cross-line in LiveKit icons
-                                enabled={!!localParticipant?.isMicrophoneEnabled} 
-                                style={{ 
-                                    color: localParticipant?.isMicrophoneEnabled ? 'white' : 'rgba(255,255,255,0.4)',
-                                    width: '24px',
-                                    height: '24px',
-                                    transition: 'color 0.3s ease'
-                                }} 
-                            />
-                        </button>
-                    </div>
-                    <input 
-                        type="file" 
-                        ref={fileInputRef} 
-                        style={{ display: 'none' }} 
-                        onChange={(e) => {
-                            try {
-                                const file = e.target.files?.[0];
-                                
-                                if (file) {
-                                    // 1. Update the main status pill
-                                    setCurrentActivity(`Uploaded: ${file.name}`);
-                                    setActivityIcon("📁");
-
-                                    // 2. Add to your new Activity History Log
-                                    addActivity(`File Uploaded: ${file.name}`, "📁");
-
-                                    // 3. Logic for actually handling the file (e.g., sending to server)
-                                    console.log("File ready for processing:", file.name);
-                                }
-                            } catch (error) {
-                                // This catches unexpected errors
-                                console.error("File selection failed:", error);
-                                addActivity("File Upload Failed", "⚠️");
-                            }
-                            
-                            // Reset input so the user can upload the same file again if they want
-                            e.target.value = '';
-                        }}
-                    />
-                    
-                    
-                </div>
-            </div>
-
-            {/* 3. RIGHT */}
-            <div className="Right-section" style={{ flex: 1, display: 'flex', borderRight: '1px solid #222', padding: '20px', gap: '10px', display: 'flex', flexDirection: 'column'}}>
-                <div style={{color: 'white'}}>Participants</div>
-                <div className="Right-top panel" style={{ width: '200px', height: '100px', 
-                        borderRight: '1px solid rgba(255, 255, 255, 0.1)', // Subtle white line
-                        padding: '20px',
-                        display: 'flex',
-                        flexDirection: 'column',
-
-                        /* --- THE GLASS LOOK --- */
-                        backgroundColor: 'rgba(255, 255, 255, 0.03)',   // 1. Semi-transparent white
-                        backdropFilter: 'blur(12px)',                  // 2. The "Frosted" blur
-                        WebkitBackdropFilter: 'blur(12px)',
-                        borderRadius: '16px', // Smooth corners
-                        border: '1px solid rgba(255, 255, 255, 0.1)'
-                    }}>
-
-                </div>
-                {/* button right section */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                    <div className="activities-panel" style={{ 
-                        padding: '20px', 
-                        minHeight: '120px',
-                        maxHeight: '400px', // Prevents it from taking over the whole screen
-                        overflowY: 'auto',   // Adds scrollbar when history gets long
-                        display: 'flex',
-                        flexDirection: 'column',
-                        backgroundColor: 'rgba(255, 255, 255, 0.03)',
-                        backdropFilter: 'blur(12px)',
-                        WebkitBackdropFilter: 'blur(12px)',
-                        borderRadius: '16px',
-                        border: '1px solid rgba(255, 255, 255, 0.1)',
-                        scrollbarWidth: 'none' // Hides scrollbar for a cleaner look (Firefox)
-                    }}>
-                        <p style={{ color: 'white', margin: '0 0 15px 0', fontWeight: '400', opacity: 0.6, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                            Activity Log
-                        </p>
-                        
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                            {activities.map((item) => (
-                                <div key={item.id} style={{ 
-                                    display: 'flex', 
-                                    alignItems: 'center', 
-                                    justifyContent: 'space-between',
-                                    animation: 'fadeIn 0.3s ease-out' 
-                                }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                        <span style={{ fontSize: '16px' }}>{item.icon}</span>
-                                        <span style={{ color: 'white', fontSize: '13px', fontWeight: '500' }}>{item.text}</span>
-                                    </div>
-                                    <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '10px' }}>{item.time}</span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-                <div className="Right-panel" style={{ flex: 2, padding: '15px', height: '100px', minHeight: '300px',
-                        flexDirection: 'column', 
-                        display: 'flex',
-                        backgroundColor: 'rgba(255, 255, 255, 0.03)',
-                        backdropFilter: 'blur(12px)',
-                        borderRadius: '16px',
-                        border: '1px solid rgba(255, 255, 255, 0.1)'
-                    }}> 
-                    <p style={{ fontSize: '12px', opacity: 0.6, marginBottom: '8px', paddingLeft: '5px' }}>
-                        GALLERIA
-                    </p>
-                    {/* THE CYCLER GOES HERE */}
-                    <div style={{ flex: 1, height: '300px', width: '100%', borderRadius: '14px', overflow: 'hidden', position: 'relative' }}>
-                        <ImageCycler interval={4000} /> 
-                    </div>
-                </div>       
-            </div>
-        </div>
+            )}
+        </>    
     );
 };
 
