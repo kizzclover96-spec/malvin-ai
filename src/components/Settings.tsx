@@ -390,22 +390,23 @@ const Settings = ({ onBack, userBrand, setUserBrand }: any) => {
                                 © 2026 Malvin Ecosystem. All rights reserved. Registered Neural Network.
                             </p>
 
-                            <div style={{ 
-                                position: 'fixed', bottom: '40px', right: '40px', 
-                                display: 'flex', alignItems: 'center', gap: '10px',
-                                background: 'rgba(0,0,0,0.6)', padding: '8px 16px', borderRadius: '20px',
-                                border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)'
-                            }}>
-                                {/* Pulse Animation */}
-                                <div className="pulse-dot" style={{ 
-                                    width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#2dd4bf' 
-                                }}></div>
-                                <span style={{ fontSize: '11px', color: 'white', opacity: 0.6, fontWeight: 600 }}>
-                                    NEURAL CORE SYNCED
-                                </span>
-                            </div>
+                            
                         </section>
                     )}  
+                </div>
+                <div style={{ 
+                    position: 'fixed', bottom: '40px', right: '40px', 
+                    display: 'flex', alignItems: 'center', gap: '10px',
+                    background: 'rgba(0,0,0,0.6)', padding: '8px 16px', borderRadius: '20px',
+                    border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)'
+                }}>
+                    {/* Pulse Animation */}
+                    <div className="pulse-dot" style={{ 
+                        width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#2dd4bf' 
+                    }}></div>
+                    <span style={{ fontSize: '11px', color: 'white', opacity: 0.6, fontWeight: 600 }}>
+                        NEURAL CORE SYNCED
+                    </span>
                 </div>
             </div>
         </div>
