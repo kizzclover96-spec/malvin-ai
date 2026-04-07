@@ -88,79 +88,110 @@ const AuraBackground = () => {
 const Memories = ({ onBack }: { onBack: () => void }) => {
   return (
     <div style={{ 
-      position: 'relative', // Necessary for AuraBackground to stay behind
+      position: 'relative',
       padding: '30px', 
-      minHeight: '100vh', 
+      height: '100vh', // Changed from minHeight to prevent overflow
+      width: '100vw',
+      boxSizing: 'border-box', // Ensures padding doesn't add to width/height
       fontFamily: 'sans-serif', 
-      backgroundColor: '#0a0a0c', // Dark base so aura shows up
+      backgroundColor: '#0a0a0c', 
       color: 'white',
       display: 'flex',
-      flexDirection: 'column', // Stacks sections vertically
+      flexDirection: 'column', 
       overflow: 'hidden'
     }}>
       
       <AuraBackground />
        
-      {/* HEADER SECTION - Wrapped in a relative div to stay above Aura */}
-      <div style={{ position: 'relative', zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
-        <button onClick={onBack} style={{ color: 'white', cursor: 'pointer', background: 'none', border: '1px solid rgba(255,255,255,0.2)', padding: '8px 16px', borderRadius: '8px', marginBottom: '20px' }}>
-          ← BACK TO main
+      {/* HEADER SECTION */}
+      <div style={{ position: 'relative', zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' }}>
+        {/* BACK BUTTON: Now matches Insights size/style */}
+        <button 
+            onClick={onBack} 
+            style={{ 
+                background: 'rgba(255, 255, 255, 0.05)', 
+                border: '1px solid rgba(255,255,255,0.2)', 
+                color: 'white', 
+                padding: '8px 16px', 
+                borderRadius: '20px', 
+                fontSize: '12px', 
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center'
+            }}
+        >
+          ← BACK TO MAIN
         </button>
-        <h1 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '10px', fontSize: '24px' }}>
+
+        <h1 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '10px', fontSize: '22px' }}>
           <span>🧠</span> Memories
         </h1>
+
         <button style={{ background: 'rgba(191, 0, 255, 0.2)', border: '1px solid #bf00ff', color: 'white', padding: '8px 16px', borderRadius: '20px', fontSize: '12px', cursor: 'pointer' }}>
           ✨ Insights
         </button>
       </div>
 
       {/* OVERVIEW ROW */}
-      <div style={{ position: 'relative', zIndex: 1, display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', marginBottom: '30px' }}>
-        <div style={glassCardStyle}>
-          <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)' }}>Total Simulations</div>
-          <div style={{ fontSize: '24px', fontWeight: 'bold', marginTop: '5px' }}>27 🔄</div>
+      <div style={{ position: 'relative', zIndex: 1, display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '15px', marginBottom: '25px' }}>
+        <div style={{ ...glassCardStyle, padding: '15px' }}>
+          <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase' }}>Total Simulations</div>
+          <div style={{ fontSize: '20px', fontWeight: 'bold', marginTop: '5px' }}>27 🔄</div>
         </div>
-        <div style={glassCardStyle}>
-          <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)' }}>Avg. Profit</div>
-          <div style={{ fontSize: '24px', fontWeight: 'bold', marginTop: '5px', color: '#4dff88' }}>€620 ▲</div>
+        <div style={{ ...glassCardStyle, padding: '15px' }}>
+          <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase' }}>Avg. Profit</div>
+          <div style={{ fontSize: '20px', fontWeight: 'bold', marginTop: '5px', color: '#4dff88' }}>€620 ▲</div>
         </div>
-        <div style={glassCardStyle}>
-          <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)' }}>Preferred Strategy</div>
-          <div style={{ fontSize: '24px', fontWeight: 'bold', marginTop: '5px' }}>Ads 📢</div>
+        <div style={{ ...glassCardStyle, padding: '15px' }}>
+          <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase' }}>Preferred Strategy</div>
+          <div style={{ fontSize: '20px', fontWeight: 'bold', marginTop: '5px' }}>Ads 📢</div>
         </div>
-        <div style={glassCardStyle}>
-          <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)' }}>Success Rate</div>
-          <div style={{ fontSize: '24px', fontWeight: 'bold', marginTop: '5px' }}>78% 📊</div>
+        <div style={{ ...glassCardStyle, padding: '15px' }}>
+          <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase' }}>Success Rate</div>
+          <div style={{ fontSize: '20px', fontWeight: 'bold', marginTop: '5px' }}>78% 📊</div>
         </div>
       </div>
 
       {/* MAIN CONTENT SPLIT */}
-      <div style={{ position: 'relative', zIndex: 1, display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px' }}>
+      <div style={{ position: 'relative', zIndex: 1, display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px', flex: 1, overflow: 'hidden' }}>
         {/* LEFT COLUMN */}
-        <div style={glassCardStyle}>
-          <h3 style={{ marginBottom: '20px', fontSize: '16px' }}>Recent Simulations</h3>
-          <div style={{ background: 'rgba(255,255,255,0.02)', padding: '15px', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid rgba(255,255,255,0.05)' }}>
+        <div style={{ ...glassCardStyle, overflowY: 'auto' }}>
+          <h3 style={{ marginBottom: '20px', fontSize: '15px', opacity: 0.8 }}>Recent Simulations</h3>
+          <div style={{ background: 'rgba(255,255,255,0.02)', padding: '15px', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid rgba(255,255,255,0.05)' }}>
             <div>
-              <div style={{ fontWeight: 'bold' }}>Clothing Store - 30 Days <span style={{ fontSize: '10px', background: '#333', padding: '2px 8px', borderRadius: '10px', marginLeft: '10px' }}>Ad Campaign</span></div>
-              <div style={{ display: 'flex', gap: '20px', marginTop: '10px', fontSize: '13px' }}>
+              <div style={{ fontWeight: 'bold', fontSize: '14px' }}>Clothing Store - 30 Days <span style={{ fontSize: '10px', background: 'rgba(255,255,255,0.1)', padding: '2px 8px', borderRadius: '10px', marginLeft: '10px' }}>Ad Campaign</span></div>
+              <div style={{ display: 'flex', gap: '20px', marginTop: '10px', fontSize: '12px' }}>
                 <span>Revenue: <strong>€1,800</strong></span>
                 <span>Profit: <strong style={{ color: '#4dff88' }}>+€900 ▲</strong></span>
                 <span>Outcome: <span style={{ color: '#4dff88' }}>Positive</span></span>
               </div>
             </div>
-            <button style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', padding: '8px 12px', borderRadius: '5px', cursor: 'pointer' }}>View Report &gt;</button>
+            
+            {/* VIEW REPORT BUTTON: Reduced size, capsule shape, purple border */}
+            <button style={{ 
+                background: 'rgba(191, 0, 255, 0.1)', 
+                border: '1px solid #bf00ff', 
+                color: 'white', 
+                padding: '6px 14px', 
+                borderRadius: '25px', 
+                fontSize: '11px',
+                cursor: 'pointer',
+                transition: '0.2s'
+            }}>
+                View Report &gt;
+            </button>
           </div>
         </div>
 
         {/* RIGHT COLUMN */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <div style={glassCardStyle}>
-            <h4 style={{ margin: '0 0 15px 0', fontSize: '14px' }}>Performance Trends</h4>
-            <div style={{ height: '100px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px' }}></div>
+          <div style={{ ...glassCardStyle, flex: 1 }}>
+            <h4 style={{ margin: '0 0 15px 0', fontSize: '13px', color: 'rgba(255,255,255,0.6)' }}>Performance Trends</h4>
+            <div style={{ height: '80px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', border: '1px dashed rgba(255,255,255,0.1)' }}></div>
           </div>
-          <div style={glassCardStyle}>
-            <h4 style={{ margin: '0 0 15px 0', fontSize: '14px' }}>User Habits</h4>
-            <div style={{ fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ ...glassCardStyle, flex: 1 }}>
+            <h4 style={{ margin: '0 0 15px 0', fontSize: '13px', color: 'rgba(255,255,255,0.6)' }}>User Habits</h4>
+            <div style={{ fontSize: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <div>• Top Budget: <strong>€500</strong></div>
               <div>• Fav Strategy: <strong>Ads</strong></div>
               <div>• Peak Time: <strong>6 PM</strong></div>
@@ -170,8 +201,8 @@ const Memories = ({ onBack }: { onBack: () => void }) => {
       </div>
 
       {/* FOOTER */}
-      <div style={{ position: 'relative', zIndex: 1, marginTop: 'auto', paddingTop: '30px' }}>
-        <div style={{ background: 'rgba(191, 0, 255, 0.1)', border: '1px solid rgba(191, 0, 255, 0.3)', padding: '15px', borderRadius: '12px', textAlign: 'center' }}>
+      <div style={{ position: 'relative', zIndex: 1, marginTop: '20px' }}>
+        <div style={{ background: 'rgba(191, 0, 255, 0.05)', border: '1px solid rgba(191, 0, 255, 0.2)', padding: '12px', borderRadius: '12px', textAlign: 'center', fontSize: '13px' }}>
           <span style={{ color: '#bf00ff', fontWeight: 'bold' }}>AI Tip:</span> Your ad campaigns are performing well. Consider increasing the budget next month.
         </div>
       </div>
