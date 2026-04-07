@@ -13,6 +13,7 @@ const glassStyle: React.CSSProperties = {
 const premiumGold = "#FFD700";
 
 const Simulator = ({ onBack }: { onBack: () => void }) => {
+    const [showReport, setShowReport] = useState(false);
     const [isSimulating, setIsSimulating] = useState(false);
     const [progress, setProgress] = useState(0);
     const [budget, setBudget] = useState(50); // Initial value
@@ -37,6 +38,8 @@ const Simulator = ({ onBack }: { onBack: () => void }) => {
     const handleStart = () => {
         if (selectedSims.length === 0) return alert("Select at least one simulation module.");
         setIsSimulating(true);
+        setProgress(0);
+        setShowReport(false);
         let val = 0;
         const interval = setInterval(() => {
             val += 2;
@@ -44,6 +47,12 @@ const Simulator = ({ onBack }: { onBack: () => void }) => {
             if (val >= 100) {
                 clearInterval(interval);
                 setIsSimulating(false);
+                // TRIGGER THE OUTPUT
+                setTimeout(() => {
+                    setShowReport(true);
+                    // Logic to save to memories would go here:
+                    // saveToMemories({ date: new Date(), budget, selectedSims });
+                }, 500);
             }
         }, 50);
     };
@@ -212,6 +221,51 @@ const Simulator = ({ onBack }: { onBack: () => void }) => {
                     </button>
                 </div>
             </div>
+            {showReport && (
+                <div style={{
+                    position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+                    backgroundColor: 'rgba(5, 5, 5, 0.8)', backdropFilter: 'blur(10px)',
+                    zIndex: 100, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '40px'
+                }}>
+                    <div style={{ ...glassStyle, width: '100%', maxWidth: '800px', border: `1px solid ${premiumGold}`, position: 'relative' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '30px' }}>
+                            <div>
+                                <h2 style={{ color: premiumGold, margin: 0, fontSize: '24px' }}>SIMULATION INTELLIGENCE</h2>
+                                <p style={{ opacity: 0.5, fontSize: '12px' }}>ARCHIVED TO MEMORIES • ID: #SIM-882</p>
+                            </div>
+                            <button onClick={() => {setShowReport(false); setProgress(0);}} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', fontSize: '20px' }}>✕</button>
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                            {/* FACT CARD */}
+                            <div style={{ background: 'rgba(45, 212, 191, 0.05)', padding: '15px', borderRadius: '16px', border: '1px solid rgba(45, 212, 191, 0.2)' }}>
+                                <span style={{ fontSize: '10px', color: '#2dd4bf', fontWeight: 'bold' }}>PROJECTION FACT</span>
+                                <p style={{ fontSize: '14px', margin: '10px 0 0 0' }}>Based on your {bizType} model, a budget of {currency}{budget}k will likely yield a **3.2x CAC efficiency** over 90 days.</p>
+                            </div>
+
+                            {/* WARNING CARD */}
+                            <div style={{ background: 'rgba(255, 215, 0, 0.05)', padding: '15px', borderRadius: '16px', border: '1px solid rgba(255, 215, 0, 0.2)' }}>
+                                <span style={{ fontSize: '10px', color: premiumGold, fontWeight: 'bold' }}>SYSTEM WARNING</span>
+                                <p style={{ fontSize: '14px', margin: '10px 0 0 0' }}>Black Swan simulation indicates a 12% probability of supply chain disruption in your region.</p>
+                            </div>
+                        </div>
+
+                        <div style={{ marginTop: '30px', padding: '15px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px' }}>
+                            <h4 style={{ margin: '0 0 10px 0', fontSize: '12px', opacity: 0.6 }}>NEURAL NOTICE</h4>
+                            <p style={{ fontSize: '13px', lineHeight: '1.6', color: 'rgba(255,255,255,0.8)' }}>
+                                Your current brand velocity is strong. The simulator suggests shifting 15% of the allocated budget from **Ads** to **Product Development** to prevent long-term scale burn.
+                            </p>
+                        </div>
+
+                        <button 
+                            onClick={() => {setShowReport(false); setProgress(0);}}
+                            style={{ width: '100%', marginTop: '30px', padding: '15px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'white', color: 'black', fontWeight: 'bold', cursor: 'pointer' }}
+                        >
+                            ACKNOWLEDGE & CLOSE
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
