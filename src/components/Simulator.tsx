@@ -60,6 +60,7 @@ const Simulator = ({ onBack }: { onBack: () => void }) => {
 
             {/* HEADER */}
             <div style={{ flexShrink: 0, position: 'relative', zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', marginTop: 'auto' }}>
+                <p style={{ color: 'white', fontSize: '20px' justifycontent: 'center' }}>Run a preview of the future</p>
                 <button 
                     onClick={onBack}
                     style={{
