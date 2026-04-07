@@ -297,7 +297,7 @@ const Settings = ({ onBack, userBrand, setUserBrand }: any) => {
                                     </div>
                                 ))}
                             </div>
-                        </sections>
+                        </section>
                     )}   
                     {activeTab === 'About us' && (
                         <section>
