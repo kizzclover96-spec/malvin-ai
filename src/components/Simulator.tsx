@@ -12,7 +12,7 @@ const glassStyle: React.CSSProperties = {
 
 const premiumGold = "#FFD700";
 
-const Simulator = ({ onBack }: { onBack: () => void }) => {
+const Simulator = ({ onBack, onSave }: { onBack: () => void, onSave: (data: any) => void }) => {
     const [showReport, setShowReport] = useState(false);
     const [isSimulating, setIsSimulating] = useState(false);
     const [progress, setProgress] = useState(0);
@@ -20,6 +20,7 @@ const Simulator = ({ onBack }: { onBack: () => void }) => {
     const [currency, setCurrency] = useState('€');
     const [bizType, setBizType] = useState('Brand');
     const [otherBiz, setOtherBiz] = useState('');
+    const [location, setLocation] = useState('');
     const [selectedSims, setSelectedSims] = useState<string[]>(['Price']);
 
     const simulations = [
@@ -48,6 +49,21 @@ const Simulator = ({ onBack }: { onBack: () => void }) => {
                 clearInterval(interval);
                 setIsSimulating(false);
                 // TRIGGER THE OUTPUT
+                const simulationData = {
+                    id: `SIM-${Math.floor(Math.random() * 9000) + 1000}`,
+                    date: new Date().toLocaleDateString(),
+                    type: "Market Projection",
+                    title: `${bizType} Expansion: ${location || 'Global'}`,
+                    details: `Budget: ${currency}${budget}k | Modules: ${selectedSims.join(', ')}`,
+                    status: "Archived",
+                    metrics: {
+                        efficiency: "3.2x CAC",
+                        risk: "12% Swan Probability"
+                    }
+                };
+
+                // 3. Save it to your global/parent state
+                onSave(simulationData);
                 setTimeout(() => {
                     setShowReport(true);
                     // Logic to save to memories would go here:

@@ -5,7 +5,7 @@ import Simulator from './Simulator';
 import Settings from './Settings';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
-import React, { useEffect, useRef, useState, useMemo } from "react";
+import React, {  useRef, useState, useMemo } from "react";
 import '../App.css';
 import {
   LiveKitRoom,
@@ -140,7 +140,7 @@ const AIOrb = ({ status }: { status: string }) => {
   );
 };
 
-import { useState, useEffect } from 'react';
+import {  useEffect } from 'react';
 
 const ImageCycler = ({ interval = 3000 }) => {
   const images = [
@@ -404,6 +404,7 @@ const MalvinHybridCycler = React.memo(({ content }: { content: any[] }) => {
 
 const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     // 1. STATE & VARS (Fixed missing references)
+    const [savedSimulations, setSavedSimulations] = useState<any[]>([]);
     const [showSettings, setShowSettings] = useState(false);
     const [showTools, setShowTools] = useState(false);
     const { localParticipant } = useLocalParticipant();
@@ -423,6 +424,14 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     const [isViewingHistory, setIsViewingHistory] = useState(false);
     const [savedNotes, setSavedNotes] = useState([]); // Stores { id, title, content, date }
     const [showHistory, setShowHistory] = useState(false);
+    const [history, setHistory] = useState<any[]>([]);
+
+    const handleSaveSimulation = (newSim: any) => {
+        setSavedSimulations(prev => [newSim, ...prev]);
+    };
+    const handleSave = (newSim: any) => {
+        setHistory(prev => [newSim, ...prev]);
+    };
 
     const handleSaveNote = () => {
         if (!currentNote.trim()) return;
@@ -711,9 +720,14 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                     onBack={() => setActiveTab('Session')} // Goes back to main view
                 />
             ) : activeTab === 'Memories' ? (
-                <Memories onBack={() => setActiveTab('Session')} />
+                <Memories 
+                   onBack={() => setActiveTab('Session')}
+                   savedSimulations={savedSimulations}
+                   data={history}/>
             ) : activeTab === 'Simulator' ? (
-                <Simulator onBack={() => setActiveTab('Session')} />
+                <Simulator 
+                   onBack={() => setActiveTab('Session')} 
+                   onSave={handleSaveSimulation}/>
             ) : (
                 <div className="main-full-ui" style={{ display: 'flex', height: '100vh', width: '100vw', backgroundColor: "black" }}> 
                     <GlobalStyles />

@@ -84,8 +84,20 @@ const AuraBackground = () => {
   );
 };
 
+interface MemoryEntry {
+  id: string;
+  date: string;
+  type: string;
+  title: string;
+  details: string;
+  metrics: {
+    efficiency: string;
+    risk: string;
+  };
+}
 
-const Memories = ({ onBack }: { onBack: () => void }) => {
+const Memories = ({ onBack, data = [] }: { onBack: () => void, data?: MemoryEntry[]}) => {
+  const totalSims = data.length;
   return (
     <div style={{ 
       position: 'relative',
@@ -136,7 +148,7 @@ const Memories = ({ onBack }: { onBack: () => void }) => {
       <div style={{ position: 'relative', zIndex: 1, display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '15px', marginBottom: '25px' }}>
         <div style={{ ...glassCardStyle, padding: '15px' }}>
           <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase' }}>Total Simulations</div>
-          <div style={{ fontSize: '20px', fontWeight: 'bold', marginTop: '5px' }}>27 🔄</div>
+          <div style={{ fontSize: '20px', fontWeight: 'bold', marginTop: '5px' }}>{totalSims} 🔄</div>
         </div>
         <div style={{ ...glassCardStyle, padding: '15px' }}>
           <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase' }}>Avg. Profit</div>
@@ -154,32 +166,53 @@ const Memories = ({ onBack }: { onBack: () => void }) => {
 
       {/* MAIN CONTENT SPLIT */}
       <div style={{ position: 'relative', zIndex: 1, display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px', flex: 1, overflow: 'hidden' }}>
-        {/* LEFT COLUMN */}
+        {/* LEFT COLUMN: THE LIST */}
         <div style={{ ...glassCardStyle, overflowY: 'auto' }}>
           <h3 style={{ marginBottom: '20px', fontSize: '15px', opacity: 0.8 }}>Recent Simulations</h3>
-          <div style={{ background: 'rgba(255,255,255,0.02)', padding: '15px', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid rgba(255,255,255,0.05)' }}>
-            <div>
-              <div style={{ fontWeight: 'bold', fontSize: '14px' }}>Clothing Store - 30 Days <span style={{ fontSize: '10px', background: 'rgba(255,255,255,0.1)', padding: '2px 8px', borderRadius: '10px', marginLeft: '10px' }}>Ad Campaign</span></div>
-              <div style={{ display: 'flex', gap: '20px', marginTop: '10px', fontSize: '12px' }}>
-                <span>Revenue: <strong>€1,800</strong></span>
-                <span>Profit: <strong style={{ color: '#4dff88' }}>+€900 ▲</strong></span>
-                <span>Outcome: <span style={{ color: '#4dff88' }}>Positive</span></span>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {data.length > 0 ? (
+              data.map((memory) => (
+                <div key={memory.id} style={{ 
+                  background: 'rgba(255,255,255,0.02)', 
+                  padding: '15px', 
+                  borderRadius: '12px', 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center', 
+                  border: '1px solid rgba(255,255,255,0.05)' 
+                }}>
+                  <div>
+                    <div style={{ fontWeight: 'bold', fontSize: '14px' }}>
+                      {memory.title} 
+                      <span style={{ fontSize: '10px', background: 'rgba(255,255,255,0.1)', padding: '2px 8px', borderRadius: '10px', marginLeft: '10px', color: '#bf00ff' }}>
+                        {memory.date}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', gap: '20px', marginTop: '10px', fontSize: '12px', opacity: 0.8 }}>
+                      <span>Outcome: <strong>{memory.metrics.efficiency}</strong></span>
+                      <span>Risk: <strong style={{ color: '#ffd700' }}>{memory.metrics.risk}</strong></span>
+                    </div>
+                  </div>
+                  
+                  <button style={{ 
+                    background: 'rgba(191, 0, 255, 0.1)', 
+                    border: '1px solid #bf00ff', 
+                    color: 'white', 
+                    padding: '6px 14px', 
+                    borderRadius: '25px', 
+                    fontSize: '11px',
+                    cursor: 'pointer'
+                  }}>
+                    View Details &gt;
+                  </button>
+                </div>
+              ))
+            ) : (
+              <div style={{ textAlign: 'center', padding: '40px', opacity: 0.4 }}>
+                No neural data archived yet. Run a simulation to begin.
               </div>
-            </div>
-            
-            {/* VIEW REPORT BUTTON: Reduced size, capsule shape, purple border */}
-            <button style={{ 
-                background: 'rgba(191, 0, 255, 0.1)', 
-                border: '1px solid #bf00ff', 
-                color: 'white', 
-                padding: '6px 14px', 
-                borderRadius: '25px', 
-                fontSize: '11px',
-                cursor: 'pointer',
-                transition: '0.2s'
-            }}>
-                View Report &gt;
-            </button>
+            )}
           </div>
         </div>
 
