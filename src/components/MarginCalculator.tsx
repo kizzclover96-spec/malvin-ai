@@ -28,7 +28,7 @@ const MarginCalculator = ({ onBack }: { onBack: () => void }) => {
     };
 
     return (
-        <div style={{ width: '100vw', height: '100vh', backgroundColor: '#08080a', color: 'white', padding: '40px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ position: 'fixed', width: '100vw', height: '100vh', backgroundColor: '#08080a', color: 'white', padding: '24px', zIndex: 1000, overflow: 'hidden', display: 'flex', flexDirection: 'column' boxSizing: 'border-box', }}>
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px' }}>
                 <button onClick={onBack} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', padding: '10px 25px', borderRadius: '30px', cursor: 'pointer' }}>
@@ -40,11 +40,11 @@ const MarginCalculator = ({ onBack }: { onBack: () => void }) => {
                 </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '40px', flex: 1 }}>
+            <div style={{ display: 'flex',  flexWrap: 'wrap', gridTemplateColumns: '1fr 1fr', gap: '20px', flex: 1, overflowY: 'auto' }}>
                 
                 {/* Left: Inputs */}
-                <div style={{ background: 'rgba(255,255,255,0.02)', padding: '30px', borderRadius: '24px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                    <h3 style={{ marginBottom: '25px', opacity: 0.8 }}>Unit Parameters</h3>
+                <div style={{ background: 'rgba(255,255,255,0.02)', flex: '1 1 400px', padding: '20px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.05)', height: 'fit-content' }}>
+                    <h3 style={{ marginBottom: '15px', fontSize: '14px', opacity: 0.8 }}>Unit Parameters</h3>
                     
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                         <div>
@@ -67,10 +67,10 @@ const MarginCalculator = ({ onBack }: { onBack: () => void }) => {
                 </div>
 
                 {/* Right: Results Display */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                    <div style={{ flex: 1, background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(239, 68, 68, 0.1))', padding: '40px', borderRadius: '24px', border: '1px solid #f59e0b', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
-                        <span style={{ fontSize: '14px', opacity: 0.6, letterSpacing: '1px' }}>NET PROFIT PER UNIT</span>
-                        <h1 style={{ fontSize: '72px', margin: '10px 0', color: finalTakeHome > 0 ? '#4dff88' : '#ff4d4d' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', flex: '1 1 350px', gap: '15px' }}>
+                    <div style={{ flex: 1, background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(239, 68, 68, 0.1))', padding: '30px', borderRadius: '24px', border: '1px solid #f59e0b', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
+                        <span style={{ fontSize: '12px', opacity: 0.6, letterSpacing: '1px' }}>NET PROFIT PER UNIT</span>
+                        <h1 style={{ fontSize: '48px', margin: '5px 0', color: finalTakeHome > 0 ? '#4dff88' : '#ff4d4d' }}>
                             €{finalTakeHome.toFixed(2)}
                         </h1>
                         <div style={{ fontSize: '24px', fontWeight: 'bold', opacity: 0.8 }}>
