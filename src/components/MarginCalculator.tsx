@@ -17,7 +17,7 @@ const MarginCalculator = ({ onBack }: { onBack: () => void }) => {
     const marginPercentage = ((finalTakeHome / values.price) * 100).toFixed(1);
 
     const inputStyle: React.CSSProperties = {
-        width: '70%',
+        width: '80%',
         padding: '12px',
         background: 'rgba(255,255,255,0.05)',
         border: '1px solid rgba(255,255,255,0.1)',
