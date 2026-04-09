@@ -17,7 +17,7 @@ const MarginCalculator = ({ onBack }: { onBack: () => void }) => {
     const marginPercentage = ((finalTakeHome / values.price) * 100).toFixed(1);
 
     const inputStyle: React.CSSProperties = {
-        width: '100%',
+        width: '70%',
         padding: '12px',
         background: 'rgba(255,255,255,0.05)',
         border: '1px solid rgba(255,255,255,0.1)',
@@ -46,7 +46,7 @@ const MarginCalculator = ({ onBack }: { onBack: () => void }) => {
                 <div style={{ background: 'rgba(255,255,255,0.02)', flex: '1 1 400px', padding: '20px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.05)', height: 'fit-content' }}>
                     <h3 style={{ marginBottom: '15px', fontSize: '14px', opacity: 0.8 }}>Unit Parameters</h3>
                     
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '20px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                         <div>
                             <label style={{ fontSize: '11px', opacity: 0.5 }}>RETAIL PRICE</label>
                             <input type="number" value={values.price} onChange={(e) => setValues({...values, price: Number(e.target.value)})} style={inputStyle} />
