@@ -28,7 +28,7 @@ const MarginCalculator = ({ onBack }: { onBack: () => void }) => {
     };
 
     return (
-        <div style={{ position: 'fixed', width: '100vw', height: '100vh', backgroundColor: '#08080a', color: 'white', padding: '24px', zIndex: 1000, overflow: 'hidden', display: 'flex', flexDirection: 'column' boxSizing: 'border-box', }}>
+        <div style={{ position: 'fixed', width: '100vw', height: '100vh', backgroundColor: '#08080a', color: 'white', padding: '24px', zIndex: 1000, overflow: 'hidden', display: 'flex', flexDirection: 'column', boxSizing: 'border-box', }}>
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px' }}>
                 <button onClick={onBack} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', padding: '10px 25px', borderRadius: '30px', cursor: 'pointer' }}>
