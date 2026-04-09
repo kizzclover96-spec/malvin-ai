@@ -3,6 +3,7 @@ import { signOut } from "firebase/auth";
 import Memories from './memories'; 
 import Simulator from './Simulator';
 import MarginCalculator from './MarginCalculator';
+import MarketTrends from './MarketTrends'
 import Settings from './Settings';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
@@ -405,6 +406,7 @@ const MalvinHybridCycler = React.memo(({ content }: { content: any[] }) => {
 
 const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     // 1. STATE & VARS (Fixed missing references)
+    const [marketTrend] = useState([10, 22, 18, 35, 30, 45, 50]);
     const [savedSimulations, setSavedSimulations] = useState<any[]>([]);
     const [showSettings, setShowSettings] = useState(false);
     const [showTools, setShowTools] = useState(false);
@@ -761,6 +763,9 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                 />
             ) : activeTab === 'Calculator' ? (
                 <MarginCalculator onBack={() => setActiveTab('Session')} />
+            ) : activeTab === 'Trends' ? (
+                <MarketTrends onBack={() => setActiveTab('Session')} />
+            
             ) : activeTab === 'Simulator' ? (
                 <Simulator 
                    onBack={() => setActiveTab('Session')} 

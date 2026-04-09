@@ -102,6 +102,9 @@ const AuraBackground = () => {
 const Settings = ({ onBack, userBrand, setUserBrand }: any) => {
     const [activeTab, setActiveTab] = useState('Business');
     const fileInputRef = useRef<HTMLInputElement>(null); // Create the reference
+    useEffect(() => {
+        localStorage.setItem('neural_user_brand', JSON.stringify(userBrand));
+    }, [userBrand]);
     const menuItems = [
         { id: 'Account', icon: '👤' },
         { id: 'AI Behavior', icon: '🧠' },
@@ -311,6 +314,22 @@ const Settings = ({ onBack, userBrand, setUserBrand }: any) => {
                                         style={{ width: '100%', background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', padding: '12px', borderRadius: '8px', color: 'white', outline: 'none' }} 
                                         placeholder="Enter brand name"
                                     />
+                                </div>
+                                {/* BRAND CATEGORY (This is the "Search" anchor) */}
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '8px' }}>Industry / Category</label>
+                                    <select 
+                                        value={userBrand.category || "Fashion"} // Default to Fashion
+                                        onChange={(e) => setUserBrand({...userBrand, category: e.target.value})}
+                                        style={{ width: '100%', background: '#050505', border: '1px solid rgba(255,255,255,0.2)', padding: '12px', borderRadius: '8px', color: 'white', outline: 'none' }}
+                                    >
+                                        <option value="Fashion">Fashion & Apparel</option>
+                                        <option value="Tech">Technology & SaaS</option>
+                                        <option value="E-commerce">General E-commerce</option>
+                                        <option value="Sustainability">Green / Sustainable Business</option>
+                                        <option value="Fintech">Financial Technology</option>
+                                    </select>
+                                    <p style={{ fontSize: '11px', opacity: 0.4, marginTop: '8px' }}>This determines the news and trends injected into your dashboard.</p>
                                 </div>
 
                                 {/* NEW: STRATEGIC CONTEXT (The AI's "Brain" path) */}
