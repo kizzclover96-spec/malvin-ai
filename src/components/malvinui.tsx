@@ -590,7 +590,31 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
         setActivities(prev => [newEntry, ...prev]);
     };
     
-    
+    const appIconStyle: React.CSSProperties = {
+        display: 'flex', 
+        flexDirection: 'column', 
+        alignItems: 'center', 
+        cursor: 'pointer',
+        transition: 'transform 0.2s cubic-bezier(0.2, 0, 0.2, 1)'
+    };
+
+    const iconBackground: React.CSSProperties = {
+        width: '60px',
+        height: '60px',
+        margin: '0 auto 8px',
+        borderRadius: '16px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        boxShadow: '0 8px 15px rgba(0,0,0,0.2)'
+    };
+
+    const iconLabelStyle: React.CSSProperties = {
+        fontSize: '11px', 
+        fontWeight: '500', 
+        color: 'white',
+        textAlign: 'center'
+    }; 
     
 
     // Placeholder logic (Replace with your real props/hooks later)
@@ -716,6 +740,8 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
             }
         `}</style>
     );
+    
+    
 
     return (
         <>
@@ -810,6 +836,53 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                                     <span style={{ fontSize: '11px', fontWeight: '500', color: 'white' }}>
                                         Simulate
                                     </span>
+                                </div>
+                                
+                                {/* 1. CALCULATOR: UNIT ECONOMICS */}
+                                <div 
+                                    onClick={() => { setActiveTab('Calculator'); setShowTools(false); addActivity("Opened Margin Calc", "🧮"); }}
+                                    style={appIconStyle}
+                                    onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
+                                    onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                                >
+                                    <div style={{ ...iconBackground, background: 'linear-gradient(135deg, #f59e0b, #ef4444)' }}>
+                                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                                            <rect x="4" y="2" width="16" height="20" rx="2" />
+                                            <line x1="8" y1="6" x2="16" y2="6" /><line x1="8" y1="10" x2="16" y2="10" />
+                                            <path d="M8 14h2m4 0h2m-6 4h2m4 0h2" />
+                                        </svg>
+                                    </div>
+                                    <span style={iconLabelStyle}>Margins</span>
+                                </div>
+
+                                {/* 2. TRENDS: MARKET PULSE */}
+                                <div 
+                                    onClick={() => { setActiveTab('Trends'); setShowTools(false); addActivity("Checked Trends", "📈"); }}
+                                    style={appIconStyle}
+                                    onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
+                                    onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                                >
+                                    <div style={{ ...iconBackground, background: 'linear-gradient(135deg, #10b981, #3b82f6)' }}>
+                                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                                            <path d="M23 6l-9.5 9.5-5-5L1 18" /><polyline points="17 6 23 6 23 12" />
+                                        </svg>
+                                    </div>
+                                    <span style={iconLabelStyle}>Trends</span>
+                                </div>
+
+                                {/* 3. CASHFLOW: BURN SENTRY */}
+                                <div 
+                                    onClick={() => { setActiveTab('Cashflow'); setShowTools(false); addActivity("Audited Cashflow", "🔥"); }}
+                                    style={appIconStyle}
+                                    onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
+                                    onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                                >
+                                    <div style={{ ...iconBackground, background: 'linear-gradient(135deg, #ec4899, #8b5cf6)' }}>
+                                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                                            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                                        </svg>
+                                    </div>
+                                    <span style={iconLabelStyle}>Runway</span>
                                 </div>
 
                                 {/* Placeholder for more apps */}
