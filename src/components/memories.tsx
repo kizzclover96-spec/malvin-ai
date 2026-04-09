@@ -116,6 +116,18 @@ const Memories = ({ onBack, data = [] }: { onBack: () => void, data?: MemoryEntr
       malvinAdvice = `Warning: ${highRiskCount} simulations show extreme volatility. Your current strategy is vulnerable to market shifts. Pivot to defensive asset management.`;
   }
   
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+  const handleRefresh = () => {
+      setIsAnalyzing(true);
+      // Simulate a brief "Neural Processing" delay
+      setTimeout(() => {
+          setRefreshKey(prev => prev + 1);
+          setIsAnalyzing(false);
+      }, 800); 
+  };
+
   const [showRoadmap, setShowRoadmap] = useState(false);
   const [selectedSim, setSelectedSim] = useState<MemoryEntry | null>(null);
   const totalSims = data.length;
@@ -161,8 +173,8 @@ const Memories = ({ onBack, data = [] }: { onBack: () => void, data?: MemoryEntr
             <span>🧠</span> Memories
           </h1>
 
-          <button style={{ background: 'rgba(191, 0, 255, 0.2)', border: '1px solid #bf00ff', color: 'white', padding: '8px 16px', borderRadius: '20px', fontSize: '12px', cursor: 'pointer' }}>
-            ✨ Insights
+          <button onClick={handleRefresh} style={{ background: 'rgba(191, 0, 255, 0.2)', border: '1px solid #bf00ff', color: 'white', padding: '8px 16px', borderRadius: '20px', fontSize: '12px', cursor: 'pointer' }}>
+            ✨ {isAnalyzing ? "⌛ ANALYZING..." : "✨ Insights"}
           </button>
         </div>
 
