@@ -1,6 +1,7 @@
 import React from 'react';
 import React, { useState } from 'react';
 
+const premiumGold = "#FFD700";
 const glassWhite = "rgba(255, 255, 255, 0.8)";
 const glassCardStyle: React.CSSProperties = {
     backgroundColor: 'rgba(255, 255, 255, 0.03)',
