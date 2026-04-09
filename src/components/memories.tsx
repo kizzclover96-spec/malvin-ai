@@ -184,14 +184,14 @@ const Memories = ({ onBack, data = [] }: { onBack: () => void, data?: MemoryEntr
                 }}>
                   <div>
                     <div style={{ fontWeight: 'bold', fontSize: '14px' }}>
-                      {memory.title} 
+                      {memory.title || "Untitled Simulation"}
                       <span style={{ fontSize: '10px', background: 'rgba(255,255,255,0.1)', padding: '2px 8px', borderRadius: '10px', marginLeft: '10px', color: '#bf00ff' }}>
                         {memory.date}
                       </span>
                     </div>
                     <div style={{ display: 'flex', gap: '20px', marginTop: '10px', fontSize: '12px', opacity: 0.8 }}>
-                      <span>Outcome: <strong>{memory.metrics.efficiency}</strong></span>
-                      <span>Risk: <strong style={{ color: '#ffd700' }}>{memory.metrics.risk}</strong></span>
+                      <span>Outcome: <strong>{memory.metrics?.efficiency || 'N/A'}</strong></span>
+                      <span>Risk: <strong style={{ color: '#ffd700' }}>{memory.metrics?.risk || 'N/A'}</strong></span>
                     </div>
                   </div>
                   

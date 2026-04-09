@@ -49,21 +49,21 @@ const Simulator = ({ onBack, onSave }: { onBack: () => void, onSave: (data: any)
                 clearInterval(interval);
                 setIsSimulating(false);
                 // TRIGGER THE OUTPUT
+                // Find where you define simulationData inside handleStart
                 const simulationData = {
                     id: `SIM-${Math.floor(Math.random() * 9000) + 1000}`,
                     date: new Date().toLocaleDateString(),
                     type: "Market Projection",
                     title: `${bizType} Expansion: ${location || 'Global'}`,
                     details: `Budget: ${currency}${budget}k | Modules: ${selectedSims.join(', ')}`,
-                    status: "Archived",
+                    // Ensure these metrics match the interface in memories.tsx exactly
                     metrics: {
                         efficiency: "3.2x CAC",
                         risk: "12% Swan Probability"
                     }
                 };
 
-                // 3. Save it to your global/parent state
-                onSave(simulationData);
+                onSave(simulationData); // This sends it to Malvinui.tsx
                 setTimeout(() => {
                     setShowReport(true);
                     // Logic to save to memories would go here:
@@ -73,6 +73,7 @@ const Simulator = ({ onBack, onSave }: { onBack: () => void, onSave: (data: any)
         }, 50);
     };
 
+    
     return (
         <div style={{
             width: '100vw', height: '100vh', backgroundColor: '#050505', color: 'white',

@@ -426,11 +426,10 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     const [showHistory, setShowHistory] = useState(false);
     const [history, setHistory] = useState<any[]>([]);
 
-    const handleSaveSimulation = (newSim: any) => {
-        setSavedSimulations(prev => [newSim, ...prev]);
-    };
-    const handleSave = (newSim: any) => {
-        setHistory(prev => [newSim, ...prev]);
+    // This ensures that when a simulation finishes, 
+    // it hits BOTH the specific simulation state and the general history/vault state.
+    const handleSaveSimulation = (data: any) => {
+        setHistory(prev => [data, ...prev]);
     };
 
     const handleSaveNote = () => {
@@ -624,7 +623,15 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     };
 
     
-    
+    // Add this inside Malvinui to auto-persist the memories
+    useEffect(() => {
+        const saved = localStorage.getItem('malvin_history');
+        if (saved) setHistory(JSON.parse(saved));
+    }, []);
+
+    useEffect(() => {
+        localStorage.setItem('malvin_history', JSON.stringify(history));
+    }, [history]);
 
     // TIMER LOGIC
     React.useEffect(() => {
@@ -723,11 +730,13 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                 <Memories 
                    onBack={() => setActiveTab('Session')}
                    savedSimulations={savedSimulations}
-                   data={history}/>
+                   data={history}
+                />
             ) : activeTab === 'Simulator' ? (
                 <Simulator 
                    onBack={() => setActiveTab('Session')} 
-                   onSave={handleSaveSimulation}/>
+                   onSave={handleSaveSimulation}
+                />
             ) : (
                 <div className="main-full-ui" style={{ display: 'flex', height: '100vh', width: '100vw', backgroundColor: "black" }}> 
                     <GlobalStyles />
