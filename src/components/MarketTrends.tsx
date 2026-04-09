@@ -9,6 +9,8 @@ const MarketTrends = ({ onBack, userBrand }: { onBack: () => void, userBrand: an
 
   // 1. SIMULATE INCOMING POSTS (The "Live" feel)
   useEffect(() => {
+    if (!userBrand?.category) return;
+
     const postInterval = setInterval(() => {
       const updates = [
         { user: "@trend_ai", text: `Surge in '${userBrand.category || 'Industry'}' search volume observed.`, time: "Now" },
@@ -24,6 +26,7 @@ const MarketTrends = ({ onBack, userBrand }: { onBack: () => void, userBrand: an
 
   // 2. FETCH NEWS (Cleaned Logic)
   useEffect(() => {
+    if (!userBrand) return;
     const fetchNews = async () => {
     const apiKey = import.meta.env.VITE_GNEWS_KEY; 
     const industry = userBrand.category || "Business";
@@ -45,7 +48,7 @@ const MarketTrends = ({ onBack, userBrand }: { onBack: () => void, userBrand: an
     };
 
     fetchNews();
-  }, [userBrand.category]); // This is the magic line that listens to your Settings
+  }, [userBrand?.category]); // This is the magic line that listens to your Settings
 
   return (
     <div style={{ 
@@ -59,12 +62,12 @@ const MarketTrends = ({ onBack, userBrand }: { onBack: () => void, userBrand: an
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px', borderBottom: '1px solid #1e293b', paddingBottom: '15px' }}>
         <div>
           <h2 style={{ margin: 0, color: '#3b82f6', fontSize: '20px', letterSpacing: '2px' }}>
-            {userBrand.name ? `${userBrand.name.toUpperCase()}_PULSE` : 'MALVIN_MARKET_PULSE'}
+            {userBrand?.name ? `${userBrand.name.toUpperCase()}_PULSE` : 'MALVIN_MARKET_PULSE'}
           </h2>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '4px' }}>
             <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 10px #10b981' }} />
             <span style={{ fontSize: '10px', opacity: 0.6 }}>
-                FEED: {userBrand.category?.toUpperCase() || 'GENERAL'} // ENCRYPTED_CONNECTION
+               FEED: {userBrand?.category?.toUpperCase() || 'GENERAL'} // ENCRYPTED_CONNECTION
             </span>
           </div>
         </div>
@@ -129,7 +132,7 @@ const MarketTrends = ({ onBack, userBrand }: { onBack: () => void, userBrand: an
         alignItems: 'center', overflow: 'hidden', whiteSpace: 'nowrap' 
       }}>
         <div className="ticker-content" style={{ color: 'black', fontWeight: 'bold', fontSize: '12px' }}>
-          BTC/USD +2.4% • {userBrand.category?.toUpperCase()}_INDEX +1.2% • MALVIN_OS_CONNECTED • SYSTEM_STABLE • 
+          BTC/USD +2.4% • {userBrand?.category?.toUpperCase() || 'MARKET'}_INDEX +1.2% • MALVIN_OS_CONNECTED • SYSTEM_STABLE • 
         </div>
         <style>{`
           .ticker-content {
