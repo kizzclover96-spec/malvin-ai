@@ -97,6 +97,7 @@ interface MemoryEntry {
 }
 
 const Memories = ({ onBack, data = [] }: { onBack: () => void, data?: MemoryEntry[]}) => {
+  const [selectedSim, setSelectedSim] = useState<MemoryEntry | null>(null);
   const totalSims = data.length;
   return (
     <div style={{ 
@@ -195,7 +196,7 @@ const Memories = ({ onBack, data = [] }: { onBack: () => void, data?: MemoryEntr
                     </div>
                   </div>
                   
-                  <button style={{ 
+                  <button onClick={() => setSelectedSim(memory)} style={{ 
                     background: 'rgba(191, 0, 255, 0.1)', 
                     border: '1px solid #bf00ff', 
                     color: 'white', 
@@ -210,7 +211,7 @@ const Memories = ({ onBack, data = [] }: { onBack: () => void, data?: MemoryEntr
               ))
             ) : (
               <div style={{ textAlign: 'center', padding: '40px', opacity: 0.4 }}>
-                No neural data archived yet. Run a simulation to begin.
+                No Business data archived yet. Run a simulation to begin.
               </div>
             )}
           </div>
@@ -239,7 +240,56 @@ const Memories = ({ onBack, data = [] }: { onBack: () => void, data?: MemoryEntr
           <span style={{ color: '#bf00ff', fontWeight: 'bold' }}>AI Tip:</span> Your ad campaigns are performing well. Consider increasing the budget next month.
         </div>
       </div>
+      {/* --- NEW MODAL LOGIC --- */}
+      {selectedSim && (
+        <div style={{
+          position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+          backgroundColor: 'rgba(5, 5, 5, 0.8)', backdropFilter: 'blur(10px)',
+          zIndex: 100, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '40px'
+        }}>
+          <div style={{ ...glassCardStyle, width: '100%', maxWidth: '800px', border: `1px solid ${premiumGold}`, position: 'relative' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '30px' }}>
+              <div>
+                <h2 style={{ color: premiumGold, margin: 0, fontSize: '24px' }}>SIMULATION INTELLIGENCE</h2>
+                <p style={{ opacity: 0.5, fontSize: '12px' }}>ARCHIVED DATA • ID: #{selectedSim.id}</p>
+              </div>
+              <button onClick={() => setSelectedSim(null)} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', fontSize: '20px' }}>✕</button>
+            </div>
 
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+              {/* FACT CARD - Uses data from the selected memory */}
+              <div style={{ background: 'rgba(45, 212, 191, 0.05)', padding: '15px', borderRadius: '16px', border: '1px solid rgba(45, 212, 191, 0.2)' }}>
+                <span style={{ fontSize: '10px', color: '#2dd4bf', fontWeight: 'bold' }}>PROJECTION FACT</span>
+                <p style={{ fontSize: '14px', margin: '10px 0 0 0' }}>
+                   {selectedSim.title}: Achieved **{selectedSim.metrics.efficiency}** in recent run.
+                </p>
+              </div>
+
+              {/* WARNING CARD */}
+              <div style={{ background: 'rgba(255, 215, 0, 0.05)', padding: '15px', borderRadius: '16px', border: '1px solid rgba(255, 215, 0, 0.2)' }}>
+                <span style={{ fontSize: '10px', color: premiumGold, fontWeight: 'bold' }}>SYSTEM WARNING</span>
+                <p style={{ fontSize: '14px', margin: '10px 0 0 0' }}>
+                   Risk Analysis: **{selectedSim.metrics.risk}** detected for this specific context.
+                </p>
+              </div>
+            </div>
+
+            <div style={{ marginTop: '30px', padding: '15px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px' }}>
+              <h4 style={{ margin: '0 0 10px 0', fontSize: '12px', opacity: 0.6 }}>NEURAL NOTICE</h4>
+              <p style={{ fontSize: '13px', lineHeight: '1.6', color: 'rgba(255,255,255,0.8)' }}>
+                {selectedSim.details}
+              </p>
+            </div>
+
+            <button 
+              onClick={() => setSelectedSim(null)}
+              style={{ width: '100%', marginTop: '30px', padding: '15px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'white', color: 'black', fontWeight: 'bold', cursor: 'pointer' }}
+            >
+              CLOSE ARCHIVE
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
