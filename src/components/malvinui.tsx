@@ -2,6 +2,7 @@ import { auth } from "../firebase";
 import { signOut } from "firebase/auth";
 import Memories from './memories'; 
 import Simulator from './Simulator';
+import MarginCalculator from './MarginCalculator';
 import Settings from './Settings';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
@@ -758,6 +759,8 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                    savedSimulations={savedSimulations}
                    data={history}
                 />
+            ) : activeTab === 'Calculator' ? (
+                <MarginCalculator onBack={() => setActiveTab('Session')} />
             ) : activeTab === 'Simulator' ? (
                 <Simulator 
                    onBack={() => setActiveTab('Session')} 
