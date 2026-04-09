@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 
 const premiumGold = "#FFD700";
 const glassStyle: React.CSSProperties = {
