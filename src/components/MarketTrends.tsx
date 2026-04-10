@@ -42,19 +42,19 @@ const updatesText = [
     // PERSONA: ALPHA_FEED (Fast-Breaking Intel)
     { text: 'Social mentions for ${sector} alternatives are up 400% in 24 hours.', type: 'growth' },
     { text: 'Rumors of major regulatory shifts favoring ${sector} decentralization.', type: 'strategy' },
-    { text: 'Consumer fatigue with 'Big Box' solutions is driving traffic to ${sector}.', type: 'growth' },
+    { text: "Consumer fatigue with 'Big Box' solutions is driving traffic to ${sector}.", type: 'growth' },
     { text: 'Top-tier influencers are quietly exiting legacy niches for ${sector}.', type: 'strategy' },
-    { text: 'New 'Efficiency Standard' being adopted across the ${sector} landscape.', type: 'strategy' },
+    { text: "New 'Efficiency Standard' being adopted across the ${sector} landscape.", type: 'strategy' },
 
     // PERSONA: SENTIMENT_BOT (Public Mood)
     { text: 'Public trust in traditional ${sector} methods is at a 5-year low.', type: 'warning' },
     { text: 'High demand for transparency in ${sector} transactions detected.', type: 'strategy' },
     { text: 'Viral discourse around ${sector} ethics is trending globally.', type: 'growth' },
-    { text: 'User feedback across forums indicates a 'Need for Speed' in ${sector} delivery.', type: 'strategy' },
-    { text: 'Early adopters are reporting 'High Satisfaction' with new ${sector} integrations.', type: 'growth' },
+    { text: "User feedback across forums indicates a 'Need for Speed' in ${sector} delivery.", type: 'strategy' },
+    { text: "Early adopters are reporting 'High Satisfaction' with new ${sector} integrations.", type: 'growth' },
 
     // PERSONA: MACRO_WATCH (The Big Picture)
-    { text: 'Interest rate stability is providing a 'Green Light' for ${sector} expansion.', type: 'growth' },
+    { text: "Interest rate stability is providing a 'Green Light' for ${sector} expansion.", type: 'growth' },
     { text: 'Global logistics re-routing is lowering the cost of ${sector} operations.', type: 'growth' },
     { text: 'Cross-border trade agreements are opening new ${sector} corridors in Asia.', type: 'strategy' },
     { text: 'Energy efficiency mandates are favoring the current ${sector} infrastructure.', type: 'growth' },
