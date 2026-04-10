@@ -210,7 +210,7 @@ const Runway = ({ userBrand }) => {
           {netBurn > 0 ? (
             <p style={{ fontSize: '13px', opacity: 0.8 }}>
               You are burning more than you earn. At this rate, your business has
-              <strong> {runway} months</strong> left. Consider reducing expenses or
+              <strong> {displayValue} months</strong> left. Consider reducing expenses or
               increasing revenue immediately.
             </p>
           ) : (
