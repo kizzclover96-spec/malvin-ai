@@ -84,7 +84,7 @@ const neuralVisions = [
         tag: 'MACRO_DATA'
     },
     { 
-        title: 'Unusual 'Whale' activity: High-volume buy orders detected in ${sector} niche.', 
+        title: "Unusual 'Whale' activity: High-volume buy orders detected in ${sector} niche.", 
         img: 'https://images.unsplash.com/photo-1639762681485-074b7f938ba0?auto=format&fit=crop&w=400&q=80',
         tag: 'LIQUIDITY'
     },
@@ -101,7 +101,7 @@ const neuralVisions = [
         tag: 'CULTURAL_SHIFT'
     },
     { 
-        title: 'Search volume for ${sector} 'Efficiency First' models up 212% globally.', 
+        title: "Search volume for ${sector} 'Efficiency First' models up 212% globally.", 
         img: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=400&q=80',
         tag: 'TRAFFIC_PULSE'
     },
@@ -177,7 +177,7 @@ const neuralVisions = [
         tag: 'LEADERSHIP'
     },
     { 
-        title: 'Neural projection: The 'Great Reset' in ${sector} valuations favors lean operations.', 
+        title: "Neural projection: The 'Great Reset' in ${sector} valuations favors lean operations.", 
         img: 'https://images.unsplash.com/photo-1484417855536-a3631484196c?auto=format&fit=crop&w=400&q=80',
         tag: 'VALUATION'
     },
