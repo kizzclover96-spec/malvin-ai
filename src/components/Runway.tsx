@@ -134,13 +134,14 @@ const Runway = ({ userBrand }) => {
   );
 
   return (
+    <AuraBackground />
     <div style={{
       display: 'grid',
       gridTemplateColumns: '1fr 1.5fr',
       gap: '25px',
       animation: 'fadeIn 0.5s ease'
     }}>
-      <AuraBackground />
+      
       {/* LEFT PANEL */}
       <div style={{ ...glass }}>
         <h3 style={{ color: '#60a5fa', marginBottom: '20px' }}>
