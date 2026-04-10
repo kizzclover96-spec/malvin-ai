@@ -3,7 +3,8 @@ import { signOut } from "firebase/auth";
 import Memories from './memories'; 
 import Simulator from './Simulator';
 import MarginCalculator from './MarginCalculator';
-import MarketTrends from './MarketTrends'
+import MarketTrends from './MarketTrends';
+import Runway from './Runway';
 import Settings from './Settings';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
@@ -768,7 +769,10 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                  onBack={() => setActiveTab('Session')} 
                  userBrand={userBrand}
                 />
-            
+            ) : activeTab === 'Runway' ? (
+                <Runway
+                   onBack={() => setActiveTab('Session')} 
+                />
             ) : activeTab === 'Simulator' ? (
                 <Simulator 
                    onBack={() => setActiveTab('Session')} 

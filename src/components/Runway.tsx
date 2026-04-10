@@ -82,7 +82,7 @@ const AuraBackground = () => {
   );
 };
 
-const RunwayTab = ({ userBrand }) => {
+const Runway = ({ userBrand }) => {
   const [data, setData] = useState(() => {
     const saved = localStorage.getItem('malvin_runway_data');
     return saved ? JSON.parse(saved) : { cash: 50000, burn: 5000, revenue: 1200 };
@@ -247,4 +247,4 @@ const RunwayTab = ({ userBrand }) => {
   );
 };
 
-export default RunwayTab;
+export default Runway;
