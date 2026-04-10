@@ -887,7 +887,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
 
                                 {/* 3. CASHFLOW: BURN SENTRY */}
                                 <div 
-                                    onClick={() => { setActiveTab('Cashflow'); setShowTools(false); addActivity("Audited Cashflow", "🔥"); }}
+                                    onClick={() => { setActiveTab('Runway'); setShowTools(false); addActivity("Audited Cashflow", "🔥"); }}
                                     style={appIconStyle}
                                     onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
                                     onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}

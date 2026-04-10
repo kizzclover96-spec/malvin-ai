@@ -233,7 +233,8 @@ const Runway = ({ userBrand }) => {
             Increase Revenue
           </button>
         </div>
-
+        <p> Disclaimer: These calculations are projections based on provided data and do not account for market volatility or unforeseen operational changes. Consult with a financial professional for official planning.
+        </p>
       </div>
 
       <style>{`
@@ -242,7 +243,7 @@ const Runway = ({ userBrand }) => {
           to { opacity: 1; transform: translateY(0); }
         }
       `}</style>
-
+      
     </div>
   );
 };
