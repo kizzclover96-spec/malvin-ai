@@ -88,11 +88,6 @@ const Runway = ({ userBrand }) => {
     return saved ? JSON.parse(saved) : { cash: 50000, burn: 5000, revenue: 1200 };
   });
 
-  const [data, setData] = useState(() => {
-    const saved = localStorage.getItem('malvin_runway_data');
-    return saved ? JSON.parse(saved) : { cash: 50000, burn: 5000, revenue: 1200 };
-  });
-
   const netBurn = data.burn - data.revenue;
   
   // 1. Calculate the raw number for logic
