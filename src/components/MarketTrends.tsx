@@ -22,7 +22,7 @@ const updatesText = [
     { text: 'Global sentiment for ${sector} is reaching Critical Mass.', type: 'growth' },
     { text: 'Predictive models show a 14% shift in consumer behavior toward ${sector} efficiency.', type: 'growth' },
     { text: 'Saturation levels in traditional models are forcing a pivot to ${sector}.', type: 'strategy' },
-    { text: 'Pattern recognition detects a 'Black Swan' event favoring agile ${sector} entities.', type: 'growth' },
+    { text: 'Pattern recognition detects a \'Black Swan\' event favoring agile ${sector} entities.', type: 'growth' },
     { text: 'Digital footprint for ${sector} related searches is expanding in Tier 1 markets.', type: 'growth' },
 
     // PERSONA: WHALE_WATCH (Capital & Investment)
