@@ -1,151 +1,157 @@
 import React, { useState, useEffect } from 'react';
 
-const MarketTrends = ({ onBack, userBrand }: { onBack: () => void, userBrand: any }) => {
-  const [news, setNews] = useState<any[]>([]);
-  const [livePosts, setLivePosts] = useState([
-    { user: "@market_bot", text: "Volatility detected in tech sector. Adjusting hedge positions.", time: "Now" },
-    { user: "@biz_insider", text: "New supply chain regulations announced in EU.", time: "4m ago" }
-  ]);
+const glass = {
+  background: 'rgba(255,255,255,0.03)',
+  backdropFilter: 'blur(16px)',
+  border: '1px solid rgba(255,255,255,0.08)',
+  borderRadius: '20px',
+  padding: '20px',
+  boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+  transition: 'all 0.3s ease'
+};
 
-  // 1. SIMULATE INCOMING POSTS (The "Live" feel)
+const MarketTrends = ({ onBack, userBrand }) => {
+  const [projections, setProjections] = useState([]);
+  const [livePosts, setLivePosts] = useState([]);
+  const [opportunities, setOpportunities] = useState([]);
+
+  // 1. GENJUTSU ENGINE: Generates "Neural Projections" instead of news
   useEffect(() => {
-    if (!userBrand?.category) return;
-
-    const postInterval = setInterval(() => {
-      const updates = [
-        { user: "@trend_ai", text: `Surge in '${userBrand.category || 'Industry'}' search volume observed.`, time: "Now" },
-        { user: "@whale_watcher", text: "Massive capital movement detected in series B.", time: "Now" },
-        { user: "@system", text: "Neural Engine re-calibrated for Q3 projections.", time: "Now" }
-      ];
-      const randomUpdate = updates[Math.floor(Math.random() * updates.length)];
-      setLivePosts(prev => [randomUpdate, ...prev.slice(0, 5)]);
-    }, 8000);
-
-    return () => clearInterval(postInterval);
-  }, [userBrand.category]); // Re-sync if category changes
-
-  // 2. FETCH NEWS (Cleaned Logic)
-  useEffect(() => {
-    if (!userBrand) return;
-    const fetchNews = async () => {
-    const apiKey = import.meta.env.VITE_GNEWS_KEY; 
-    const industry = userBrand.category || "Business";
+    const brand = userBrand?.name || 'Enterprise';
+    const sector = userBrand?.category || 'Industry';
     
-    // We use the 'search' endpoint to be specific to the industry
-    const query = encodeURIComponent(`${industry} industry trends`);
-    const url = `https://gnews.io/api/v4/search?q=${query}&lang=en&max=10&apikey=${apiKey}`;
+    const neuralVisions = [
+      { 
+        title: `Neural Link: ${sector} focus is shifting toward ${brand}'s unique model.`, 
+        img: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=400&q=80',
+        tag: 'PREDICTION' 
+      },
+      { 
+        title: `Massive capital migration detected in ${sector} series funding.`, 
+        img: 'https://images.unsplash.com/photo-1551288049-bbbda546697a?auto=format&fit=crop&w=400&q=80',
+        tag: 'MARKET_SHIFT'
+      },
+      { 
+        title: `Algorithm identifies ${brand} as the top emerging authority in 48h.`, 
+        img: 'https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=400&q=80',
+        tag: 'VIRAL_ALPHA'
+      }
+    ];
+    setProjections(neuralVisions);
 
-    try {
-        const response = await fetch(url);
-        const data = await response.json();
-        if (data.articles) {
-        setNews(data.articles); 
-        }
-    } catch (error) {
-        console.error("GNews Fetch Error:", error);
-        setNews([{ title: "Market Data Unavailable", source: { name: "System" } }]);
-    }
-    };
+    const interval = setInterval(() => {
+      const updates = [
+        { user: 'NEURAL_LINK', text: `Global sentiment for ${sector} is reaching Critical Mass.`, type: 'growth' },
+        { user: 'WHALE_WATCH', text: `Institutional buy-in detected for ${brand}-style systems.`, type: 'strategy' },
+        { user: 'SYSTEM', text: 'Psychological market barrier broken. Path is clear.', type: 'growth' }
+      ];
+      const random = updates[Math.floor(Math.random() * updates.length)];
+      setLivePosts(prev => [random, ...prev.slice(0, 5)]);
+    }, 5000);
 
-    fetchNews();
-  }, [userBrand?.category]); // This is the magic line that listens to your Settings
+    return () => clearInterval(interval);
+  }, [userBrand]);
+
+  useEffect(() => {
+    setOpportunities([
+      { title: 'Market Monopoly', action: 'Accelerate output', impact: '+45% Dominance' },
+      { title: 'Sentiment Peak', action: 'Expand reach now', impact: 'Infinite ROI' }
+    ]);
+  }, []);
 
   return (
-    <div style={{ 
-      position: 'fixed', inset: 0, backgroundColor: '#02040a', color: 'white', 
-      display: 'flex', flexDirection: 'column', zIndex: 1000, padding: '20px', 
-      fontFamily: 'monospace', boxSizing: 'border-box' 
+    <div style={{
+      position: 'fixed',
+      inset: 0,
+      background: 'radial-gradient(circle at top right, #1e1b4b, #020617)',
+      color: 'white',
+      padding: '30px',
+      fontFamily: "'Orbitron', sans-serif", // Gives it that futuristic feel
+      overflowY: 'auto'
     }}>
-      
+
       {/* HEADER */}
-      {/* HEADER */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px', borderBottom: '1px solid #1e293b', paddingBottom: '15px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 30 }}>
         <div>
-          <h2 style={{ margin: 0, color: '#3b82f6', fontSize: '20px', letterSpacing: '2px' }}>
-            {userBrand?.name ? `${userBrand.name.toUpperCase()}_PULSE` : 'MALVIN_MARKET_PULSE'}
+          <h2 style={{ fontSize: 28, margin: 0, color: '#60a5fa', letterSpacing: '2px', textShadow: '0 0 15px rgba(96, 165, 250, 0.4)' }}>
+            {userBrand?.name?.toUpperCase() || 'MALVIN'} // PULSE
           </h2>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '4px' }}>
-            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 10px #10b981' }} />
-            <span style={{ fontSize: '10px', opacity: 0.6 }}>
-               FEED: {userBrand?.category?.toUpperCase() || 'GENERAL'} // ENCRYPTED_CONNECTION
-            </span>
-          </div>
+          <div style={{ fontSize: 10, opacity: 0.5, marginTop: 5 }}>NEURAL_FEED_STABLE // 99.8% SYNCED</div>
         </div>
-        <button onClick={onBack} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', color: 'white', padding: '8px 20px', borderRadius: '4px', cursor: 'pointer' }}>EXIT_TERMINAL</button>
+        <button onClick={onBack} style={{ ...glass, cursor: 'pointer', padding: '10px 25px', color: '#60a5fa', fontWeight: 'bold' }}>
+          DISCONNECT
+        </button>
       </div>
 
-      {/* MAIN CONTENT GRID */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr', gap: '20px', flex: 1, overflow: 'hidden', marginBottom: '40px' }}>
-        
-        {/* NEWS FEED */}
-        <div style={{ background: 'rgba(255,255,255,0.02)', padding: '20px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)', overflowY: 'auto' }}>
-          <div style={{ fontSize: '12px', color: '#3b82f6', borderBottom: '1px solid #3b82f6', paddingBottom: '5px', marginBottom: '15px' }}>HEADLINES</div>
-          {news.map((art, i) => (
-                <div 
-                    key={i} 
-                    onClick={() => window.open(art.url, '_blank')}
-                    style={{ 
-                        padding: '15px 0', 
-                        borderBottom: '1px dotted rgba(255,255,255,0.1)',
-                        cursor: 'pointer',
-                        transition: 'opacity 0.2s'
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.opacity = '0.7'}
-                    onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
-                >
-                    {/* Optional: Add a tiny thumbnail if the article has one */}
-                    {art.image && (
-                        <img src={art.image} alt="news" style={{ width: '100%', height: '100px', objectFit: 'cover', borderRadius: '4px', marginBottom: '8px' }} />
-                    )}
-                    <span style={{ fontSize: '9px', color: '#3b82f6', textTransform: 'uppercase' }}>
-                        {art.source.name}
-                    </span>
-                    <div style={{ fontSize: '13px', fontWeight: '500', marginTop: '4px', lineHeight: '1.4' }}>
-                        {art.title}
-                    </div>
-                </div>
-            ))}
-        </div>
+      {/* BIG GENJUTSU INSIGHT */}
+      <div style={{ 
+          ...glass, 
+          marginBottom: 30, 
+          borderLeft: '4px solid #22c55e', 
+          background: 'linear-gradient(90deg, rgba(34, 197, 94, 0.1), transparent)' 
+      }}>
+        <h3 style={{ color: '#22c55e', margin: '0 0 10px 0', fontSize: 14 }}>NEURAL PROJECTION</h3>
+        <p style={{ fontSize: 18, fontWeight: 'bold', margin: 0 }}>
+          Your presence is creating a market void. <span style={{ color: '#22c55e' }}>Occupy it now.</span> Every metric confirms your trajectory is unmatchable.
+        </p>
+      </div>
 
-        {/* SOCIAL/SYSTEM SENTIMENT */}
-        <div style={{ background: 'rgba(255,255,255,0.02)', padding: '20px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
-          <div style={{ fontSize: '12px', color: '#10b981', borderBottom: '1px solid #10b981', paddingBottom: '5px', marginBottom: '15px' }}>COMMUNITY_SENTIMENT</div>
-          {livePosts.map((post, i) => (
-            <div key={i} style={{ marginBottom: '15px', animation: 'fadeIn 0.5s ease' }}>
-              <div style={{ fontSize: '11px', color: '#10b981' }}>{post.user} <span style={{ opacity: 0.4 }}>• {post.time}</span></div>
-              <div style={{ fontSize: '12px', marginTop: '3px', opacity: 0.8 }}>{post.text}</div>
+      {/* MAIN GRID */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1fr 1fr', gap: 25 }}>
+
+        {/* NEURAL VISIONS (Visual News) */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
+          <h4 style={{ color: '#60a5fa', margin: 0, fontSize: 12, letterSpacing: '1px' }}>GLOBAL_SIGNALS</h4>
+          {projections.map((n, i) => (
+            <div key={i} style={{ 
+              ...glass, 
+              display: 'flex', 
+              gap: 15, 
+              alignItems: 'center',
+              cursor: 'pointer'
+            }}>
+              <img src={n.img} style={{ width: 80, height: 60, borderRadius: 8, objectFit: 'cover' }} alt="vision" />
+              <div>
+                <small style={{ color: '#60a5fa', fontSize: 9, fontWeight: 'bold' }}>{n.tag}</small>
+                <p style={{ fontSize: 14, margin: '4px 0 0 0', fontWeight: '500' }}>{n.title}</p>
+              </div>
             </div>
           ))}
         </div>
 
-        {/* SECTOR VELOCITY */}
-        <div style={{ background: 'rgba(255,255,255,0.02)', padding: '20px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
-          <div style={{ fontSize: '12px', color: '#f59e0b', borderBottom: '1px solid #f59e0b', paddingBottom: '5px', marginBottom: '15px' }}>SECTOR_PERFORMANCE</div>
-          {/* Progress Bars as before... */}
+        {/* LIVE STREAM */}
+        <div style={{ ...glass }}>
+          <h4 style={{ color: '#22c55e', margin: '0 0 20px 0', fontSize: 12 }}>SENTIMENT_FLOW</h4>
+          {livePosts.map((p, i) => (
+            <div key={i} style={{ marginBottom: 20, borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                 <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e' }} />
+                 <small style={{ color: '#22c55e', fontWeight: 'bold' }}>{p.user}</small>
+              </div>
+              <p style={{ fontSize: 13, margin: '5px 0 0 0', opacity: 0.8 }}>{p.text}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* OPPORTUNITIES */}
+        <div style={{ ...glass, background: 'rgba(250, 204, 21, 0.03)', borderColor: 'rgba(250, 204, 21, 0.2)' }}>
+          <h4 style={{ color: '#facc15', margin: '0 0 20px 0', fontSize: 12 }}>STRATEGIC_WINDOWS</h4>
+          {opportunities.map((o, i) => (
+            <div key={i} style={{ 
+              marginBottom: 15, 
+              padding: 12, 
+              background: 'rgba(255,255,255,0.02)', 
+              borderRadius: 10,
+              border: '1px solid rgba(250, 204, 21, 0.1)'
+            }}>
+              <p style={{ fontWeight: 'bold', margin: '0 0 5px 0', color: '#facc15' }}>{o.title}</p>
+              <div style={{ fontSize: 11, opacity: 0.7 }}>{o.action}</div>
+              <div style={{ fontSize: 14, fontWeight: 'bold', marginTop: 5, color: '#22c55e' }}>{o.impact}</div>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* TICKER TAPE */}
-      <div style={{ 
-        position: 'absolute', bottom: 0, left: 0, width: '100%', 
-        background: '#3b82f6', height: '35px', display: 'flex', 
-        alignItems: 'center', overflow: 'hidden', whiteSpace: 'nowrap' 
-      }}>
-        <div className="ticker-content" style={{ color: 'black', fontWeight: 'bold', fontSize: '12px' }}>
-          BTC/USD +2.4% • {userBrand?.category?.toUpperCase() || 'MARKET'}_INDEX +1.2% • MALVIN_OS_CONNECTED • SYSTEM_STABLE • 
-        </div>
-        <style>{`
-          .ticker-content {
-            display: inline-block;
-            padding-left: 100%;
-            animation: ticker 30s linear infinite;
-          }
-          @keyframes ticker {
-            0% { transform: translateX(0); }
-            100% { transform: translateX(-100%); }
-          }
-        `}</style>
-      </div>
     </div>
   );
 };
