@@ -88,24 +88,27 @@ const Runway = ({ userBrand }) => {
     return saved ? JSON.parse(saved) : { cash: 50000, burn: 5000, revenue: 1200 };
   });
 
+  const [data, setData] = useState(() => {
+    const saved = localStorage.getItem('malvin_runway_data');
+    return saved ? JSON.parse(saved) : { cash: 50000, burn: 5000, revenue: 1200 };
+  });
+
   const netBurn = data.burn - data.revenue;
-  let runwayDisplay;
+  
+  // 1. Calculate the raw number for logic
+  const rawRunway = netBurn > 0 ? data.cash / netBurn : Infinity;
 
-  if (netBurn <= 0) {
-    runwayDisplay = "∞";
-  } else {
-    const months = data.cash / netBurn;
-    // If they have less than a month, show 1 decimal, else round
-    runwayDisplay = months < 1 ? months.toFixed(2) : months.toFixed(1);
-  }
-  const runway = netBurn > 0 ? (data.cash / netBurn).toFixed(1) : '∞';
+  // 2. Format the string for display
+  const displayValue = rawRunway === Infinity 
+    ? "∞" 
+    : rawRunway < 1 ? rawRunway.toFixed(2) : rawRunway.toFixed(1);
 
-  const isCritical = netBurn > 0 && runway < 6;
+  // 3. Determine if it's critical (less than 6 months and not infinite)
+  const isCritical = rawRunway < 6;
 
   const handleInput = (key, val) => {
     const newValue = { ...data, [key]: Number(val) };
     setData(newValue);
-    // 2. Save it immediately
     localStorage.setItem('malvin_runway_data', JSON.stringify(newValue));
   };
 
@@ -194,9 +197,8 @@ const Runway = ({ userBrand }) => {
             textShadow: displayValue === "∞" 
                 ? '0 0 40px rgba(34, 197, 94, 0.8)' 
                 : `0 0 20px ${isCritical ? '#ef4444' : '#22c55e'}`,
-            transition: 'all 0.5s ease'
-          }}>
-            {runway}
+            }}>
+            {displayValue}
           </div>
 
           <div style={{ letterSpacing: '3px', fontSize: '14px' }}>
