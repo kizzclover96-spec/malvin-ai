@@ -141,7 +141,7 @@ const AuraBackground = () => {
   );
 };
 
-const Runway = ({ userBrand }) => {
+const Runway = ({ onBack, userBrand }) => {
   const [data, setData] = useState(() => {
     const saved = localStorage.getItem('malvin_runway_data');
     return saved ? JSON.parse(saved) : { cash: 50000, burn: 5000, revenue: 1200 };
@@ -186,7 +186,7 @@ const Runway = ({ userBrand }) => {
       <AuraBackground />
       {/* EXIT BUTTON */}
       <button 
-        onClick={() => window.history.back()} // Or your custom close logic
+        onClick={onBack} // Or your custom close logic
         style={{
             position: 'absolute',
             top: '20px',
@@ -194,8 +194,8 @@ const Runway = ({ userBrand }) => {
             background: 'rgba(255,255,255,0.1)',
             border: '1px solid rgba(255,255,255,0.2)',
             color: 'white',
-            width: '40px',
-            height: '40px',
+            width: '50px',
+            height: '50px',
             borderRadius: '50%',
             cursor: 'pointer',
             zIndex: 10,
