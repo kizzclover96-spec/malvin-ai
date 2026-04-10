@@ -9,6 +9,65 @@ const glass = {
   boxShadow: '0 10px 30px rgba(0,0,0,0.4)'
 };
 
+const TerminalInput = ({ label, value, onChange, color }) => {
+    // We use a local string state so you can type freely (like decimals or empty)
+    const [localValue, setLocalValue] = useState(value.toString());
+
+    // Update the parent state only when the number is valid
+    const handleChange = (e) => {
+        const val = e.target.value;
+        setLocalValue(val); // This lets you physically type/delete anything
+        
+        if (val === '') {
+        onChange(0);
+        } else {
+        const num = parseFloat(val);
+        if (!isNaN(num)) onChange(num);
+        }
+    };
+
+    return (
+        <div style={{ marginBottom: '18px', maxWidth: '280px' }}>
+        <style>{`
+            /* This removes the scroll arrows (spinners) */
+            input::-webkit-outer-spin-button,
+            input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+            }
+            input[type=number] {
+            -moz-appearance: textfield;
+            }
+        `}</style>
+        
+        <div style={{ fontSize: '11px', color, marginBottom: '6px', opacity: 0.7, fontFamily: 'monospace' }}>
+            {label}
+        </div>
+        <input
+            type="number" 
+            value={localValue}
+            onChange={handleChange}
+            placeholder="0.00"
+            style={{
+            width: '100%',
+            padding: '12px',
+            borderRadius: '10px',
+            border: `1px solid ${color}33`,
+            background: 'rgba(255,255,255,0.08)',
+            color: 'white',
+            fontSize: '16px',
+            outline: 'none',
+            transition: '0.2s',
+            fontFamily: 'monospace'
+            }}
+            onFocus={(e) => e.target.style.border = `1px solid ${color}`}
+            onBlur={(e) => e.target.style.border = `1px solid ${color}33`}
+        />
+        </div>
+    );
+};
+
+
 const AuraBackground = () => {
   return (
     <div style={{
@@ -107,64 +166,7 @@ const Runway = ({ userBrand }) => {
     localStorage.setItem('malvin_runway_data', JSON.stringify(newValue));
   };
 
-  const TerminalInput = ({ label, value, onChange, color }) => {
-    // We use a local string state so you can type freely (like decimals or empty)
-    const [localValue, setLocalValue] = useState(value.toString());
-
-    // Update the parent state only when the number is valid
-    const handleChange = (e) => {
-        const val = e.target.value;
-        setLocalValue(val); // This lets you physically type/delete anything
-        
-        if (val === '') {
-        onChange(0);
-        } else {
-        const num = parseFloat(val);
-        if (!isNaN(num)) onChange(num);
-        }
-    };
-
-    return (
-        <div style={{ marginBottom: '18px', maxWidth: '280px' }}>
-        <style>{`
-            /* This removes the scroll arrows (spinners) */
-            input::-webkit-outer-spin-button,
-            input::-webkit-inner-spin-button {
-            -webkit-appearance: none;
-            margin: 0;
-            }
-            input[type=number] {
-            -moz-appearance: textfield;
-            }
-        `}</style>
-        
-        <div style={{ fontSize: '11px', color, marginBottom: '6px', opacity: 0.7, fontFamily: 'monospace' }}>
-            {label}
-        </div>
-        <input
-            type="number" 
-            value={localValue}
-            onChange={handleChange}
-            placeholder="0.00"
-            style={{
-            width: '100%',
-            padding: '12px',
-            borderRadius: '10px',
-            border: `1px solid ${color}33`,
-            background: 'rgba(255,255,255,0.08)',
-            color: 'white',
-            fontSize: '16px',
-            outline: 'none',
-            transition: '0.2s',
-            fontFamily: 'monospace'
-            }}
-            onFocus={(e) => e.target.style.border = `1px solid ${color}`}
-            onBlur={(e) => e.target.style.border = `1px solid ${color}33`}
-        />
-        </div>
-    );
-  };
-
+  
   return (
     
     <div style={{
