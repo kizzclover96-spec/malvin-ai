@@ -134,14 +134,24 @@ const Runway = ({ userBrand }) => {
   );
 
   return (
-    <AuraBackground />
+    
     <div style={{
       display: 'grid',
       gridTemplateColumns: '1fr 1.5fr',
       gap: '25px',
       animation: 'fadeIn 0.5s ease'
+      position: 'relative',
+      padding: '30px', 
+      height: '100vh', // Changed from minHeight to prevent overflow
+      width: '100vw',
+      boxSizing: 'border-box', // Ensures padding doesn't add to width/height
+      fontFamily: 'sans-serif', 
+      backgroundColor: '#0a0a0c', 
+      color: 'white',
+      flexDirection: 'column', 
+      overflow: 'hidden'
     }}>
-      
+      <AuraBackground />
       {/* LEFT PANEL */}
       <div style={{ ...glass }}>
         <h3 style={{ color: '#60a5fa', marginBottom: '20px' }}>
