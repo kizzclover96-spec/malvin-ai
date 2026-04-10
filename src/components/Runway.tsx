@@ -139,16 +139,14 @@ const Runway = ({ userBrand }) => {
       display: 'grid',
       gridTemplateColumns: '1fr 1.5fr',
       gap: '25px',
-      animation: 'fadeIn 0.5s ease'
+      animation: 'fadeIn 0.5s ease', // Added the missing comma here!
       position: 'relative',
       padding: '30px', 
-      height: '100vh', // Changed from minHeight to prevent overflow
-      width: '100vw',
-      boxSizing: 'border-box', // Ensures padding doesn't add to width/height
-      fontFamily: 'sans-serif', 
+      minHeight: '100vh', 
+      width: '100%',
+      boxSizing: 'border-box', 
       backgroundColor: '#0a0a0c', 
       color: 'white',
-      flexDirection: 'column', 
       overflow: 'hidden'
     }}>
       <AuraBackground />
@@ -241,7 +239,14 @@ const Runway = ({ userBrand }) => {
             Increase Revenue
           </button>
         </div>
-        <p> Disclaimer: These calculations are projections based on provided data and do not account for market volatility or unforeseen operational changes. Consult with a financial professional for official planning.
+        <p style={{ 
+            fontSize: '10px', 
+            opacity: 0.4, 
+            marginTop: 'auto', 
+            textAlign: 'center',
+            lineHeight: '1.4' 
+            }}>
+            Disclaimer: These calculations are projections based on provided data and do not account for market volatility or unforeseen operational changes. Consult with a financial professional for official planning.
         </p>
       </div>
 
