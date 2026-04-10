@@ -108,14 +108,18 @@ const Runway = ({ userBrand }) => {
   };
 
   const TerminalInput = ({ label, value, onChange, color }) => (
-    <div style={{ marginBottom: '18px' }}>
-      <div style={{ fontSize: '11px', color, marginBottom: '6px', opacity: 0.7 }}>
+    <div style={{ marginBottom: '18px', maxWidth: '300px' }}>
+      <div style={{ fontSize: '11px', color, marginBottom: '6px', opacity: 0.7, fontFamily: 'monospace' }}>
         {label}
       </div>
       <input
         type="number"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
+        value={value === 0 ? '' : value}
+        onChange={(e) => {
+            const val = e.target.value;
+            // Allow empty string so they can delete, otherwise convert to number
+            onChange(val === '' ? 0 : parseFloat(val));
+        }}
         style={{
           width: '100%',
           padding: '12px',
@@ -123,12 +127,13 @@ const Runway = ({ userBrand }) => {
           border: `1px solid ${color}33`,
           background: 'rgba(255,255,255,0.05)',
           color: 'white',
-          fontSize: '15px',
+          fontSize: '16px',
           outline: 'none',
-          transition: '0.2s'
+          transition: '0.2s',
+          fontFamily: 'monospace'
         }}
-        onFocus={(e) => e.target.style.boxShadow = `0 0 10px ${color}`}
-        onBlur={(e) => e.target.style.boxShadow = 'none'}
+        onFocus={(e) => e.target.style.border = `1px solid ${color}`}
+        onBlur={(e) => e.target.style.border = `1px solid ${color}33`}
       />
     </div>
   );
@@ -141,7 +146,7 @@ const Runway = ({ userBrand }) => {
       gap: '25px',
       animation: 'fadeIn 0.5s ease', // Added the missing comma here!
       position: 'relative',
-      padding: '30px', 
+      padding: '60px 30px 30px 30px',
       minHeight: '100vh', 
       width: '100%',
       boxSizing: 'border-box', 
@@ -150,6 +155,32 @@ const Runway = ({ userBrand }) => {
       overflow: 'hidden'
     }}>
       <AuraBackground />
+      {/* EXIT BUTTON */}
+      <button 
+        onClick={() => window.history.back()} // Or your custom close logic
+        style={{
+            position: 'absolute',
+            top: '20px',
+            right: '20px',
+            background: 'rgba(255,255,255,0.1)',
+            border: '1px solid rgba(255,255,255,0.2)',
+            color: 'white',
+            width: '40px',
+            height: '40px',
+            borderRadius: '50%',
+            cursor: 'pointer',
+            zIndex: 10,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '20px',
+            backdropFilter: 'blur(10px)'
+        }}
+        onMouseEnter={(e) => e.target.style.background = 'rgba(239, 68, 68, 0.4)'}
+        onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
+      >
+       ✕
+      </button>
       {/* LEFT PANEL */}
       <div style={{ ...glass }}>
         <h3 style={{ color: '#60a5fa', marginBottom: '20px' }}>
