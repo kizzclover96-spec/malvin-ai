@@ -5,7 +5,7 @@ import Simulator from './Simulator';
 import MarginCalculator from './MarginCalculator';
 import MarketTrends from './MarketTrends';
 import Runway from './Runway';
-import dashboard from './dashboard';
+import MainDashboard from './dashboard';
 import Settings from './Settings';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
@@ -676,10 +676,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     };
 
     // ICONS (Using your SVG code)
-    const [brandData, setBrandData] = useState({ name: '', id: '' });
-    const handleSaveSettings = (data) => {
-     setBrandData(data); // This is where the data "lives"
-    }
+    
 
     const SidebarBtn = ({ children, label, isActive, onClick }: any) => (
         <button 
@@ -785,8 +782,8 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                 />
             ) : activeTab === 'Calculator' ? (
                 <MarginCalculator onBack={() => setActiveTab('Session')} />
-            ) : activeTab === 'dashboard' ? (
-                <dashboard onBack={() => setActiveTab('Session')} 
+            ) : activeTab === 'MainDashboard' ? (
+                <MainDashboard onBack={() => setActiveTab('Session')} 
                 userBrand={brandData}/>
             ) : activeTab === 'Trends' ? (
                 <MarketTrends 
@@ -1006,8 +1003,8 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                             </SidebarBtn>
 
                             <SidebarBtn label="Dashboard"
-                                isActive={activeTab === 'dashboard'} 
-                                onClick={() => setActiveTab('dashboard')}>
+                                isActive={activeTab === 'Dashboard'} 
+                                onClick={() => setActiveTab('MainDashboard')}>
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
                             </SidebarBtn>
 
