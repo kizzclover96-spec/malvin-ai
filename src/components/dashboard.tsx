@@ -64,14 +64,15 @@ const dashboard = ({ onBack, userBrand }: any) => {
             <div style={{
             backgroundColor: '#000000',
             minHeight: '100vh',
+            width: '100%',
             color: 'white',
-            padding: '40px 20px',
+            boxSizing: 'border-box',
             fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-            position: 'relative'
+            overflowX: 'hidden'
             }}>
                 {/* --- HEADER AREA --- */}
                 <div style={{ 
-                    maxWidth: '1400px', 
+                    maxWidth: '1200px', 
                     margin: '0 auto 40px auto', 
                     display: 'flex', 
                     alignItems: 'center', 
@@ -86,9 +87,7 @@ const dashboard = ({ onBack, userBrand }: any) => {
                     
                     {/* 1. TOP PILL NAVIGATION */}
                     <div style={{ 
-                        display: 'flex', 
-                        justifyContent: 'center', 
-                        marginBottom: '30px' 
+                        margin: '0 auto' 
                     }}>
                         <div style={{ 
                         background: '#111', 
