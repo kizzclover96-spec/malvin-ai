@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { doc, setDoc, addDoc, collection, serverTimestamp } from "firebase/firestore";
-import { db } from "./firebase"; // path to your config
+import { db } from "../firebase"; // path to your config
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
 import { useParams } from 'react-router-dom';
 

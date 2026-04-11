@@ -1078,7 +1078,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                         </div>
                             {/* button left section */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }} >
-                            <div className="left buttom-panel" style={{ padding: '15px', 
+                            <div className="left buttom-panel" style={{ 
                                     borderRight: '1px solid rgba(255, 255, 255, 0.1)', // Subtle white line
                                     padding: '20px',
                                     flexDirection: 'column',
@@ -1449,7 +1449,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                         {/* bottom */}
                         <div style={{gap: '10px', display: 'flex', alignItems: 'center',  width: '100%', justifyContent: 'center', marginBottom: '-14px'}}>
                             {/* pill */}
-                            <div className="input-pill" style={{ display: 'flex', alignItems: 'center', background: '#211f31', borderRadius: '50px', padding: '10px 20px', width: '600px', backgroundColor: 'rgba(255, 255, 255, 0.03)',   // 1. Semi-transparent white
+                            <div className="input-pill" style={{ display: 'flex', alignItems: 'center', background: '#211f31', padding: '10px 20px', width: '600px', backgroundColor: 'rgba(255, 255, 255, 0.03)',   // 1. Semi-transparent white
                                     backdropFilter: 'blur(12px)',                  // 2. The "Frosted" blur
                                     WebkitBackdropFilter: 'blur(12px)',
                                     borderRadius: '50px', // Smooth corners
