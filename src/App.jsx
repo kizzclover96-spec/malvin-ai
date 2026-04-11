@@ -6,6 +6,8 @@ import Welcomeview from "./pages/welcomeview";
 import Malvinui from "./components/malvinui"; // Import the session room we just built
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import CustomerChat from './components/CustomerChat';
+import CustomerChatWrapper from './components/CustomerChat'; // Or wherever your wrapper is
+import MainDashboard from './components/MainDashboard';
 
 function App() {
   const [user, setUser] = useState(null);
