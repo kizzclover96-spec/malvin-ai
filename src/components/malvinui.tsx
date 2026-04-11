@@ -682,7 +682,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
         <button 
             onClick={onClick}
             style={{ ...btnReset, display: 'flex',alignItems: 'center', padding: '10px 14px', borderRadius: '12px', color: 'white', fontSize: '14px', gap: '12px', transition: 'all 0.2s ease', cursor: 'pointer', width: '100%',
-                backgroundColor: 'transparent', backgroundColor: isActive ? 'rgba(191, 0, 255, 0.1)' : 'transparent',
+                backgroundColor: isActive ? 'rgba(191, 0, 255, 0.1)' : 'transparent',
                 
                 /* --- THE NEON PURPLE LOOK --- */
                 border: isActive ? '1px solid #bf00ff' : '1px solid transparent',
@@ -912,7 +912,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                         </div>
                     )}
                     {/* 1. LEFT */}
-                    <div className="left-section" style={{ flex: 1, display: 'flex', borderRight: '1px solid #222', padding: '20px', gap: '10px', display: 'flex', flexDirection: 'column'}}>
+                    <div className="left-section" style={{ flex: 1, display: 'flex', borderRight: '1px solid #222', padding: '20px', gap: '10px', flexDirection: 'column'}}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                             <div style={{
                                 width: '40px',
