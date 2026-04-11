@@ -62,7 +62,7 @@ const dashboard = (props: any) => {
     const userBrandId = (typeof userBrand !== 'undefined' && userBrand?.id) 
         ? userBrand.id 
         : brandName.toLowerCase().replace(/\s+/g, '-');
-    const shareUrl = `${window.location.origin}/chat/${userBrandId}`;
+    const shareUrl = `${window.location.origin}/chat/${auth.currentUser.uid}`;
     
     const navItems = ['Estimates', 'Invoices', 'Payments', 'Chats', 'Checkouts'];
    
