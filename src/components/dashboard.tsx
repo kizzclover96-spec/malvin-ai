@@ -13,7 +13,44 @@ const DashboardCard = ({ children, style }: any) => (
   </div>
 );
 
-const dashboard = ({ userBrand }: any) => {
+const CyberBack = ({ onClick }: { onClick: () => void }) => (
+    <div 
+        onClick={onClick}
+        style={{
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '12px',
+            marginBottom: '32px'
+        }}
+        className="group"
+    >
+        <div style={{
+            width: '32px',
+            height: '32px',
+            borderRadius: '50%',
+            border: '1px solid #bf00ff', // Your purple brand color
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '12px',
+            boxShadow: '0 0 10px rgba(191, 0, 255, 0.3)',
+            transition: '0.3s'
+        }}>
+            ESC
+        </div>
+        <span style={{ 
+            fontSize: '11px', 
+            letterSpacing: '2px', 
+            fontWeight: 700, 
+            opacity: 0.5 
+        }}>
+            TERMINATE_VIEW // BACK_TO_SESSION
+        </span>
+    </div>
+);
+
+const dashboard = ({ onBack, userBrand }: any) => {
     const [activeTab, setActiveTab] = useState('Invoices');
     const [isAutopilot, setIsAutopilot] = useState(true);
     const userBrandId = userBrand?.id || "default_id";
@@ -31,7 +68,7 @@ const dashboard = ({ userBrand }: any) => {
             padding: '20px',
             fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
             }}>
-            
+                <BackButton onClick={onBack} />
                 {/* 1. TOP PILL NAVIGATION */}
                 <div style={{ 
                     display: 'flex', 
@@ -141,7 +178,7 @@ const dashboard = ({ userBrand }: any) => {
                                     </button>
                                 </div>
                                 <div style={{ padding: '10px' }}>
-                                    {[1, 2, 3].map(i => (
+                                    {[1, ].map(i => (
                                         <div key={i} style={{ 
                                             padding: '16px', 
                                             borderRadius: '20px', 
