@@ -677,7 +677,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
 
     // ICONS (Using your SVG code)
     
-
+    const [brandData, setBrandData] = useState<any>(null);
     const SidebarBtn = ({ children, label, isActive, onClick }: any) => (
         <button 
             onClick={onClick}
@@ -773,6 +773,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                     userBrand={userBrand} 
                     setUserBrand={setUserBrand} 
                     onBack={() => setActiveTab('Session')} // Goes back to main view 
+                    onSave={(data: any) => setBrandData(data)}
                 />
             ) : activeTab === 'Memories' ? (
                 <Memories 
@@ -784,7 +785,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                 <MarginCalculator onBack={() => setActiveTab('Session')} />
             ) : activeTab === 'MainDashboard' ? (
                 <MainDashboard onBack={() => setActiveTab('Session')} 
-                userBrand={brandData}/>
+                userBrand={brandData} onBack={goToSession}/>
             ) : activeTab === 'Trends' ? (
                 <MarketTrends 
                  onBack={() => setActiveTab('Session')} 

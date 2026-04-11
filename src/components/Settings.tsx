@@ -99,9 +99,14 @@ const AuraBackground = () => {
 `}
 </style>
 
-const Settings = ({ onBack, userBrand, setUserBrand }: any) => {
+const Settings = ({ onBack, onSave, userBrand, setUserBrand }: any) => {
+    const [name, setName] = useState('');
     const [activeTab, setActiveTab] = useState('Business');
     const fileInputRef = useRef<HTMLInputElement>(null); // Create the reference
+    const handleSave = () => {
+        // This sends the data UP to malvinui.tsx
+        onSave({ name: name, id: name.toLowerCase().replace(/\s+/g, '-') });
+    };
     useEffect(() => {
         localStorage.setItem('neural_user_brand', JSON.stringify(userBrand));
     }, [userBrand]);
@@ -314,6 +319,7 @@ const Settings = ({ onBack, userBrand, setUserBrand }: any) => {
                                         style={{ width: '100%', background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', padding: '12px', borderRadius: '8px', color: 'white', outline: 'none' }} 
                                         placeholder="e.g. Malvin Studio"
                                     />
+                                    <button onClick={handleSave}>Save Brand</button>
                                 </div>
                                 {/* BRAND CATEGORY (This is the "Search" anchor) */}
                                 <div>
