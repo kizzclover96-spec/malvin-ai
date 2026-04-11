@@ -21,52 +21,53 @@ const MainDashboard = ({ userBrand }: any) => {
 
     return (
         <>
-            {activeTab === 'Chats' ? (
-            <Chats userBrand={userBrand} onBack={(targetTab: string) => setActiveTab(targetTab)} />
-            ) : (
-                <div style={{
-                backgroundColor: '#000000',
-                minHeight: '100vh',
-                color: 'white',
-                padding: '20px',
-                fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+           
+            <div style={{
+            backgroundColor: '#000000',
+            minHeight: '100vh',
+            color: 'white',
+            padding: '20px',
+            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+            }}>
+            
+                {/* 1. TOP PILL NAVIGATION */}
+                <div style={{ 
+                    display: 'flex', 
+                    justifyContent: 'center', 
+                    marginBottom: '30px' 
                 }}>
-                
-                    {/* 1. TOP PILL NAVIGATION */}
                     <div style={{ 
-                        display: 'flex', 
-                        justifyContent: 'center', 
-                        marginBottom: '30px' 
+                    background: '#111', 
+                    padding: '6px', 
+                    borderRadius: '40px', 
+                    display: 'flex', 
+                    gap: '5px',
+                    border: '1px solid #222'
                     }}>
-                        <div style={{ 
-                        background: '#111', 
-                        padding: '6px', 
-                        borderRadius: '40px', 
-                        display: 'flex', 
-                        gap: '5px',
-                        border: '1px solid #222'
-                        }}>
-                        {navItems.map(item => (
-                            <div 
-                            key={item}
-                            onClick={() => setActiveTab(item)}
-                            style={{
-                                padding: '10px 24px',
-                                borderRadius: '30px',
-                                fontSize: '13px',
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                                backgroundColor: activeTab === item ? '#C5FF41' : 'transparent',
-                                color: activeTab === item ? 'black' : '#666',
-                                transition: '0.3s'
-                            }}
-                            >
-                            {item}
-                            </div>
-                        ))}
+                    {navItems.map(item => (
+                        <div 
+                        key={item}
+                        onClick={() => setActiveTab(item)}
+                        style={{
+                            padding: '10px 24px',
+                            borderRadius: '30px',
+                            fontSize: '13px',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            backgroundColor: activeTab === item ? '#C5FF41' : 'transparent',
+                            color: activeTab === item ? 'black' : '#666',
+                            transition: '0.3s'
+                        }}
+                        >
+                        {item}
                         </div>
+                    ))}
                     </div>
-
+                </div>
+                
+                {activeTab === 'Chats' ? (
+                    <Chats userBrand={userBrand} onBack={(targetTab: string) => setActiveTab(targetTab)} />
+                ) : (
                     <div style={{ maxWidth: '1400px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
                         
                         {/* 2. UPPER BENTO BOX (Financial Pulse) */}
@@ -187,8 +188,9 @@ const MainDashboard = ({ userBrand }: any) => {
                             </DashboardCard>
                         </div>
                     </div>
-                </div>
-            )} 
+                )}
+            </div>
+            
         </>       
     );       
   

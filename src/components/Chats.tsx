@@ -48,50 +48,11 @@ const Chats = ({ onBack, userBrand }: any) => {
         // (In a real app, this logic triggers when a message arrives from the server)
     };
 
-  
+    
     const navItems = ['Estimates', 'Invoices', 'Payments', 'Chats', 'Checkouts'];
+
     return (
-        <div style={{ maxWidth: '1400px', margin: '0 auto' }}> {/* Container to keep everything centered */}
-            {/* 1. TOP PILL NAVIGATION */}
-            <div style={{ 
-                display: 'flex', 
-                justifyContent: 'center', 
-                marginBottom: '30px' 
-            }}>
-                <div style={{ 
-                background: '#111', 
-                padding: '6px', 
-                borderRadius: '40px', 
-                display: 'flex', 
-                gap: '5px',
-                border: '1px solid #222'
-                }}>
-                {navItems.map(item => (
-                    <div 
-                    key={item}
-                    onClick={() => {
-                        if (item !== 'Chats') {
-                            onBack(item); // Tell the parent to switch back and set the active tab
-                        } else {
-                            setActiveTab(item);
-                        }
-                    }}
-                    style={{
-                        padding: '10px 24px',
-                        borderRadius: '30px',
-                        fontSize: '13px',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        backgroundColor: activeTab === item ? '#C5FF41' : 'transparent',
-                        color: activeTab === item ? 'black' : '#666',
-                        transition: '0.3s'
-                    }}
-                    >
-                    {item}
-                    </div>
-                ))}
-                </div>
-            </div>
+        <div style={{ maxWidth: '1400px', margin: '0 auto' }}> {/* Container to keep everything centered */}    
             <div style={{ 
             display: 'grid', 
             gridTemplateColumns: '350px 1fr', 
