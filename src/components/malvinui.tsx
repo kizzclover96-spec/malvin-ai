@@ -1,4 +1,5 @@
-import { auth } from "../firebase";
+import { db, auth } from "../firebase";
+import { ref, onValue, set, update } from "firebase/database";
 import { signOut } from "firebase/auth";
 import Memories from './memories'; 
 import Simulator from './Simulator';
