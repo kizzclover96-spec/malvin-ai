@@ -57,9 +57,7 @@ const dashboard = (props: any) => {
     const [activeTab, setActiveTab] = useState('Invoices');
     const [isAutopilot, setIsAutopilot] = useState(true);
     console.log("Dashboard Props:", userBrand);
-    const brandName = (typeof userBrand !== 'undefined' && userBrand?.name) 
-        ? userBrand.name 
-        : "default";
+    const brandName = String(userBrand?.name || "default");
 
     const userBrandId = (typeof userBrand !== 'undefined' && userBrand?.id) 
         ? userBrand.id 
@@ -204,7 +202,7 @@ const dashboard = (props: any) => {
                                     </button>
                                 </div>
                                 <div style={{ padding: '10px' }}>
-                                    {[1, ].map(i => (
+                                    {[1 ].map(i => (
                                         <div key={i} style={{ 
                                             padding: '16px', 
                                             borderRadius: '20px', 
