@@ -51,17 +51,24 @@ const BackButton = ({ onClick }: { onClick: () => void }) => (
 );
 
 const dashboard = (props: any) => {
-    const { onBack } = props;
-    const brand = props.userBrand || props.brand || props.data || {};
+    const onBack = props.onBack;
+    const userBrand = props.userBrand;
     console.log("All Props received:", props); // This will show you EVERYTHING being sent
     const [activeTab, setActiveTab] = useState('Invoices');
     const [isAutopilot, setIsAutopilot] = useState(true);
     const userBrandId = userBrand?.id || userBrand?.name?.toLowerCase().replace(/\s+/g, '-') || "default_id";
-    console.log("Current Brand:", userBrand);
+    console.log("Dashboard Props:", userBrand);
+    const brandName = (typeof userBrand !== 'undefined' && userBrand?.name) 
+        ? userBrand.name 
+        : "default";
+
+    const userBrandId = (typeof userBrand !== 'undefined' && userBrand?.id) 
+        ? userBrand.id 
+        : brandName.toLowerCase().replace(/\s+/g, '-');
     const shareUrl = `https://malvin.app/chat/${userBrandId}`;
     
     const navItems = ['Estimates', 'Invoices', 'Payments', 'Chats', 'Checkouts'];
-
+   
     return (
         <>
            
