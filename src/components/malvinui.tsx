@@ -407,6 +407,8 @@ const MalvinHybridCycler = React.memo(({ content }: { content: any[] }) => {
 });
 
 const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
+    const user = auth.currentUser;
+    const MalvinuiRef = ref(db, `users/${user.uid}/brandData`);
     // 1. STATE & VARS (Fixed missing references)
     const [marketTrend] = useState([10, 22, 18, 35, 30, 45, 50]);
     const [savedSimulations, setSavedSimulations] = useState<any[]>([]);
