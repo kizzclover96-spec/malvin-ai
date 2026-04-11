@@ -53,7 +53,8 @@ const BackButton = ({ onClick }: { onClick: () => void }) => (
 const dashboard = ({ onBack, userBrand }: any) => {
     const [activeTab, setActiveTab] = useState('Invoices');
     const [isAutopilot, setIsAutopilot] = useState(true);
-    const userBrandId = userBrand?.id || "default_id";
+    const userBrandId = userBrand?.id || userBrand?.name?.toLowerCase().replace(/\s+/g, '-') || "default_id";
+    console.log("Current Brand:", userBrand);
     const shareUrl = `https://malvin.app/chat/${userBrandId}`;
     
     const navItems = ['Estimates', 'Invoices', 'Payments', 'Chats', 'Checkouts'];
