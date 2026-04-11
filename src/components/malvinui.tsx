@@ -472,6 +472,30 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
             addActivity("Deleted a note from Vault", "🗑️");
         }
     };
+    
+    useEffect(() => {
+        const user = auth.currentUser;
+
+        if (user && db) { 
+            // Ensure 'db' is the first argument and it's actually the Database instance
+            const userPath = `users/${user.uid}`;
+            const userDbRef = ref(db, userPath); 
+            
+            const unsubscribe = onValue(userDbRef, (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    console.log("Personalized Data loaded:", data);
+                    // UPDATE YOUR STATE HERE
+                    setUserBrand(prev => ({
+                        ...prev,
+                        ...data // This overwrites "My company name" with the DB name
+                    }));
+                }
+            });
+
+            return () => unsubscribe();
+        }
+    }, []);
 
     const [showUserMenu, setShowUserMenu] = React.useState(false);
     const handleLogout = async () => {
@@ -485,7 +509,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     };
     
     const [userBrand, setUserBrand] = useState({
-        name: "My company name",
+        name: "Connecting...",
         context: "",
         profilePic: null,
         currency: "Euro (€)",
