@@ -56,7 +56,6 @@ const dashboard = (props: any) => {
     console.log("All Props received:", props); // This will show you EVERYTHING being sent
     const [activeTab, setActiveTab] = useState('Invoices');
     const [isAutopilot, setIsAutopilot] = useState(true);
-    const userBrandId = userBrand?.id || userBrand?.name?.toLowerCase().replace(/\s+/g, '-') || "default_id";
     console.log("Dashboard Props:", userBrand);
     const brandName = (typeof userBrand !== 'undefined' && userBrand?.name) 
         ? userBrand.name 
