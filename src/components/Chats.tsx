@@ -17,6 +17,11 @@ const Chats = ({ onBack, userBrand }: any) => {
   const [selectedChatId, setSelectedChatId] = useState<number | null>(null);
   const [isAutopilot, setIsAutopilot] = useState(true);
   const [activeTab, setActiveTab] = useState('Chats');
+  const [chats] = useState([
+    { id: 1, name: 'Sarah Jenkins', lastMsg: 'Is the hoodie in stock?', time: '10:05 AM', status: 'Online' },
+    { id: 2, name: 'Marcus Bloom', lastMsg: 'Sent the payment!', time: '9:42 AM', status: 'Offline' },
+    { id: 3, name: 'Elena Rodriguez', lastMsg: 'Do you ship to Spain?', time: 'Yesterday', status: 'Online' }
+  ]);
   const [messages, setMessages] = useState([
         { id: 1, sender: 'customer', text: 'Hi! Do you have any discounts for the hoodie?', time: '10:05 AM' },
         { id: 2, sender: 'malvin', text: 'Checking your history... Since you spent €120 last month, I can offer 10% off!', time: '10:05 AM' }
