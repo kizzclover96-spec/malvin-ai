@@ -41,14 +41,14 @@ const Chats = ({ onBack, userBrand }: any) => {
     }, [selectedChatId]);
     const [chats, setChats] = useState<any[]>([]);
     useEffect(() => {
-        if (!userBrand || !userBrand.id) {
+        if (!userBrand || !userBrand?.id) {
             console.log("Waiting for brand data...");
             return; 
         }
         // Only show chats belonging to THIS manager's brand
         const q = query(
             collection(db, "conversations"), 
-            where("brandId", "==", userBrand.id),
+            where("brandId", "==", userBrand?.id),
             orderBy("updatedAt", "desc")
         );
 
@@ -61,7 +61,7 @@ const Chats = ({ onBack, userBrand }: any) => {
         });
 
         return () => unsubscribe();
-    }, [userBrand.id]);
+    }, [userBrand?.id]);
 
     const [inputValue, setInputValue] = useState('');
 
