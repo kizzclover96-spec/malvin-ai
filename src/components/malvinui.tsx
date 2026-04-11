@@ -786,7 +786,9 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
             </div>
         );
     }
-
+    
+    const [disabled, setDisabled] = useState(false);
+    
     return (
         <>
            {/* CASE A: FULL SCREEN MEMORIES TAKEOVER */}
