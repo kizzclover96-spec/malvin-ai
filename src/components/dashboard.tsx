@@ -73,12 +73,13 @@ const dashboard = ({ onBack, userBrand }: any) => {
                 {/* --- HEADER AREA --- */}
                 <div style={{ 
                     maxWidth: '1200px', 
-                    margin: '0 auto 40px auto', 
+                    margin: '0 auto 60px auto', 
                     display: 'flex', 
                     alignItems: 'center', 
                     justifyContent: 'center', // Centers the pill
                     position: 'relative',      // Allows BackButton to sit on the left
                     minHeight: '50px'
+                    paddingTop: '20px'
                 }}>
                     {/* Back Button positioned absolutely relative to this header */}
                     <div style={{ position: 'absolute', left: 0 }}>
@@ -95,7 +96,8 @@ const dashboard = ({ onBack, userBrand }: any) => {
                         borderRadius: '40px', 
                         display: 'flex', 
                         gap: '5px',
-                        border: '1px solid #222'
+                        border: '1px solid #222',
+                        boxShadow: '0 4px 20px rgba(0,0,0,0.5)'
                         }}>
                         {navItems.map(item => (
                             <div 
