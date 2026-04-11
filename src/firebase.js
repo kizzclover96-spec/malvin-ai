@@ -5,6 +5,7 @@ import {
   browserLocalPersistence, 
   setPersistence 
 } from "firebase/auth";
+import { getFirestore } from "firebase/firestore"; // Add this
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -29,3 +30,5 @@ export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({
   prompt: 'select_account'
 });
+
+export const db = getFirestore(app);

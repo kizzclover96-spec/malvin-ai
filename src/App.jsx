@@ -4,11 +4,23 @@ import { auth } from "./firebase";
 import Login from "./pages/loginscreen"; 
 import Welcomeview from "./pages/welcomeview"; 
 import Malvinui from "./components/malvinui"; // Import the session room we just built
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import CustomerChat from './components/CustomerChat';
 
 function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [hasWokenUp, setHasWokenUp] = useState(false);
+
+  <Router>
+    <Routes>
+      {/* This is the route for your Manager Dashboard */}
+      <Route path="/dashboard" element={<MainDashboard />} />
+
+      {/* This is the "Entry Point" for customers clicking your ads */}
+      <Route path="/chat/:brandId" element={<CustomerChatWrapper />} />
+    </Routes>
+  </Router>
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {

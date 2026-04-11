@@ -16,6 +16,7 @@ const DashboardCard = ({ children, style }: any) => (
 const MainDashboard = ({ userBrand }: any) => {
     const [activeTab, setActiveTab] = useState('Invoices');
     const [isAutopilot, setIsAutopilot] = useState(true);
+    const shareUrl = `https://malvin.app/chat/${userBrandId}`;
     
     const navItems = ['Estimates', 'Invoices', 'Payments', 'Chats', 'Checkouts'];
 
@@ -130,6 +131,13 @@ const MainDashboard = ({ userBrand }: any) => {
                                 <div style={{ padding: '24px', borderBottom: '1px solid #222', display: 'flex', justifyContent: 'space-between' }}>
                                     <span style={{ fontWeight: 600 }}>Active Invoices</span>
                                     <span style={{ color: '#C5FF41' }}>All Filters</span>
+                                </div>
+                                <div style={{ background: '#111', padding: '15px', borderRadius: '12px' }}>
+                                    <p style={{ fontSize: '12px', color: '#666' }}>YOUR AD LINK</p>
+                                    <code style={{ color: '#C5FF41' }}>{shareUrl}</code>
+                                    <button onClick={() => navigator.clipboard.writeText(shareUrl)}>
+                                        Copy Link
+                                    </button>
                                 </div>
                                 <div style={{ padding: '10px' }}>
                                     {[1, 2, 3].map(i => (

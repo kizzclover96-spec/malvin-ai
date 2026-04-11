@@ -1,31 +1,64 @@
 import React, { useState } from 'react';
+import { collection, query, where, onSnapshot, orderBy } from "firebase/firestore";
 
 // Reusable Sub-Card for the chat elements
 const ChatCard = ({ children, style }: any) => (
-  <div style={{
-    background: '#111111',
-    borderRadius: '24px',
-    border: '1px solid #1A1A1A',
-    display: 'flex',
-    flexDirection: 'column',
-    overflow: 'hidden',
-    ...style
-  }}>{children}</div>
+    <div style={{
+        background: '#111111',
+        borderRadius: '24px',
+        border: '1px solid #1A1A1A',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+        ...style
+    }}>{children}</div>
 );
 
 const Chats = ({ onBack, userBrand }: any) => {
-  const [selectedChatId, setSelectedChatId] = useState<number | null>(null);
-  const [isAutopilot, setIsAutopilot] = useState(true);
-  const [activeTab, setActiveTab] = useState('Chats');
-  const [chats] = useState([
-    { id: 1, name: 'Sarah Jenkins', lastMsg: 'Is the hoodie in stock?', time: '10:05 AM', status: 'Online' },
-    { id: 2, name: 'Marcus Bloom', lastMsg: 'Sent the payment!', time: '9:42 AM', status: 'Offline' },
-    { id: 3, name: 'Elena Rodriguez', lastMsg: 'Do you ship to Spain?', time: 'Yesterday', status: 'Online' }
-  ]);
-  const [messages, setMessages] = useState([
-        { id: 1, sender: 'customer', text: 'Hi! Do you have any discounts for the hoodie?', time: '10:05 AM' },
-        { id: 2, sender: 'malvin', text: 'Checking your history... Since you spent €120 last month, I can offer 10% off!', time: '10:05 AM' }
-    ]);
+    const [selectedChatId, setSelectedChatId] = useState<number | null>(null);
+    const [isAutopilot, setIsAutopilot] = useState(true);
+    const [activeTab, setActiveTab] = useState('Chats');
+  // Inside Chats.tsx (Manager Dashboard)
+    const [activeMessages, setActiveMessages] = useState<any[]>([]);
+
+    useEffect(() => {
+        if (!selectedChatId) return;
+
+        const q = query(
+            collection(db, "conversations", selectedChatId, "messages"),
+            orderBy("timestamp", "asc")
+        );
+
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const msgs = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            setActiveMessages(msgs);
+        });
+
+        return () => unsubscribe();
+    }, [selectedChatId]);
+    const [chats, setChats] = useState<any[]>([]);
+    useEffect(() => {
+        // Only show chats belonging to THIS manager's brand
+        const q = query(
+            collection(db, "conversations"), 
+            where("brandId", "==", userBrand.id),
+            orderBy("updatedAt", "desc")
+        );
+
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const chatList = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            setChats(chatList);
+        });
+
+        return () => unsubscribe();
+    }, [userBrand.id]);
+
     const [inputValue, setInputValue] = useState('');
 
     // The User's custom "Commands" for Malvin
@@ -35,20 +68,23 @@ const Chats = ({ onBack, userBrand }: any) => {
         { trigger: 'stock', response: 'Let me check the back... Yes, we have that in stock!' }
     ]);
 
-    const handleSendMessage = (e: any) => {
-        e.preventDefault();
-        if (!inputValue) return;
+    const handleManagerSend = async (text: string) => {
+        if (!text.trim() || !selectedChatId) return;
 
-        // 1. Add User's Message
-        const newMessage = { id: Date.now(), sender: 'manager', text: inputValue, time: 'Just now' };
-        setMessages([...messages, newMessage]);
-        setInputValue('');
+        // 1. Add the message as 'manager'
+        await addDoc(collection(db, "conversations", selectedChatId, "messages"), {
+            text: text,
+            sender: 'manager',
+            timestamp: serverTimestamp()
+        });
 
-        // 2. If it was a customer message and Autopilot is ON, Malvin would reply
-        // (In a real app, this logic triggers when a message arrives from the server)
+        // 2. Update the main convo doc so the list stays sorted
+        await setDoc(doc(db, "conversations", selectedChatId), {
+            lastMessage: text,
+            updatedAt: serverTimestamp()
+        }, { merge: true });
     };
 
-    
     const navItems = ['Estimates', 'Invoices', 'Payments', 'Chats', 'Checkouts'];
 
     return (
