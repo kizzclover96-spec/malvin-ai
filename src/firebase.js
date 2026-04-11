@@ -32,4 +32,4 @@ googleProvider.setCustomParameters({
   prompt: 'select_account'
 });
 
-export const db = getFirestore(app);
+export const db = getDatabase(app);

@@ -1,5 +1,5 @@
 import { db, auth } from "../firebase";
-import { ref, onValue, set, update } from "firebase/database";
+import { ref as dbRef, onValue, set, update } from "firebase/database";
 import { signOut } from "firebase/auth";
 import Memories from './memories'; 
 import Simulator from './Simulator';
@@ -476,7 +476,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
         const currentUser = auth.currentUser;
 
         if (currentUser && db) { 
-            const userDbRef = ref(db, `users/${currentUser.uid}/brandData`); 
+            const userDbRef = dbRef(db, `users/${currentUser.uid}/brandData`);
             
             const unsubscribe = onValue(userDbRef, (snapshot) => {
                 const data = snapshot.val();
