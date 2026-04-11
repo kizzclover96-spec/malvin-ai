@@ -16,6 +16,7 @@ const DashboardCard = ({ children, style }: any) => (
 const dashboard = ({ userBrand }: any) => {
     const [activeTab, setActiveTab] = useState('Invoices');
     const [isAutopilot, setIsAutopilot] = useState(true);
+    const userBrandId = userBrand?.id || "default_id";
     const shareUrl = `https://malvin.app/chat/${userBrandId}`;
     
     const navItems = ['Estimates', 'Invoices', 'Payments', 'Chats', 'Checkouts'];
