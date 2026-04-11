@@ -472,21 +472,18 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     };
     
     useEffect(() => {
-        const user = auth.currentUser;
+        // 3. Put the user logic INSIDE the useEffect
+        const currentUser = auth.currentUser;
 
-        if (user && db) { 
-            // Ensure 'db' is the first argument and it's actually the Database instance
-            const userPath = `users/${user.uid}`;
-            const userDbRef = ref(db, userPath); 
+        if (currentUser && db) { 
+            const userDbRef = ref(db, `users/${currentUser.uid}/brandData`); 
             
             const unsubscribe = onValue(userDbRef, (snapshot) => {
                 const data = snapshot.val();
                 if (data) {
-                    console.log("Personalized Data loaded:", data);
-                    // UPDATE YOUR STATE HERE
                     setUserBrand(prev => ({
                         ...prev,
-                        ...data // This overwrites "My company name" with the DB name
+                        ...data 
                     }));
                 }
             });
