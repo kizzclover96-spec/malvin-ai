@@ -69,7 +69,13 @@ const Chats = ({ onBack, userBrand }: any) => {
                 {navItems.map(item => (
                     <div 
                     key={item}
-                    onClick={() => setActiveTab(item)}
+                    onClick={() => {
+                        if (item !== 'Chats') {
+                            onBack(item); // Tell the parent to switch back and set the active tab
+                        } else {
+                            setActiveTab(item);
+                        }
+                    }}
                     style={{
                         padding: '10px 24px',
                         borderRadius: '30px',

@@ -22,7 +22,7 @@ const MainDashboard = ({ userBrand }: any) => {
     return (
         <>
             {activeTab === 'Chats' ? (
-            <Chats userBrand={userBrand} />
+            <Chats userBrand={userBrand} onBack={(targetTab: string) => setActiveTab(targetTab)} />
             ) : (
                 <div style={{
                 backgroundColor: '#000000',
