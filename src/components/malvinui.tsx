@@ -482,7 +482,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     };
     
     const [userBrand, setUserBrand] = useState({
-        name: "Malvin Enterprise",
+        name: "My company name",
         context: "",
         profilePic: null,
         currency: "Euro (€)",
@@ -773,7 +773,11 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                     userBrand={userBrand} 
                     setUserBrand={setUserBrand} 
                     onBack={() => setActiveTab('Session')} // Goes back to main view 
-                    onSave={(data: any) => setBrandData(data)}
+                    onSave={(updatedBrand) => {
+                        setUserBrand(updatedBrand);
+                        setBrandData(updatedBrand); // If you still use brandData elsewhere
+                        setActiveTab('Session');
+                    }}
                 />
             ) : activeTab === 'Memories' ? (
                 <Memories 
@@ -785,7 +789,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                 <MarginCalculator onBack={() => setActiveTab('Session')} />
             ) : activeTab === 'MainDashboard' ? (
                 <MainDashboard onBack={() => setActiveTab('Session')} 
-                userBrand={brandData} />
+                userBrand={userBrand} />
             ) : activeTab === 'Trends' ? (
                 <MarketTrends 
                  onBack={() => setActiveTab('Session')} 

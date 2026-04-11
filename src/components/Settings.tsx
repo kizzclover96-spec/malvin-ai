@@ -103,9 +103,8 @@ const Settings = ({ onBack, onSave, userBrand, setUserBrand }: any) => {
     const [name, setName] = useState('');
     const [activeTab, setActiveTab] = useState('Business');
     const fileInputRef = useRef<HTMLInputElement>(null); // Create the reference
-    const handleSave = () => {
-        // This sends the data UP to malvinui.tsx
-        onSave({ name: name, id: name.toLowerCase().replace(/\s+/g, '-') });
+    const handleSaveSettings = (newName) => {
+     setUserBrand({ name: newName, id: newName.toLowerCase().replace(/\s+/g, '-') });
     };
     useEffect(() => {
         localStorage.setItem('neural_user_brand', JSON.stringify(userBrand));
