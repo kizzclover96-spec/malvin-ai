@@ -13,7 +13,7 @@ const DashboardCard = ({ children, style }: any) => (
   </div>
 );
 
-const MainDashboard = ({ userBrand }: any) => {
+const dashboard = ({ userBrand }: any) => {
     const [activeTab, setActiveTab] = useState('Invoices');
     const [isAutopilot, setIsAutopilot] = useState(true);
     const shareUrl = `https://malvin.app/chat/${userBrandId}`;
@@ -204,4 +204,4 @@ const MainDashboard = ({ userBrand }: any) => {
   
 };
 
-export default MainDashboard;
+export default dashboard;

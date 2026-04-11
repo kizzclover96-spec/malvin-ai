@@ -7,7 +7,7 @@ import Malvinui from "./components/malvinui"; // Import the session room we just
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import CustomerChat from './components/CustomerChat';
 import CustomerChatWrapper from './components/CustomerChat'; // Or wherever your wrapper is
-import MainDashboard from './components/MainDashboard';
+import dashboard from './components/dashboard';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -17,7 +17,7 @@ function App() {
   <Router>
     <Routes>
       {/* This is the route for your Manager Dashboard */}
-      <Route path="/dashboard" element={<MainDashboard />} />
+      <Route path="/dashboard" element={<dashboard />} />
 
       {/* This is the "Entry Point" for customers clicking your ads */}
       <Route path="/chat/:brandId" element={<CustomerChatWrapper />} />
