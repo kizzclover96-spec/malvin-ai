@@ -78,7 +78,7 @@ const dashboard = ({ onBack, userBrand }: any) => {
                     alignItems: 'center', 
                     justifyContent: 'center', // Centers the pill
                     position: 'relative',      // Allows BackButton to sit on the left
-                    minHeight: '50px'
+                    minHeight: '50px',
                     paddingTop: '20px'
                 }}>
                     {/* Back Button positioned absolutely relative to this header */}
