@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { collection, query, where, onSnapshot, orderBy } from "firebase/firestore";
 
 // Reusable Sub-Card for the chat elements
