@@ -13,7 +13,7 @@ const DashboardCard = ({ children, style }: any) => (
   </div>
 );
 
-const CyberBack = ({ onClick }: { onClick: () => void }) => (
+const BackButton = ({ onClick }: { onClick: () => void }) => (
     <div 
         onClick={onClick}
         style={{
