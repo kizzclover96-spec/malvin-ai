@@ -785,7 +785,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                 <MarginCalculator onBack={() => setActiveTab('Session')} />
             ) : activeTab === 'MainDashboard' ? (
                 <MainDashboard onBack={() => setActiveTab('Session')} 
-                userBrand={brandData} onBack={goToSession}/>
+                userBrand={brandData} />
             ) : activeTab === 'Trends' ? (
                 <MarketTrends 
                  onBack={() => setActiveTab('Session')} 
