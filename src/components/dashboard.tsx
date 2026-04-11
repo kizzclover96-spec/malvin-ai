@@ -45,7 +45,7 @@ const BackButton = ({ onClick }: { onClick: () => void }) => (
             fontWeight: 700, 
             opacity: 0.5 
         }}>
-            TERMINATE_VIEW // BACK_TO_SESSION
+            BACK_TO_SESSION
         </span>
     </div>
 );
@@ -65,45 +65,60 @@ const dashboard = ({ onBack, userBrand }: any) => {
             backgroundColor: '#000000',
             minHeight: '100vh',
             color: 'white',
-            padding: '20px',
-            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+            padding: '40px 20px',
+            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+            position: 'relative'
             }}>
-                <BackButton onClick={onBack} />
-                {/* 1. TOP PILL NAVIGATION */}
+                {/* --- HEADER AREA --- */}
                 <div style={{ 
+                    maxWidth: '1400px', 
+                    margin: '0 auto 40px auto', 
                     display: 'flex', 
-                    justifyContent: 'center', 
-                    marginBottom: '30px' 
+                    alignItems: 'center', 
+                    justifyContent: 'center', // Centers the pill
+                    position: 'relative',      // Allows BackButton to sit on the left
+                    minHeight: '50px'
                 }}>
+                    {/* Back Button positioned absolutely relative to this header */}
+                    <div style={{ position: 'absolute', left: 0 }}>
+                        <BackButton onClick={onBack} />
+                    </div>
+                    
+                    {/* 1. TOP PILL NAVIGATION */}
                     <div style={{ 
-                    background: '#111', 
-                    padding: '6px', 
-                    borderRadius: '40px', 
-                    display: 'flex', 
-                    gap: '5px',
-                    border: '1px solid #222'
+                        display: 'flex', 
+                        justifyContent: 'center', 
+                        marginBottom: '30px' 
                     }}>
-                    {navItems.map(item => (
-                        <div 
-                        key={item}
-                        onClick={() => setActiveTab(item)}
-                        style={{
-                            padding: '10px 24px',
-                            borderRadius: '30px',
-                            fontSize: '13px',
-                            fontWeight: 600,
-                            cursor: 'pointer',
-                            backgroundColor: activeTab === item ? '#C5FF41' : 'transparent',
-                            color: activeTab === item ? 'black' : '#666',
-                            transition: '0.3s'
-                        }}
-                        >
-                        {item}
+                        <div style={{ 
+                        background: '#111', 
+                        padding: '6px', 
+                        borderRadius: '40px', 
+                        display: 'flex', 
+                        gap: '5px',
+                        border: '1px solid #222'
+                        }}>
+                        {navItems.map(item => (
+                            <div 
+                            key={item}
+                            onClick={() => setActiveTab(item)}
+                            style={{
+                                padding: '10px 24px',
+                                borderRadius: '30px',
+                                fontSize: '13px',
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                                backgroundColor: activeTab === item ? '#C5FF41' : 'transparent',
+                                color: activeTab === item ? 'black' : '#666',
+                                transition: '0.3s'
+                            }}
+                            >
+                            {item}
+                            </div>
+                        ))}
                         </div>
-                    ))}
                     </div>
                 </div>
-                
                 {activeTab === 'Chats' ? (
                     <Chats userBrand={userBrand} onBack={(targetTab: string) => setActiveTab(targetTab)} />
                 ) : (
