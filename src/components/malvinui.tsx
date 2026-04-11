@@ -746,7 +746,24 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
         `}</style>
     );
     
-    
+    if (!userBrand) {
+        return (
+            <div style={{ 
+                height: '100vh', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                backgroundColor: '#000', 
+                color: '#bf00ff',
+                fontFamily: 'sans-serif' 
+            }}>
+                <div style={{ textAlign: 'center' }}>
+                    <div className="spinner" style={{ marginBottom: '10px' }}>⚡</div>
+                    <p>Initializing Malvin...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <>

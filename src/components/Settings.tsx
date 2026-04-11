@@ -307,21 +307,21 @@ const Settings = ({ onBack, userBrand, setUserBrand }: any) => {
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
                                 {/* BRAND NAME */}
                                 <div>
-                                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '8px' }}>Brand Identity</label>
+                                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '8px' }}>Brand Name</label>
                                     <input 
-                                        value={userBrand.name}
+                                        value={userBrand?.name || ''}
                                         onChange={(e) => setUserBrand({...userBrand, name: e.target.value})}
                                         style={{ width: '100%', background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', padding: '12px', borderRadius: '8px', color: 'white', outline: 'none' }} 
-                                        placeholder="Enter brand name"
+                                        placeholder="e.g. Malvin Studio"
                                     />
                                 </div>
                                 {/* BRAND CATEGORY (This is the "Search" anchor) */}
                                 <div>
                                     <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '8px' }}>Industry / Category</label>
                                     <select 
-                                        value={userBrand.category || "Fashion"} // Default to Fashion
+                                        value={userBrand?.category || "Fashion"} // Default to Fashion
                                         onChange={(e) => setUserBrand({...userBrand, category: e.target.value})}
-                                        style={{ width: '100%', background: '#050505', border: '1px solid rgba(255,255,255,0.2)', padding: '12px', borderRadius: '8px', color: 'white', outline: 'none' }}
+                                        style={{ width: '100%', background: '#050505', border: '1px solid rgba(255,255,255,0.2)', padding: '12px', borderRadius: '8px', color: 'grey', outline: 'none' }}
                                     >
                                         <option value="Fashion">Fashion & Apparel</option>
                                         <option value="Tech">Technology & SaaS</option>
@@ -337,7 +337,7 @@ const Settings = ({ onBack, userBrand, setUserBrand }: any) => {
                                     <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '4px' }}>Strategic Context & Brand DNA</label>
                                     <p style={{ fontSize: '11px', opacity: 0.4, marginBottom: '12px' }}>Explain your business model, goals, and voice. The AI uses this to filter all research and simulations.</p>
                                     <textarea 
-                                        value={userBrand.context}
+                                        value={userBrand?.context}
                                         onChange={(e) => setUserBrand({...userBrand, context: e.target.value})}
                                         placeholder="e.g. We are a high-end sustainable streetwear brand focusing on Gen Z in London. We value scarcity over volume. Always prioritize organic growth over aggressive paid ads..."
                                         style={{ 
