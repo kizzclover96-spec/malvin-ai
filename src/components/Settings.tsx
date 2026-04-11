@@ -100,6 +100,7 @@ const AuraBackground = () => {
 </style>
 
 const Settings = ({ onBack, onSave, userBrand, setUserBrand }: any) => {
+    const [tempBrand, setTempBrand] = useState(userBrand);
     const [name, setName] = useState('');
     const [activeTab, setActiveTab] = useState('Business');
     const fileInputRef = useRef<HTMLInputElement>(null); // Create the reference
@@ -318,7 +319,7 @@ const Settings = ({ onBack, onSave, userBrand, setUserBrand }: any) => {
                                         style={{ width: '100%', background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', padding: '12px', borderRadius: '8px', color: 'white', outline: 'none' }} 
                                         placeholder="e.g. Malvin Studio"
                                     />
-                                    <button onClick={handleSave}>Save Brand</button>
+                                    <button onClick={handleSaveSettings}>Save Brand</button>
                                 </div>
                                 {/* BRAND CATEGORY (This is the "Search" anchor) */}
                                 <div>
