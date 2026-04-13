@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, query, where, onSnapshot, orderBy } from "firebase/firestore";
 import { db } from "../firebase";
 import { ref, push, onValue } from "firebase/database";
+import { firestore } from "../firebase";
 
 // Reusable Sub-Card for the chat elements
 const ChatCard = ({ children, style }: any) => (
@@ -42,6 +43,7 @@ const Chats = ({ onBack, brandId, userBrand }: any) => {
 
     useEffect(() => {
         if (!brandId) return;
+        console.log("🚀 Manager listening for messages under ID:", brandId);
 
         const q = query(
             collection(firestore, "conversations"),
@@ -50,9 +52,12 @@ const Chats = ({ onBack, brandId, userBrand }: any) => {
         );
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
-            // ... your existing logic to set messages
-        });
-
+            const chatList = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            setChats(chatList);
+        })
         return () => unsubscribe();
     }, [brandId]);
 

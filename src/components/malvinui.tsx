@@ -15,6 +15,7 @@ import { jsPDF } from 'jspdf';
 import React, {  useRef, useState, useMemo } from "react";
 import {  useEffect } from 'react';
 import '../App.css';
+
 import {
   LiveKitRoom,
   RoomAudioRenderer,
@@ -820,7 +821,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
         );
     }
     
-    
+    const currentUserId = auth.currentUser?.uid;
 
     return (
         <>
@@ -847,7 +848,8 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                 <MarginCalculator onBack={() => setActiveTab('Session')} />
             ) : activeTab === 'MainDashboard' ? (
                 <MainDashboard onBack={() => setActiveTab('Session')} 
-                userBrand={userBrand} />
+                  userBrand={userBrand}
+                />
             ) : activeTab === 'Trends' ? (
                 <MarketTrends 
                  onBack={() => setActiveTab('Session')} 
