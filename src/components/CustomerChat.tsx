@@ -6,6 +6,7 @@ import {
 } from "firebase/firestore";
 import { db, firestore, auth } from "../firebase"; // Ensure both are exported from firebase.js
 import { useParams } from 'react-router-dom';
+import { ref as dbRef, onValue } from "firebase/database";
 
 const CustomerChat = ({ brandId: propBrandId }: { brandId: string }) => {
     const { brandId: urlBrandId } = useParams();
@@ -14,6 +15,25 @@ const CustomerChat = ({ brandId: propBrandId }: { brandId: string }) => {
     const [chatId, setChatId] = useState<string>('');
     const [message, setMessage] = useState('');
     const [chatHistory, setChatHistory] = useState<any[]>([]);
+    const [brandName, setBrandName] = useState('Loading Store...');
+
+    useEffect(() => {
+        if (!brandId) return;
+
+        // Path should match where the Manager's brandData is stored
+        const brandRef = dbRef(db, `users/${brandId}/brandData`);
+        
+        const unsubscribe = onValue(brandRef, (snapshot) => {
+            const data = snapshot.val();
+            if (data && data.name) {
+                setBrandName(data.name);
+            } else {
+                setBrandName("Malvin AI Partner"); // Fallback name
+            }
+        });
+
+        return () => unsubscribe();
+    }, [brandId]);
 
     useEffect(() => {
         let existingChatId = localStorage.getItem(`malvin_chat_${brandId}`);
@@ -76,7 +96,7 @@ const CustomerChat = ({ brandId: propBrandId }: { brandId: string }) => {
         }}>
             {/* Header: Brand Identity */}
             <div style={{ padding: '20px', borderBottom: '1px solid #222', textAlign: 'center' }}>
-                <div style={{ fontWeight: 800, fontSize: '18px' }}>Malvin Store</div>
+                <div style={{ fontWeight: 800, fontSize: '18px' }}>{brandName}</div>
                 <div style={{ fontSize: '12px', color: '#C5FF41' }}>● Online</div>
             </div>
 

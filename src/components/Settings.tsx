@@ -99,13 +99,24 @@ const AuraBackground = () => {
 `}
 </style>
 
-const Settings = ({ onBack, onSave, userBrand, setUserBrand }: any) => {
+const Settings = ({ onBack, onSave, userBrand, setUserBrand, onUpdate }: any) => {
+    const [tempName, setTempName] = useState(userBrand.name);
     const [tempBrand, setTempBrand] = useState(userBrand);
     const [name, setName] = useState('');
     const [activeTab, setActiveTab] = useState('Business');
     const fileInputRef = useRef<HTMLInputElement>(null); // Create the reference
     const handleSaveSettings = (newName) => {
      setUserBrand({ name: newName, id: newName.toLowerCase().replace(/\s+/g, '-') });
+    };
+    const saveSettings = async () => {
+        // 1. Save to Database
+        const brandRef = ref(db, `users/${userBrand.id}/brandData`);
+        await set(brandRef, { ...userBrand, name: tempName });
+
+        // 2. Update the Parent (Malvinui) immediately!
+        onUpdate({ name: tempName });
+        
+        alert("Settings Saved!");
     };
     useEffect(() => {
         localStorage.setItem('neural_user_brand', JSON.stringify(userBrand));
@@ -518,6 +529,13 @@ const Settings = ({ onBack, onSave, userBrand, setUserBrand }: any) => {
                         NEURAL CORE SYNCED
                     </span>
                 </div>
+            </div>
+            <div>
+                <input 
+                    value={tempName} 
+                    onChange={(e) => setTempName(e.target.value)} 
+                />
+                <button onClick={saveSettings}>Save Changes</button>
             </div>
         </div>
     );

@@ -12,7 +12,7 @@ const glassStyle: React.CSSProperties = {
 
 const premiumGold = "#FFD700";
 
-const Simulator = ({ onBack, onSave }: { onBack: () => void, onSave: (data: any) => void }) => {
+const Simulator = ({ onBack, onSave, brandName }: { onBack: () => void, onSave: (data: any) => void, brandName: string }) => {
     const [showReport, setShowReport] = useState(false);
     const [isSimulating, setIsSimulating] = useState(false);
     const [progress, setProgress] = useState(0);
@@ -94,10 +94,11 @@ const Simulator = ({ onBack, onSave }: { onBack: () => void, onSave: (data: any)
                     ← CLOSE
                 </button>
                 <p style={{ fontSize: '24px', fontWeight: '800', opacity: 0.8, textTransform: 'uppercase', letterSpacing: '2px' }}>
-                    Business Growth Simulation
+                    Simulation
+                    (Try to increase your price of a product and see the outcome)
                 </p>
                 <div style={{ textAlign: 'right' }}>
-                    <h2 style={{ margin: 0, fontSize: '18px', color: premiumGold }}>Malvin Enterprise</h2>
+                    <div style={{ margin: 0, fontSize: '18px', color: premiumGold }}>{brandName}</div>
                     <p style={{ margin: 0, fontSize: '12px', opacity: 0.5 }}>Simulation Engine v2.4</p>
                 </div>
             </div>
@@ -109,8 +110,8 @@ const Simulator = ({ onBack, onSave }: { onBack: () => void, onSave: (data: any)
                     {!isSimulating && progress === 0 ? (
                         <div style={{ textAlign: 'center' }}>
                             <div style={{ fontSize: '60px', marginBottom: '20px', filter: 'drop-shadow(0 0 20px rgba(14, 165, 233, 0.4))' }}>🧠</div>
-                            <h3 style={{ fontSize: '28px', marginBottom: '10px' }}>Select Neural Modules</h3>
-                            <p style={{ opacity: 0.4 }}>{selectedSims.length} modules armed and ready.</p>
+                            <h3 style={{ fontSize: '28px', marginBottom: '10px' }}>Select an instance</h3>
+                            <p style={{ opacity: 0.4 }}>{selectedSims.length} modules selected for sim.</p>
                         </div>
                     ) : (
                         <div style={{ width: '80%', textAlign: 'center' }}>
@@ -161,7 +162,7 @@ const Simulator = ({ onBack, onSave }: { onBack: () => void, onSave: (data: any)
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                             <div>
                                 <label style={{ fontSize: '10px', opacity: 0.5, display: 'block', marginBottom: '6px', fontWeight: 'bold' }}>LOCATION</label>
-                                <input type="text" placeholder="e.g. USA, New York" style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '12px', borderRadius: '12px', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
+                                <input type="text" placeholder="e.g. USA, New York"  value={location} onChange={(e) => setLocation(e.target.value)} style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '12px', borderRadius: '12px', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
                             </div>
 
                             <div>

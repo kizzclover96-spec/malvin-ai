@@ -489,6 +489,14 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
         alert("Strategy Saved to Intel Vault.");
     };
 
+    const handleUpdateBrand = (newData) => {
+        setUserBrand(prev => ({
+            ...prev,
+            ...newData
+        }));
+    };
+
+
     const handleDeleteNote = (id) => {
         const updatedNotes = savedNotes.filter(note => note.id !== id);
         setSavedNotes(updatedNotes);
@@ -831,6 +839,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                     userBrand={userBrand} 
                     setUserBrand={setUserBrand} 
                     onBack={() => setActiveTab('Session')} // Goes back to main view 
+                    onUpdate={handleUpdateBrand}
                     onSave={(updatedBrand) => {
                         setUserBrand(updatedBrand);
                         setBrandData(updatedBrand); // If you still use brandData elsewhere
@@ -849,11 +858,12 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
             ) : activeTab === 'MainDashboard' ? (
                 <MainDashboard onBack={() => setActiveTab('Session')} 
                   userBrand={userBrand}
+                  brandName={userBrand.name}
                 />
             ) : activeTab === 'Trends' ? (
                 <MarketTrends 
                  onBack={() => setActiveTab('Session')} 
-                 userBrand={userBrand}
+                 brandName={userBrand.name}
                 />
             ) : activeTab === 'Runway' ? (
                 <Runway
@@ -863,6 +873,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                 <Simulator 
                    onBack={() => setActiveTab('Session')} 
                    onSave={handleSaveSimulation}
+                   brandName={userBrand.name}
                 />
             ) : (
                 <div className="main-full-ui" style={{ display: 'flex', height: '100vh', width: '100vw', backgroundColor: "black" }}> 
