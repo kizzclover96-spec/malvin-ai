@@ -103,27 +103,18 @@ const Settings = ({ onBack, onSave, userBrand, setUserBrand, onUpdate }: any) =>
     const [tempName, setTempName] = useState(userBrand.name);
     const [tempBrand, setTempBrand] = useState(userBrand);
     const [name, setName] = useState('');
-    const [status, setStatus] = useState(userBrand.status || 'CEO / Founder');
     const [activeTab, setActiveTab] = useState('Business');
     const fileInputRef = useRef<HTMLInputElement>(null); // Create the reference
-    
+    const handleSaveSettings = (newName) => {
+     setUserBrand({ name: newName, id: newName.toLowerCase().replace(/\s+/g, '-') });
+    };
     const saveSettings = async () => {
-        // Create the updated object
-        const updatedBrand = { 
-            ...userBrand, 
-            name: tempName,
-            // Ensure the ID updates if the name changes, or keep it consistent
-            id: userBrand.id 
-        };
-
         // 1. Save to Database
-        // Use a consistent path (like a unique User ID) rather than the Brand Name as an ID
         const brandRef = ref(db, `users/${userBrand.id}/brandData`);
-        await set(brandRef, { ...userBrand, name: tempName, status: status }, updatedBrand);
+        await set(brandRef, { ...userBrand, name: tempName });
 
-        // 2. Update the Local State and Parent
-        setUserBrand(updatedBrand); // Update Settings local state
-        onUpdate(updatedBrand, { ...userBrand, name: tempName, status: status } );     // Update Malvinui parent state
+        // 2. Update the Parent (Malvinui) immediately!
+        onUpdate({ name: tempName });
         
         alert("Settings Saved!");
     };
@@ -266,7 +257,7 @@ const Settings = ({ onBack, onSave, userBrand, setUserBrand, onUpdate }: any) =>
                                     </div>
                                     <div>
                                         <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '8px' }}>User Status</label>
-                                        <select value={status} onChange={(e) => setStatus(e.target.value)} style={{ width: '100%', background: '#050505', border: '1px solid rgba(255,255,255,0.2)', padding: '12px', borderRadius: '8px', color: 'white' }}>
+                                        <select style={{ width: '100%', background: '#050505', border: '1px solid rgba(255,255,255,0.2)', padding: '12px', borderRadius: '8px', color: 'white' }}>
                                             <option>CEO / Founder</option>
                                             <option>Partnership</option>
                                             <option>Operational Lead</option>
@@ -538,6 +529,13 @@ const Settings = ({ onBack, onSave, userBrand, setUserBrand, onUpdate }: any) =>
                         NEURAL CORE SYNCED
                     </span>
                 </div>
+            </div>
+            <div>
+                <input 
+                    value={tempName} 
+                    onChange={(e) => setTempName(e.target.value)} 
+                />
+                <button onClick={saveSettings}>Save Changes</button>
             </div>
         </div>
     );
