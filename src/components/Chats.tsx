@@ -26,9 +26,7 @@ const Chats = ({ onBack, userBrand }: any) => {
     useEffect(() => {
         if (!selectedChatId) return;
 
-        const q = query(
-            collection(firestore, "conversations")
-        );
+        const q = query(collection(firestore, "conversations"));
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const msgs = snapshot.docs.map(doc => ({
@@ -43,9 +41,12 @@ const Chats = ({ onBack, userBrand }: any) => {
     const [chats, setChats] = useState<any[]>([]);
     useEffect(() => {
         if (!userBrand || !userBrand?.id) {
+            console.log("❌ Chats.tsx: userBrand.id is missing!");
             console.log("Waiting for brand data...");
             return; 
         }
+        console.log("🔍 Manager is searching for Brand ID:", userBrand.id);
+        console.log("🔍 Data Type of Brand ID:", typeof userBrand.id);
         // Only show chats belonging to THIS manager's brand
         const q = query(
             collection(firestore, "conversations"),
@@ -54,11 +55,14 @@ const Chats = ({ onBack, userBrand }: any) => {
         );
 
         const unsubscribe = onSnapshot(q, { includeMetadataChanges: true }, (snapshot) => {
+            console.log("✅ Snapshot received! Document count:", snapshot.size);
             const chatList = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
             }));
             setChats(chatList);
+        }, (error) => {
+            console.error("🔥 Firestore Error:", error.message);
         });
 
         return () => unsubscribe();
