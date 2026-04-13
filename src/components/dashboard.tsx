@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { auth } from "../firebase";
 import Chats from './Chats';
 // The "Salesforce-style" rounded containers from your image
 const DashboardCard = ({ children, style }: any) => (
@@ -51,6 +52,7 @@ const BackButton = ({ onClick }: { onClick: () => void }) => (
 );
 
 const dashboard = (props: any) => {
+    const user = auth.currentUser;
     const onBack = props.onBack;
     const userBrand = props.userBrand;
     console.log("All Props received:", props); // This will show you EVERYTHING being sent
