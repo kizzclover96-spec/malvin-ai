@@ -48,8 +48,8 @@ const Chats = ({ onBack, userBrand }: any) => {
         }
         // Only show chats belonging to THIS manager's brand
         const q = query(
-            collection(db, "conversations"), 
-            where("brandId", "==", String(userBrand?.id))
+            collection(firestore, "conversations"),
+            where("brandId", "==", String(userBrand?.id)),
             orderBy("updatedAt", "desc")
         );
 
