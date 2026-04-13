@@ -325,12 +325,12 @@ const Settings = ({ onBack, onSave, userBrand, setUserBrand, onUpdate }: any) =>
                                 <div>
                                     <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '8px' }}>Brand Name</label>
                                     <input 
-                                        value={tempName} 
-                                        onChange={(e) => setTempName(e.target.value)} 
+                                        value={userBrand?.name || ''}
+                                        onChange={(e) => setUserBrand({...userBrand, name: e.target.value})}
                                         style={{ width: '100%', background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', padding: '12px', borderRadius: '8px', color: 'white', outline: 'none' }} 
                                         placeholder="e.g. Malvin Studio"
                                     />
-                                    <button onClick={saveSettings}>Save Changes</button>
+                                    <button onClick={handleSaveSettings}>Save Brand</button>
                                 </div>
                                 {/* BRAND CATEGORY (This is the "Search" anchor) */}
                                 <div>
@@ -531,12 +531,12 @@ const Settings = ({ onBack, onSave, userBrand, setUserBrand, onUpdate }: any) =>
                 </div>
             </div>
             <div>
-                <input 
-                    value={tempName} 
-                    onChange={(e) => setTempName(e.target.value)} 
-                />
-                <button onClick={saveSettings}>Save Changes</button>
-            </div>
+            <input 
+                value={tempName} 
+                onChange={(e) => setTempName(e.target.value)} 
+            />
+            <button onClick={saveSettings}>Save Changes</button>
+        </div>
         </div>
     );
 };
