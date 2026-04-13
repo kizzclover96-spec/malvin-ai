@@ -1,5 +1,6 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getDatabase } from "firebase/database";
+import { getFirestore } from "firebase/firestore";
 import { 
   getAuth, 
   GoogleAuthProvider, 
@@ -34,3 +35,4 @@ googleProvider.setCustomParameters({
 });
 
 export const db = getDatabase(app);
+export const firestore = getFirestore(app);

@@ -1,69 +1,49 @@
 import React, { useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { doc, setDoc, addDoc, collection, serverTimestamp } from "firebase/firestore";
-import { db } from "../firebase"; // path to your config
-import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
+import { 
+  doc, setDoc, addDoc, collection, serverTimestamp, 
+  query, orderBy, onSnapshot 
+} from "firebase/firestore";
+import { db, firestore, auth } from "../firebase"; // Ensure both are exported from firebase.js
 import { useParams } from 'react-router-dom';
 
-const CustomerChat = ({ brandId }: { brandId: string }) => {
+const CustomerChat = ({ brandId: propBrandId }: { brandId: string }) => {
+    const { brandId: urlBrandId } = useParams();
+    const brandId = propBrandId || urlBrandId || '';
+    
     const [chatId, setChatId] = useState<string>('');
     const [message, setMessage] = useState('');
-    
-    const CustomerChatWrapper = () => {
-        const { brandId } = useParams(); // Grabs 'brand_123' from /chat/brand_123
-        return <CustomerChat brandId={brandId || ''} />;
-    };
-    useEffect(() => {
-        // 1. Check if this customer already has a chat session stored in their browser
-        let existingChatId = localStorage.getItem(`malvin_chat_${brandId}`);
-        
-        if (!existingChatId) {
-            // 2. If not, generate a new unique ID for this specific customer
-            existingChatId = uuidv4(); 
-            localStorage.setItem(`malvin_chat_${brandId}`, existingChatId);
-        }
-        
-        setChatId(existingChatId);
-    }, [brandId]);
-
     const [chatHistory, setChatHistory] = useState<any[]>([]);
 
     useEffect(() => {
-        if (!chatId) return;
+        let existingChatId = localStorage.getItem(`malvin_chat_${brandId}`);
+        if (!existingChatId) {
+            existingChatId = uuidv4(); 
+            localStorage.setItem(`malvin_chat_${brandId}`, existingChatId);
+        }
+        setChatId(existingChatId);
+    }, [brandId]);
 
-        // Listen to the specific 'messages' sub-collection for this chatId
+    useEffect(() => {
+        if (!chatId) return;
+        // USE 'firestore' HERE
         const q = query(
-            collection(db, "conversations", chatId, "messages"),
+            collection(firestore, "conversations", chatId, "messages"),
             orderBy("timestamp", "asc")
         );
-
         const unsubscribe = onSnapshot(q, (snapshot) => {
-            const msgs = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-            setChatHistory(msgs);
+            setChatHistory(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
         });
-
         return () => unsubscribe();
     }, [chatId]);
-
-    const messagePayload = {
-        chatId: chatId,
-        brandId: brandId,
-        text: message,
-        sender: 'customer',
-        timestamp: Date.now()
-    };
 
     const handleSend = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!message.trim() || !chatId) return;
 
         try {
-            // 1. Update/Create the main conversation record
-            // This is what the Manager's sidebar "listens" to
-            const convoRef = doc(db, "conversations", chatId);
+            // Use 'firestore' for conversation persistence
+            const convoRef = doc(firestore, "conversations", chatId);
             await setDoc(convoRef, {
                 brandId: brandId,
                 lastMessage: message,
@@ -71,8 +51,7 @@ const CustomerChat = ({ brandId }: { brandId: string }) => {
                 status: 'active'
             }, { merge: true });
 
-            // 2. Add the actual message to the sub-collection
-            await addDoc(collection(db, "conversations", chatId, "messages"), {
+            await addDoc(collection(firestore, "conversations", chatId, "messages"), {
                 text: message,
                 sender: 'customer',
                 timestamp: serverTimestamp()
@@ -80,9 +59,11 @@ const CustomerChat = ({ brandId }: { brandId: string }) => {
 
             setMessage('');
         } catch (error) {
-            console.error("Error sending message:", error);
+            console.error("Error sending:", error);
         }
     };
+    
+    // ... Change your <form onSubmit={sendMessage}> to <form onSubmit={handleSend}>
 
     return (
         <div style={{

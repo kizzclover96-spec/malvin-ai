@@ -1,6 +1,8 @@
 import { db, auth } from "../firebase";
 import { ref as dbRef, onValue, set, update } from "firebase/database";
 import { signOut } from "firebase/auth";
+import { firestore, auth } from "../firebase"; 
+import { collection, addDoc } from "firebase/firestore";
 import Memories from './memories'; 
 import Simulator from './Simulator';
 import MarginCalculator from './MarginCalculator';
@@ -11,6 +13,7 @@ import Settings from './Settings';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import React, {  useRef, useState, useMemo } from "react";
+import {  useEffect } from 'react';
 import '../App.css';
 import {
   LiveKitRoom,
@@ -145,7 +148,7 @@ const AIOrb = ({ status }: { status: string }) => {
   );
 };
 
-import {  useEffect } from 'react';
+
 
 const ImageCycler = ({ interval = 3000 }) => {
   const images = [
@@ -438,7 +441,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
         setHistory(prev => [data, ...prev]);
     };
 
-    const handleSaveNote = () => {
+    const handleSaveNote = async () => {
         if (!currentNote.trim()) return;
 
         // 1. Generate Title from the first line or first 30 chars
@@ -451,6 +454,30 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
             content: currentNote,
             date: new Date().toLocaleDateString()
         };
+        const noteData = {
+            userId: auth.currentUser?.uid,
+            title: generatedTitle || "Untitled Strategic Note",
+            content: currentNote,
+            date: new Date().toLocaleDateString(),
+            createdAt: new Date() // Firestore timestamp
+        };
+
+        try {
+            // --- THIS IS NUMBER 3 ---
+            // Save to permanent Firestore "Memories" collection
+            await addDoc(collection(firestore, "memories"), noteData);
+            
+            // Also update local state so the UI reacts immediately
+            setSavedNotes([noteData, ...savedNotes]);
+            setCurrentNote(""); 
+            setShowHistory(true);
+            addActivity(`Archived to Vault: ${noteData.title}`, "💎");
+            
+            alert("Strategy permanently archived in the Intel Vault.");
+        } catch (err) {
+            console.error("Firestore Save Error:", err);
+            alert("Failed to archive. Check console.");
+        }  
 
         setSavedNotes([newNote, ...savedNotes]);
         setCurrentNote(""); // Clear editor after saving
@@ -645,7 +672,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     
 
     // Placeholder logic (Replace with your real props/hooks later)
-    const disabled = false;
+    const [disabled, setDisabled] = React.useState(false);
     
 
     const triggerActivity = () => {};

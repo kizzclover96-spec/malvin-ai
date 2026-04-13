@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { collection, query, where, onSnapshot, orderBy } from "firebase/firestore";
+import { db } from "../firebase";
+import { ref, push, onValue } from "firebase/database";
 
 // Reusable Sub-Card for the chat elements
 const ChatCard = ({ children, style }: any) => (
@@ -15,7 +17,7 @@ const ChatCard = ({ children, style }: any) => (
 );
 
 const Chats = ({ onBack, userBrand }: any) => {
-    const [selectedChatId, setSelectedChatId] = useState<number | null>(null);
+    const [selectedChatId, setSelectedChatId] = useState<string | null>(null); // Change to string
     const [isAutopilot, setIsAutopilot] = useState(true);
     const [activeTab, setActiveTab] = useState('Chats');
   // Inside Chats.tsx (Manager Dashboard)
@@ -25,7 +27,7 @@ const Chats = ({ onBack, userBrand }: any) => {
         if (!selectedChatId) return;
 
         const q = query(
-            collection(db, "conversations", selectedChatId, "messages"),
+            collection(firestore, "conversations", selectedChatId, "messages"),
             orderBy("timestamp", "asc")
         );
 
@@ -71,6 +73,15 @@ const Chats = ({ onBack, userBrand }: any) => {
         { trigger: 'hours', response: 'We are open until 9 PM today in the {category} department.' },
         { trigger: 'stock', response: 'Let me check the back... Yes, we have that in stock!' }
     ]);
+    
+    const sendMessage = (roomId, text) => {
+        const chatRef = ref(db, `chats/${roomId}/messages`);
+        push(chatRef, {
+            senderId: auth.currentUser.uid,
+            text: text,
+            timestamp: Date.now()
+        });
+    };
 
     const handleManagerSend = async (text: string) => {
         if (!text.trim() || !selectedChatId) return;
@@ -167,15 +178,22 @@ const Chats = ({ onBack, userBrand }: any) => {
                         </div>
 
                         {/* Message Feed */}
-                        <div style={{ flex: 1, padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                        <div style={{ alignSelf: 'flex-start', background: '#1A1A1A', padding: '12px 16px', borderRadius: '15px 15px 15px 4px', fontSize: '14px', maxWidth: '70%' }}>
-                            Is the hoodie in stock?
+                        <div style={{ flex: 1, padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px', overflowY: 'auto' }}>
+                            {activeMessages.map((msg) => (
+                                <div key={msg.id} style={{ 
+                                    alignSelf: msg.sender === 'manager' ? 'flex-end' : 'flex-start', 
+                                    background: msg.sender === 'manager' ? 'rgba(197, 255, 65, 0.05)' : '#1A1A1A', 
+                                    border: msg.sender === 'manager' ? '1px solid #C5FF41' : 'none',
+                                    padding: '12px 16px', 
+                                    borderRadius: '15px', 
+                                    fontSize: '14px', 
+                                    maxWidth: '70%',
+                                    color: msg.sender === 'manager' ? '#C5FF41' : 'white'
+                                }}>
+                                    {msg.text}
+                                </div>
+                            ))}
                         </div>
-                        <div style={{ alignSelf: 'flex-end', background: 'rgba(197, 255, 65, 0.05)', border: '1px solid #C5FF41', padding: '12px 16px', borderRadius: '15px 15px 4px 15px', fontSize: '14px', maxWidth: '70%', color: '#C5FF41' }}>
-                            Checking the shelf for you... Yes, we have 4 left!
-                        </div>
-                        </div>
-
                         {/* Input */}
                         <div style={{ padding: '20px', borderTop: '1px solid #222', display: 'flex', gap: '10px' }}>
                         <input 
