@@ -27,7 +27,10 @@ const Chats = ({ onBack, brandId, userBrand }: any) => {
     useEffect(() => {
         if (!selectedChatId) return;
 
-        const q = query(collection(firestore, "conversations"));
+        const q = query(
+            collection(firestore, "conversations", selectedChatId, "messages"),
+            orderBy("timestamp", "asc")
+        );
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const msgs = snapshot.docs.map(doc => ({
@@ -111,18 +114,24 @@ const Chats = ({ onBack, brandId, userBrand }: any) => {
     const handleManagerSend = async (text: string) => {
         if (!text.trim() || !selectedChatId) return;
 
-        // 1. Add the message as 'manager'
-        await addDoc(collection(db, "conversations", selectedChatId, "messages"), {
-            text: text,
-            sender: 'manager',
-            timestamp: serverTimestamp()
-        });
+        try {
+            // 1. Add to messages sub-collection
+            await addDoc(collection(firestore, "conversations", selectedChatId, "messages"), {
+                text: text,
+                sender: 'manager',
+                timestamp: serverTimestamp()
+            });
 
-        // 2. Update the main convo doc so the list stays sorted
-        await setDoc(doc(db, "conversations", selectedChatId), {
-            lastMessage: text,
-            updatedAt: serverTimestamp()
-        }, { merge: true });
+            // 2. Update the main convo doc
+            await setDoc(doc(firestore, "conversations", selectedChatId), {
+                lastMessage: text,
+                updatedAt: serverTimestamp()
+            }, { merge: true });
+
+            setInputValue(''); // Clear input
+        } catch (e) {
+            console.error("Error sending message:", e);
+        }
     };
 
     const navItems = ['Estimates', 'Invoices', 'Payments', 'Chats', 'Checkouts'];
@@ -140,41 +149,53 @@ const Chats = ({ onBack, brandId, userBrand }: any) => {
                 {/* LEFT: CHAT HEADS LIST */}
                 <ChatCard>
                     <div style={{ padding: '20px', borderBottom: '1px solid #222', fontWeight: 600, fontSize: '14px' }}>
-                    Active Conversations
+                     Active Conversations
                     </div>
                     <div style={{ flex: 1, overflowY: 'auto', padding: '10px' }}>
-                    {chats.map(chat => (
-                        <div 
-                        key={chat.id}
-                        onClick={() => setSelectedChatId(chat.id)}
-                        style={{
-                            padding: '15px',
-                            borderRadius: '18px',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '12px',
-                            marginBottom: '8px',
-                            transition: '0.2s',
-                            backgroundColor: selectedChatId === chat.id ? '#1A1A1A' : 'transparent',
-                        }}
-                        >
-                        {/* Profile Avatar with Status Ring */}
-                        <div style={{ 
-                            width: '42px', height: '42px', borderRadius: '50%', background: '#333',
-                            border: chat.status === 'Online' ? '2px solid #C5FF41' : '2px solid transparent'
-                        }} />
-                        <div style={{ flex: 1, overflow: 'hidden' }}>
-                            <div style={{ fontSize: '14px', fontWeight: 600, display: 'flex', justifyContent: 'space-between' }}>
-                            {chat.name}
-                            <span style={{ fontSize: '10px', color: '#666', fontWeight: 400 }}>{chat.time}</span>
-                            </div>
-                            <div style={{ fontSize: '12px', color: '#666', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {chat.lastMsg}
-                            </div>
-                        </div>
-                        </div>
-                    ))}
+                        {chats.map((chat, index) => {
+                            // This creates "Client 1" for the first ever chat, "Client 2" for second, etc.
+                            const clientNumber = chats.length - index; 
+                            
+                            return (
+                                <div 
+                                    key={chat.id}
+                                    onClick={() => setSelectedChatId(chat.id)}
+                                    style={{
+                                        padding: '15px',
+                                        borderRadius: '18px',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '12px',
+                                        marginBottom: '8px',
+                                        transition: '0.2s',
+                                        backgroundColor: selectedChatId === chat.id ? '#1A1A1A' : 'transparent',
+                                    }}
+                                >
+                                    {/* Avatar with dynamic Initial */}
+                                    <div style={{ 
+                                        width: '42px', height: '42px', borderRadius: '50%', 
+                                        background: '#333', display: 'flex', alignItems: 'center', 
+                                        justifyContent: 'center', color: '#C5FF41', fontWeight: 'bold'
+                                    }}>
+                                        {clientNumber}
+                                    </div>
+
+                                    <div style={{ flex: 1, overflow: 'hidden' }}>
+                                        <div style={{ fontSize: '14px', fontWeight: 600, display: 'flex', justifyContent: 'space-between' }}>
+                                            {/* DISPLAY DYNAMIC NAME */}
+                                            Client #{clientNumber}
+                                            <span style={{ fontSize: '10px', color: '#666' }}>
+                                                {chat.updatedAt?.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                            </span>
+                                        </div>
+                                        <div style={{ fontSize: '12px', color: '#666', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                            {chat.lastMessage || "No messages yet"}
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
                     </div>
                 </ChatCard>
 
@@ -184,22 +205,25 @@ const Chats = ({ onBack, brandId, userBrand }: any) => {
                     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
                         {/* Chat Header */}
                         <div style={{ padding: '20px', borderBottom: '1px solid #222', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div>
-                            <div style={{ fontWeight: 700 }}>Sarah Jenkins</div>
-                            <div style={{ fontSize: '11px', color: isAutopilot ? '#C5FF41' : '#666' }}>
-                            {isAutopilot ? '🤖 MALVIN AUTOPILOT ON' : '👤 MANUAL MODE'}
+                            <div>
+                                {/* Dynamic Header Name */}
+                                <div style={{ fontWeight: 700 }}>
+                                    Client #{chats.length - chats.findIndex(c => c.id === selectedChatId)}
+                                </div>
+                                <div style={{ fontSize: '11px', color: isAutopilot ? '#C5FF41' : '#666' }}>
+                                    {isAutopilot ? '🤖 MALVIN AUTOPILOT ON' : '👤 MANUAL MODE'}
+                                </div>
                             </div>
-                        </div>
-                        <button 
-                            onClick={() => setIsAutopilot(!isAutopilot)}
-                            style={{ 
-                            background: isAutopilot ? 'rgba(197, 255, 65, 0.1)' : '#fff',
-                            color: isAutopilot ? '#C5FF41' : '#000',
-                            border: 'none', padding: '8px 16px', borderRadius: '12px', cursor: 'pointer', fontWeight: 700, fontSize: '12px'
-                            }}
-                        >
-                            {isAutopilot ? 'Take Over' : 'Enable Malvin'}
-                        </button>
+                            <button 
+                                onClick={() => setIsAutopilot(!isAutopilot)}
+                                style={{ 
+                                background: isAutopilot ? 'rgba(197, 255, 65, 0.1)' : '#fff',
+                                color: isAutopilot ? '#C5FF41' : '#000',
+                                border: 'none', padding: '8px 16px', borderRadius: '12px', cursor: 'pointer', fontWeight: 700, fontSize: '12px'
+                                }}
+                            >
+                                {isAutopilot ? 'Take Over' : 'Enable Malvin'}
+                            </button>
                         </div>
 
                         {/* Message Feed */}
@@ -221,13 +245,14 @@ const Chats = ({ onBack, brandId, userBrand }: any) => {
                         </div>
                         {/* Input */}
                         <div style={{ padding: '20px', borderTop: '1px solid #222', display: 'flex', gap: '10px' }}>
-                        <input 
-                            placeholder="Type a message..." 
-                            style={{ flex: 1, background: '#111', border: '1px solid #333', color: 'white', borderRadius: '14px', padding: '12px', outline: 'none' }} 
-                        />
-                        <button style={{ background: '#C5FF41', color: 'black', border: 'none', padding: '0 20px', borderRadius: '14px', fontWeight: 800 }}>
-                            SEND
-                        </button>
+                            <input value={inputValue} onChange={(e) => setInputValue(e.target.value)}
+                                placeholder="Type a message..." 
+                                style={{ flex: 1, background: '#111', border: '1px solid #333', color: 'white', borderRadius: '14px', padding: '12px', outline: 'none' }} 
+                            />
+                            <button style={{ background: '#C5FF41', color: 'black', border: 'none', padding: '0 20px', borderRadius: '14px', fontWeight: 800 }}
+                            onClick={() => { handleManagerSend(inputValue); setInputValue(''); }}>
+                                SEND
+                            </button>
                         </div>
                     </div>
                     ) : (
