@@ -1700,7 +1700,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                     </div>
 
                     {/* 3. RIGHT */}
-                    <div className="Right-section" style={{ flex: 1, display: 'flex', borderRight: '1px solid #222', padding: '20px', gap: '10px', display: 'flex', flexDirection: 'column'}}>
+                    <div className="Right-section" style={{ flex: 1, borderRight: '1px solid #222', padding: '20px', gap: '10px', display: 'flex', flexDirection: 'column'}}>
                         <div style={{color: 'white'}}>Participants</div>
                         <div className="Right-top panel" style={{ width: '200px', height: '100px', 
                                 borderRight: '1px solid rgba(255, 255, 255, 0.1)', // Subtle white line
