@@ -27,8 +27,7 @@ const Chats = ({ onBack, userBrand }: any) => {
         if (!selectedChatId) return;
 
         const q = query(
-            collection(firestore, "conversations", selectedChatId, "messages"),
-            orderBy("timestamp", "asc")
+            collection(firestore, "conversations", selectedChatId, "messages")
         );
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -50,7 +49,7 @@ const Chats = ({ onBack, userBrand }: any) => {
         // Only show chats belonging to THIS manager's brand
         const q = query(
             collection(db, "conversations"), 
-            where("brandId", "==", userBrand?.id),
+            where("brandId", "==", String(userBrand?.id))
             orderBy("updatedAt", "desc")
         );
 
