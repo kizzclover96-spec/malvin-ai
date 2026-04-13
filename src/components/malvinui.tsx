@@ -507,10 +507,12 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
             
             const unsubscribe = onValue(userDbRef, (snapshot) => {
                 const data = snapshot.val();
+                console.log("📡 Raw Brand Data from DB:", data);
                 if (data) {
                     setUserBrand(prev => ({
                         ...prev,
-                        ...data 
+                        ...data,
+                        id: data.id || data.brandId || ""
                     }));
                 }
             });
@@ -531,6 +533,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     };
     
     const [userBrand, setUserBrand] = useState({
+        id: "",
         name: "Connecting...",
         context: "",
         profilePic: null,
