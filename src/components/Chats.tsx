@@ -16,7 +16,7 @@ const ChatCard = ({ children, style }: any) => (
     }}>{children}</div>
 );
 
-const Chats = ({ onBack, userBrand }: any) => {
+const Chats = ({ onBack, brandId, userBrand }: any) => {
     const [selectedChatId, setSelectedChatId] = useState<string | null>(null); // Change to string
     const [isAutopilot, setIsAutopilot] = useState(true);
     const [activeTab, setActiveTab] = useState('Chats');
@@ -39,6 +39,23 @@ const Chats = ({ onBack, userBrand }: any) => {
         return () => unsubscribe();
     }, [selectedChatId]);
     const [chats, setChats] = useState<any[]>([]);
+
+    useEffect(() => {
+        if (!brandId) return;
+
+        const q = query(
+            collection(firestore, "conversations"),
+            where("brandId", "==", brandId), // It now uses the UID we passed down
+            orderBy("updatedAt", "desc")
+        );
+
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            // ... your existing logic to set messages
+        });
+
+        return () => unsubscribe();
+    }, [brandId]);
+
     useEffect(() => {
         if (!userBrand || !userBrand?.id) {
             console.log("❌ Chats.tsx: userBrand.id is missing!");

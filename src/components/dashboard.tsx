@@ -131,7 +131,10 @@ const dashboard = (props: any) => {
                     </div>
                 </div>
                 {activeTab === 'Chats' ? (
-                    <Chats userBrand={userBrand} onBack={(targetTab: string) => setActiveTab(targetTab)} />
+                    <Chats userBrand={userBrand}
+                     onBack={(targetTab: string) => setActiveTab(targetTab)}
+                     brandId={auth.currentUser?.uid}
+                     userBrand={userBrand} />
                 ) : (
                     <div style={{ maxWidth: '1400px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
                         

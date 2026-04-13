@@ -508,13 +508,16 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
             const unsubscribe = onValue(userDbRef, (snapshot) => {
                 const data = snapshot.val();
                 console.log("📡 Raw Brand Data from DB:", data);
-                if (data) {
-                    setUserBrand(prev => ({
-                        ...prev,
-                        ...data,
-                        id: data.id || data.brandId || ""
-                    }));
-                }
+                
+                // Fallback: If no brand data exists, use the UID as the ID
+                const brandId = data?.id || data?.brandId || currentUser.uid;
+
+                setUserBrand(prev => ({
+                    ...prev,
+                    ...data, // This spreads existing data if it exists
+                    id: brandId, // Guarantees we have an ID for Chats.tsx
+                    name: data?.name || "CEO / Founder"
+                }));
             });
 
             return () => unsubscribe();
@@ -831,6 +834,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                         setUserBrand(updatedBrand);
                         setBrandData(updatedBrand); // If you still use brandData elsewhere
                         setActiveTab('Session');
+                        id: auth.currentUser?.uid
                     }}
                 />
             ) : activeTab === 'Memories' ? (
