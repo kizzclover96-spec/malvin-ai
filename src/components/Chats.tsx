@@ -27,7 +27,7 @@ const Chats = ({ onBack, userBrand }: any) => {
         if (!selectedChatId) return;
 
         const q = query(
-            collection(firestore, "conversations", selectedChatId, "messages")
+            collection(firestore, "conversations")
         );
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -53,7 +53,7 @@ const Chats = ({ onBack, userBrand }: any) => {
             orderBy("updatedAt", "desc")
         );
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
+        const unsubscribe = onSnapshot(q, { includeMetadataChanges: true }, (snapshot) => {
             const chatList = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
