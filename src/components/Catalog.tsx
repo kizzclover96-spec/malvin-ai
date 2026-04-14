@@ -12,12 +12,7 @@ const Catalog = ({ onBack, userBrand }: any) => {
             position: 'relative',
             overflowY: 'auto'
         }}>
-            <button 
-                onClick={onBack}
-                style={{ marginBottom: '40px', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer' }}
-            >
-                ← Back
-            </button>
+            
 
             <h1 style={{ fontSize: '40px', fontWeight: 700 }}>Product Catalog</h1>
             <p style={{ opacity: 0.5 }}>Manage the inventory for {userBrand?.name || 'your brand'}.</p>
