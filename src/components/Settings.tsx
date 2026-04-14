@@ -109,14 +109,34 @@ const Settings = ({ onBack, onSave, userBrand, setUserBrand, onUpdate }: any) =>
      setUserBrand({ name: newName, id: newName.toLowerCase().replace(/\s+/g, '-') });
     };
     const saveSettings = async () => {
-        // 1. Save to Database
-        const brandRef = ref(db, `users/${userBrand.id}/brandData`);
-        await set(brandRef, { ...userBrand, name: tempName });
+        try {
+            // Use the actual Auth UID so the path is ALWAYS the same
+            const userId = auth.currentUser?.uid;
+            if (!userId) return alert("No user found!");
 
-        // 2. Update the Parent (Malvinui) immediately!
-        onUpdate({ name: tempName });
-        
-        alert("Settings Saved!");
+            const brandRef = ref(db, `users/${userId}/brandData`);
+            
+            // Prepare the clean data object
+            const updatedData = { 
+                ...userBrand, 
+                name: tempName,
+                // We remove the status here since you're deleting the CEO options
+            };
+
+            // 1. Save to Firebase
+            await set(brandRef, updatedData);
+
+            // 2. Update the parent state so the UI changes immediately
+            onUpdate(updatedData); 
+            
+            // 3. Update the Settings local state
+            setUserBrand(updatedData);
+
+            alert("Neural Core Synced Successfully.");
+        } catch (error) {
+            console.error("Save failed:", error);
+            alert("Sync failed. Check console.");
+        }
     };
     useEffect(() => {
         localStorage.setItem('neural_user_brand', JSON.stringify(userBrand));
