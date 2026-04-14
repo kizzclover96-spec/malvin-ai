@@ -836,6 +836,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
            {/* CASE A: FULL SCREEN MEMORIES TAKEOVER */}
             {activeTab === 'Settings' ? (
                 <Settings 
+                    auth={auth}
                     userBrand={userBrand} 
                     setUserBrand={setUserBrand} 
                     onBack={() => setActiveTab('Session')} // Goes back to main view 

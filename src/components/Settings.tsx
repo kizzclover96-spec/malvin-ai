@@ -1,4 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { auth, db } from '../firebase'; 
+import { ref, set } from 'firebase/database';
 
 const premiumGold = "#FFD700";
 const glassStyle: React.CSSProperties = {
@@ -99,7 +101,7 @@ const AuraBackground = () => {
 `}
 </style>
 
-const Settings = ({ onBack, onSave, userBrand, setUserBrand, onUpdate }: any) => {
+const Settings = ({ onBack, onSave, userBrand, setUserBrand, onUpdate, auth }: any) => {
     const [tempName, setTempName] = useState(userBrand.name);
     const [tempBrand, setTempBrand] = useState(userBrand);
     const [name, setName] = useState('');
