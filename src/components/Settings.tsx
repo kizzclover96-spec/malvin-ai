@@ -110,17 +110,11 @@ const Settings = ({ onBack, onSave, userBrand, setUserBrand, onUpdate }: any) =>
     };
     const saveSettings = async () => {
         // 1. Save to Database
-        const brandRef = ref(db, `users/${auth.currentUser?.uid}/brandData`);
-        const updatedData = { 
-            ...userBrand, 
-            name: tempName, 
-            status: status // Save the status too
-        };
-        await set(brandRef, updatedData);
+        const brandRef = ref(db, `users/${userBrand.id}/brandData`);
+        await set(brandRef, { ...userBrand, name: tempName });
 
         // 2. Update the Parent (Malvinui) immediately!
-        onUpdate(updatedData);
-        setUserBrand(updatedData);
+        onUpdate({ name: tempName });
         
         alert("Settings Saved!");
     };
@@ -136,7 +130,6 @@ const Settings = ({ onBack, onSave, userBrand, setUserBrand, onUpdate }: any) =>
         { id: 'About us' },
     ];
 
-    const [status, setStatus] = useState(userBrand.status || 'CEO / Founder');
     
     return (
         <div style={{
@@ -261,18 +254,6 @@ const Settings = ({ onBack, onSave, userBrand, setUserBrand, onUpdate }: any) =>
                                             placeholder="Neural_Founder"
                                             style={{ width: '100%', background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', padding: '12px', borderRadius: '8px', color: 'white' }} 
                                         />
-                                    </div>
-                                    <div>
-                                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '8px' }}>User Status</label>
-                                        <select style={{ width: '100%', background: '#050505', border: '1px solid rgba(255,255,255,0.2)', padding: '12px', borderRadius: '8px', color: 'white' }}
-                                            value={status}
-                                            onChange={(e) => setStatus(e.target.value)}
-                                            style={{ width: '100%', background: '#050505', border: '1px solid rgba(255,255,255,0.2)', padding: '12px', borderRadius: '8px', color: 'white' }}
-                                        >
-                                            <option>CEO / Founder</option>
-                                            <option>Partnership</option>
-                                            <option>Operational Lead</option>
-                                        </select>
                                     </div>
                                 </div>
 
