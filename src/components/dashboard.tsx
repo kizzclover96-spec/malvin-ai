@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { auth } from "../firebase";
 import Chats from './Chats';
+import Catalog from './Catalog';
 // The "Salesforce-style" rounded containers from your image
 const DashboardCard = ({ children, style }: any) => (
   <div style={{
@@ -66,7 +67,7 @@ const dashboard = (props: any) => {
         : brandName.toLowerCase().replace(/\s+/g, '-');
     const shareUrl = `${window.location.origin}/chat/${auth.currentUser.uid}`;
     
-    const navItems = ['Estimates', 'Invoices', 'Payments', 'Chats', 'Checkouts'];
+    const navItems = ['Estimates', 'Invoices', 'Payments', 'Chats', 'Catalog'];
    
     return (
         <>
@@ -134,6 +135,11 @@ const dashboard = (props: any) => {
                     <Chats userBrand={userBrand}
                      onBack={(targetTab: string) => setActiveTab(targetTab)}
                      brandId={auth.currentUser?.uid}
+                    />
+                ) : activeTab === 'Catalog' && (
+                    <Catalog 
+                        userBrand={userBrand} 
+                        onBack={(targetTab: string) => setActiveTab(targetTab)}
                     />
                 ) : (
                     <div style={{ maxWidth: '1400px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
