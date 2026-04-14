@@ -133,13 +133,13 @@ const dashboard = (props: any) => {
                 </div>
                 {activeTab === 'Chats' ? (
                     <Chats userBrand={userBrand}
-                     onBack={(targetTab: string) => setActiveTab(targetTab)}
+                     onBack={() => setActiveTab('Invoices')}
                      brandId={auth.currentUser?.uid}
                     />
                 ) : activeTab === 'Catalog' && (
                     <Catalog 
                         userBrand={userBrand} 
-                        onBack={(targetTab: string) => setActiveTab(targetTab)}
+                        onBack={() => setActiveTab('Invoices')}
                     />
                 ) : (
                     <div style={{ maxWidth: '1400px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
