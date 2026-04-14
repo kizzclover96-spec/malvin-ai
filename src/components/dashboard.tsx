@@ -136,7 +136,7 @@ const dashboard = (props: any) => {
                      onBack={() => setActiveTab('Invoices')}
                      brandId={auth.currentUser?.uid}
                     />
-                ) : activeTab === 'Catalog' && (
+                ) : activeTab === 'Catalog' ? (
                     <Catalog 
                         userBrand={userBrand} 
                         onBack={() => setActiveTab('Invoices')}
