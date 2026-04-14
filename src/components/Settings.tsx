@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
 
-
 const premiumGold = "#FFD700";
 const glassStyle: React.CSSProperties = {
     background: 'rgba(255, 255, 255, 0.03)',
@@ -111,11 +110,17 @@ const Settings = ({ onBack, onSave, userBrand, setUserBrand, onUpdate }: any) =>
     };
     const saveSettings = async () => {
         // 1. Save to Database
-        const brandRef = ref(db, `users/${userBrand.id}/brandData`);
-        await set(brandRef, { ...userBrand, name: tempName });
+        const brandRef = ref(db, `users/${auth.currentUser?.uid}/brandData`);
+        const updatedData = { 
+            ...userBrand, 
+            name: tempName, 
+            status: status // Save the status too
+        };
+        await set(brandRef, updatedData);
 
         // 2. Update the Parent (Malvinui) immediately!
-        onUpdate({ name: tempName });
+        onUpdate(updatedData);
+        setUserBrand(updatedData);
         
         alert("Settings Saved!");
     };
@@ -131,6 +136,7 @@ const Settings = ({ onBack, onSave, userBrand, setUserBrand, onUpdate }: any) =>
         { id: 'About us' },
     ];
 
+    const [status, setStatus] = useState(userBrand.status || 'CEO / Founder');
     
     return (
         <div style={{
@@ -258,7 +264,11 @@ const Settings = ({ onBack, onSave, userBrand, setUserBrand, onUpdate }: any) =>
                                     </div>
                                     <div>
                                         <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '8px' }}>User Status</label>
-                                        <select style={{ width: '100%', background: '#050505', border: '1px solid rgba(255,255,255,0.2)', padding: '12px', borderRadius: '8px', color: 'white' }}>
+                                        <select style={{ width: '100%', background: '#050505', border: '1px solid rgba(255,255,255,0.2)', padding: '12px', borderRadius: '8px', color: 'white' }}
+                                            value={status}
+                                            onChange={(e) => setStatus(e.target.value)}
+                                            style={{ width: '100%', background: '#050505', border: '1px solid rgba(255,255,255,0.2)', padding: '12px', borderRadius: '8px', color: 'white' }}
+                                        >
                                             <option>CEO / Founder</option>
                                             <option>Partnership</option>
                                             <option>Operational Lead</option>
@@ -326,7 +336,7 @@ const Settings = ({ onBack, onSave, userBrand, setUserBrand, onUpdate }: any) =>
                                 <div>
                                     <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '8px' }}>Brand Name</label>
                                     <input 
-                                        value={tempName} 
+                                        value={tempName}
                                         onChange={(e) => setTempName(e.target.value)}
                                         style={{ width: '100%', background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', padding: '12px', borderRadius: '8px', color: 'white', outline: 'none' }} 
                                         placeholder="e.g. Malvin Studio"
