@@ -74,7 +74,7 @@ const Catalog = ({ onBack, userBrand }: any) => {
             
             {/* Header Area */}
             <div style={{ marginBottom: '40px' }}>
-                <h1 style={{ fontSize: '40px', fontWeight: 700, margin: 0 }}>Inventory_Manage</h1>
+                <h1 style={{ fontSize: '40px', fontWeight: 700, margin: 0 }}>Inventory_Management</h1>
                 <p style={{ opacity: 0.5 }}>Core assets for {userBrand?.name}.</p>
             </div>
 
@@ -84,6 +84,8 @@ const Catalog = ({ onBack, userBrand }: any) => {
                     onClick={() => setShowModal(true)} 
                     style={fabStyle}
                     title="Add Item"
+                    onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
+                    onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
                 >
                     +
                 </button>
@@ -93,9 +95,9 @@ const Catalog = ({ onBack, userBrand }: any) => {
                 {!loading && products.length === 0 && (
                     <div style={emptyStateStyle}>
                         <div style={{ fontSize: '50px' }}>📦</div>
-                        <h3>No Products Detected</h3>
-                        <p style={{opacity: 0.5, marginBottom: '20px'}}>Initialize your neural catalog to begin.</p>
-                        <button onClick={() => setShowModal(true)} style={{...primaryBtn, maxWidth: '200px', margin: '0 auto'}}>+ Initialize Item</button>
+                        <h3>No Products Available</h3>
+                        <p style={{opacity: 0.5, marginBottom: '20px'}}>Add products to catalog to begin.</p>
+                        <button onClick={() => setShowModal(true)} style={{...primaryBtn, maxWidth: '200px', margin: '0 auto'}}>+ Add Product</button>
                     </div>
                 )}
 
@@ -188,11 +190,15 @@ const Catalog = ({ onBack, userBrand }: any) => {
 
 // --- UPDATED STYLES ---
 const fabStyle = {
-    position: 'fixed' as 'fixed', bottom: '40px', right: '40px',
-    width: '60px', height: '60px', borderRadius: '50%',
-    background: '#C5FF41', color: 'black', border: 'none',
-    fontSize: '30px', fontWeight: 'bold', cursor: 'pointer',
-    boxShadow: '0 10px 30px rgba(197, 255, 65, 0.3)', zIndex: 100
+    position: 'fixed' as 'fixed', bottom: '20px', right: '40px',
+    background: 'none', color: '#C5FF41', border: 'none',
+    fontSize: '80px', fontWeight: '300', cursor: 'pointer',
+    zIndex: 100,
+    lineHeight: '1',
+    transition: 'transform 0.2s ease, opacity 0.2s ease',
+    outline: 'none',
+    // Slight glow effect to make the raw + pop against the black
+    textShadow: '0 0 20px rgba(197, 255, 65, 0.4)'
 };
 
 const cardStyle = { 
@@ -222,7 +228,7 @@ const detailModalStyle = {
     boxShadow: '0 50px 100px rgba(0,0,0,0.8)'
 };
 
-const gridStyle = { display: 'flex', flexWrap: 'wrap' as 'wrap', gap: '24px', marginTop: '40px' };
+const gridStyle = { display: 'flex', flexWrap: 'wrap' as 'wrap', gap: '24px', marginTop: '40px', justifyContent: 'flex-start' };
 const modalOverlay = { position: 'fixed' as 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(12px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 };
 const glassModal = { background: 'rgba(25, 25, 25, 0.95)', border: '1px solid rgba(255,255,255,0.1)', padding: '40px', borderRadius: '32px', width: '420px' };
 const inputStyle = { width: '100%', backgroundColor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '12px', color: 'white', marginBottom: '20px', outline: 'none', boxSizing: 'border-box' as 'border-box' };
