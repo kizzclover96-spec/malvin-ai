@@ -3,13 +3,66 @@ import { auth, db } from '../firebase';
 import { ref, onValue, push, set } from "firebase/database";
 
 const Payments = () => {
-    const [balance, setBalance] = useState(12500.00); // Simulated balance
-    const [transactions, setTransactions] = useState([
-        { id: 1, type: 'Inflow', amount: 5000, label: 'Neural_Funding_Swift', date: '24 APR', status: 'Cleared' },
-        { id: 2, type: 'Outflow', amount: 1200, label: 'Ad_Campaign_Summer_Drop', date: '22 APR', status: 'Settled' },
-        { id: 3, type: 'Fee', amount: 120, label: 'Neural_Bridge_Processing', date: '22 APR', status: 'Settled' },
-    ]);
+    const [balance, setBalance] = useState(0.00); 
+    const [transactions, setTransactions] = useState<any[]>([]);
     const [showFundingModal, setShowFundingModal] = useState(false);
+    const [fundingAmount, setFundingAmount] = useState('');
+
+    const userId = auth.currentUser?.uid;
+
+    // --- 1. SYNC WITH FIREBASE ---
+    useEffect(() => {
+        if (!userId) return;
+
+        // Listen for Balance updates
+        const balanceRef = ref(db, `users/${userId}/treasury/balance`);
+        onValue(balanceRef, (snapshot) => {
+            setBalance(snapshot.val() || 0);
+        });
+
+        // Listen for Transaction history
+        const ledgerRef = ref(db, `users/${userId}/treasury/ledger`);
+        onValue(ledgerRef, (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                const list = Object.keys(data).map(k => ({ id: k, ...data[k] }));
+                // Sort by timestamp descending
+                setTransactions(list.sort((a, b) => b.timestamp - a.timestamp));
+            }
+        });
+    }, [userId]);
+
+    // --- 2. LOGIC: REQUEST FUNDING ---
+    const handleFundingRequest = async () => {
+        if (!userId || !fundingAmount || parseFloat(fundingAmount) <= 0) return;
+
+        const ledgerRef = ref(db, `users/${userId}/treasury/ledger`);
+        
+        const newRequest = {
+            type: 'Inflow',
+            amount: parseFloat(fundingAmount),
+            label: 'Funding_Request_Initiated',
+            date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }).toUpperCase(),
+            status: 'Pending_Wire',
+            timestamp: Date.now()
+        };
+
+        try {
+            await push(ledgerRef, newRequest);
+            // Also push to a global admin queue for your worker
+            await push(ref(db, `admin/pending_wires`), {
+                ...newRequest,
+                userId: userId,
+                userEmail: auth.currentUser?.email
+            });
+
+            setFundingAmount('');
+            setShowFundingModal(false);
+            alert("NEURAL_TREASURY: Request Logged. Status: Awaiting Wire.");
+        } catch (error) {
+            console.error("Funding error:", error);
+        }
+    };
 
     return (
         <div style={{ padding: '20px', color: 'white' }}>
@@ -24,18 +77,20 @@ const Payments = () => {
                 <div style={liquidityCard}>
                     <div style={{ opacity: 0.4, fontSize: '12px', letterSpacing: '2px' }}>CURRENT_LIQUIDITY</div>
                     <div style={{ fontSize: '48px', fontWeight: 700, margin: '20px 0', color: '#C5FF41' }}>
-                        €{balance.toLocaleString()}
+                        €{balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                     </div>
+                    
                     <div style={{ padding: '15px', background: 'rgba(255,255,255,0.03)', borderRadius: '16px', marginBottom: '30px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '10px' }}>
                             <span style={{ opacity: 0.5 }}>Reserved for Ads</span>
-                            <span>€4,200.00</span>
+                            <span>€0.00</span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
                             <span style={{ opacity: 0.5 }}>Available Credit</span>
-                            <span>€8,300.00</span>
+                            <span>€{balance.toLocaleString()}</span>
                         </div>
                     </div>
+
                     <button onClick={() => setShowFundingModal(true)} style={fundingBtn}>
                         Request_Funding_Invoice
                     </button>
@@ -47,12 +102,15 @@ const Payments = () => {
                         NEURAL_LEDGER
                     </div>
                     <div style={{ maxHeight: '500px', overflowY: 'auto' }}>
-                        {transactions.map(t => (
+                        {transactions.length === 0 ? (
+                            <div style={{ padding: '40px', textAlign: 'center', opacity: 0.3 }}>No transaction history found.</div>
+                        ) : transactions.map(t => (
                             <div key={t.id} style={transactionRow}>
                                 <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
                                     <div style={{ 
                                         width: '8px', height: '8px', borderRadius: '50%', 
-                                        background: t.type === 'Inflow' ? '#C5FF41' : '#ff4d4d' 
+                                        background: t.status === 'Pending_Wire' ? '#FFA500' : (t.type === 'Inflow' ? '#C5FF41' : '#ff4d4d'),
+                                        boxShadow: t.status === 'Pending_Wire' ? '0 0 10px #FFA500' : 'none'
                                     }} />
                                     <div>
                                         <div style={{ fontSize: '14px' }}>{t.label}</div>
@@ -73,10 +131,16 @@ const Payments = () => {
                 <div style={modalOverlay}>
                     <div style={fundingModal}>
                         <h2 style={{ marginTop: 0 }}>Funding_Request</h2>
-                        <p style={{ opacity: 0.5, fontSize: '13px' }}>Enter the amount you wish to credit to your account. Our treasury team will provide manual wire instructions.</p>
+                        <p style={{ opacity: 0.5, fontSize: '13px' }}>Enter the amount you wish to credit. Our treasury team will provide manual wire instructions.</p>
                         
                         <label style={labelStyle}>Amount to Fund (EUR)</label>
-                        <input style={inputStyle} type="number" placeholder="e.g. 5000" />
+                        <input 
+                            style={inputStyle} 
+                            type="number" 
+                            placeholder="e.g. 5000" 
+                            value={fundingAmount}
+                            onChange={(e) => setFundingAmount(e.target.value)}
+                        />
                         
                         <div style={instructionBox}>
                             <div style={{ color: '#C5FF41', fontWeight: 700, marginBottom: '10px', fontSize: '12px' }}>WIRE_INSTRUCTIONS:</div>
@@ -84,12 +148,12 @@ const Payments = () => {
                                 BANK: NEURAL_RESERVE_INTL<br/>
                                 SWIFT: NRALBE22<br/>
                                 IBAN: BE96 0012 3456 7890<br/>
-                                REF: {auth.currentUser?.uid.substring(0, 8).toUpperCase()}
+                                REF: {userId?.substring(0, 8).toUpperCase()}
                             </div>
                         </div>
 
                         <div style={{ display: 'flex', gap: '12px' }}>
-                            <button onClick={() => setShowFundingModal(false)} style={primaryBtn}>Confirm_Request</button>
+                            <button onClick={handleFundingRequest} style={primaryBtn}>Confirm_Request</button>
                             <button onClick={() => setShowFundingModal(false)} style={secondaryBtn}>Cancel</button>
                         </div>
                     </div>
@@ -99,7 +163,7 @@ const Payments = () => {
     );
 };
 
-// --- STYLES ---
+// ... Styles (Keep as you had them)
 const liquidityCard = {
     background: 'linear-gradient(145deg, #111, #080808)',
     padding: '40px',

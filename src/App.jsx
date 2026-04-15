@@ -6,6 +6,7 @@ import Welcomeview from "./pages/welcomeview";
 import Malvinui from "./components/malvinui"; 
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import CustomerChat from './components/CustomerChat';
+import AdsManager from "./components/AdsManagment";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -25,6 +26,7 @@ function App() {
     return <div style={{ backgroundColor: '#000', height: '100vh' }} />;
   }
 
+  const isAdmin = user?.email === 'kizzclover96@gmail.com';
   return (
     <Router>
       <div className="App" style={{ minHeight: '100vh' }}>
@@ -36,6 +38,8 @@ function App() {
           <Route path="/" element={
             !user ? (
               <Login />
+            ) : isAdmin ? (
+              <AdsManager />
             ) : !hasWokenUp ? (
               <Welcomeview 
                 userEmail={user.email} 
