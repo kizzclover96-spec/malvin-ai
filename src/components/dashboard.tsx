@@ -3,7 +3,7 @@ import { auth } from "../firebase";
 import Chats from './Chats';
 import Catalog from './Catalog';
 import AdsManager from './AdsManager';
-import Payments fro'./Payments';
+import Payments from'./Payments';
 // The "Salesforce-style" rounded containers from your image
 const DashboardCard = ({ children, style }: any) => (
   <div style={{
