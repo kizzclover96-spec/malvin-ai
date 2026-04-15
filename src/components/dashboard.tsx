@@ -3,6 +3,7 @@ import { auth } from "../firebase";
 import Chats from './Chats';
 import Catalog from './Catalog';
 import AdsManager from './AdsManager';
+import Payments fro'./Payments';
 // The "Salesforce-style" rounded containers from your image
 const DashboardCard = ({ children, style }: any) => (
   <div style={{
@@ -111,24 +112,24 @@ const dashboard = (props: any) => {
                         border: '1px solid #222',
                         boxShadow: '0 4px 20px rgba(0,0,0,0.5)'
                         }}>
-                        {navItems.map(item => (
-                            <div 
-                            key={item}
-                            onClick={() => setActiveTab(item)}
-                            style={{
-                                padding: '10px 24px',
-                                borderRadius: '30px',
-                                fontSize: '13px',
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                                backgroundColor: activeTab === item ? '#C5FF41' : 'transparent',
-                                color: activeTab === item ? 'black' : '#666',
-                                transition: '0.3s'
-                            }}
-                            >
-                            {item}
-                            </div>
-                        ))}
+                            {navItems.map(item => (
+                                <div 
+                                key={item}
+                                onClick={() => setActiveTab(item)}
+                                style={{
+                                    padding: '10px 24px',
+                                    borderRadius: '30px',
+                                    fontSize: '13px',
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                    backgroundColor: activeTab === item ? '#C5FF41' : 'transparent',
+                                    color: activeTab === item ? 'black' : '#666',
+                                    transition: '0.3s'
+                                }}
+                                >
+                                {item}
+                                </div>
+                            ))}
                         </div>
                     </div>
                 </div>
@@ -143,6 +144,11 @@ const dashboard = (props: any) => {
                     />
                 ) : activeTab === 'Catalog' ? (
                     <Catalog 
+                        userBrand={userBrand} 
+                        onBack={() => setActiveTab('Invoices')}
+                    />
+                ) : activeTab === 'Payments' ? (
+                    <Payments 
                         userBrand={userBrand} 
                         onBack={() => setActiveTab('Invoices')}
                     />
