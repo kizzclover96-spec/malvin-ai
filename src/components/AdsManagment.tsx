@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { db, auth } from './firebase';
+import { auth, db } from '../firebase';
 import { ref, onValue, update } from "firebase/database";
 
 const AdsManager = () => {
