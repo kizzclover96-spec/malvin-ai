@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { auth, db } from '../firebase';
+import { signOut } from 'firebase/auth';
 import { ref, onValue, update, runTransaction } from "firebase/database";
 
 const glassStyle: React.CSSProperties = {
@@ -90,6 +91,7 @@ const AdsManager = () => {
     const [pendingRequests, setPendingRequests] = useState<any[]>([]);
     const [selectedUser, setSelectedUser] = useState<any>(null);
     const [editBalance, setEditBalance] = useState('');
+    const [editBrandName, setEditBrandName] = useState('');
 
     useEffect(() => {
         // 1. Fetch ALL Users
@@ -111,20 +113,30 @@ const AdsManager = () => {
         });
     }, []);
 
+    const handleLogout = () => signOut(auth);
     // --- LOGIC: CLEAR FUNDS ---
     const clearFunds = async (req: any) => {
         const userBalanceRef = ref(db, `users/${req.userId}/treasury/balance`);
-        
-        // Update User Balance
         await runTransaction(userBalanceRef, (current) => (current || 0) + req.amount);
-
-        // Mark ledger entry as settled
         await update(ref(db, `users/${req.userId}/treasury/ledger/${req.id}`), { status: 'Settled' });
-
-        // Remove from admin queue
         await update(ref(db, `admin/pending_wires/${req.id}`), null);
+        alert(`Funds Cleared`);
+    };
+
+    const handleSaveChanges = async () => {
+        if (!selectedUser) return;
+        const updates: any = {};
+        if (editBrandName) updates[`users/${selectedUser.uid}/brandName`] = editBrandName;
+        if (editBalance) updates[`users/${selectedUser.uid}/treasury/balance`] = parseFloat(editBalance);
         
-        alert(`Funds Cleared for ${req.userEmail}`);
+        await update(ref(db), updates);
+        alert("Account Updated.");
+    };
+
+    const toggleAccountStatus = async () => {
+        const newStatus = selectedUser.status === 'Banned' ? 'Active' : 'Banned';
+        await update(ref(db, `users/${selectedUser.uid}`), { status: newStatus });
+        alert(`User is now ${newStatus}`);
     };
 
     // --- LOGIC: MANUAL OVERRIDE ---
@@ -140,25 +152,29 @@ const AdsManager = () => {
         <div style={adminLayout}>
             <AuraBackground />
             <header style={headerStyle}>
-                <h1 style={{ fontSize: '24px', letterSpacing: '2px', position: 'relative' }}>MALVIN_ADMIN_CENTER</h1>
-                <div style={badge}>SYSTEM_ADMIN</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '20px', position: 'relative' }}>
+                    <h1 style={{ fontSize: '24px', letterSpacing: '2px', margin: 0 }}>MALVIN_ADMIN</h1>
+                    <div style={badge}>SYSTEM_ADMIN</div>
+                </div>
+                <button onClick={handleLogout} style={logoutBtn}>LOGOUT</button>
             </header>
             
             <div style={{ display: 'grid', gridTemplateColumns: '350px 1fr 400px', gap: '24px', position: 'relative' }}>
                 
                 {/* --- LEFT: USER DIRECTORY --- */}
                 <section style={panelStyle}>
-                    <h3 style={sectionTitle}>REGISTERED_USERS</h3>
+                    <h3 style={sectionTitle}>USER_DATABASE</h3>
                     <div style={{ maxHeight: '70vh', overflowY: 'auto' }}>
                         {users.map(u => (
                             <div key={u.uid} 
-                                 onClick={() => setSelectedUser(u)}
+                                onClick={() => { setSelectedUser(u); setEditBrandName(u.brandName || ''); setEditBalance(u.treasury?.balance || ''); }}
                                  style={{...userCard, border: selectedUser?.uid === u.uid ? '1px solid #C5FF41' : '1px solid transparent'}}>
-                                <div style={{fontWeight: 600}}>{u.brandName || 'Unnamed Brand'}</div>
-                                <div style={{fontSize: '11px', opacity: 0.5}}>{u.email}</div>
-                                <div style={{fontSize: '12px', color: '#C5FF41', marginTop: '5px'}}>
-                                    €{u.treasury?.balance?.toLocaleString() || '0.00'}
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span style={{fontWeight: 600}}>{u.brandName || 'New User'}</span>
+                                    {u.status === 'Banned' && <span style={{color: '#ff4d4d', fontSize: '10px'}}>BANNED</span>}
                                 </div>
+                                <div style={{fontSize: '11px', opacity: 0.5}}>{u.email}</div>
+                                <div style={{fontSize: '12px', color: '#C5FF41', marginTop: '5px'}}>€{u.treasury?.balance || 0}</div>
                             </div>
                         ))}
                     </div>
@@ -187,30 +203,41 @@ const AdsManager = () => {
                 </section>
                 {/* --- RIGHT: USER EDITOR --- */}
                 <section style={panelStyle}>
-                    <h3 style={sectionTitle}>USER_EDITOR</h3>
+                    <h3 style={sectionTitle}>ACCOUNT_MODERATOR</h3>
                     {selectedUser ? (
                         <div>
                             <div style={{marginBottom: '20px'}}>
-                                <label style={labelStyle}>BRAND_NAME</label>
-                                <input style={inputStyle} defaultValue={selectedUser.brandName} />
+                                <label style={labelStyle}>BRAND_IDENTITY</label>
+                                <input 
+                                    style={inputStyle} 
+                                    value={editBrandName} 
+                                    onChange={(e) => setEditBrandName(e.target.value)}
+                                />
                             </div>
                             <div style={{marginBottom: '20px'}}>
-                                <label style={labelStyle}>MANUAL_BALANCE_OVERRIDE</label>
+                                <label style={labelStyle}>TREASURY_LIQUIDITY (EUR)</label>
                                 <input 
                                     style={inputStyle} 
                                     type="number" 
-                                    placeholder={selectedUser.treasury?.balance}
+                                    value={editBalance}
                                     onChange={(e) => setEditBalance(e.target.value)}
                                 />
-                                <button onClick={updateManualBalance} style={{...approveBtn, width: '100%', marginTop: '10px'}}>SAVE_CHANGES</button>
                             </div>
+
+                            <button onClick={handleSaveChanges} style={{...approveBtn, width: '100%', marginBottom: '10px'}}>APPLY_CHANGES</button>
+                            <button onClick={toggleAccountStatus} style={secondaryBtn}>
+                                {selectedUser.status === 'Banned' ? 'UNBAN_USER' : 'BAN_ACCOUNT'}
+                            </button>
+
                             <div style={statusBox}>
-                                <div style={{fontSize: '10px', opacity: 0.5}}>USER_ID</div>
-                                <div style={{fontSize: '10px', fontFamily: 'monospace'}}>{selectedUser.uid}</div>
+                                <label style={labelStyle}>NEURAL_METADATA</label>
+                                <p style={{fontSize: '11px', margin: '5px 0'}}>UID: {selectedUser.uid}</p>
+                                <p style={{fontSize: '11px', margin: '5px 0'}}>Email: {selectedUser.email}</p>
+                                <p style={{fontSize: '11px', margin: '5px 0'}}>Brand: {selectedUser.brandName}</p>
                             </div>
                         </div>
                     ) : (
-                        <p style={{opacity: 0.3, textAlign: 'center', marginTop: '40px'}}>Select a user to edit</p>
+                        <p style={{opacity: 0.3, textAlign: 'center', marginTop: '40px'}}>Select a user to modify</p>
                     )}
                 </section>
 
@@ -231,5 +258,7 @@ const approveBtn: React.CSSProperties = { background: '#C5FF41', color: '#000', 
 const inputStyle: React.CSSProperties = { width: '100%', background: '#000', border: '1px solid #222', padding: '12px', borderRadius: '8px', color: '#fff', marginTop: '5px' };
 const labelStyle: React.CSSProperties = { fontSize: '10px', opacity: 0.5 };
 const statusBox: React.CSSProperties = { marginTop: '30px', padding: '15px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px' };
+const logoutBtn: React.CSSProperties = { background: 'transparent', border: '1px solid #ff4d4d', color: '#ff4d4d', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '11px', fontWeight: 700 };
+const secondaryBtn: React.CSSProperties = { background: 'transparent', color: '#ff4d4d', border: '1px solid #ff4d4d', width: '100%', padding: '10px', borderRadius: '8px', cursor: 'pointer' };
 
 export default AdsManager;
