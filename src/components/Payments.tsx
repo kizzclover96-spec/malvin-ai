@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { auth, db } from '../firebase';
 import { ref, onValue, push, set } from "firebase/database";
 
-const Payments = () => {
+const Payments = ({ userBrand }: { userBrand: any }) => {
     const [balance, setBalance] = useState(0.00); 
     const [transactions, setTransactions] = useState<any[]>([]);
     const [showFundingModal, setShowFundingModal] = useState(false);
@@ -45,13 +45,12 @@ const Payments = () => {
             timestamp: Date.now(),
             userId: userId,
             userEmail: auth.currentUser?.email || "N/A",
-            brandName: userBrand?.name || "Unknown Brand" // Add this so Admin sees who it is!
+            // NOW THIS WORKS:
+            brandName: userBrand?.name || "Unknown Brand" 
         };
 
         try {
-            // 1. Log in user's ledger
             await push(ref(db, `users/${userId}/treasury/ledger`), requestData);
-            // 2. Push to global Admin Queue
             await push(ref(db, `admin/pending_wires`), requestData);
 
             setFundingAmount('');

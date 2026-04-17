@@ -54,15 +54,14 @@ const BackButton = ({ onClick }: { onClick: () => void }) => (
     </div>
 );
 
-const dashboard = (props: any) => {
+const dashboard = (props) => {
     const user = auth.currentUser;
-    const onBack = props.onBack;
-    const userBrand = props.userBrand;
+    const { userBrand = {}, onBack } = props;
     console.log("All Props received:", props); // This will show you EVERYTHING being sent
     const [activeTab, setActiveTab] = useState('Invoices');
     const [isAutopilot, setIsAutopilot] = useState(true);
     console.log("Dashboard Props:", userBrand);
-    const brandName = String(userBrand?.name || "default");
+    const brandName = userBrand?.name || "default";
 
     const userBrandId = (typeof userBrand !== 'undefined' && userBrand?.id) 
         ? userBrand.id 
@@ -141,15 +140,19 @@ const dashboard = (props: any) => {
                 ) : activeTab === 'Ads' ? (
                     <AdsManager userBrand={userBrand} 
                      onBack={() => setActiveTab('Invoices')}
+                     userBrand={userBrand}
+                     brandName={userBrand.name}
                     />
                 ) : activeTab === 'Catalog' ? (
                     <Catalog 
                         userBrand={userBrand} 
+                        brandName={userBrand.name}
                         onBack={() => setActiveTab('Invoices')}
                     />
                 ) : activeTab === 'Payments' ? (
                     <Payments 
                         userBrand={userBrand} 
+                        brandName={userBrand.name}
                         onBack={() => setActiveTab('Invoices')}
                     />
                 ) : (
