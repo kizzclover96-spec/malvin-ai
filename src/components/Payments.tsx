@@ -34,33 +34,31 @@ const Payments = () => {
 
     // --- 2. LOGIC: REQUEST FUNDING ---
     const handleFundingRequest = async () => {
-        if (!userId || !fundingAmount || parseFloat(fundingAmount) <= 0) return;
+        if (!userId || !fundingAmount) return;
 
-        const ledgerRef = ref(db, `users/${userId}/treasury/ledger`);
-        
-        const newRequest = {
+        const requestData = {
             type: 'Inflow',
             amount: parseFloat(fundingAmount),
             label: 'Funding_Request_Initiated',
             date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }).toUpperCase(),
             status: 'Pending_Wire',
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            userId: userId,
+            userEmail: auth.currentUser?.email || "N/A",
+            brandName: userBrand?.name || "Unknown Brand" // Add this so Admin sees who it is!
         };
 
         try {
-            await push(ledgerRef, newRequest);
-            // Also push to a global admin queue for your worker
-            await push(ref(db, `admin/pending_wires`), {
-                ...newRequest,
-                userId: userId,
-                userEmail: auth.currentUser?.email
-            });
+            // 1. Log in user's ledger
+            await push(ref(db, `users/${userId}/treasury/ledger`), requestData);
+            // 2. Push to global Admin Queue
+            await push(ref(db, `admin/pending_wires`), requestData);
 
             setFundingAmount('');
             setShowFundingModal(false);
-            alert("NEURAL_TREASURY: Request Logged. Status: Awaiting Wire.");
-        } catch (error) {
-            console.error("Funding error:", error);
+            alert("REQUEST_SENT: Awaiting Admin Verification.");
+        } catch (e) {
+            console.error(e);
         }
     };
 

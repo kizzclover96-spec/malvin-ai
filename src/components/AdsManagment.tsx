@@ -99,7 +99,15 @@ const AdsManager = () => {
         onValue(usersRef, (snapshot) => {
             const data = snapshot.val();
             if (data) {
-                setUsers(Object.keys(data).map(k => ({ uid: k, ...data[k] })));
+                const formattedUsers = Object.keys(data).map(k => ({
+                    uid: k,
+                    // Fallback to "Unknown" or the UID itself if name is missing
+                    brandName: data[k].brandName || data[k].name || "No Brand Name",
+                    email: data[k].email || "No Email",
+                    status: data[k].status || 'Active',
+                    treasury: data[k].treasury || { balance: 0 }
+                }));
+                setUsers(formattedUsers);
             }
         });
 
@@ -116,11 +124,30 @@ const AdsManager = () => {
     const handleLogout = () => signOut(auth);
     // --- LOGIC: CLEAR FUNDS ---
     const clearFunds = async (req: any) => {
-        const userBalanceRef = ref(db, `users/${req.userId}/treasury/balance`);
-        await runTransaction(userBalanceRef, (current) => (current || 0) + req.amount);
-        await update(ref(db, `users/${req.userId}/treasury/ledger/${req.id}`), { status: 'Settled' });
-        await update(ref(db, `admin/pending_wires/${req.id}`), null);
-        alert(`Funds Cleared`);
+        try {
+            // 1. Update the User's Balance
+            const userBalanceRef = ref(db, `users/${req.userId}/treasury/balance`);
+            await runTransaction(userBalanceRef, (current) => (current || 0) + req.amount);
+
+            // 2. Remove from Global Admin Queue
+            await update(ref(db, `admin/pending_wires/${req.id}`), null);
+            
+            // 3. Note: Since the ID in 'admin' is different from the ID in the 'user ledger',
+            // it's often easier to just push a NEW "Settled" entry to the user's ledger 
+            // rather than trying to find the old "Pending" one.
+            await push(ref(db, `users/${req.userId}/treasury/ledger`), {
+                type: 'Inflow',
+                amount: req.amount,
+                label: 'Wire_Transfer_Settled',
+                date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }).toUpperCase(),
+                status: 'Completed',
+                timestamp: Date.now()
+            });
+
+            alert(`Funds (€${req.amount}) successfully cleared for ${req.userEmail}`);
+        } catch (err) {
+            console.error("Clear Funds Error:", err);
+        }
     };
 
     const handleSaveChanges = async () => {
@@ -147,6 +174,8 @@ const AdsManager = () => {
         });
         alert("Balance Updated Manually");
     };
+
+    
 
     return (
         <div style={adminLayout}>
