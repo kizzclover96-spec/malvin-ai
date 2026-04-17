@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { auth, db } from '../firebase';
 import { signOut } from 'firebase/auth';
-import { ref, onValue, update, runTransaction } from "firebase/database";
+import { ref, onValue, update, runTransaction, push, child } from "firebase/database";
 
 const glassStyle: React.CSSProperties = {
     background: 'rgba(255, 255, 255, 0.03)',
@@ -125,28 +125,36 @@ const AdsManager = () => {
     // --- LOGIC: CLEAR FUNDS ---
     const clearFunds = async (req: any) => {
         try {
-            // 1. Update the User's Balance
+            // A. Update the User's Balance (Keep runTransaction for safety with numbers)
             const userBalanceRef = ref(db, `users/${req.userId}/treasury/balance`);
             await runTransaction(userBalanceRef, (current) => (current || 0) + req.amount);
 
-            // 2. Remove from Global Admin Queue
-            await update(ref(db, `admin/pending_wires/${req.id}`), null);
+            // B. Use a multi-path update to delete from admin AND add to ledger
+            // First, generate a new key for the ledger entry
+            const newLedgerKey = push(child(ref(db), `users/${req.userId}/treasury/ledger`)).key;
+
+            const updates: any = {};
             
-            // 3. Note: Since the ID in 'admin' is different from the ID in the 'user ledger',
-            // it's often easier to just push a NEW "Settled" entry to the user's ledger 
-            // rather than trying to find the old "Pending" one.
-            await push(ref(db, `users/${req.userId}/treasury/ledger`), {
+            // Path 1: Delete from Admin Queue (setting to null in an object deletes it)
+            updates[`admin/pending_wires/${req.id}`] = null;
+            
+            // Path 2: Add to User Ledger
+            updates[`users/${req.userId}/treasury/ledger/${newLedgerKey}`] = {
                 type: 'Inflow',
                 amount: req.amount,
                 label: 'Wire_Transfer_Settled',
                 date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }).toUpperCase(),
                 status: 'Completed',
                 timestamp: Date.now()
-            });
+            };
+
+            // Execute both simultaneously
+            await update(ref(db), updates);
 
             alert(`Funds (€${req.amount}) successfully cleared for ${req.userEmail}`);
         } catch (err) {
             console.error("Clear Funds Error:", err);
+            alert("System Error: Check console for permission/syntax details.");
         }
     };
 
