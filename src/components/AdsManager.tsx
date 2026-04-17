@@ -51,6 +51,7 @@ const AdsManager = ({ userBrand }: any) => {
 
     const deployCampaign = async () => {
         const userId = auth.currentUser?.uid;
+        const userEmail = auth.currentUser?.email;
         if (!userId || !newAd.title || !newAd.budget) return;
 
         // --- 2. CHECK INSUFFICIENT BALANCE ---
