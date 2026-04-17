@@ -92,6 +92,7 @@ const AdsManager = () => {
     const [selectedUser, setSelectedUser] = useState<any>(null);
     const [editBalance, setEditBalance] = useState('');
     const [editBrandName, setEditBrandName] = useState('');
+    const [adRequests, setAdRequests] = useState<any[]>([]);
 
     useEffect(() => {
         // 1. Fetch ALL Users
@@ -117,6 +118,17 @@ const AdsManager = () => {
             const data = snapshot.val();
             if (data) {
                 setPendingRequests(Object.keys(data).map(k => ({ id: k, ...data[k] })));
+            }
+        });
+
+        // 3. Fetch Global Ad Queue
+        const adQueueRef = ref(db, `admin/ad_queue`);
+        onValue(adQueueRef, (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                setAdRequests(Object.keys(data).map(k => ({ id: k, ...data[k] })));
+            } else {
+                setAdRequests([]);
             }
         });
     }, []);
@@ -183,7 +195,22 @@ const AdsManager = () => {
         alert("Balance Updated Manually");
     };
 
-    
+    // --- LOGIC: APPROVE AD ---
+    const approveAd = async (req: any) => {
+        try {
+            const updates: any = {};
+            // 1. Set campaign status to Active on the user's side
+            updates[`users/${req.userId}/campaigns/${req.campaignId}/status`] = 'Active';
+            
+            // 2. Remove from Admin Queue
+            updates[`admin/ad_queue/${req.id}`] = null;
+
+            await update(ref(db), updates);
+            alert(`Campaign "${req.title}" is now LIVE.`);
+        } catch (err) {
+            console.error("Ad Approval Error:", err);
+        }
+    };
 
     return (
         <div style={adminLayout}>
@@ -235,7 +262,18 @@ const AdsManager = () => {
 
                     <div style={panelStyle}>
                         <h3 style={sectionTitle}>AD_CAMPAIGN_QUEUE</h3>
-                        <p style={{opacity: 0.3, fontSize: '12px'}}>No active deployment requests.</p>
+                        {adRequests.length === 0 && <p style={{opacity: 0.3, fontSize: '12px'}}>No active deployment requests.</p>}
+                        {adRequests.map(ad => (
+                            <div key={ad.id} style={itemStyle}>
+                                <div>
+                                    <div style={{fontWeight: 700, color: '#C5FF41'}}>{ad.title}</div>
+                                    <div style={{fontSize: '11px', opacity: 0.6}}>
+                                        {ad.userEmail} • €{ad.budget}
+                                    </div>
+                                </div>
+                                <button onClick={() => approveAd(ad)} style={approveBtn}>APPROVE_LIVE</button>
+                            </div>
+                        ))}
                     </div>
                 </section>
                 {/* --- RIGHT: USER EDITOR --- */}

@@ -79,12 +79,25 @@ const AdsManager = ({ userBrand }: any) => {
                 grandTotal,
                 timestamp: Date.now(),
                 reach: 0,
-                status: 'Active'
+                status: 'Pending_Admin_Review' // Set to pending initially
+            };
+
+
+            // 3. PUSH TO ADMIN QUEUE (New code here)
+            const adminAdRef = push(child(ref(db), `admin/ad_queue`)).key;
+            updates[`admin/ad_queue/${adminAdRef}`] = {
+                campaignId: campaignId,
+                userId: userId,
+                userEmail: userEmail,
+                title: newAd.title,
+                budget: grandTotal,
+                platform: newAd.platform,
+                timestamp: Date.now()
             };
 
             // Add a record to the ledger so the user sees where the money went
-            const ledgerRef = push(ref(db, `users/${userId}/treasury/ledger`));
-            updates[`users/${userId}/treasury/ledger/${ledgerRef.key}`] = {
+            const ledgerKey = push(child(ref(db), `users/${userId}/treasury/ledger`)).key;
+            updates[`users/${userId}/treasury/ledger/${ledgerKey}`] = {
                 type: 'Outflow',
                 amount: grandTotal,
                 label: `Ad_Campaign: ${newAd.title}`,
@@ -94,9 +107,8 @@ const AdsManager = ({ userBrand }: any) => {
             };
 
             await update(ref(db), updates);
-
             setShowModal(false);
-            alert("🚀 DEPLOYMENT_SUCCESSFUL: Campaign is now active.");
+            alert("🚀 SENT_FOR_APPROVAL: Admin is reviewing your deployment.");
             
             // Reset form
             setNewAd({
