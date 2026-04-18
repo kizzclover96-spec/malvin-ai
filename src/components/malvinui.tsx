@@ -9,6 +9,7 @@ import MarginCalculator from './MarginCalculator';
 import MarketTrends from './MarketTrends';
 import Runway from './Runway';
 import MainDashboard from './dashboard';
+import Premium from './Premium';
 import Settings from './Settings';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
@@ -856,6 +857,11 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                 />
             ) : activeTab === 'Calculator' ? (
                 <MarginCalculator onBack={() => setActiveTab('Session')} />
+            ) : activeTab === 'Premium' ? (
+                <Premium onBack={() => setActiveTab('Session')}
+                  userBrand={userBrand}
+                  brandName={userBrand.name}
+                />
             ) : activeTab === 'MainDashboard' ? (
                 <MainDashboard onBack={() => setActiveTab('Session')} 
                   userBrand={userBrand}
