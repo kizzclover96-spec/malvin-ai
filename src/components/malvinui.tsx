@@ -1114,7 +1114,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                                 </div>
 
                                 <button 
-                                    onClick={() => setActiveTab('Premium')}
+                                    onClick={(premium) => setActiveTab('Premium')}
                                     style={{ 
                                         ...btnReset,
                                         display: 'flex',
