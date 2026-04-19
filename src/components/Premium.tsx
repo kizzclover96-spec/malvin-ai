@@ -4,7 +4,7 @@ interface PremiumProps {
   onBack: () => void;
 }c
 
-const Premium: React.FC<PremiumProps> = ({ onBack }) => = () => {
+const Premium: React.FC<PremiumProps> = ({ onBack }) => {
   const features = [
     { title: "Neural Analytics", desc: "Predictive traffic mapping for ad placements." },
     { title: "Priority Queue", desc: "Instant campaign approval by Malvin Admin." },
