@@ -1,6 +1,10 @@
 import React from 'react';
 
-const Premium = () => {
+interface PremiumProps {
+  onBack: () => void;
+}c
+
+const Premium: React.FC<PremiumProps> = ({ onBack }) => = () => {
   const features = [
     { title: "Neural Analytics", desc: "Predictive traffic mapping for ad placements." },
     { title: "Priority Queue", desc: "Instant campaign approval by Malvin Admin." },
@@ -28,6 +32,15 @@ const Premium = () => {
           100% { transform: translateY(110vh) rotate(360deg); opacity: 0; }
         }
       `}</style>
+      {/* --- BACK BUTTON --- */}
+      <button 
+        onClick={onBack} 
+        style={backButtonStyle}
+        onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
+        onMouseLeave={(e) => e.currentTarget.style.opacity = '0.5'}
+      >
+        ← BACK
+      </button>
 
       {/* Falling Stars Layer */}
       {stars.map(star => (
@@ -223,6 +236,23 @@ const finePrint: React.CSSProperties = {
   fontSize: '10px',
   opacity: 0.3,
   marginTop: '20px'
+};
+
+const backButtonStyle: React.CSSProperties = {
+  position: 'absolute',
+  top: '30px',
+  left: '30px',
+  background: 'transparent',
+  border: '1px solid rgba(255, 215, 0, 0.3)',
+  color: '#FFD700',
+  padding: '8px 15px',
+  borderRadius: '5px',
+  cursor: 'pointer',
+  fontSize: '11px',
+  letterSpacing: '2px',
+  zIndex: 10,
+  opacity: 0.5,
+  transition: 'all 0.3s ease'
 };
 
 export default Premium;
