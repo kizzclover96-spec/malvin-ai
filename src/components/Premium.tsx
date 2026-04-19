@@ -2,7 +2,7 @@ import React from 'react';
 
 interface PremiumProps {
   onBack: () => void;
-}c
+}
 
 const Premium: React.FC<PremiumProps> = ({ onBack }) => {
   const features = [
