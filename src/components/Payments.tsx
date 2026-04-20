@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { auth, db } from '../firebase';
 import { ref, onValue, push, set } from "firebase/database";
 
+const pointsVariantId = import.meta.env.VITE_LEMONSQUEEZY_POINTS_VARIANT_ID;
+const storeUrl = "https://malvin.lemonsqueezy.com";
+
 const Payments = ({ userBrand }: { userBrand: any }) => {
     const [balance, setBalance] = useState(0.00); 
     const [transactions, setTransactions] = useState<any[]>([]);
@@ -32,33 +35,28 @@ const Payments = ({ userBrand }: { userBrand: any }) => {
         });
     }, [userId]);
 
-    // --- 2. LOGIC: REQUEST FUNDING ---
+    // 2. Update the function
     const handleFundingRequest = async () => {
         if (!userId || !fundingAmount) return;
 
+        // This creates a "Pay what you want" link with the amount pre-filled
+        // We pass the userId as a 'passthrough' so the webhook knows who bought it
+        const checkoutUrl = `${storeUrl}/checkout/buy/${pointsVariantId}?checkout[custom][user_id]=${userId}&checkout[amount]=${parseFloat(fundingAmount) * 100}`;
+
+        // Close modal and open checkout
+        setShowFundingModal(false);
+        window.open(checkoutUrl, '_blank');
+        
+        // Optional: Log the ATTEMPT in your ledger as 'Initiated'
         const requestData = {
             type: 'Inflow',
             amount: parseFloat(fundingAmount),
-            label: 'Funding_Request_Initiated',
+            label: 'Top_Up_Initiated',
             date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }).toUpperCase(),
-            status: 'Pending_Wire',
+            status: 'Awaiting_Payment',
             timestamp: Date.now(),
-            userId: userId,
-            userEmail: auth.currentUser?.email || "N/A",
-            // NOW THIS WORKS:
-            brandName: userBrand?.name || "Unknown Brand" 
         };
-
-        try {
-            await push(ref(db, `users/${userId}/treasury/ledger`), requestData);
-            await push(ref(db, `admin/pending_wires`), requestData);
-
-            setFundingAmount('');
-            setShowFundingModal(false);
-            alert("REQUEST_SENT: Awaiting Admin Verification.");
-        } catch (e) {
-            console.error(e);
-        }
+        await push(ref(db, `users/${userId}/treasury/ledger`), requestData);
     };
 
     return (

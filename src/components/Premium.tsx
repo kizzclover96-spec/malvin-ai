@@ -4,6 +4,17 @@ interface PremiumProps {
   onBack: () => void;
 }
 
+const variantId = import.meta.env.VITE_LEMONSQUEEZY_VARIANT_ID;
+const storeUrl = "https://malvin.lemonsqueezy.com";
+
+const premiumPlan = {
+  name: "Premium",
+  price: "€20/mo",
+  variantId: variantId,
+  // This constructs the direct link to your checkout
+  checkoutUrl: `${storeUrl}/checkout/buy/${variantId}?embed=1` 
+};
+
 const Premium: React.FC<PremiumProps> = ({ onBack }) => {
   const features = [
     { title: "Neural Analytics", desc: "Predictive traffic mapping for ad placements." },
@@ -72,7 +83,7 @@ const Premium: React.FC<PremiumProps> = ({ onBack }) => {
         {/* Pricing Card */}
         <div style={glassCardStyle}>
           <div style={priceHeader}>
-            <span style={priceStyle}>$29.99</span>
+            <span style={priceStyle}>$20.99</span>
             <span style={perMonthStyle}>/month</span>
           </div>
           
@@ -90,6 +101,7 @@ const Premium: React.FC<PremiumProps> = ({ onBack }) => {
 
           <button 
             style={upgradeBtn} 
+            onClick={() => window.open(premiumPlan.checkoutUrl, '_blank')}
             onMouseEnter={(e) => {
               e.currentTarget.style.transform = 'scale(1.02)';
               e.currentTarget.style.boxShadow = '0 15px 30px rgba(255, 215, 0, 0.4)';
@@ -99,7 +111,7 @@ const Premium: React.FC<PremiumProps> = ({ onBack }) => {
               e.currentTarget.style.boxShadow = '0 10px 20px rgba(255, 215, 0, 0.2)';
             }}
           >
-            INITIALIZE GOLD_ACCESS
+            UPGRADE GOLD_ACCESS
           </button>
           <p style={finePrint}>Cancel anytime. Neural sync takes &lt; 1 min.</p>
         </div>
