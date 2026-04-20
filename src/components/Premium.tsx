@@ -5,6 +5,12 @@ interface PremiumProps {
 }
 
 const variantId = import.meta.env.VITE_LEMONSQUEEZY_VARIANT_ID;
+
+// Debugging: This will show up in your browser console (F12)
+if (!variantId) {
+  console.error("CRITICAL: VITE_LEMONSQUEEZY_VARIANT_ID is missing from environment variables!");
+}
+
 const storeUrl = "https://malvin.lemonsqueezy.com";
 
 const premiumPlan = {
@@ -12,7 +18,9 @@ const premiumPlan = {
   price: "€20/mo",
   variantId: variantId,
   // This constructs the direct link to your checkout
-  checkoutUrl: `${storeUrl}/checkout/buy/${variantId}?embed=1` 
+  checkoutUrl: variantId 
+    ? `${storeUrl}/checkout/buy/${variantId}?embed=1` 
+    : "#" 
 };
 
 const Premium: React.FC<PremiumProps> = ({ onBack }) => {
