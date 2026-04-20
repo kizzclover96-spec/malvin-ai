@@ -19,7 +19,7 @@ const premiumPlan = {
   variantId: variantId,
   // This constructs the direct link to your checkout
   checkoutUrl: variantId 
-    ? `${storeUrl}/checkout/buy/${variantId}?embed=1` 
+    ? `${storeUrl}/checkout/buy/${variantId}`
     : "#" 
 };
 
