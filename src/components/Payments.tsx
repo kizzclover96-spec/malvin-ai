@@ -10,54 +10,75 @@ const Payments = ({ userBrand }: { userBrand: any }) => {
     const [transactions, setTransactions] = useState<any[]>([]);
     const [showFundingModal, setShowFundingModal] = useState(false);
     const [fundingAmount, setFundingAmount] = useState('');
+    
 
     const userId = auth.currentUser?.uid;
-
-    // --- 1. SYNC WITH FIREBASE ---
-    useEffect(() => {
-        if (!userId) return;
-
-        // Listen for Balance updates
-        const balanceRef = ref(db, `users/${userId}/treasury/balance`);
-        onValue(balanceRef, (snapshot) => {
-            setBalance(snapshot.val() || 0);
-        });
-
-        // Listen for Transaction history
-        const ledgerRef = ref(db, `users/${userId}/treasury/ledger`);
-        onValue(ledgerRef, (snapshot) => {
-            const data = snapshot.val();
-            if (data) {
-                const list = Object.keys(data).map(k => ({ id: k, ...data[k] }));
-                // Sort by timestamp descending
-                setTransactions(list.sort((a, b) => b.timestamp - a.timestamp));
-            }
-        });
-    }, [userId]);
-
     // 2. Update the function
     const handleFundingRequest = async () => {
-        if (!userId || !fundingAmount) return;
+        if (!userId) return;
+        
+        if (!pointsVariantId) {
+            console.error("Lemon Squeezy Variant ID is missing!");
+            return;
+        }
 
-        // This creates a "Pay what you want" link with the amount pre-filled
-        // We pass the userId as a 'passthrough' so the webhook knows who bought it
-        const checkoutUrl = `${storeUrl}/checkout/buy/${pointsVariantId}?checkout[custom][user_id]=${userId}&checkout[amount]=${parseFloat(fundingAmount) * 100}`;
+        const amount = parseFloat(fundingAmount);
+        if (isNaN(amount) || amount <= 0) {
+            alert("Please enter a valid amount.");
+            return;
+        }
 
-        // Close modal and open checkout
+        const amountInCents = Math.round(amount * 100);
+
+        // Construct checkout URL
+        const checkoutUrl = `${storeUrl}/checkout/buy/${pointsVariantId}?checkout[custom][user_id]=${userId}&checkout[amount]=${amountInCents}`;
+
         setShowFundingModal(false);
         window.open(checkoutUrl, '_blank');
         
-        // Optional: Log the ATTEMPT in your ledger as 'Initiated'
         const requestData = {
             type: 'Inflow',
-            amount: parseFloat(fundingAmount),
+            amount: amount,
             label: 'Top_Up_Initiated',
             date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }).toUpperCase(),
             status: 'Awaiting_Payment',
             timestamp: Date.now(),
         };
+
         await push(ref(db, `users/${userId}/treasury/ledger`), requestData);
     };
+
+    // FIX 3: Loading state guard
+    if (!userId) {
+        return (
+            <div style={{ padding: '20px', color: 'white', opacity: 0.5 }}>
+                Authenticating Treasury Access...
+            </div>
+        );
+    }
+    // --- 1. SYNC WITH FIREBASE ---
+    useEffect(() => {
+        const balanceRef = ref(db, `users/${userId}/treasury/balance`);
+        const unsubscribeBalance = onValue(balanceRef, (snapshot) => {
+            setBalance(snapshot.val() || 0);
+        });
+
+        const ledgerRef = ref(db, `users/${userId}/treasury/ledger`);
+        const unsubscribeLedger = onValue(ledgerRef, (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                const list = Object.keys(data).map(k => ({ id: k, ...data[k] }));
+                setTransactions(list.sort((a, b) => b.timestamp - a.timestamp));
+            }
+        });
+
+        return () => {
+            unsubscribeBalance();
+            unsubscribeLedger();
+        };
+    }, [userId]);
+
+    
 
     return (
         <div style={{ padding: '20px', color: 'white' }}>
