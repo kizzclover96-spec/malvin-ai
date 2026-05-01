@@ -229,45 +229,82 @@ const dashboard = (props) => {
                             minHeight: '400px' 
                         }}>
                             {/* Left: Transaction/Message List */}
-                            <DashboardCard style={{ padding: '0px' }}>
+                            <DashboardCard style={{ padding: '0px', display: 'flex', flexDirection: 'column' }}>
+                                {/* Header */}
                                 <div style={{ padding: '24px', borderBottom: '1px solid #222', display: 'flex', justifyContent: 'space-between' }}>
                                     <span style={{ fontWeight: 600 }}>Active Invoices</span>
-                                    <span style={{ color: '#C5FF41' }}>All Filters</span>
+                                    <span style={{ color: '#C5FF41', cursor: 'pointer', fontSize: '12px' }}>All Filters</span>
                                 </div>
-                                <div style={{ background: '#111', padding: '15px', borderRadius: '12px' }}>
-                                    <p style={{ fontSize: '12px', color: '#666' }}>YOUR AD LINK</p>
-                                    <code style={{ color: '#C5FF41' }}>{shareUrl}</code>
-                                    <button onClick={() => navigator.clipboard.writeText(shareUrl)}>
-                                        Copy Link
-                                    </button>
-                                </div>
-                                <div>
-                                    <div style={{ fontSize: '24px', fontWeight: 700, marginBottom: '15px' }}>Online store view</div>
-                                    <div style={{ display: 'flex', gap: '10px' }}>
-                                        <button onClick={downloadQR} style={{ 
-                                            padding: '12px 20px', borderRadius: '16px', background: 'white', 
-                                            color: 'black', border: 'none', fontWeight: 700, cursor: 'pointer' 
-                                        }}>
-                                            Download QR
-                                        </button>
-                                        <button onClick={() => window.open(marketFrontUrl, '_blank')} style={{ 
-                                            padding: '12px 20px', borderRadius: '16px', background: 'transparent', 
-                                            color: 'white', border: '1px solid #333', fontWeight: 600, cursor: 'pointer' 
-                                        }}>
-                                            Preview
-                                        </button>
+
+                                {/* URL Link Box - Fixed to prevent overflow */}
+                                <div style={{ padding: '20px' }}>
+                                    <div style={{ background: '#000', padding: '15px', borderRadius: '12px', border: '1px solid #222', marginBottom: '20px' }}>
+                                        <p style={{ fontSize: '10px', color: '#666', marginBottom: '8px', letterSpacing: '1px' }}>YOUR AD LINK</p>
+                                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                            <code style={{ 
+                                                color: '#C5FF41', 
+                                                fontSize: '11px', 
+                                                wordBreak: 'break-all', 
+                                                flex: 1 
+                                            }}>
+                                                {shareUrl}
+                                            </code>
+                                            <button 
+                                                onClick={() => navigator.clipboard.writeText(shareUrl)}
+                                                style={{ background: '#222', color: '#fff', border: 'none', padding: '5px 10px', borderRadius: '6px', fontSize: '10px', cursor: 'pointer' }}
+                                            >
+                                                Copy
+                                            </button>
+                                        </div>
                                     </div>
-                                </div>
-                                <div style={{ background: '#000', padding: '12px', borderRadius: '20px', border: '1px solid #C5FF41' }}>
-                                    <QRCode 
-                                        id="malvin-qr"
-                                        value={marketFrontUrl}
-                                        size={100}
-                                        qrStyle="dots"
-                                        eyeRadius={5}
-                                        bgColor="#000000"
-                                        fgColor="#C5FF41"
-                                    />
+
+                                    {/* QR & Store View Row - Combined into a clean layout */}
+                                    <div style={{ 
+                                        display: 'flex', 
+                                        alignItems: 'center', 
+                                        justifyContent: 'space-between', 
+                                        gap: '15px',
+                                        background: 'rgba(255,255,255,0.02)',
+                                        padding: '15px',
+                                        borderRadius: '20px',
+                                        border: '1px solid rgba(197, 255, 65, 0.2)'
+                                    }}>
+                                        <div style={{ flex: 1 }}>
+                                            <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '10px' }}>Online Store View</div>
+                                            <div style={{ display: 'flex', gap: '8px' }}>
+                                                <button onClick={downloadQR} style={{ 
+                                                    padding: '8px 12px', borderRadius: '10px', background: 'white', 
+                                                    color: 'black', border: 'none', fontWeight: 700, cursor: 'pointer', fontSize: '11px'
+                                                }}>
+                                                    Download QR
+                                                </button>
+                                                <button onClick={() => window.open(marketFrontUrl, '_blank')} style={{ 
+                                                    padding: '8px 12px', borderRadius: '10px', background: 'transparent', 
+                                                    color: 'white', border: '1px solid #333', fontWeight: 600, cursor: 'pointer', fontSize: '11px'
+                                                }}>
+                                                    Preview
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div style={{ 
+                                            background: '#000', 
+                                            padding: '8px', 
+                                            borderRadius: '12px', 
+                                            border: '1px solid #C5FF41',
+                                            lineHeight: 0 // Removes extra bottom space
+                                        }}>
+                                            <QRCode 
+                                                id="malvin-qr"
+                                                value={marketFrontUrl}
+                                                size={80} // Slightly smaller to fit perfectly
+                                                qrStyle="dots"
+                                                eyeRadius={5}
+                                                bgColor="#000000"
+                                                fgColor="#C5FF41"
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
                             </DashboardCard>
 
