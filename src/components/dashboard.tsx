@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { QRCode } from 'react-qrcode-logo';
 import { auth } from "../firebase";
 import Chats from './Chats';
+import MarketFront from './MarketFront';
 import Catalog from './Catalog';
 import AdsManager from './AdsManager';
 import Payments from'./Payments';
@@ -84,6 +85,18 @@ const dashboard = (props) => {
             document.body.removeChild(downloadLink);
         }
     };
+
+    if (activeTab === 'Preview') {
+        return (
+            <div style={{ position: 'relative' }}>
+                {/* Floating ESC button to get back to Dashboard */}
+                <div style={{ position: 'fixed', top: '20px', left: '20px', zIndex: 9999 }}>
+                    <BackButton onClick={() => setActiveTab('Invoices')} />
+                </div>
+                <MarketFront />
+            </div>
+        );
+    }
    
     return (
         <>
@@ -278,7 +291,7 @@ const dashboard = (props) => {
                                                 }}>
                                                     Download QR
                                                 </button>
-                                                <button onClick={() => window.open(marketFrontUrl, '_blank')} style={{ 
+                                                <button onClick={() => setActiveTab('Preview')} style={{ 
                                                     padding: '8px 12px', borderRadius: '10px', background: 'transparent', 
                                                     color: 'white', border: '1px solid #333', fontWeight: 600, cursor: 'pointer', fontSize: '11px'
                                                 }}>
