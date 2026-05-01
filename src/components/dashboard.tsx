@@ -93,7 +93,7 @@ const dashboard = (props) => {
                 <div style={{ position: 'fixed', top: '20px', left: '20px', zIndex: 9999 }}>
                     <BackButton onClick={() => setActiveTab('Invoices')} />
                 </div>
-                <MarketFront />
+                <MarketFront brandId={userBrandId} userBrand={userBrand} brandName={userBrand.name}/>
             </div>
         );
     }
