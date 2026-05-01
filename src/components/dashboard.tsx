@@ -67,7 +67,6 @@ const dashboard = (props) => {
     const userBrandId = (typeof userBrand !== 'undefined' && userBrand?.id) 
         ? userBrand.id 
         : brandName.toLowerCase().replace(/\s+/g, '-');
-    const shareUrl = `${window.location.origin}/chat/${auth.currentUser.uid}`;
     
     const navItems = ['Ads', 'Invoices', 'Payments', 'Chats', 'Catalog'];
     const marketFrontUrl = `${window.location.origin}/market/${userBrand?.slug || auth.currentUser?.uid}`;
