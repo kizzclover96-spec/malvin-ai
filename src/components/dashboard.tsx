@@ -232,7 +232,7 @@ const dashboard = (props) => {
                             <DashboardCard style={{ padding: '0px', display: 'flex', flexDirection: 'column' }}>
                                 {/* Header */}
                                 <div style={{ padding: '24px', borderBottom: '1px solid #222', display: 'flex', justifyContent: 'space-between' }}>
-                                    <span style={{ fontWeight: 600 }}>Active Invoices</span>
+                                    <span style={{ fontWeight: 600 }}>Business links</span>
                                     <span style={{ color: '#C5FF41', cursor: 'pointer', fontSize: '12px' }}>All Filters</span>
                                 </div>
 
