@@ -17,27 +17,33 @@ const MarketFront = ({ brandId: propBrandId }: { brandId?: string }) => {
 
     useEffect(() => {
         const fetchMarketData = async () => {
-            if (!brandId) {
-                console.error("No Brand ID found!");
+            // 1. Double check brandId exists and db is initialized
+            if (!brandId || !db) {
+                console.log("Waiting for brandId...");
                 return;
             }
 
             try {
-                // 1. Fetch Brand Info
-                const brandDoc = await getDoc(doc(db, "brands", brandId));
+                // 2. Wrap the doc reference to ensure it's valid
+                const brandRef = doc(db, "brands", brandId);
+                const brandDoc = await getDoc(brandRef);
+                
                 if (brandDoc.exists()) {
                     setBrand(brandDoc.data());
                 } else {
-                    // Fallback brand data so it doesn't stay stuck if the doc isn't created yet
                     setBrand({ name: "My Store" });
                 }
 
-                // 2. Fetch Catalog
-                const querySnapshot = await getDocs(collection(db, "brands", brandId, "catalog"));
+                // 3. Fetch Catalog
+                const catalogRef = collection(db, "brands", brandId, "catalog");
+                const querySnapshot = await getDocs(catalogRef);
                 const items = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 setCatalog(items);
+
             } catch (error) {
                 console.error("Error fetching market data:", error);
+                // Fallback so the UI doesn't stay stuck on the loader if Firebase fails
+                setBrand({ name: "Preview Mode" });
             }
         };
 
