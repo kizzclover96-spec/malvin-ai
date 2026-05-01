@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { db } from '../firebase';
 import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
 import CustomerChat from './CustomerChat';
+import { ref as dbRef, onValue } from "firebase/database";
 
 const MarketFront = ({ brandId: propBrandId }: { brandId?: string }) => {
     const { brandId: urlBrandId } = useParams();
@@ -16,38 +17,36 @@ const MarketFront = ({ brandId: propBrandId }: { brandId?: string }) => {
     };
 
     useEffect(() => {
-        const fetchMarketData = async () => {
-            // 1. Double check brandId exists and db is initialized
-            if (!brandId || !db) {
-                console.log("Waiting for brandId...");
-                return;
+        if (!brandId) return;
+
+        // 2. Fetch Brand Identity (Realtime DB)
+        const brandPath = dbRef(db, `users/${brandId}/brandData`);
+        const unsubscribeBrand = onValue(brandPath, (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                setBrand(data);
+            } else {
+                setBrand({ name: "My Store" });
             }
+        });
 
-            try {
-                // 2. Wrap the doc reference to ensure it's valid
-                const brandRef = doc(db, "brands", brandId);
-                const brandDoc = await getDoc(brandRef);
-                
-                if (brandDoc.exists()) {
-                    setBrand(brandDoc.data());
-                } else {
-                    setBrand({ name: "My Store" });
-                }
-
-                // 3. Fetch Catalog
-                const catalogRef = collection(db, "brands", brandId, "catalog");
-                const querySnapshot = await getDocs(catalogRef);
-                const items = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        // 3. Fetch Catalog Items (Realtime DB)
+        const catalogPath = dbRef(db, `users/${brandId}/catalog`);
+        const unsubscribeCatalog = onValue(catalogPath, (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                // Convert Firebase object to array
+                const items = Object.keys(data).map(k => ({ id: k, ...data[k] }));
                 setCatalog(items);
-
-            } catch (error) {
-                console.error("Error fetching market data:", error);
-                // Fallback so the UI doesn't stay stuck on the loader if Firebase fails
-                setBrand({ name: "Preview Mode" });
+            } else {
+                setCatalog([]);
             }
-        };
+        });
 
-        fetchMarketData();
+        return () => {
+            unsubscribeBrand();
+            unsubscribeCatalog();
+        };
     }, [brandId]);
 
     const addToCart = (item, e) => {
