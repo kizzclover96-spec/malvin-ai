@@ -1,17 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { db } from '../firebase';
 import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
 import CustomerChat from './CustomerChat';
 
 const MarketFront = ({ brandId: propBrandId }: { brandId?: string }) => {
     const { brandId: urlBrandId } = useParams();
+    const brandId = propBrandId || urlBrandId;
     const [brand, setBrand] = useState<any>(null);
     const [catalog, setCatalog] = useState([]);
     const [cart, setCart] = useState([]);
+    const navigate = useNavigate();
     const navigateToChat = () => {
-        // If there's a cart, we can pass it via state or just navigate
-        window.location.href = `/chat/${brandId}`;
+        navigate(`/chat/${brandId}`); // Cleaner, faster transition
     };
 
     useEffect(() => {
