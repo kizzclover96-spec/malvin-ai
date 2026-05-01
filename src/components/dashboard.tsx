@@ -88,12 +88,16 @@ const dashboard = (props) => {
 
     if (activeTab === 'Preview') {
         return (
-            <div style={{ position: 'relative' }}>
-                {/* Floating ESC button to get back to Dashboard */}
+            <div style={{ position: 'relative', background: '#000', minHeight: '100vh' }}>
                 <div style={{ position: 'fixed', top: '20px', left: '20px', zIndex: 9999 }}>
                     <BackButton onClick={() => setActiveTab('Invoices')} />
                 </div>
-                <MarketFront brandId={userBrandId} userBrand={userBrand} brandName={userBrand.name}/>
+                {/* FIXED: Using userBrandId (the variable you defined above) */}
+                <MarketFront 
+                    brandId={userBrandId} 
+                    userBrand={userBrand} 
+                    brandName={userBrand?.name || 'Brand'} 
+                />
             </div>
         );
     }
