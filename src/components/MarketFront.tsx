@@ -4,8 +4,8 @@ import { db } from '../firebase';
 import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
 import CustomerChat from './CustomerChat';
 
-const MarketFront = () => {
-    const { brandId } = useParams();
+const MarketFront = ({ brandId: propBrandId }: { brandId?: string }) => {
+    const { brandId: urlBrandId } = useParams();
     const [brand, setBrand] = useState<any>(null);
     const [catalog, setCatalog] = useState([]);
     const [cart, setCart] = useState([]);
@@ -16,14 +16,30 @@ const MarketFront = () => {
 
     useEffect(() => {
         const fetchMarketData = async () => {
-            if (!brandId) return;
-            const brandDoc = await getDoc(doc(db, "brands", brandId));
-            if (brandDoc.exists()) setBrand(brandDoc.data());
+            if (!brandId) {
+                console.error("No Brand ID found!");
+                return;
+            }
 
-            const querySnapshot = await getDocs(collection(db, "brands", brandId, "catalog"));
-            const items = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            setCatalog(items);
+            try {
+                // 1. Fetch Brand Info
+                const brandDoc = await getDoc(doc(db, "brands", brandId));
+                if (brandDoc.exists()) {
+                    setBrand(brandDoc.data());
+                } else {
+                    // Fallback brand data so it doesn't stay stuck if the doc isn't created yet
+                    setBrand({ name: "My Store" });
+                }
+
+                // 2. Fetch Catalog
+                const querySnapshot = await getDocs(collection(db, "brands", brandId, "catalog"));
+                const items = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                setCatalog(items);
+            } catch (error) {
+                console.error("Error fetching market data:", error);
+            }
         };
+
         fetchMarketData();
     }, [brandId]);
 
@@ -64,25 +80,31 @@ const MarketFront = () => {
         <div style={marketContainer}>
             <header style={headerStyle}>
                 <div>
-                    <h1 style={brandTitle}>{brand.name.toUpperCase()}</h1>
+                    <h1 style={brandTitle}>{brand.name?.toUpperCase() || 'STORE'}</h1>
                     <div style={onlineStatus}><span style={dot} /> Accepting Orders</div>
                 </div>
                 <button onClick={navigateToChat} style={dmButton}>Direct Message</button>
             </header>
 
             <div style={productGrid}>
-                {catalog.map((item: any) => (
-                    <div key={item.id} style={productCard}>
-                        <div style={imageWrapper}>
-                            <img src={item.image} alt={item.name} style={productImg} />
-                            <button onClick={(e) => addToCart(item, e)} style={addToCartBtn}>+</button>
-                        </div>
-                        <div style={productInfo}>
-                            <div style={itemName}>{item.name}</div>
-                            <div style={priceTag}>€{item.price}</div>
-                        </div>
+                {catalog.length === 0 ? (
+                    <div style={{gridColumn: '1/-1', textAlign: 'center', padding: '40px', opacity: 0.5}}>
+                        No products in catalog yet.
                     </div>
-                ))}
+                ) : (
+                    catalog.map((item: any) => (
+                        <div key={item.id} style={productCard}>
+                            <div style={imageWrapper}>
+                                <img src={item.image} alt={item.name} style={productImg} />
+                                <button onClick={(e) => addToCart(item, e)} style={addToCartBtn}>+</button>
+                            </div>
+                            <div style={productInfo}>
+                                <div style={itemName}>{item.name}</div>
+                                <div style={priceTag}>€{item.price}</div>
+                            </div>
+                        </div>
+                    ))
+                )}
             </div>
 
             {cart.length > 0 && (
