@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
+import { QRCode } from 'react-qrcode-logo';
 import { auth } from "../firebase";
 import Chats from './Chats';
 import Catalog from './Catalog';
@@ -69,6 +70,21 @@ const dashboard = (props) => {
     const shareUrl = `${window.location.origin}/chat/${auth.currentUser.uid}`;
     
     const navItems = ['Ads', 'Invoices', 'Payments', 'Chats', 'Catalog'];
+    const marketFrontUrl = `${window.location.origin}/market/${userBrand?.slug || auth.currentUser?.uid}`;
+    const shareUrl = `${window.location.origin}/chat/${auth.currentUser?.uid}`;
+    
+    const downloadQR = () => {
+        const canvas = document.getElementById("malvin-qr") as HTMLCanvasElement;
+        if (canvas) {
+            const pngUrl = canvas.toDataURL("image/png").replace("image/png", "image/octet-stream");
+            let downloadLink = document.createElement("a");
+            downloadLink.href = pngUrl;
+            downloadLink.download = `${userBrand?.name || 'Brand'}_QR.png`;
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+        }
+    };
    
     return (
         <>
@@ -226,25 +242,33 @@ const dashboard = (props) => {
                                         Copy Link
                                     </button>
                                 </div>
-                                <div style={{ padding: '10px' }}>
-                                    {[1 ].map(i => (
-                                        <div key={i} style={{ 
-                                            padding: '16px', 
-                                            borderRadius: '20px', 
-                                            backgroundColor: i === 1 ? '#1A1A1A' : 'transparent',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '15px',
-                                            marginBottom: '5px'
+                                <div>
+                                    <div style={{ fontSize: '24px', fontWeight: 700, marginBottom: '15px' }}>Online store view</div>
+                                    <div style={{ display: 'flex', gap: '10px' }}>
+                                        <button onClick={downloadQR} style={{ 
+                                            padding: '12px 20px', borderRadius: '16px', background: 'white', 
+                                            color: 'black', border: 'none', fontWeight: 700, cursor: 'pointer' 
                                         }}>
-                                            <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#333' }} />
-                                            <div style={{ flex: 1 }}>
-                                                <div style={{ fontSize: '14px', fontWeight: 600 }}>Client #{427 + i}</div>
-                                                <div style={{ fontSize: '12px', color: '#666' }}>Pending • 2 days left</div>
-                                            </div>
-                                            <div style={{ fontSize: '14px', fontWeight: 700 }}>€53,154</div>
-                                        </div>
-                                    ))}
+                                            Download QR
+                                        </button>
+                                        <button onClick={() => window.open(marketFrontUrl, '_blank')} style={{ 
+                                            padding: '12px 20px', borderRadius: '16px', background: 'transparent', 
+                                            color: 'white', border: '1px solid #333', fontWeight: 600, cursor: 'pointer' 
+                                        }}>
+                                            Preview
+                                        </button>
+                                    </div>
+                                </div>
+                                <div style={{ background: '#000', padding: '12px', borderRadius: '20px', border: '1px solid #C5FF41' }}>
+                                    <QRCode 
+                                        id="malvin-qr"
+                                        value={marketFrontUrl}
+                                        size={100}
+                                        qrStyle="dots"
+                                        eyeRadius={5}
+                                        bgColor="#000000"
+                                        fgColor="#C5FF41"
+                                    />
                                 </div>
                             </DashboardCard>
 
