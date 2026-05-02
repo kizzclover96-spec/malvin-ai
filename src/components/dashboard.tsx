@@ -1,11 +1,12 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { QRCode } from 'react-qrcode-logo';
-import { auth } from "../firebase";
+import { firestore, auth } from "../firebase";
 import Chats from './Chats';
 import MarketFront from './MarketFront';
 import Catalog from './Catalog';
 import AdsManager from './AdsManager';
 import Payments from'./Payments';
+import { collection, query, where, onSnapshot } from "firebase/firestore";
 // The "Salesforce-style" rounded containers from your image
 const DashboardCard = ({ children, style }: any) => (
   <div style={{
@@ -64,6 +65,23 @@ const dashboard = (props) => {
     const [isAutopilot, setIsAutopilot] = useState(true);
     console.log("Dashboard Props:", userBrand);
     const brandName = userBrand?.name || "default";
+    const [chatCount, setChatCount] = useState(0);
+
+    // 2. Real-time Listener for Customer/Chat Count
+    useEffect(() => {
+        if (!userBrand?.id) return;
+
+        const q = query(
+            collection(firestore, "conversations"),
+            where("brandId", "==", String(userBrand.id))
+        );
+
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            setChatCount(snapshot.size); // Updates dashboard real-time
+        });
+
+        return () => unsubscribe();
+    }, [userBrand?.id]);
 
     const userBrandId = (typeof userBrand !== 'undefined' && userBrand?.id) 
         ? userBrand.id 
@@ -217,23 +235,33 @@ const dashboard = (props) => {
                                 </div>
                             </DashboardCard>
 
-                            {/* Instant Payout Card */}
+                            {/* 3. NEW CUSTOMER/CHAT CARD (Replaces Payout Card) */}
                             <DashboardCard style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <div>
-                                <div style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>AVAILABLE FOR PAYOUT</div>
-                                <div style={{ fontSize: '36px', fontWeight: 700 }}>€31,211.00</div>
-                                <div style={{ marginTop: '15px', color: '#C5FF41', fontSize: '12px', fontWeight: 600 }}>Expected by Friday</div>
+                                    <div style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>ACTIVE CUSTOMERS</div>
+                                    <div style={{ fontSize: '36px', fontWeight: 700 }}>
+                                        {chatCount} <span style={{ fontSize: '18px', color: '#666' }}>Present</span>
+                                    </div>
+                                    <div style={{ marginTop: '15px', color: '#C5FF41', fontSize: '12px', fontWeight: 600 }}>
+                                        ● Live in your chat section
+                                    </div>
                                 </div>
-                                <button style={{ 
-                                    padding: '16px 24px', 
-                                    borderRadius: '20px', 
-                                    background: 'white', 
-                                    color: 'black', 
-                                    border: 'none', 
-                                    fontWeight: 700,
-                                    cursor: 'pointer'
-                                }}>
-                                    Pay out now
+                                
+                                {/* 4. SWITCH TO ADS TAB BUTTON */}
+                                <button 
+                                    onClick={() => setActiveTab('Ads')}
+                                    style={{ 
+                                        padding: '16px 24px', 
+                                        borderRadius: '20px', 
+                                        background: '#C5FF41', // Highlighted color
+                                        color: 'black', 
+                                        border: 'none', 
+                                        fontWeight: 700,
+                                        cursor: 'pointer',
+                                        boxShadow: '0 4px 15px rgba(197, 255, 65, 0.2)'
+                                    }}
+                                >
+                                    + Add Customers
                                 </button>
                             </DashboardCard>
                         </div>
@@ -361,6 +389,7 @@ const dashboard = (props) => {
                         </div>
                     </div>
                 )}
+                {activeTab === 'Ads' && <AdsManager userBrand={userBrand} brandName={userBrand.name} />}
             </div>
             
         </>       
