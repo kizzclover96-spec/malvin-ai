@@ -26,7 +26,7 @@ const LandingPage = ({ onLoginClick }) => {
         backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.8)), url(${backgroundImageUrl})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
-        animation: 'slowPan 20s ease-in-out infinite alternate',
+        animation: 'slowPan 45s ease-in-out infinite alternate',
       }} />
 
       {/* CSS Animations */}
@@ -52,22 +52,26 @@ const LandingPage = ({ onLoginClick }) => {
         position: 'relative',
         zIndex: 10
       }}>
-        {/* Top Left: Logo Circle */}
+        {/* Top Left: Logo Only (No visible container) */}
         <div style={{
-          width: '55px',
-          height: '55px',
-          borderRadius: '50%',
-          border: '1px solid rgba(0, 212, 255, 0.5)',
-          overflow: 'hidden',
+          width: '60px',
+          height: '60px',
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
-          backgroundColor: 'rgba(0, 0, 0, 0.6)',
-          backdropFilter: 'blur(5px)'
         }}>
-          <img src={logoUrl} alt="Malvin Logo" style={{ width: '70%', height: 'auto' }} />
+          <img 
+            src={logoUrl} 
+            alt="Malvin Logo" 
+            style={{ 
+              width: '100%', 
+              height: '100%', 
+              objectFit: 'cover', // Ensures the square fills the area before clipping
+              borderRadius: '50%', // This makes the square image a circle
+              boxShadow: '0 0 15px rgba(0, 212, 255, 0.3)' // Subtle glow on the logo itself
+            }} 
+          />
         </div>
-
         {/* Top Middle: Cyberpunk Title */}
         <div style={{
           position: 'absolute',
