@@ -9,6 +9,9 @@ import CustomerChat from './components/CustomerChat';
 import AdsManager from "./components/AdsManagment";
 import LandingPage from "./pages/LandingPage"; // Import your new page
 import CookieBanner from "./components/CookieBanner";
+import Terms from "./pages/Terms";
+import Privacy from "./pages/Privacy";
+import Impressum from "./pages/Impressum";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -41,6 +44,10 @@ function App() {
         <div className="App" style={{ minHeight: '100vh' }}>
           <Routes>
             <Route path="/chat/:brandId" element={<CustomerChat />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/impressum" element={<Impressum />} />
+
 
             <Route path="/" element={
               !user ? (

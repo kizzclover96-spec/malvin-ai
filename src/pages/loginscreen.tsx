@@ -23,30 +23,28 @@ export default function Login() {
   // MATRIX EFFECT
   useEffect(() => {
     if (!canvasRef.current) return;
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d")!;
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
 
-    const handleResize = () => {
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const chars = "010101010101010101";
+    const fontSize = 14;
+
+    const resize = () => {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
     };
 
-    window.addEventListener("resize", handleResize);
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener("resize", handleResize);
-    };
+    resize();
 
-    const chars = "010101010101010101";
-    const fontSize = 14;
-    const columns = canvas.width / fontSize;
-    const drops = Array(Math.floor(columns)).fill(1);
+    const columns = Math.floor(canvas.width / fontSize);
+    const drops = Array(columns).fill(1);
 
     const draw = () => {
       ctx.fillStyle = "rgba(0,0,0,0.1)";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
+
       ctx.fillStyle = "rgba(0,102,255,0.35)";
       ctx.font = fontSize + "px monospace";
 
@@ -62,7 +60,13 @@ export default function Login() {
     };
 
     const interval = setInterval(draw, 33);
-    return () => clearInterval(interval);
+
+    window.addEventListener("resize", resize);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("resize", resize);
+    };
   }, []);
 
   // GOOGLE LOGIN
@@ -200,11 +204,11 @@ export default function Login() {
                   onChange={(e) => setAgreed(e.target.checked)}
                 />{" "}
                 I agree to{" "}
-                <span onClick={() => window.open("/terms", "_blank")} style={{ color: "#00d4ff", cursor: "pointer" }}>
+                <span onClick={() => navigate("/terms")} style={{ color: "#00d4ff", cursor: "pointer" }}>
                   Terms
                 </span>{" "}
                 and{" "}
-                <span onClick={() => window.open("/privacy", "_blank")} style={{ color: "#00d4ff", cursor: "pointer" }}>
+                <span onClick={() => navigate("/privacy")} style={{ color: "#00d4ff", cursor: "pointer" }}>
                   Privacy Policy
                 </span>
               </div>
@@ -259,7 +263,7 @@ export default function Login() {
           {/* ✅ IMPRESSUM LINK */}
           <p style={{ marginTop: "15px", fontSize: "0.75rem", opacity: 0.7 }}>
             <span
-              onClick={() => window.open("/impressum", "_blank")}
+              onClick={() => navigate("/impressum")}
               style={{ cursor: "pointer", textDecoration: "underline" }}
             >
               Impressum
