@@ -8,6 +8,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import CustomerChat from './components/CustomerChat';
 import AdsManager from "./components/AdsManagment";
 import LandingPage from "./pages/LandingPage"; // Import your new page
+import CookieBanner from "./components/CookieBanner";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -35,35 +36,38 @@ function App() {
   const isAdmin = user?.email === 'kizzclover96@gmail.com';
 
   return (
-    <Router>
-      <div className="App" style={{ minHeight: '100vh' }}>
-        <Routes>
-          <Route path="/chat/:brandId" element={<CustomerChat />} />
+    <>
+      <Router>
+        <div className="App" style={{ minHeight: '100vh' }}>
+          <Routes>
+            <Route path="/chat/:brandId" element={<CustomerChat />} />
 
-          <Route path="/" element={
-            !user ? (
-              // If not logged in, show LandingPage UNLESS they clicked the login button
-              !showLogin ? (
-                <LandingPage onLoginClick={() => setShowLogin(true)} />
+            <Route path="/" element={
+              !user ? (
+                // If not logged in, show LandingPage UNLESS they clicked the login button
+                !showLogin ? (
+                  <LandingPage onLoginClick={() => setShowLogin(true)} />
+                ) : (
+                  <Login />
+                )
+              ) : isAdmin ? (
+                <AdsManager />
+              ) : !hasWokenUp ? (
+                <Welcomeview 
+                  userEmail={user.email} 
+                  onWakeClick={() => setHasWokenUp(true)} 
+                />
               ) : (
-                <Login />
+                <Malvinui userEmail={user.email} />
               )
-            ) : isAdmin ? (
-              <AdsManager />
-            ) : !hasWokenUp ? (
-              <Welcomeview 
-                userEmail={user.email} 
-                onWakeClick={() => setHasWokenUp(true)} 
-              />
-            ) : (
-              <Malvinui userEmail={user.email} />
-            )
-          } />
+            } />
 
-          <Route path="*" element={<Navigate to="/" />} />
-        </Routes>
-      </div>
-    </Router>
+            <Route path="*" element={<Navigate to="/" />} />
+          </Routes>
+        </div>
+      </Router>
+      <CookieBanner />
+    </>
   );
 }
 

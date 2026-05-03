@@ -1,81 +1,103 @@
-import React, { useState, useEffect, useRef } from "react"; // Added useEffect & useRef
+import React, { useState, useEffect, useRef } from "react";
 import { auth } from "../firebase";
-import { 
-  GoogleAuthProvider, 
-  signInWithCredential, 
-  signInWithPopup 
+import {
+  GoogleAuthProvider,
+  signInWithCredential,
+  signInWithPopup,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword
 } from "firebase/auth";
-import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
-import { Capacitor } from '@capacitor/core';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
+import { GoogleAuth } from "@codetrix-studio/capacitor-google-auth";
+import { Capacitor } from "@capacitor/core";
+import { useNavigate } from "react-router-dom";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
-  const canvasRef = useRef(null);
+  const [agreed, setAgreed] = useState(false);
 
-  // --- MATRIX RAIN EFFECT LOGIC ---
+  const navigate = useNavigate();
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  // MATRIX EFFECT
   useEffect(() => {
+    if (!canvasRef.current) return;
     const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext("2d")!;
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
-    const characters = "01010101010101010101010101010101"; // Binary for AI feel
+    const handleResize = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("resize", handleResize);
+    };
+
+    const chars = "010101010101010101";
     const fontSize = 14;
     const columns = canvas.width / fontSize;
     const drops = Array(Math.floor(columns)).fill(1);
 
     const draw = () => {
-      ctx.fillStyle = "rgba(0, 0, 0, 0.1)"; // Trails
+      ctx.fillStyle = "rgba(0,0,0,0.1)";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = "rgba(0, 102, 255, 0.35)"; // Soft AI Blue
+      ctx.fillStyle = "rgba(0,102,255,0.35)";
       ctx.font = fontSize + "px monospace";
 
       for (let i = 0; i < drops.length; i++) {
-        const text = characters.charAt(Math.floor(Math.random() * characters.length));
+        const text = chars[Math.floor(Math.random() * chars.length)];
         ctx.fillText(text, i * fontSize, drops[i] * fontSize);
-        if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) drops[i] = 0;
+
+        if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+          drops[i] = 0;
+        }
         drops[i]++;
       }
     };
+
     const interval = setInterval(draw, 33);
     return () => clearInterval(interval);
   }, []);
 
+  // GOOGLE LOGIN
   const handleGoogleLogin = async () => {
-    console.log("Login button clicked!");
+    if (!agreed) return;
+
     try {
       if (Capacitor.isNativePlatform()) {
         const googleUser = await GoogleAuth.signIn();
-        const credential = GoogleAuthProvider.credential(googleUser.authentication.idToken);
-        const result = await signInWithCredential(auth, credential);
-        console.log("Native Login Success:", result.user);
+        const credential = GoogleAuthProvider.credential(
+          googleUser.authentication.idToken
+        );
+        await signInWithCredential(auth, credential);
       } else {
         const provider = new GoogleAuthProvider();
-        provider.setCustomParameters({ prompt: 'select_account' });
-        const result = await signInWithPopup(auth, provider);
-        console.log("Web Login Success:", result.user);
+        provider.setCustomParameters({ prompt: "select_account" });
+        await signInWithPopup(auth, provider);
       }
-    } catch (error) {
-      console.error("Login Error:", error);
-      alert(`Login failed: ${error.message}`);
+    } catch (error: any) {
+      alert("Login failed: " + error.message);
     }
   };
 
-  const handleAuth = async (e) => {
+  // EMAIL LOGIN
+  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!agreed) return;
+
     try {
       if (isSignUp) {
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        console.log("Account Created:", userCredential.user);
+        await createUserWithEmailAndPassword(auth, email, password);
       } else {
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        console.log("Logged In:", userCredential.user);
+        await signInWithEmailAndPassword(auth, email, password);
       }
-    } catch (error) {
-      console.error("Auth Error:", error.code);
+    } catch (error: any) {
       alert(error.message);
     }
   };
@@ -170,12 +192,34 @@ export default function Login() {
                 backgroundColor: 'rgba(255, 255, 255, 0.1)', color: '#fff', outline: 'none'
               }}
             />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', textAlign: 'left', margin: '5px 0' }}>
+              <div style={{ fontSize: "0.8rem" }}>
+                <input
+                  type="checkbox"
+                  checked={agreed}
+                  onChange={(e) => setAgreed(e.target.checked)}
+                />{" "}
+                I agree to{" "}
+                <span onClick={() => window.open("/terms", "_blank")} style={{ color: "#00d4ff", cursor: "pointer" }}>
+                  Terms
+                </span>{" "}
+                and{" "}
+                <span onClick={() => window.open("/privacy", "_blank")} style={{ color: "#00d4ff", cursor: "pointer" }}>
+                  Privacy Policy
+                </span>
+              </div>
+            </div>
             <button 
               type="submit"
+              disabled={!agreed} // DISABLES BUTTON
               style={{
                 padding: '15px', borderRadius: '12px', border: '2px solid #ffffff', 
-                backgroundColor: '#0066ff', color: '#fff', fontWeight: 'bold', 
-                fontSize: '1rem', cursor: 'pointer', marginTop: '10px'
+                backgroundColor: agreed ? '#0066ff' : '#333', // Changes color when disabled
+                color: agreed ? '#fff' : '#888', 
+                fontWeight: 'bold', 
+                fontSize: '1rem', cursor: agreed ? 'pointer' : 'not-allowed', 
+                marginTop: '10px',
+                transition: '0.3s'
               }}
             >
               {isSignUp ? "Create Account" : "Sign In"}
@@ -193,21 +237,34 @@ export default function Login() {
 
           <button 
             type="button"
+            disabled={!agreed}
             onClick={handleGoogleLogin} 
             style={{
               width: '100%', padding: '15px 0', borderRadius: '16px', border: 'none',
-              backgroundColor: '#fff', color: '#000', fontSize: '1rem', fontWeight: '800', 
-              cursor: 'pointer', transition: 'transform 0.2s ease',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px'
+              backgroundColor: agreed ? '#fff' : '#222', 
+              color: agreed ? '#000' : '#666', 
+              fontSize: '1rem', fontWeight: '800', 
+              cursor: agreed ? 'pointer' : 'not-allowed',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px',
+              transition: '0.3s'
             }}
           >
             <img 
               src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" 
               alt="Google Logo" 
-              style={{ width: '20px', height: '20px' }} 
+              style={{ width: '20px', height: '20px', opacity: agreed ? 1 : 0.3 }} 
             />
             Continue with Google
           </button>
+          {/* ✅ IMPRESSUM LINK */}
+          <p style={{ marginTop: "15px", fontSize: "0.75rem", opacity: 0.7 }}>
+            <span
+              onClick={() => window.open("/impressum", "_blank")}
+              style={{ cursor: "pointer", textDecoration: "underline" }}
+            >
+              Impressum
+            </span>
+          </p>
         </div>
       </div>
 
