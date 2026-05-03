@@ -2,7 +2,7 @@ import React from 'react';
 
 const Impressum = () => {
   return (
-    <div style={{ padding: '40px', maxWidth: '900px', margin: '0 auto', color: '#ccc' }}>
+    <div style={{ padding: '40px', maxWidth: '900px', margin: '0 auto', color: '#ccc', overflowY: "auto"  }}>
       <h1>Impressum</h1>
 
       <p><strong>Angaben gemäß § 5 TMG</strong></p>

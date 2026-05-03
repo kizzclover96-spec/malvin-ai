@@ -2,7 +2,7 @@ import React from 'react';
 
 const Terms = () => {
   return (
-    <div style={{ padding: '40px', maxWidth: '900px', margin: '0 auto', color: '#ccc' }}>
+    <div style={{ padding: '40px', maxWidth: '900px', margin: '0 auto', color: '#ccc', overflowY: "auto"  }}>
       <h1>Terms and Conditions – Malvin AI</h1>
       <p>Last updated: May 2026</p>
 

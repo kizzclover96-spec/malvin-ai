@@ -2,9 +2,24 @@ import React from 'react';
 
 const Privacy = () => {
   return (
-    <div style={{ padding: '40px', maxWidth: '900px', margin: '0 auto', color: '#ccc' }}>
-      <h1>Privacy Policy – Malvin AI</h1>
-      <p>Last updated: May 2026</p>
+    <div
+      style={{
+        minHeight: "100vh",
+        padding: "60px 20px",
+        maxWidth: "900px",
+        margin: "0 auto",
+        color: "#ccc",
+        lineHeight: "1.7",
+        overflowY: "auto" // ✅ enables scrolling if needed
+      }}
+    >
+      <h1 style={{ color: "#fff", marginBottom: "10px" }}>
+        Privacy Policy – Malvin AI
+      </h1>
+
+      <p style={{ opacity: 0.7, marginBottom: "30px" }}>
+        Last updated: May 2026
+      </p>
 
       <h3>1. Information We Collect</h3>
       <p>
