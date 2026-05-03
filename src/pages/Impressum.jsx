@@ -2,7 +2,18 @@ import React from 'react';
 
 const Impressum = () => {
   return (
-    <div style={{ padding: '40px', maxWidth: '900px', margin: '0 auto', color: '#ccc', overflowY: "visible", position: "relative"   }}>
+    <div style={{
+        position: "fixed",      // 👈 breaks out of parent constraints
+        top: 0,
+        left: 0,
+        width: "100vw",
+        height: "100vh",
+        backgroundColor: "#0a0a0a",
+        overflowY: "auto",      // 👈 enables scrolling
+        padding: "60px 20px",
+        color: "#ccc",
+        lineHeight: "1.7"
+      }}>
       <h1>Impressum</h1>
 
       <p><strong>Angaben gemäß § 5 TMG</strong></p>
