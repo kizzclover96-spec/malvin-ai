@@ -58,24 +58,24 @@ const Payments = ({ userBrand }: { userBrand: any }) => {
     }
     // --- 1. SYNC WITH FIREBASE ---
     useEffect(() => {
+        if (!userId) return;
+
+        // Listen for Balance updates
         const balanceRef = ref(db, `users/${userId}/treasury/balance`);
-        const unsubscribeBalance = onValue(balanceRef, (snapshot) => {
+        onValue(balanceRef, (snapshot) => {
             setBalance(snapshot.val() || 0);
         });
 
+        // Listen for Transaction history  
         const ledgerRef = ref(db, `users/${userId}/treasury/ledger`);
-        const unsubscribeLedger = onValue(ledgerRef, (snapshot) => {
+        onValue(ledgerRef, (snapshot) => {
             const data = snapshot.val();
             if (data) {
                 const list = Object.keys(data).map(k => ({ id: k, ...data[k] }));
+                // Sort by timestamp descending
                 setTransactions(list.sort((a, b) => b.timestamp - a.timestamp));
             }
         });
-
-        return () => {
-            unsubscribeBalance();
-            unsubscribeLedger();
-        };
     }, [userId]);
 
     
