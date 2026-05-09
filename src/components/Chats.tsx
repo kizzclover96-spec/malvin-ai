@@ -18,20 +18,7 @@ const ChatCard = ({ children, style }: any) => (
     }}>{children}</div>
 );
 const socket = io('http://localhost:3001');
-useEffect(() => {
-    // Listen for Malvin's decision to act
-    socket.on('ai-action', (action) => {
-        // ONLY execute if Autopilot is ON and we have a selected chat
-        if (isAutopilot && selectedChatId) {
-            console.log("🤖 Malvin is taking action:", action.text);
-            handleManagerSend(action.text); 
-        }
-    });
 
-    return () => {
-        socket.off('ai-action');
-    };
-}, [isAutopilot, selectedChatId]);
 
 const Chats = ({ onBack, brandId, userBrand }: any) => {
     const [selectedChatId, setSelectedChatId] = useState<string | null>(null); // Change to string
@@ -39,6 +26,21 @@ const Chats = ({ onBack, brandId, userBrand }: any) => {
     const [activeTab, setActiveTab] = useState('Chats');
   // Inside Chats.tsx (Manager Dashboard)
     const [activeMessages, setActiveMessages] = useState<any[]>([]);
+    useEffect(() => {
+        const socket = io('http://localhost:3001');
+        // Listen for Malvin's decision to act
+        socket.on('ai-action', (action) => {
+            // ONLY execute if Autopilot is ON and we have a selected chat
+            if (isAutopilot && selectedChatId) {
+                console.log("🤖 Malvin is taking action:", action.text);
+                handleManagerSend(action.text); 
+            }
+        });
+
+        return () => {
+            socket.off('ai-action');
+        };
+    }, [isAutopilot, selectedChatId]);
 
     useEffect(() => {
         if (!selectedChatId) return;
