@@ -248,10 +248,10 @@ const dashboard = (props) => {
                         onBack={() => setActiveTab('Invoices')}
                     />
                 ) : (
-                    <div style={{ maxWidth: '1400px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    <div style={{ maxWidth: '1400px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px', height: '92vh', overflow: 'hidden' }}>
                         
                         {/* 2. UPPER BENTO BOX (Financial Pulse) */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '20px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '20px', flexShrink: 0 }}>
                         
                             {/* Revenue Card */}
                             <DashboardCard>
@@ -313,10 +313,12 @@ const dashboard = (props) => {
                             display: 'grid', 
                             gridTemplateColumns: '400px 1fr', 
                             gap: '20px', 
-                            minHeight: '400px' 
+                            flex: 1, // Tells this section to grow to fill remaining space
+                            minHeight: 0, // Critical for nested scrolling to work in Chrome/Safari
+                            marginBottom: '20px' 
                         }}>
                             {/* Left: Transaction/Message List */}
-                            <DashboardCard style={{ padding: '0px', display: 'flex', flexDirection: 'column' }}>
+                            <DashboardCard style={{ padding: '0px', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
                                 {/* Header */}
                                 <div style={{ padding: '24px', borderBottom: '1px solid #222', display: 'flex', justifyContent: 'space-between' }}>
                                     <span style={{ fontWeight: 600 }}>Business links</span>
@@ -396,16 +398,18 @@ const dashboard = (props) => {
                             </DashboardCard>
 
                             {/* Right: The Focus Area (Detail View) */}
-                            <DashboardCard style={{ background: '#000', border: '1px solid #222', display: 'flex', flexDirection: 'column', height: '600px' }}>
+                            <DashboardCard style={{ background: '#000', border: '1px solid #222', display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
                                 <video ref={videoRef} autoPlay style={{ display: 'none' }} />
-                                
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
-                                    <div>
-                                        <div style={{ fontSize: '24px', fontWeight: 700 }}>Neural Assistant Link</div>
-                                        <div style={{ color: '#666' }}>Active ID: {userBrand?.id || 'MAL-001'}</div>
-                                    </div>
-                                    <div onClick={startVision} style={{ backgroundColor: isVisionActive ? '#C5FF41' : '#111', color: isVisionActive ? '#000' : '#fff', padding: '10px 20px', borderRadius: '12px', cursor: 'pointer', fontWeight: 700 }}>
-                                        {isVisionActive ? '● VISION ACTIVE' : '○ ENABLE VISION'}
+
+                                <div style={{ flexShrink: 0, paddingBottom: '20px' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                                        <div>
+                                            <div style={{ fontSize: '24px', fontWeight: 700 }}>Neural Assistant Link</div>
+                                            <div style={{ color: '#666' }}>Active ID: {userBrand?.id || 'MAL-001'}</div>
+                                        </div>
+                                        <div onClick={startVision} style={{ backgroundColor: isVisionActive ? '#C5FF41' : '#111', color: isVisionActive ? '#000' : '#fff', padding: '10px 20px', borderRadius: '12px', cursor: 'pointer', fontWeight: 700, height: 'fit-content' }}>
+                                            {isVisionActive ? '● VISION ACTIVE' : '○ ENABLE VISION'}
+                                        </div>
                                     </div>
                                 </div>
 
@@ -417,8 +421,9 @@ const dashboard = (props) => {
                                     padding: '20px', 
                                     display: 'flex', 
                                     flexDirection: 'column',
-                                    overflowY: 'auto',
-                                    gap: '15px'
+                                    overflowY: 'auto', // This allows only the messages to scroll
+                                    gap: '15px',
+                                    border: '1px solid #1A1A1A'
                                 }}>
                                     {aiHistory.length === 0 ? (
                                         <div style={{ textAlign: 'center', marginTop: '50px', opacity: 0.5 }}>
@@ -442,15 +447,15 @@ const dashboard = (props) => {
                                 </div>
 
                                 {/* Input Area */}
-                                <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+                                <div style={{ display: 'flex', gap: '10px', marginTop: '20px', flexShrink: 0 }}>
                                     <input 
                                         value={aiMessage}
                                         onChange={(e) => setAiMessage(e.target.value)}
                                         onKeyPress={(e) => e.key === 'Enter' && sendToMalvin()}
                                         placeholder="Talk to Malvin..."
-                                        style={{ flex: 1, background: '#111', border: '1px solid #333', borderRadius: '15px', padding: '15px', color: '#fff' }}
+                                        style={{ flex: 1, background: '#111', border: '1px solid #333', borderRadius: '15px', padding: '15px', color: '#fff', outline: 'none' }}
                                     />
-                                    <button onClick={sendToMalvin} style={{ background: '#C5FF41', border: 'none', padding: '0 25px', borderRadius: '15px', fontWeight: 700 }}>SEND</button>
+                                    <button onClick={sendToMalvin} style={{ background: '#C5FF41', border: 'none', padding: '0 25px', borderRadius: '15px', fontWeight: 700, cursor: 'pointer' }}>SEND</button>
                                 </div>
                             </DashboardCard>
                         </div>
