@@ -301,10 +301,6 @@ const dashboard = (props) => {
                                 {/* Left: Transaction/Message List */}
                                 <DashboardCard style={{ overflowY: 'auto' }}>
                                     {/* Header */}
-                                    <p style={{ fontWeight: 600, marginBottom: '20px' }}>Business links</p>
-                                    <div style={{ background: '#000', padding: '15px', borderRadius: '12px', border: '1px solid #222', marginBottom: '20px' }}>
-                                    <code style={{ color: '#C5FF41', fontSize: '11px', wordBreak: 'break-all' }}>{shareUrl}</code>
-                                    </div>
 
                                     {/* URL Link Box - Fixed to prevent overflow */}
                                     <div style={{ padding: '20px' }}>
