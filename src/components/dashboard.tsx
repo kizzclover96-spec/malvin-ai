@@ -6,6 +6,7 @@ import MarketFront from './MarketFront';
 import Catalog from './Catalog';
 import AdsManager from './AdsManager';
 import Payments from'./Payments';
+import { io } from 'socket.io-client';
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 // The "Salesforce-style" rounded containers from your image
 const DashboardCard = ({ children, style }: any) => (
@@ -19,7 +20,7 @@ const DashboardCard = ({ children, style }: any) => (
     {children}
   </div>
 );
-
+const socket = io('http://localhost:3001'); // Your AI Backend
 const BackButton = ({ onClick }: { onClick: () => void }) => (
     <div 
         onClick={onClick}
@@ -66,6 +67,47 @@ const dashboard = (props) => {
     console.log("Dashboard Props:", userBrand);
     const brandName = userBrand?.name || "default";
     const [chatCount, setChatCount] = useState(0);
+    const [aiMessage, setAiMessage] = useState('');
+    const [aiHistory, setAiHistory] = useState([]);
+    const [isVisionActive, setIsVisionActive] = useState(false);
+    const videoRef = useRef(null);
+
+    // AI VISION LOGIC
+    const startVision = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+            if (videoRef.current) videoRef.current.srcObject = stream;
+            setIsVisionActive(true);
+            
+            // Snap a photo every 3 seconds for the AI to "see"
+            setInterval(() => {
+                captureFrame();
+            }, 3000);
+        } catch (err) { console.error(err); }
+    };
+
+    const captureFrame = () => {
+        if (!videoRef.current) return;
+        const canvas = document.createElement("canvas");
+        canvas.width = 1280; canvas.height = 720;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+        const base64 = canvas.toDataURL("image/jpeg", 0.5).split(',')[1];
+        socket.emit('screen-stream', { image: base64, text: "Continuous Monitoring..." });
+    };
+
+    useEffect(() => {
+        socket.on('ai-reply', (data) => {
+            setAiHistory(prev => [...prev, { role: 'malvin', text: data.text }]);
+        });
+        return () => socket.off('ai-reply');
+    }, []);
+
+    const sendToMalvin = () => {
+        setAiHistory(prev => [...prev, { role: 'user', text: aiMessage }]);
+        socket.emit('screen-stream', { text: aiMessage });
+        setAiMessage('');
+    };
 
     // 2. Real-time Listener for Customer/Chat Count
     useEffect(() => {
@@ -354,36 +396,61 @@ const dashboard = (props) => {
                             </DashboardCard>
 
                             {/* Right: The Focus Area (Detail View) */}
-                            <DashboardCard style={{ background: '#000', border: '1px solid #222', display: 'flex', flexDirection: 'column' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '40px' }}>
+                            <DashboardCard style={{ background: '#000', border: '1px solid #222', display: 'flex', flexDirection: 'column', height: '600px' }}>
+                                <video ref={videoRef} autoPlay style={{ display: 'none' }} />
+                                
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
                                     <div>
-                                        <div style={{ fontSize: '24px', fontWeight: 700 }}>Invoice #427-012</div>
-                                        <div style={{ color: '#666' }}>Client: Maria Jones</div>
+                                        <div style={{ fontSize: '24px', fontWeight: 700 }}>Neural Assistant Link</div>
+                                        <div style={{ color: '#666' }}>Active ID: {userBrand?.id || 'MAL-001'}</div>
                                     </div>
-                                    <div style={{ backgroundColor: '#111', padding: '10px 20px', borderRadius: '12px' }}>
-                                        <span style={{ color: '#C5FF41' }}>●</span> Processing
+                                    <div onClick={startVision} style={{ backgroundColor: isVisionActive ? '#C5FF41' : '#111', color: isVisionActive ? '#000' : '#fff', padding: '10px 20px', borderRadius: '12px', cursor: 'pointer', fontWeight: 700 }}>
+                                        {isVisionActive ? '● VISION ACTIVE' : '○ ENABLE VISION'}
                                     </div>
                                 </div>
 
-                                {/* Malvin Intelligence Integration */}
+                                {/* Live AI Chat History */}
                                 <div style={{ 
                                     flex: 1, 
                                     background: '#111', 
                                     borderRadius: '24px', 
-                                    padding: '30px', 
+                                    padding: '20px', 
                                     display: 'flex', 
-                                    flexDirection: 'column', 
-                                    justifyContent: 'center',
-                                    textAlign: 'center'
+                                    flexDirection: 'column',
+                                    overflowY: 'auto',
+                                    gap: '15px'
                                 }}>
-                                    <div style={{ color: '#C5FF41', fontSize: '12px', fontWeight: 800, letterSpacing: '2px', marginBottom: '10px' }}>MALVIN NEURAL ASSISTANT</div>
-                                    <p style={{ fontSize: '18px', maxWidth: '500px', margin: '0 auto', lineHeight: '1.5' }}>
-                                        "I noticed this client typically pays via Stripe. Would you like me to send a 1-click payment reminder?"
-                                    </p>
-                                    <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginTop: '20px' }}>
-                                        <button style={{ background: '#C5FF41', border: 'none', padding: '12px 24px', borderRadius: '12px', fontWeight: 700 }}>Yes, Send Reminder</button>
-                                        <button style={{ background: 'transparent', border: '1px solid #333', color: 'white', padding: '12px 24px', borderRadius: '12px' }}>Ignore</button>
-                                    </div>
+                                    {aiHistory.length === 0 ? (
+                                        <div style={{ textAlign: 'center', marginTop: '50px', opacity: 0.5 }}>
+                                            <p>"Waiting for vision stream to analyze dashboard..."</p>
+                                        </div>
+                                    ) : (
+                                        aiHistory.map((chat, i) => (
+                                            <div key={i} style={{ alignSelf: chat.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '80%' }}>
+                                                <div style={{ 
+                                                    background: chat.role === 'user' ? '#222' : 'transparent', 
+                                                    padding: '12px 18px', 
+                                                    borderRadius: '15px',
+                                                    border: chat.role === 'malvin' ? '1px solid #C5FF41' : 'none',
+                                                    color: chat.role === 'malvin' ? '#C5FF41' : '#fff'
+                                                }}>
+                                                    {chat.text}
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+
+                                {/* Input Area */}
+                                <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+                                    <input 
+                                        value={aiMessage}
+                                        onChange={(e) => setAiMessage(e.target.value)}
+                                        onKeyPress={(e) => e.key === 'Enter' && sendToMalvin()}
+                                        placeholder="Talk to Malvin..."
+                                        style={{ flex: 1, background: '#111', border: '1px solid #333', borderRadius: '15px', padding: '15px', color: '#fff' }}
+                                    />
+                                    <button onClick={sendToMalvin} style={{ background: '#C5FF41', border: 'none', padding: '0 25px', borderRadius: '15px', fontWeight: 700 }}>SEND</button>
                                 </div>
                             </DashboardCard>
                         </div>

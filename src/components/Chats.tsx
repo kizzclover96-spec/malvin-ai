@@ -3,6 +3,7 @@ import { collection, query, where, onSnapshot, orderBy, addDoc, serverTimestamp,
 import { db } from "../firebase";
 import { ref, push, onValue } from "firebase/database";
 import { firestore } from "../firebase";
+import { io } from 'socket.io-client';
 
 // Reusable Sub-Card for the chat elements
 const ChatCard = ({ children, style }: any) => (
@@ -16,6 +17,21 @@ const ChatCard = ({ children, style }: any) => (
         ...style
     }}>{children}</div>
 );
+const socket = io('http://localhost:3001');
+useEffect(() => {
+    // Listen for Malvin's decision to act
+    socket.on('ai-action', (action) => {
+        // ONLY execute if Autopilot is ON and we have a selected chat
+        if (isAutopilot && selectedChatId) {
+            console.log("🤖 Malvin is taking action:", action.text);
+            handleManagerSend(action.text); 
+        }
+    });
+
+    return () => {
+        socket.off('ai-action');
+    };
+}, [isAutopilot, selectedChatId]);
 
 const Chats = ({ onBack, brandId, userBrand }: any) => {
     const [selectedChatId, setSelectedChatId] = useState<string | null>(null); // Change to string
