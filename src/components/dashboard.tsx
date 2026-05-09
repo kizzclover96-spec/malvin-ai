@@ -60,6 +60,7 @@ const BackButton = ({ onClick }: { onClick: () => void }) => (
 
 const dashboard = (props) => {
     const user = auth.currentUser;
+    const [isProcessing, setIsProcessing] = useState(false);
     const { userBrand = {}, onBack } = props;
     console.log("All Props received:", props); // This will show you EVERYTHING being sent
     const [activeTab, setActiveTab] = useState('Invoices');
@@ -79,28 +80,45 @@ const dashboard = (props) => {
             if (videoRef.current) videoRef.current.srcObject = stream;
             setIsVisionActive(true);
             
-            // Snap a photo every 3 seconds for the AI to "see"
-            setInterval(() => {
-                captureFrame();
-            }, 3000);
-        } catch (err) { console.error(err); }
+            // 1. Clear any existing interval to prevent "Double Vision"
+            if (visionInterval.current) clearInterval(visionInterval.current);
+
+            // 2. Slowed down to 10 seconds (10000ms)
+            // 3. Added the isProcessing check to ensure we wait for the AI
+            visionInterval.current = setInterval(() => {
+                if (!isProcessing) {
+                    captureFrame();
+                }
+            }, 10000); 
+
+        } catch (err) { 
+            console.error("Vision Error:", err); 
+        }
     };
 
     const captureFrame = () => {
-        if (!videoRef.current) return;
+        if (!videoRef.current || isProcessing) return; // Don't send if already busy
+        
+        setIsProcessing(true); // Lock it
         const canvas = document.createElement("canvas");
-        canvas.width = 1280; canvas.height = 720;
+        canvas.width = 1280; 
+        canvas.height = 720;
         const ctx = canvas.getContext("2d");
         ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
         const base64 = canvas.toDataURL("image/jpeg", 0.5).split(',')[1];
-        socket.emit('screen-stream', { image: base64, text: "Continuous Monitoring..." });
+        
+        socket.emit('screen-stream', { image: base64, text: "Analyzing dashboard..." });
     };
 
     useEffect(() => {
         socket.on('ai-reply', (data) => {
             setAiHistory(prev => [...prev, { role: 'malvin', text: data.text }]);
+            setIsProcessing(false); // AI replied, we can send a new frame now
         });
-        return () => socket.off('ai-reply');
+        return () => {
+            socket.off('ai-reply');
+            if (visionInterval.current) clearInterval(visionInterval.current);
+        };
     }, []);
 
     const sendToMalvin = () => {
@@ -167,9 +185,11 @@ const dashboard = (props) => {
            
             <div style={{
             backgroundColor: '#000000',
-            minHeight: '100vh',
+            height: '100vh',
             width: '100%',
             color: 'white',
+            display: 'flex',
+            flexDirection: 'column',
             boxSizing: 'border-box',
             fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
             overflowX: 'hidden'
@@ -248,7 +268,18 @@ const dashboard = (props) => {
                         onBack={() => setActiveTab('Invoices')}
                     />
                 ) : (
-                    <div style={{ maxWidth: '1400px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px', height: '92vh', overflow: 'hidden' }}>
+                    <div style={{ 
+                        flex: 1, // This tells the content to take up all space below the header
+                        padding: '0 20px 20px 20px', 
+                        overflow: 'hidden', // Keeps the "bento box" inside the screen
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '20px',
+                        maxWidth: '1400px',
+                        margin: '0 auto',
+                        width: '100%',
+                        boxSizing: 'border-box'
+                    }}>
                         
                         {/* 2. UPPER BENTO BOX (Financial Pulse) */}
                         <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '20px', flexShrink: 0 }}>
@@ -315,10 +346,10 @@ const dashboard = (props) => {
                             gap: '20px', 
                             flex: 1, // Tells this section to grow to fill remaining space
                             minHeight: 0, // Critical for nested scrolling to work in Chrome/Safari
-                            marginBottom: '20px' 
+                            
                         }}>
                             {/* Left: Transaction/Message List */}
-                            <DashboardCard style={{ padding: '0px', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
+                            <DashboardCard style={{ display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
                                 {/* Header */}
                                 <div style={{ padding: '24px', borderBottom: '1px solid #222', display: 'flex', justifyContent: 'space-between' }}>
                                     <span style={{ fontWeight: 600 }}>Business links</span>
@@ -398,7 +429,7 @@ const dashboard = (props) => {
                             </DashboardCard>
 
                             {/* Right: The Focus Area (Detail View) */}
-                            <DashboardCard style={{ background: '#000', border: '1px solid #222', display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+                            <DashboardCard style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                                 <video ref={videoRef} autoPlay style={{ display: 'none' }} />
 
                                 <div style={{ flexShrink: 0, paddingBottom: '20px' }}>
@@ -447,7 +478,7 @@ const dashboard = (props) => {
                                 </div>
 
                                 {/* Input Area */}
-                                <div style={{ display: 'flex', gap: '10px', marginTop: '20px', flexShrink: 0 }}>
+                                <div style={{ display: 'flex', gap: '10px', marginTop: '20px'}}>
                                     <input 
                                         value={aiMessage}
                                         onChange={(e) => setAiMessage(e.target.value)}
