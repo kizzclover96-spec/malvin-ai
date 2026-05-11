@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { collection, query, where, onSnapshot, orderBy, addDoc, serverTimestamp, doc, setDoc } from "firebase/firestore";
-import { db } from "../firebase";
-import { ref, push, onValue } from "firebase/database";
+import React, { useState, useEffect, useMemo } from 'react';
+import { collection, query, where, onSnapshot, orderBy, addDoc, serverTimestamp, doc, setDoc, updateDoc } from "firebase/firestore";
 import { firestore } from "../firebase";
 import { io } from 'socket.io-client';
 
-// Reusable Sub-Card for the chat elements
+// Initialize socket OUTSIDE to prevent multiple connections
+const socket = io('http://localhost:3001');
+
 const ChatCard = ({ children, style }: any) => (
     <div style={{
         background: '#111111',
@@ -17,31 +17,53 @@ const ChatCard = ({ children, style }: any) => (
         ...style
     }}>{children}</div>
 );
-const socket = io('http://localhost:3001');
 
-
-const Chats = ({ onBack, brandId, userBrand }: any) => {
-    const [selectedChatId, setSelectedChatId] = useState<string | null>(null); // Change to string
+const Chats = ({ brandId, userBrand }: any) => {
+    const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
     const [isAutopilot, setIsAutopilot] = useState(true);
-    const [activeTab, setActiveTab] = useState('Chats');
-  // Inside Chats.tsx (Manager Dashboard)
     const [activeMessages, setActiveMessages] = useState<any[]>([]);
+    const [chats, setChats] = useState<any[]>([]);
+    const [inputValue, setInputValue] = useState('');
+
+    // 1. Sort chats: Unread ones first
+    const sortedChats = useMemo(() => {
+        return [...chats].sort((a, b) => {
+            if (a.viewedByManager === b.viewedByManager) return 0;
+            return a.viewedByManager ? 1 : -1;
+        });
+    }, [chats]);
+
+    // 2. Listen for AI Actions (Socket)
     useEffect(() => {
-        const socket = io('http://localhost:3001');
-        // Listen for Malvin's decision to act
         socket.on('ai-action', (action) => {
-            // ONLY execute if Autopilot is ON and we have a selected chat
             if (isAutopilot && selectedChatId) {
-                console.log("🤖 Malvin is taking action:", action.text);
+                console.log("🤖 Malvin Action:", action.text);
                 handleManagerSend(action.text); 
             }
         });
-
-        return () => {
-            socket.off('ai-action');
-        };
+        return () => { socket.off('ai-action'); };
     }, [isAutopilot, selectedChatId]);
 
+    // 3. Single Listener for the Chat List
+    useEffect(() => {
+        const idToUse = brandId || userBrand?.id;
+        if (!idToUse) return;
+
+        const q = query(
+            collection(firestore, "conversations"),
+            where("brandId", "==", String(idToUse)),
+            orderBy("updatedAt", "desc")
+        );
+
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const chatList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setChats(chatList);
+        });
+
+        return () => unsubscribe();
+    }, [brandId, userBrand?.id]);
+
+    // 4. Listener for Messages in Selected Chat
     useEffect(() => {
         if (!selectedChatId) return;
 
@@ -51,246 +73,152 @@ const Chats = ({ onBack, brandId, userBrand }: any) => {
         );
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
-            const msgs = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-            setActiveMessages(msgs);
+            setActiveMessages(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
         });
 
         return () => unsubscribe();
     }, [selectedChatId]);
-    const [chats, setChats] = useState<any[]>([]);
 
-    useEffect(() => {
-        if (!brandId) return;
-        console.log("🚀 Manager listening for messages under ID:", brandId);
-
-        const q = query(
-            collection(firestore, "conversations"),
-            where("brandId", "==", brandId), // It now uses the UID we passed down
-            orderBy("updatedAt", "desc")
-        );
-
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const chatList = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-            setChats(chatList);
-        })
-        return () => unsubscribe();
-    }, [brandId]);
-
-    useEffect(() => {
-        if (!userBrand || !userBrand?.id) {
-            console.log("❌ Chats.tsx: userBrand.id is missing!");
-            console.log("Waiting for brand data...");
-            return; 
+    const handleSelectChat = async (chatId: string) => {
+        setSelectedChatId(chatId);
+        try {
+            const chatRef = doc(firestore, "conversations", chatId);
+            await updateDoc(chatRef, { viewedByManager: true });
+        } catch (e) {
+            console.error("Error marking as read:", e);
         }
-        console.log("🔍 Manager is searching for Brand ID:", userBrand.id);
-        console.log("🔍 Data Type of Brand ID:", typeof userBrand.id);
-        // Only show chats belonging to THIS manager's brand
-        const q = query(
-            collection(firestore, "conversations"),
-            where("brandId", "==", String(userBrand?.id)),
-            orderBy("updatedAt", "desc")
-        );
-
-        const unsubscribe = onSnapshot(q, { includeMetadataChanges: true }, (snapshot) => {
-            console.log("✅ Snapshot received! Document count:", snapshot.size);
-            const chatList = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-            setChats(chatList);
-        }, (error) => {
-            console.error("🔥 Firestore Error:", error.message);
-        });
-
-        return () => unsubscribe();
-    }, [userBrand?.id]);
-
-    const [inputValue, setInputValue] = useState('');
-
-    // The User's custom "Commands" for Malvin
-    const [directives] = useState([
-        { trigger: 'discount', response: 'Since you are a loyal customer of {name}, I can offer you 10% off!' },
-        { trigger: 'hours', response: 'We are open until 9 PM today in the {category} department.' },
-        { trigger: 'stock', response: 'Let me check the back... Yes, we have that in stock!' }
-    ]);
-    
-    const sendMessage = (roomId, text) => {
-        const chatRef = ref(db, `chats/${roomId}/messages`);
-        push(chatRef, {
-            senderId: auth.currentUser.uid,
-            text: text,
-            timestamp: Date.now()
-        });
     };
 
     const handleManagerSend = async (text: string) => {
         if (!text.trim() || !selectedChatId) return;
-
         try {
-            // 1. Add to messages sub-collection
             await addDoc(collection(firestore, "conversations", selectedChatId, "messages"), {
                 text: text,
                 sender: 'manager',
                 timestamp: serverTimestamp()
             });
 
-            // 2. Update the main convo doc
             await setDoc(doc(firestore, "conversations", selectedChatId), {
                 lastMessage: text,
-                updatedAt: serverTimestamp()
+                updatedAt: serverTimestamp(),
+                viewedByManager: true // Manager sent it, so they've seen it
             }, { merge: true });
 
-            setInputValue(''); // Clear input
+            setInputValue('');
         } catch (e) {
-            console.error("Error sending message:", e);
+            console.error("Error sending:", e);
         }
     };
 
-    const navItems = ['Estimates', 'Invoices', 'Payments', 'Chats', 'Checkouts'];
-
     return (
-        <div style={{ maxWidth: '1400px', margin: '0 auto' }}> {/* Container to keep everything centered */}    
+        <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
             <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: '350px 1fr', 
-            gap: '20px', 
-            height: '600px', // Matches the layout height
-            marginTop: '10px' 
+                display: 'grid', 
+                gridTemplateColumns: '350px 1fr', 
+                gap: '20px', 
+                height: '70vh', 
+                marginTop: '10px' 
             }}>
-            
-                {/* LEFT: CHAT HEADS LIST */}
+                
+                {/* LEFT: CHAT LIST */}
                 <ChatCard>
                     <div style={{ padding: '20px', borderBottom: '1px solid #222', fontWeight: 600, fontSize: '14px' }}>
-                     Active Conversations
+                        Active Conversations
                     </div>
                     <div style={{ flex: 1, overflowY: 'auto', padding: '10px' }}>
-                        {chats.map((chat, index) => {
-                            // This creates "Client 1" for the first ever chat, "Client 2" for second, etc.
-                            const clientNumber = chats.length - index; 
-                            
-                            return (
-                                <div 
-                                    key={chat.id}
-                                    onClick={() => setSelectedChatId(chat.id)}
-                                    style={{
-                                        padding: '15px',
-                                        borderRadius: '18px',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '12px',
-                                        marginBottom: '8px',
-                                        transition: '0.2s',
-                                        backgroundColor: selectedChatId === chat.id ? '#1A1A1A' : 'transparent',
-                                    }}
-                                >
-                                    {/* Avatar with dynamic Initial */}
-                                    <div style={{ 
-                                        width: '42px', height: '42px', borderRadius: '50%', 
-                                        background: '#333', display: 'flex', alignItems: 'center', 
-                                        justifyContent: 'center', color: '#C5FF41', fontWeight: 'bold'
-                                    }}>
-                                        {clientNumber}
+                        {sortedChats.map((chat, index) => (
+                            <div 
+                                key={chat.id}
+                                onClick={() => handleSelectChat(chat.id)}
+                                style={{
+                                    padding: '15px',
+                                    borderRadius: '18px',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '12px',
+                                    marginBottom: '8px',
+                                    border: chat.viewedByManager === false ? '1px solid #C5FF41' : '1px solid transparent',
+                                    backgroundColor: selectedChatId === chat.id ? '#1A1A1A' : (chat.viewedByManager === false ? 'rgba(197, 255, 65, 0.05)' : 'transparent'),
+                                }}
+                            >
+                                <div style={{ 
+                                    width: '42px', height: '42px', borderRadius: '50%', 
+                                    background: '#333', display: 'flex', alignItems: 'center', 
+                                    justifyContent: 'center', color: '#C5FF41', fontWeight: 'bold',
+                                    border: chat.viewedByManager === false ? '2px solid #C5FF41' : 'none'
+                                }}>
+                                    {chats.length - index}
+                                </div>
+                                <div style={{ flex: 1, overflow: 'hidden' }}>
+                                    <div style={{ fontSize: '14px', fontWeight: 600, color: '#fff' }}>
+                                        Client #{chats.length - index}
                                     </div>
-
-                                    <div style={{ flex: 1, overflow: 'hidden' }}>
-                                        <div style={{ fontSize: '14px', fontWeight: 600, display: 'flex', justifyContent: 'space-between' }}>
-                                            {/* DISPLAY DYNAMIC NAME */}
-                                            Client #{clientNumber}
-                                            <span style={{ fontSize: '10px', color: '#666' }}>
-                                                {chat.updatedAt?.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                                            </span>
-                                        </div>
-                                        <div style={{ fontSize: '12px', color: '#666', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                            {chat.lastMessage || "No messages yet"}
-                                        </div>
+                                    <div style={{ fontSize: '12px', color: '#666', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                        {chat.lastMessage || "No messages yet"}
                                     </div>
                                 </div>
-                            );
-                        })}
+                            </div>
+                        ))}
                     </div>
                 </ChatCard>
 
-                {/* RIGHT: CONVERSATION OR EMPTY STATE */}
+                {/* RIGHT: MESSAGE FEED */}
                 <ChatCard style={{ background: '#000' }}>
                     {selectedChatId ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                        {/* Chat Header */}
-                        <div style={{ padding: '20px', borderBottom: '1px solid #222', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div>
-                                {/* Dynamic Header Name */}
-                                <div style={{ fontWeight: 700 }}>
-                                    Client #{chats.length - chats.findIndex(c => c.id === selectedChatId)}
+                        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                            <div style={{ padding: '20px', borderBottom: '1px solid #222', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div>
+                                    <div style={{ fontWeight: 700, color: '#fff' }}>Chat Detail</div>
+                                    <div style={{ fontSize: '11px', color: isAutopilot ? '#C5FF41' : '#666' }}>
+                                        {isAutopilot ? '🤖 AUTOPILOT ON' : '👤 MANUAL MODE'}
+                                    </div>
                                 </div>
-                                <div style={{ fontSize: '11px', color: isAutopilot ? '#C5FF41' : '#666' }}>
-                                    {isAutopilot ? '🤖 MALVIN AUTOPILOT ON' : '👤 MANUAL MODE'}
-                                </div>
+                                <button 
+                                    onClick={() => setIsAutopilot(!isAutopilot)}
+                                    style={{ 
+                                        background: isAutopilot ? 'rgba(197, 255, 65, 0.1)' : '#fff',
+                                        color: isAutopilot ? '#C5FF41' : '#000',
+                                        border: 'none', padding: '8px 16px', borderRadius: '12px', cursor: 'pointer', fontWeight: 700
+                                    }}
+                                >
+                                    {isAutopilot ? 'Take Over' : 'Enable Malvin'}
+                                </button>
                             </div>
-                            <button 
-                                onClick={() => setIsAutopilot(!isAutopilot)}
-                                style={{ 
-                                background: isAutopilot ? 'rgba(197, 255, 65, 0.1)' : '#fff',
-                                color: isAutopilot ? '#C5FF41' : '#000',
-                                border: 'none', padding: '8px 16px', borderRadius: '12px', cursor: 'pointer', fontWeight: 700, fontSize: '12px'
-                                }}
-                            >
-                                {isAutopilot ? 'Take Over' : 'Enable Malvin'}
-                            </button>
-                        </div>
 
-                        {/* Message Feed */}
-                        <div style={{ flex: 1, padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px', overflowY: 'auto' }}>
-                            {activeMessages.map((msg) => (
-                                <div key={msg.id} style={{ 
-                                    alignSelf: msg.sender === 'manager' ? 'flex-end' : 'flex-start', 
-                                    background: msg.sender === 'manager' ? 'rgba(197, 255, 65, 0.05)' : '#1A1A1A', 
-                                    border: msg.sender === 'manager' ? '1px solid #C5FF41' : 'none',
-                                    padding: '12px 16px', 
-                                    borderRadius: '15px', 
-                                    fontSize: '14px', 
-                                    maxWidth: '70%',
-                                    color: msg.sender === 'manager' ? '#C5FF41' : 'white'
-                                }}>
-                                    {msg.text}
-                                </div>
-                            ))}
+                            <div style={{ flex: 1, padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                {activeMessages.map((msg) => (
+                                    <div key={msg.id} style={{ 
+                                        alignSelf: msg.sender === 'manager' ? 'flex-end' : 'flex-start', 
+                                        background: msg.sender === 'manager' ? '#C5FF41' : '#1A1A1A', 
+                                        color: msg.sender === 'manager' ? '#000' : '#fff',
+                                        padding: '10px 15px', borderRadius: '15px', maxWidth: '70%', fontSize: '14px'
+                                    }}>
+                                        {msg.text}
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div style={{ padding: '20px', display: 'flex', gap: '10px' }}>
+                                <input 
+                                    value={inputValue} 
+                                    onChange={(e) => setInputValue(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleManagerSend(inputValue)}
+                                    placeholder="Reply..."
+                                    style={{ flex: 1, background: '#111', border: '1px solid #333', color: '#fff', padding: '12px', borderRadius: '12px' }}
+                                />
+                                <button onClick={() => handleManagerSend(inputValue)} style={{ background: '#C5FF41', padding: '0 20px', borderRadius: '12px', fontWeight: 800 }}>SEND</button>
+                            </div>
                         </div>
-                        {/* Input */}
-                        <div style={{ padding: '20px', borderTop: '1px solid #222', display: 'flex', gap: '10px' }}>
-                            <input value={inputValue} onChange={(e) => setInputValue(e.target.value)}
-                                placeholder="Type a message..." 
-                                style={{ flex: 1, background: '#111', border: '1px solid #333', color: 'white', borderRadius: '14px', padding: '12px', outline: 'none' }} 
-                            />
-                            <button style={{ background: '#C5FF41', color: 'black', border: 'none', padding: '0 20px', borderRadius: '14px', fontWeight: 800 }}
-                            onClick={() => { handleManagerSend(inputValue); setInputValue(''); }}>
-                                SEND
-                            </button>
-                        </div>
-                    </div>
                     ) : (
-                    /* EMPTY STATE */
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center', padding: '40px' }}>
-                        <div style={{ fontSize: '48px', marginBottom: '20px' }}>🛰️</div>
-                        <h3 style={{ fontSize: '22px', fontWeight: 700, marginBottom: '10px' }}>No chats yet?</h3>
-                        <p style={{ color: '#666', maxWidth: '300px', lineHeight: '1.6', fontSize: '14px' }}>
-                        Tell someone about **{userBrand?.name || 'your brand'}** or run an ad campaign today to start the conversation.
-                        </p>
-                        <button style={{ marginTop: '25px', background: '#C5FF41', color: 'black', border: 'none', padding: '14px 32px', borderRadius: '30px', fontWeight: 800, cursor: 'pointer' }}>
-                        Launch Growth Ads
-                        </button>
-                    </div>
+                        <div style={{ margin: 'auto', textAlign: 'center', color: '#444' }}>
+                            <h3>Select a conversation to start</h3>
+                        </div>
                     )}
                 </ChatCard>
             </div>
         </div>
-    );     
-
+    );
 };
 
 export default Chats;
