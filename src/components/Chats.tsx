@@ -83,6 +83,7 @@ const Chats = ({ brandId, userBrand }: any) => {
         setSelectedChatId(chatId);
         try {
             const chatRef = doc(firestore, "conversations", chatId);
+            // This clears the green highlight and the red dot
             await updateDoc(chatRef, { viewedByManager: true });
         } catch (e) {
             console.error("Error marking as read:", e);
@@ -126,40 +127,62 @@ const Chats = ({ brandId, userBrand }: any) => {
                         Active Conversations
                     </div>
                     <div style={{ flex: 1, overflowY: 'auto', padding: '10px' }}>
-                        {sortedChats.map((chat, index) => (
-                            <div 
-                                key={chat.id}
-                                onClick={() => handleSelectChat(chat.id)}
-                                style={{
-                                    padding: '15px',
-                                    borderRadius: '18px',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '12px',
-                                    marginBottom: '8px',
-                                    border: chat.viewedByManager === false ? '1px solid #C5FF41' : '1px solid transparent',
-                                    backgroundColor: selectedChatId === chat.id ? '#1A1A1A' : (chat.viewedByManager === false ? 'rgba(197, 255, 65, 0.05)' : 'transparent'),
-                                }}
-                            >
-                                <div style={{ 
-                                    width: '42px', height: '42px', borderRadius: '50%', 
-                                    background: '#333', display: 'flex', alignItems: 'center', 
-                                    justifyContent: 'center', color: '#C5FF41', fontWeight: 'bold',
-                                    border: chat.viewedByManager === false ? '2px solid #C5FF41' : 'none'
-                                }}>
-                                    {chats.length - index}
-                                </div>
-                                <div style={{ flex: 1, overflow: 'hidden' }}>
-                                    <div style={{ fontSize: '14px', fontWeight: 600, color: '#fff' }}>
-                                        Client #{chats.length - index}
+                        {sortedChats.map((chat, index) => {
+                            const isUnread = chat.viewedByManager === false;
+                            const isSelected = selectedChatId === chat.id;
+
+                            return (
+                                <div 
+                                    key={chat.id}
+                                    onClick={() => handleSelectChat(chat.id)}
+                                    style={{
+                                        padding: '15px',
+                                        borderRadius: '18px',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '12px',
+                                        marginBottom: '8px',
+                                        position: 'relative',
+                                        // BRIGHT GREEN BORDER for unread, subtle for read
+                                        border: isUnread ? '1px solid #C5FF41' : '1px solid transparent',
+                                        // SOFT GREEN GLOW background for unread
+                                        backgroundColor: isSelected ? '#1A1A1A' : (isUnread ? 'rgba(197, 255, 65, 0.08)' : 'transparent'),
+                                        transition: '0.3s'
+                                    }}
+                                >
+                                    <div style={{ 
+                                        width: '42px', height: '42px', borderRadius: '50%', 
+                                        background: '#333', display: 'flex', alignItems: 'center', 
+                                        justifyContent: 'center', color: isUnread ? '#000' : '#C5FF41', 
+                                        fontWeight: 'bold',
+                                        backgroundColor: isUnread ? '#C5FF41' : '#333', // Flip colors if unread
+                                    }}>
+                                        {chats.length - index}
                                     </div>
-                                    <div style={{ fontSize: '12px', color: '#666', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                        {chat.lastMessage || "No messages yet"}
+                                    
+                                    <div style={{ flex: 1, overflow: 'hidden' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <div style={{ fontSize: '14px', fontWeight: 600, color: isUnread ? '#C5FF41' : '#fff' }}>
+                                                Client #{chats.length - index}
+                                            </div>
+                                            {/* Small Green Indicator Dot */}
+                                            {isUnread && (
+                                                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#C5FF41' }} />
+                                            )}
+                                        </div>
+                                        <div style={{ 
+                                            fontSize: '12px', 
+                                            color: isUnread ? '#fff' : '#666', 
+                                            fontWeight: isUnread ? '600' : '400',
+                                            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' 
+                                        }}>
+                                            {chat.lastMessage || "No messages yet"}
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </ChatCard>
 
