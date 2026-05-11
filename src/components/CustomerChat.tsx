@@ -1,154 +1,120 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { 
   doc, setDoc, addDoc, collection, serverTimestamp, 
   query, orderBy, onSnapshot 
 } from "firebase/firestore";
+import { ref as dbRef, onValue } from "firebase/database";
 import { db, firestore } from "../firebase"; 
-import { useParams } from 'react-router-dom';
-import { ref as dbRef, onValue, get } from "firebase/database";
 import { ProductCard } from './ProductView';
 
-const CustomerChat = ({ brandId: propBrandId }: { brandId?: string }) => {
-    // 1. Get Brand ID from URL (Ensure your Route is <Route path="/chat/:brandId" ... />)
+const CustomerChat = () => {
     const { brandId } = useParams<{ brandId: string }>();
-    const [loading, setLoading] = useState(true);
     
+    // State
     const [chatId, setChatId] = useState<string>('');
     const [message, setMessage] = useState('');
     const [chatHistory, setChatHistory] = useState<any[]>([]);
     const [brandData, setBrandData] = useState<any>(null);
-    const [showCatalog, setShowCatalog] = useState(false);
     const [catalogItems, setCatalogItems] = useState<any[]>([]);
+    const [showCatalog, setShowCatalog] = useState(false);
     const [orderModal, setOrderModal] = useState<any>(null);
     const [quantity, setQuantity] = useState(1);
     
     const scrollRef = useRef<HTMLDivElement>(null);
 
-    // Auto-scroll logic
+    // 1. Initialize Chat ID and Fetch Brand Info
+    // We only want this to run ONCE when brandId changes
+    useEffect(() => {
+        if (!brandId) return;
+
+        // Set Chat ID
+        let id = localStorage.getItem(`malvin_chat_${brandId}`);
+        if (!id) {
+            id = uuidv4();
+            localStorage.setItem(`malvin_chat_${brandId}`, id);
+        }
+        setChatId(id);
+
+        // Fetch Brand Identity
+        const brandInfoRef = dbRef(db, `users/${brandId}/brandData`);
+        const unsubBrand = onValue(brandInfoRef, (snapshot) => {
+            if (snapshot.exists()) setBrandData(snapshot.val());
+        });
+
+        // Fetch Catalog
+        const catalogRef = dbRef(db, `users/${brandId}/catalog`);
+        const unsubCatalog = onValue(catalogRef, (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                setCatalogItems(Object.keys(data).map(k => ({ id: k, ...data[k] })));
+            }
+        });
+
+        return () => { unsubBrand(); unsubCatalog(); };
+    }, [brandId]); // DO NOT add brandData or catalogItems here
+
+    // 2. Listen for Messages
+    // Only runs when chatId is established
+    useEffect(() => {
+        if (!chatId) return;
+
+        const q = query(
+            collection(firestore, "conversations", chatId, "messages"), 
+            orderBy("timestamp", "asc")
+        );
+        
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            setChatHistory(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        });
+
+        return () => unsubscribe();
+    }, [chatId]);
+
+    // 3. Auto-scroll
     useEffect(() => {
         if (scrollRef.current) {
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
     }, [chatHistory]);
 
-    // 2. Fetch Brand Identity & Catalog (Fixed Pathing)
-    useEffect(() => {
-        // BREAKING POINT: If brandId is undefined here, the fetch fails.
-        if (!brandId) {
-            console.error("URL is missing the brandId parameter!");
-            setLoading(false);
-            return;
-        }
-
-        // 1. Fetch Brand Identity (Name, Logo, etc.)
-        const brandRef = dbRef(db, `users/${brandId}/brandData`);
-        const unsubBrand = onValue(brandRef, (snapshot) => {
-            if (snapshot.exists()) {
-                setBrandData(snapshot.val());
-            } else {
-                // If it doesn't exist, it means the ID in the URL is wrong 
-                // or the database path is different
-                setBrandData({ name: "Malvin Partner" });
-            }
-            setLoading(false);
-        });
-
-        // 2. Setup Local Chat ID for this specific brand
-        let id = localStorage.getItem(`malvin_chat_${brandId}`);
-        if (!id) {
-            id = uuidv4(); 
-            localStorage.setItem(`malvin_chat_${brandId}`, id);
-        }
-        setChatId(id);
-
-        return () => unsubBrand();
-    }, [brandId]);
-    if (loading) return <div style={{background: '#000', height: '100vh'}} />;
-
-    // 3. Setup Persistent Chat Session for this specific Brand
-    useEffect(() => {
-        if (!brandId) return;
-        let id = localStorage.getItem(`malvin_chat_${brandId}`);
-        if (!id) {
-            id = uuidv4(); 
-            localStorage.setItem(`malvin_chat_${brandId}`, id);
-        }
-        setChatId(id);
-    }, [brandId]);
-
-    // 4. Firestore listener for the specific conversation
-    useEffect(() => {
-        if (!chatId) return;
-        const q = query(collection(firestore, "conversations", chatId, "messages"), orderBy("timestamp", "asc"));
-        return onSnapshot(q, (snapshot) => {
-            setChatHistory(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-        });
-    }, [chatId]);
-
-    const handleSend = async (e?: React.FormEvent, customMsg?: string, isOrder = false, orderData?: any) => {
-        if (e) e.preventDefault();
-        const textToSend = customMsg || message;
-        if (!textToSend.trim() || !chatId) return;
+    // Handlers
+    const handleSend = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!message.trim() || !chatId || !brandId) return;
 
         try {
             const convoRef = doc(firestore, "conversations", chatId);
-            
-            // Update the main conversation doc (for the Manager's list)
             await setDoc(convoRef, {
-                brandId: brandId, // Link this chat to the specific owner
-                brandName: brandData?.name || 'Brand',
-                lastMessage: textToSend,
+                brandId,
+                brandName: brandData?.name || "Customer",
+                lastMessage: message,
                 updatedAt: serverTimestamp(),
                 status: 'active',
                 viewedByManager: false 
             }, { merge: true });
 
-            // Add the message to the subcollection
             await addDoc(collection(firestore, "conversations", chatId, "messages"), {
-                text: textToSend,
+                text: message,
                 sender: 'customer',
-                timestamp: serverTimestamp(),
-                isOrder: isOrder,
-                orderData: orderData || null
+                timestamp: serverTimestamp()
             });
 
-            if (!customMsg) setMessage('');
-        } catch (error) { console.error("Send Error:", error); }
+            setMessage('');
+        } catch (error) { console.error(error); }
     };
 
-    const confirmOrder = () => {
-        if (!orderModal) return;
-        const orderText = `I'd like to order ${quantity}x ${orderModal.name}`;
-        handleSend(undefined, orderText, true, {
-            name: orderModal.name,
-            quantity: quantity,
-            image: orderModal.image,
-            price: orderModal.price
-        });
-        setOrderModal(null);
-        setQuantity(1);
-        setShowCatalog(false);
-    };
-
+    // Render logic...
     return (
         <div style={containerStyle}>
-            <style>{`
-                @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
-                @media (max-width: 768px) {
-                    .catalog-sidebar { position: absolute !important; right: 0; top: 0; height: 100%; width: 85% !important; z-index: 50; box-shadow: -10px 0 30px rgba(0,0,0,0.5); }
-                    .message-bubble { maxWidth: 90% !important; }
-                }
-            `}</style>
-
-            {/* Header - Now shows Brand Info dynamically */}
-            <div style={headerStyle}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    {brandData?.logo && <img src={brandData.logo} style={{ width: '30px', height: '30px', borderRadius: '50%' }} />}
-                    <div>
-                        <div style={{ fontWeight: 800, fontSize: '16px' }}>{brandData?.name || "Malvin Partner"}</div>
-                        <div style={{ fontSize: '11px', color: '#C5FF41' }}>● Online</div>
+             {/* Header */}
+             <div style={headerStyle}>
+                <div>
+                    <div style={{ fontWeight: 800, fontSize: '16px' }}>
+                        {brandData?.name || "Loading Store..."}
                     </div>
+                    <div style={{ fontSize: '11px', color: '#C5FF41' }}>● Online</div>
                 </div>
                 <button onClick={() => setShowCatalog(!showCatalog)} style={catalogToggleBtn}>
                     {showCatalog ? '✕' : 'Catalog 📦'}
