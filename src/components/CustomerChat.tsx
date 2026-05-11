@@ -11,8 +11,8 @@ import { ProductCard } from './ProductView';
 
 const CustomerChat = ({ brandId: propBrandId }: { brandId?: string }) => {
     // 1. Get Brand ID from URL (Ensure your Route is <Route path="/chat/:brandId" ... />)
-    const { brandId: urlBrandId } = useParams();
-    const brandId = propBrandId || urlBrandId || '';
+    const { brandId } = useParams<{ brandId: string }>();
+    const [loading, setLoading] = useState(true);
     
     const [chatId, setChatId] = useState<string>('');
     const [message, setMessage] = useState('');
@@ -34,30 +34,37 @@ const CustomerChat = ({ brandId: propBrandId }: { brandId?: string }) => {
 
     // 2. Fetch Brand Identity & Catalog (Fixed Pathing)
     useEffect(() => {
-        if (!brandId) return;
+        // BREAKING POINT: If brandId is undefined here, the fetch fails.
+        if (!brandId) {
+            console.error("URL is missing the brandId parameter!");
+            setLoading(false);
+            return;
+        }
 
-        // Path should match your Dashboard's saving logic
-        // If you store brand info under /brands/ID instead of users/ID, change this path:
-        const brandInfoRef = dbRef(db, `users/${brandId}/brandData`);
-        const catalogRef = dbRef(db, `users/${brandId}/catalog`);
-
-        const unsubBrand = onValue(brandInfoRef, (snapshot) => {
+        // 1. Fetch Brand Identity (Name, Logo, etc.)
+        const brandRef = dbRef(db, `users/${brandId}/brandData`);
+        const unsubBrand = onValue(brandRef, (snapshot) => {
             if (snapshot.exists()) {
                 setBrandData(snapshot.val());
             } else {
+                // If it doesn't exist, it means the ID in the URL is wrong 
+                // or the database path is different
                 setBrandData({ name: "Malvin Partner" });
             }
+            setLoading(false);
         });
 
-        const unsubCatalog = onValue(catalogRef, (snapshot) => {
-            const data = snapshot.val();
-            if (data) {
-                setCatalogItems(Object.keys(data).map(k => ({ id: k, ...data[k] })));
-            }
-        });
+        // 2. Setup Local Chat ID for this specific brand
+        let id = localStorage.getItem(`malvin_chat_${brandId}`);
+        if (!id) {
+            id = uuidv4(); 
+            localStorage.setItem(`malvin_chat_${brandId}`, id);
+        }
+        setChatId(id);
 
-        return () => { unsubBrand(); unsubCatalog(); };
+        return () => unsubBrand();
     }, [brandId]);
+    if (loading) return <div style={{background: '#000', height: '100vh'}} />;
 
     // 3. Setup Persistent Chat Session for this specific Brand
     useEffect(() => {
@@ -139,7 +146,7 @@ const CustomerChat = ({ brandId: propBrandId }: { brandId?: string }) => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     {brandData?.logo && <img src={brandData.logo} style={{ width: '30px', height: '30px', borderRadius: '50%' }} />}
                     <div>
-                        <div style={{ fontWeight: 800, fontSize: '16px' }}>{brandData?.name || "Loading..."}</div>
+                        <div style={{ fontWeight: 800, fontSize: '16px' }}>{brandData?.name || "Malvin Partner"}</div>
                         <div style={{ fontSize: '11px', color: '#C5FF41' }}>● Online</div>
                     </div>
                 </div>

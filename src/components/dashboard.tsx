@@ -126,7 +126,7 @@ const Dashboard = (props: any) => {
         setAiMessage('');
     };
 
-    const shareUrl = `${window.location.origin}/chat/${userBrand?.id || auth.currentUser?.uid}`;
+    const shareUrl = `https://malvinai.com/chat/${auth.currentUser.uid}`;
     const marketFrontUrl = `${window.location.origin}/market/${userBrand?.slug || userBrand?.id}`;
 
     // Render Preview Mode
