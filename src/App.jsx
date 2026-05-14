@@ -12,6 +12,7 @@ import CookieBanner from "./components/CookieBanner";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import Impressum from "./pages/Impressum";
+import MarketFront from "./components/MarketFront";
 
 function App() {
   const [user, setUser] = useState(null);
