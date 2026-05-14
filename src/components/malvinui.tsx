@@ -426,6 +426,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     const [showTrustMsg, setShowTrustMsg] = React.useState(false);
     const [isMenuOpen, setIsMenuOpen] = React.useState(false);
     const agent = useRemoteParticipant({ kind: ParticipantKind.AGENT });
+    const [messages, setMessages] = useState([]);
     const onToggleDisable = () => {
         setDisabled(!disabled);
         addActivity(disabled ? "System Restored" : "System Paused", "⚠️");
@@ -692,7 +693,32 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     
 
     const triggerActivity = () => {};
-    const handleSendMessage = () => setTextInput("");
+    const handleSendMessage = async () => {
+        if (!textInput.trim()) return;
+
+        // 1. Add user message to UI immediately
+        const userMsg = { role: 'user', content: textInput };
+        setMessages(prev => [...prev, userMsg]);
+        setTextInput(""); // Clear input
+        setIsChatting(true); // Hide your cards/pills
+
+        try {
+            // 2. Call your AI endpoint
+            const response = await fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: textInput }),
+            });
+
+            const data = await response.json();
+
+            // 3. Add AI response to UI
+            const aiMsg = { role: 'assistant', content: data.reply };
+            setMessages(prev => [...prev, aiMsg]);
+        } catch (error) {
+            console.error("Chat failed:", error);
+        }
+    };
     
     const toggleCamera = () => {
         setLocalParticipant(prev => ({ ...prev, isCameraEnabled: !prev.isCameraEnabled }));
@@ -1492,62 +1518,80 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                             ) : (
                                 <>
                                     {/*center*/}
-                                    <div style={{ display: 'flex', position: 'absolute', bottom: '90px', left: '50%', transform: 'translateX(-50%)', alignItems: 'center', flexDirection: 'column',  gap: '8px', width: '100%', maxWidth: '850px', zIndex: 10 }}>
-                                        <div style={{ 
-                                            display: 'flex', 
-                                            gap: '20px', 
-                                            width: '100%', 
-                                            maxWidth: '850px', 
-                                            marginBottom: '25px',
-                                            zIndex: 10 
-                                        }}>
-                                            {/* CARD 1: STRATEGY & QUOTES */}
-                                            <div style={{ ...glassStyle, flex: 1, padding: '5px', Height: '180px', overflow: 'hidden' }}>
-                                            <MalvinHybridCycler content={businessContent} />
-                                            </div>
-                                            {/* CARD 2: VENTURE ANALYTICS */}
-                                            <div style={{ ...glassStyle, flex: 1, padding: '24px', minHeight: '180px' }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '15px' }}>
-                                                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: neonBlue, boxShadow: `0 0 10px ${neonBlue}` }} />
-                                                    <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', fontWeight: 'bold', letterSpacing: '1.5px' }}>MARKET PULSE</span>
+                                    {!isChatting && (
+                                        <div style={{ display: 'flex', position: 'absolute', bottom: '90px', left: '50%', transform: 'translateX(-50%)', alignItems: 'center', flexDirection: 'column',  gap: '8px', width: '100%', maxWidth: '850px', zIndex: 10 }}>
+                                            <div style={{ 
+                                                display: 'flex', 
+                                                gap: '20px', 
+                                                width: '100%', 
+                                                maxWidth: '850px', 
+                                                marginBottom: '25px',
+                                                zIndex: 10 
+                                            }}>
+                                                {/* CARD 1: STRATEGY & QUOTES */}
+                                                <div style={{ ...glassStyle, flex: 1, padding: '5px', Height: '180px', overflow: 'hidden' }}>
+                                                <MalvinHybridCycler content={businessContent} />
                                                 </div>
-                                                
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                                        <span style={{ color: 'white', opacity: 0.7, fontSize: '13px' }}>Startup Sentiment</span>
-                                                        <span style={{ color: '#00ff88', fontSize: '13px', fontWeight: 'bold' }}>Bullish</span>
+                                                {/* CARD 2: VENTURE ANALYTICS */}
+                                                <div style={{ ...glassStyle, flex: 1, padding: '24px', minHeight: '180px' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '15px' }}>
+                                                        <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: neonBlue, boxShadow: `0 0 10px ${neonBlue}` }} />
+                                                        <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', fontWeight: 'bold', letterSpacing: '1.5px' }}>MARKET PULSE</span>
                                                     </div>
-                                                    <div style={{ width: '100%', height: '4px', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '2px' }}>
-                                                        <div style={{ width: '75%', height: '100%', backgroundColor: neonBlue, borderRadius: '2px', boxShadow: `0 0 10px ${neonBlue}` }} />
-                                                    </div>
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '5px' }}>
-                                                        <span style={{ color: 'white', opacity: 0.7, fontSize: '13px' }}>AI Integration Rate</span>
-                                                        <span style={{ color: neonPurple, fontSize: '13px', fontWeight: 'bold' }}>+22%</span>
+                                                    
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                                            <span style={{ color: 'white', opacity: 0.7, fontSize: '13px' }}>Startup Sentiment</span>
+                                                            <span style={{ color: '#00ff88', fontSize: '13px', fontWeight: 'bold' }}>Bullish</span>
+                                                        </div>
+                                                        <div style={{ width: '100%', height: '4px', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '2px' }}>
+                                                            <div style={{ width: '75%', height: '100%', backgroundColor: neonBlue, borderRadius: '2px', boxShadow: `0 0 10px ${neonBlue}` }} />
+                                                        </div>
+                                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '5px' }}>
+                                                            <span style={{ color: 'white', opacity: 0.7, fontSize: '13px' }}>AI Integration Rate</span>
+                                                            <span style={{ color: neonPurple, fontSize: '13px', fontWeight: 'bold' }}>+22%</span>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                        <div style={{ 
-                                            display: 'flex', 
-                                            gap: '12px', 
-                                            marginBottom: '15px', 
-                                            overflowX: 'auto', 
-                                            padding: '5px',
-                                            width: '100%',
-                                            maxWidth: '600px',
-                                            scrollbarWidth: 'none' // Hides scrollbar on Firefox
-                                        }}>
-                                            <style>{`div::-webkit-scrollbar { display: none; }`}</style>
+                                            <div style={{ 
+                                                display: 'flex', 
+                                                gap: '12px', 
+                                                marginBottom: '15px', 
+                                                overflowX: 'auto', 
+                                                padding: '5px',
+                                                width: '100%',
+                                                maxWidth: '600px',
+                                                scrollbarWidth: 'none' // Hides scrollbar on Firefox
+                                            }}>
+                                                <style>{`div::-webkit-scrollbar { display: none; }`}</style>
 
-                                            <ActionPill icon="💡" label="Create an Idea" onClick={() => setTextInput("I have a new business idea...")} />
-                                            <ActionPill icon="📈" label="Work on my Plan" onClick={() => setTextInput("Let's review my current business plan.")} />
-                                            <ActionPill icon="💎" label="Go Premium" color={premiumGold} onClick={() => setShowExtras(true)} />
+                                                <ActionPill icon="💡" label="Create an Idea" onClick={() => setTextInput("I have a new business idea...")} />
+                                                <ActionPill icon="📈" label="Work on my Plan" onClick={() => setTextInput("Let's review my current business plan.")} />
+                                                <ActionPill icon="💎" label="Go Premium" color={premiumGold} onClick={() => setShowExtras(true)} />
+                                            </div>
                                         </div>
-                                    </div>
+                                    )}    
                                 </>
                             )}
                         </div>
                         {/* bottom */}
+                        <div style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                            {messages.map((msg, i) => (
+                                <div key={i} style={{
+                                    alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                                    background: msg.role === 'user' ? neonBlue : 'rgba(255,255,255,0.05)',
+                                    padding: '12px 18px',
+                                    borderRadius: '20px',
+                                    maxWidth: '70%',
+                                    color: 'white',
+                                    backdropFilter: 'blur(10px)',
+                                    border: '1px solid rgba(255,255,255,0.1)'
+                                }}>
+                                    {msg.content}
+                                </div>
+                            ))}
+                        </div>
                         <div style={{gap: '10px', display: 'flex', alignItems: 'center',  width: '100%', justifyContent: 'center', marginBottom: '-14px'}}>
                             {/* pill */}
                             <div className="input-pill" style={{ display: 'flex', alignItems: 'center', background: '#211f31', padding: '10px 20px', width: '600px', backgroundColor: 'rgba(255, 255, 255, 0.03)',   // 1. Semi-transparent white
@@ -1600,7 +1644,8 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                                     <button onClick={() => setShowExtras(!showExtras)} style={{...btnReset, color:'white', fontSize:'28px', width: '40px', height: '40px', backgroundColor: 'rgba(255, 255, 255, 0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: '0', paddingBottom: '4px', transition: 'background 0.2s', cursor: 'pointer'}} >+</button>
                                 </div>
                                 <input 
-                                    placeholder="say something..." 
+                                    placeholder="say something..."
+                                    onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
                                     value={textInput} 
                                     onChange={(e)=>setTextInput(e.target.value)}
                                     style={{ flex: 1, background: 'none', border: 'none', color: 'white', marginLeft: '15px', outline: 'none' }} 
