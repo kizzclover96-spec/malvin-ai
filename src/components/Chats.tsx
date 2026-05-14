@@ -35,14 +35,23 @@ const Chats = ({ brandId, userBrand }: any) => {
 
     // 2. Listen for AI Actions (Socket)
     useEffect(() => {
-        socket.on('ai-action', (action) => {
-            if (isAutopilot && selectedChatId) {
-                console.log("🤖 Malvin Action:", action.text);
-                handleManagerSend(action.text); 
+        const handleAiAction = (action: any) => {
+            // Extract the text regardless of if it's in action.text or action.args.message
+            const messageText = action.text || action.args?.message;
+            const incomingChatId = action.chatId || action.args?.chatId;
+
+            if (isAutopilot && selectedChatId && incomingChatId === selectedChatId) {
+                console.log("🤖 Malvin Auto-Reply:", messageText);
+                handleManagerSend(messageText); 
             }
-        });
-        return () => { socket.off('ai-action'); };
-    }, [isAutopilot, selectedChatId]);
+        };
+
+        socket.on('ai-action', handleAiAction);
+
+        return () => { 
+            socket.off('ai-action', handleAiAction); 
+        };
+    }, [isAutopilot, selectedChatId]); // This keeps the listener fresh when you switch chats
 
     // 3. Single Listener for the Chat List
     useEffect(() => {
@@ -110,6 +119,13 @@ const Chats = ({ brandId, userBrand }: any) => {
             console.error("Error sending:", e);
         }
     };
+    // 5. Auto-scroll to bottom
+    useEffect(() => {
+        const messageContainer = document.getElementById('message-feed');
+        if (messageContainer) {
+            messageContainer.scrollTop = messageContainer.scrollHeight;
+        }
+    }, [activeMessages]);
 
     return (
         <div style={{ maxWidth: '100%', margin: '0 auto', padding: '0 10px' }}>
