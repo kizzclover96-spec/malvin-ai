@@ -17,6 +17,7 @@ import React, {  useRef, useState, useMemo } from "react";
 import {  useEffect } from 'react';
 import '../App.css';
 
+const socket = io('http://localhost:3001');
 import {
   LiveKitRoom,
   RoomAudioRenderer,
@@ -427,6 +428,9 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     const [isMenuOpen, setIsMenuOpen] = React.useState(false);
     const agent = useRemoteParticipant({ kind: ParticipantKind.AGENT });
     const [isChatting, setIsChatting] = useState(false);
+    const [aiMessage, setAiMessage] = useState('');
+    const [aiHistory, setAiHistory] = useState<any[]>([]);
+    const [isProcessing, setIsProcessing] = useState(false);
     const [messages, setMessages] = useState([]);
     const onToggleDisable = () => {
         setDisabled(!disabled);
@@ -766,7 +770,15 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
         const secs = seconds % 60;
         return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     };
-
+    
+    const sendToMalvin = () => {
+        if (!aiMessage.trim()) return;
+        setIsChatting(true); // Don't forget to hide the cards!
+        setIsProcessing(true); // Start the "thinking" state
+        setAiHistory(prev => [...prev, { role: 'user', text: aiMessage }]);
+        socket.emit('screen-stream', { text: aiMessage });
+        setAiMessage('');
+    }
     // ICONS (Using your SVG code)
     
     const [brandData, setBrandData] = useState<any>(null);
@@ -1578,7 +1590,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                         </div>
                         {/* bottom */}
                         <div style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                            {messages.map((msg, i) => (
+                            {aiHistory.map((msg, i) => (
                                 <div key={i} style={{
                                     alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
                                     background: msg.role === 'user' ? neonBlue : 'rgba(255,255,255,0.05)',
@@ -1589,7 +1601,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                                     backdropFilter: 'blur(10px)',
                                     border: '1px solid rgba(255,255,255,0.1)'
                                 }}>
-                                    {msg.content}
+                                    {msg.text}
                                 </div>
                             ))}
                         </div>
@@ -1646,10 +1658,10 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                                 </div>
                                 <input 
                                     placeholder="say something..."
-                                    onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                                    value={textInput} 
-                                    onChange={(e)=>setTextInput(e.target.value)}
-                                    style={{ flex: 1, background: 'none', border: 'none', color: 'white', marginLeft: '15px', outline: 'none' }} 
+                                    onKeyPress={(e) => e.key === 'Enter' && sendToMalvin()}
+                                    value={aiMessage} // Changed from textInput
+                                    onChange={(e) => setAiMessage(e.target.value)} // Changed from setTextInput
+                                    style={{ flex: 1, background: 'none', border: 'none', color: 'white', outline: 'none' }} 
                                 />
                             </div>
                             {/* mic */}
