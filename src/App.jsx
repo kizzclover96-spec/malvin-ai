@@ -43,7 +43,7 @@ function App() {
       <Router>
         <div className="App" style={{ minHeight: '100vh' }}>
           <Routes>
-            <Route path="/chat/:brandId" element={<CustomerChat />} />
+            <Route path="/chat/:brandId" element={<MarketFront />} />
             <Route path="/terms" element={<Terms />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/impressum" element={<Impressum />} />

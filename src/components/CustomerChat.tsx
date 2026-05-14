@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useLocation } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { 
   doc, setDoc, addDoc, collection, serverTimestamp, 
@@ -12,7 +12,6 @@ import { ProductCard } from './ProductView';
 const CustomerChat = () => {
     const { brandId } = useParams<{ brandId: string }>();
     
-    // State
     const [chatId, setChatId] = useState<string>('');
     const [message, setMessage] = useState('');
     const [chatHistory, setChatHistory] = useState<any[]>([]);
@@ -21,15 +20,37 @@ const CustomerChat = () => {
     const [showCatalog, setShowCatalog] = useState(false);
     const [orderModal, setOrderModal] = useState<any>(null);
     const [quantity, setQuantity] = useState(1);
+    const [loading, setLoading] = useState(true);
+    const location = useLocation();
+
+    useEffect(() => {
+        // Only proceed if we have a pending order AND the chat is initialized
+        if (location.state?.pendingOrder && chatId && brandData) {
+            const order = location.state.pendingOrder;
+            
+            // Construct the text
+            const orderText = `I'd like to order ${order.quantity}x ${order.name}`;
+            
+            // Fire the actual send function
+            handleSend(undefined, orderText, true, {
+                name: order.name,
+                quantity: order.quantity,
+                image: order.image,
+                price: order.price
+            });
+
+            // CLEAR the state so it doesn't resend if they refresh the page
+            window.history.replaceState({}, document.title);
+        }
+    }, [location.state, chatId, brandData]); // Triggers when chat is ready
     
     const scrollRef = useRef<HTMLDivElement>(null);
 
-    // 1. Initialize Chat ID and Fetch Brand Info
-    // We only want this to run ONCE when brandId changes
+    // 1. Initial Setup: Brand Data & Persistent Session
     useEffect(() => {
         if (!brandId) return;
 
-        // Set Chat ID
+        // Persistent Chat ID per Brand
         let id = localStorage.getItem(`malvin_chat_${brandId}`);
         if (!id) {
             id = uuidv4();
@@ -37,10 +58,18 @@ const CustomerChat = () => {
         }
         setChatId(id);
 
-        // Fetch Brand Identity
+        // Fetch Brand Info (Realtime DB)
         const brandInfoRef = dbRef(db, `users/${brandId}/brandData`);
         const unsubBrand = onValue(brandInfoRef, (snapshot) => {
-            if (snapshot.exists()) setBrandData(snapshot.val());
+            if (snapshot.exists()) {
+                setBrandData(snapshot.val());
+            } else {
+                console.error("Brand not found at path:", brandId);
+            }
+            setLoading(false);
+        }, (err) => {
+            console.error("Firebase Auth Error - Check Rules:", err);
+            setLoading(false);
         });
 
         // Fetch Catalog
@@ -53,23 +82,18 @@ const CustomerChat = () => {
         });
 
         return () => { unsubBrand(); unsubCatalog(); };
-    }, [brandId]); // DO NOT add brandData or catalogItems here
+    }, [brandId]);
 
-    // 2. Listen for Messages
-    // Only runs when chatId is established
+    // 2. Chat Listener
     useEffect(() => {
         if (!chatId) return;
-
         const q = query(
             collection(firestore, "conversations", chatId, "messages"), 
             orderBy("timestamp", "asc")
         );
-        
-        const unsubscribe = onSnapshot(q, (snapshot) => {
+        return onSnapshot(q, (snapshot) => {
             setChatHistory(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
         });
-
-        return () => unsubscribe();
     }, [chatId]);
 
     // 3. Auto-scroll
@@ -80,40 +104,63 @@ const CustomerChat = () => {
     }, [chatHistory]);
 
     // Handlers
-    const handleSend = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!message.trim() || !chatId || !brandId) return;
+    const handleSend = async (e?: React.FormEvent, customMsg?: string, isOrder = false, orderData?: any) => {
+        if (e) e.preventDefault();
+        const textToSend = customMsg || message;
+        if (!textToSend.trim() || !chatId || !brandId) return;
 
         try {
             const convoRef = doc(firestore, "conversations", chatId);
             await setDoc(convoRef, {
                 brandId,
                 brandName: brandData?.name || "Customer",
-                lastMessage: message,
+                lastMessage: textToSend,
                 updatedAt: serverTimestamp(),
                 status: 'active',
                 viewedByManager: false 
             }, { merge: true });
 
             await addDoc(collection(firestore, "conversations", chatId, "messages"), {
-                text: message,
+                text: textToSend,
                 sender: 'customer',
-                timestamp: serverTimestamp()
+                timestamp: serverTimestamp(),
+                isOrder,
+                orderData: orderData || null
             });
 
-            setMessage('');
-        } catch (error) { console.error(error); }
+            if (!customMsg) setMessage('');
+        } catch (error) { console.error("Send failed:", error); }
     };
 
-    // Render logic...
+    const confirmOrder = () => {
+        if (!orderModal) return;
+        const orderText = `I'd like to order ${quantity}x ${orderModal.name}`;
+        handleSend(undefined, orderText, true, {
+            name: orderModal.name,
+            quantity,
+            image: orderModal.image,
+            price: orderModal.price
+        });
+        setOrderModal(null);
+        setQuantity(1);
+        setShowCatalog(false);
+    };
+
+    if (loading) return <div style={{background: '#000', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666'}}>Authenticating Shop...</div>;
+
     return (
         <div style={containerStyle}>
-             {/* Header */}
-             <div style={headerStyle}>
+             <style>{`
+                @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+                @media (max-width: 768px) {
+                    .catalog-sidebar { position: absolute !important; right: 0; top: 0; height: 100%; width: 85% !important; z-index: 50; box-shadow: -10px 0 30px rgba(0,0,0,0.5); }
+                    .message-bubble { max-width: 85% !important; }
+                }
+            `}</style>
+
+            <div style={headerStyle}>
                 <div>
-                    <div style={{ fontWeight: 800, fontSize: '16px' }}>
-                        {brandData?.name || "Loading Store..."}
-                    </div>
+                    <div style={{ fontWeight: 800, fontSize: '16px' }}>{brandData?.name || "Malvin Partner"}</div>
                     <div style={{ fontSize: '11px', color: '#C5FF41' }}>● Online</div>
                 </div>
                 <button onClick={() => setShowCatalog(!showCatalog)} style={catalogToggleBtn}>
@@ -123,7 +170,6 @@ const CustomerChat = () => {
 
             <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
                 <div ref={scrollRef} style={messageAreaStyle}>
-                    {/* Welcome Message */}
                     <div style={{...messageBubbleStyle, alignSelf: 'flex-start', background: '#1A1A1A', color: 'white'}}>
                         Hello! Welcome to <b>{brandData?.name}</b>. How can I help you today?
                     </div>
@@ -138,7 +184,7 @@ const CustomerChat = () => {
                         }}>
                             {msg.isOrder && (
                                 <div style={{ marginBottom: '8px', display: 'flex', gap: '10px' }}>
-                                    <img src={msg.orderData.image} style={{ width: '45px', height: '45px', borderRadius: '8px', objectFit: 'cover' }} />
+                                    <img src={msg.orderData.image} style={{ width: '45px', height: '45px', borderRadius: '8px', objectFit: 'cover' }} alt="" />
                                     <div style={{ fontSize: '12px' }}>
                                         <div style={{ fontWeight: 'bold' }}>Order Request</div>
                                         <div>{msg.orderData.quantity}x {msg.orderData.name}</div>
@@ -150,23 +196,19 @@ const CustomerChat = () => {
                     ))}
                 </div>
 
-                {/* Sidebar Catalog - Only shows this brand's items */}
                 {showCatalog && (
                     <div className="catalog-sidebar" style={sidebarStyle}>
                         <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px'}}>
                             <h4 style={{fontSize: '10px', opacity: 0.5, letterSpacing: '1px', margin: 0}}>STORE_CATALOG</h4>
                             <button onClick={() => setShowCatalog(false)} style={{background: 'none', border: 'none', color: '#666', fontSize: '18px'}}>✕</button>
                         </div>
-                        {catalogItems.length > 0 ? catalogItems.map(item => (
+                        {catalogItems.map(item => (
                             <ProductCard key={item.id} item={item} onAddToCart={(it: any) => setOrderModal(it)} />
-                        )) : (
-                            <div style={{ fontSize: '12px', opacity: 0.5, textAlign: 'center', marginTop: '20px' }}>No items available</div>
-                        )}
+                        ))}
                     </div>
                 )}
             </div>
 
-            {/* Order Modal */}
             {orderModal && (
                 <div style={modalOverlay}>
                     <div style={glassModal}>
@@ -207,7 +249,7 @@ const catalogToggleBtn: React.CSSProperties = { background: '#1A1A1A', color: 'w
 const messageAreaStyle: React.CSSProperties = { flex: 1, padding: '15px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px', paddingBottom: '30px' };
 const messageBubbleStyle: React.CSSProperties = { padding: '12px 16px', borderRadius: '20px', maxWidth: '75%', wordWrap: 'break-word' };
 const sidebarStyle: React.CSSProperties = { width: '280px', background: '#080808', borderLeft: '1px solid #222', padding: '15px', overflowY: 'auto', animation: 'slideIn 0.3s ease' };
-const inputContainerStyle: React.CSSProperties = { padding: '15px', display: 'flex', gap: '8px', background: '#000', borderTop: '1px solid #111' };
+const inputContainerStyle: React.CSSProperties = { padding: '15px', paddingBottom: 'env(safe-area-inset-bottom, 15px)', display: 'flex', gap: '8px', background: '#000', borderTop: '1px solid #111' };
 const inputStyle: React.CSSProperties = { flex: 1, background: '#111', border: '1px solid #333', color: 'white', padding: '12px 20px', borderRadius: '25px', outline: 'none', fontSize: '16px' }; 
 const sendBtnStyle: React.CSSProperties = { background: '#C5FF41', border: 'none', width: '45px', height: '45px', borderRadius: '50%', cursor: 'pointer', flexShrink: 0, fontSize: '20px' };
 const modalOverlay: React.CSSProperties = { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' };

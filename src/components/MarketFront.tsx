@@ -2,14 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db } from '../firebase';
 import { ref as dbRef, onValue } from "firebase/database";
-import { ProductCard } from './ProductView'; // Use the shared component for identical UI
+import { ProductCard } from './ProductView';
 
-const MarketFront = ({ brandId: propBrandId }: { brandId?: string }) => {
+const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?: string, userBrand?: any, brandName?: string }) => {
     const { brandId: urlBrandId } = useParams();
     const brandId = propBrandId || urlBrandId;
 
     const [selectedProduct, setSelectedProduct] = useState<any>(null);
-    const [brand, setBrand] = useState<any>(null);
+    const [brand, setBrand] = useState<any>(userBrand || null);
     const [catalog, setCatalog] = useState<any[]>([]);
     const [orderModal, setOrderModal] = useState<any>(null);
     const [quantity, setQuantity] = useState(1);
@@ -19,14 +19,12 @@ const MarketFront = ({ brandId: propBrandId }: { brandId?: string }) => {
     useEffect(() => {
         if (!brandId) return;
 
-        // Fetch Brand Identity
         const brandPath = dbRef(db, `users/${brandId}/brandData`);
         onValue(brandPath, (snapshot) => {
             const data = snapshot.val();
-            setBrand(data || { name: "My Store" });
+            setBrand(data || { name: "Store" });
         });
 
-        // Fetch Catalog Items
         const catalogPath = dbRef(db, `users/${brandId}/catalog`);
         onValue(catalogPath, (snapshot) => {
             const data = snapshot.val();
@@ -38,14 +36,14 @@ const MarketFront = ({ brandId: propBrandId }: { brandId?: string }) => {
         });
     }, [brandId]);
 
-    // When they click "Confirm" in the modal, we send them to chat
     const handleConfirmOrder = () => {
         if (!orderModal) return;
-        // In a real flow, you might pass the order data via state or a global cart
+        const itemToOrder = orderModal;
         setOrderModal(null);
+        // Pass order data to chat so it auto-sends
         navigate(`/chat/${brandId}`, { 
             state: { 
-                pendingOrder: { ...orderModal, quantity } 
+                pendingOrder: { ...itemToOrder, quantity } 
             } 
         });
     };
@@ -54,29 +52,38 @@ const MarketFront = ({ brandId: propBrandId }: { brandId?: string }) => {
 
     return (
         <div style={marketContainer}>
+            {/* Mobile-Friendly Headings & Global Styles */}
+            <style>{`
+                @keyframes slideUp {
+                    from { transform: translateY(100%); }
+                    to { transform: translateY(0); }
+                }
+                body { overflow-x: hidden; }
+            `}</style>
+
             <header style={headerStyle}>
-                <div>
-                    <h1 style={brandTitle}>{brand.name?.toUpperCase() || 'STORE'}</h1>
-                    <div style={onlineStatus}><span style={dotStyle} /> Accepting Orders</div>
+                <div style={{ flex: 1 }}>
+                    <h1 style={brandTitle}>{brand.name?.toUpperCase()}</h1>
+                    <div style={onlineStatus}><span style={dotStyle} /> Active Now</div>
                 </div>
-                <button onClick={() => navigate(`/chat/${brandId}`)} style={dmButton}>Direct Message</button>
+                <button onClick={() => navigate(`/chat/${brandId}`)} style={dmButton}>
+                    Message 💬
+                </button>
             </header>
 
             <div style={productGrid}>
                 {catalog.length === 0 ? (
-                    <div style={emptyState}>No products in catalog yet.</div>
+                    <div style={emptyState}>Catalog is empty.</div>
                 ) : (
                     catalog.map((item: any) => (
                         <div 
                             key={item.id} 
-                            style={{ cursor: 'pointer' }} 
+                            style={cardWrapper} 
                             onClick={() => setSelectedProduct(item)}
                         >
                             <ProductCard 
                                 item={item} 
                                 onAddToCart={(it) => {
-                                    // Stop propagation so clicking '+' doesn't open the big popup
-                                    it.stopPropagation?.(); 
                                     setOrderModal(it);
                                 }} 
                             />
@@ -84,22 +91,24 @@ const MarketFront = ({ brandId: propBrandId }: { brandId?: string }) => {
                     ))
                 )}
             </div>
-            {/* --- BIG PRODUCT DISPLAY POPUP --- */}
+
+            {/* PRODUCT DETAILS DRAWER (Mobile Optimized) */}
             {selectedProduct && (
                 <div style={modalOverlay} onClick={() => setSelectedProduct(null)}>
                     <div style={bigDisplayCard} onClick={e => e.stopPropagation()}>
+                        <div style={dragHandle} />
                         <button style={closeBtn} onClick={() => setSelectedProduct(null)}>✕</button>
                         
-                        <img src={selectedProduct.image} style={bigImage} alt={selectedProduct.name} />
+                        <img src={selectedProduct.image} style={bigImage} alt="" />
                         
-                        <div style={{ padding: '25px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <div style={{ padding: '20px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
                                 <h2 style={bigTitle}>{selectedProduct.name}</h2>
                                 <div style={bigPrice}>{selectedProduct.currency || '€'}{selectedProduct.price}</div>
                             </div>
                             
                             <p style={bigDescription}>
-                                {selectedProduct.description || "No description available for this item."}
+                                {selectedProduct.description || "Premium quality product."}
                             </p>
 
                             <button 
@@ -109,19 +118,19 @@ const MarketFront = ({ brandId: propBrandId }: { brandId?: string }) => {
                                     setSelectedProduct(null);
                                 }}
                             >
-                                ADD TO ORDER
+                                ORDER THIS ITEM
                             </button>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* Order Popup - Exactly like CustomerChat */}
+            {/* QUANTITY PICKER */}
             {orderModal && (
-                <div style={modalOverlay}>
-                    <div style={glassModal}>
-                        <h3 style={{marginTop: 0, fontSize: '18px'}}>Order Quantity</h3>
-                        <p style={{opacity: 0.7, fontSize: '14px', marginBottom: '20px'}}>{orderModal.name}</p>
+                <div style={modalOverlay} onClick={() => setOrderModal(null)}>
+                    <div style={glassModal} onClick={e => e.stopPropagation()}>
+                        <h3 style={{margin: '0 0 10px 0', fontSize: '18px'}}>Select Quantity</h3>
+                        <p style={{opacity: 0.6, fontSize: '12px', marginBottom: '20px'}}>{orderModal.name}</p>
                         
                         <input 
                             type="number" 
@@ -132,8 +141,8 @@ const MarketFront = ({ brandId: propBrandId }: { brandId?: string }) => {
                         />
 
                         <div style={{display: 'flex', gap: '10px'}}>
-                            <button onClick={handleConfirmOrder} style={primaryBtn}>Confirm Order</button>
-                            <button onClick={() => setOrderModal(null)} style={secondaryBtn}>Cancel</button>
+                            <button onClick={handleConfirmOrder} style={primaryBtn}>Confirm</button>
+                            <button onClick={() => setOrderModal(null)} style={secondaryBtn}>Back</button>
                         </div>
                     </div>
                 </div>
@@ -142,110 +151,96 @@ const MarketFront = ({ brandId: propBrandId }: { brandId?: string }) => {
     );
 };
 
-// --- STYLES ---
+// --- STYLES (Mobile First) ---
 const marketContainer: React.CSSProperties = { 
     backgroundColor: '#000', 
-    minHeight: '100vh', 
+    minHeight: '100dvh', 
     color: 'white', 
-    padding: '20px' 
+    padding: '16px',
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
 };
 
 const headerStyle: React.CSSProperties = { 
     display: 'flex', 
     justifyContent: 'space-between', 
     alignItems: 'center', 
-    padding: '40px 0 30px 0' 
+    padding: '20px 0',
+    position: 'sticky',
+    top: 0,
+    backgroundColor: '#000',
+    zIndex: 100
 };
 
-const brandTitle: React.CSSProperties = { fontSize: '20px', fontWeight: 900, letterSpacing: '1px' };
-const onlineStatus: React.CSSProperties = { fontSize: '11px', color: '#666', display: 'flex', alignItems: 'center', gap: '6px' };
+const brandTitle: React.CSSProperties = { fontSize: '18px', fontWeight: 900, margin: 0 };
+const onlineStatus: React.CSSProperties = { fontSize: '10px', color: '#888', display: 'flex', alignItems: 'center', gap: '5px', marginTop: '2px' };
 const dotStyle: React.CSSProperties = { width: '6px', height: '6px', background: '#C5FF41', borderRadius: '50%' };
-const dmButton: React.CSSProperties = { background: '#111', color: 'white', border: '1px solid #222', padding: '10px 18px', borderRadius: '40px', fontSize: '12px', fontWeight: 600 };
+const dmButton: React.CSSProperties = { background: '#C5FF41', color: 'black', border: 'none', padding: '8px 16px', borderRadius: '20px', fontSize: '12px', fontWeight: 700 };
 
-// 2-column grid that makes cards look vertical/square rather than horizontal
 const productGrid: React.CSSProperties = { 
     display: 'grid', 
-    gridTemplateColumns: '1fr 1fr', 
-    gap: '8px',
-    marginTop: '20px' 
+    gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', 
+    gap: '12px',
+    paddingBottom: '40px'
 };
 
 const cardWrapper: React.CSSProperties = {
-    width: '100%',
-    // This ensures the ProductCard inside follows the same look as the sidebar
+    transition: 'transform 0.1s active',
 };
 
-// Big Display Card Styles
+const dragHandle: React.CSSProperties = {
+    width: '40px', height: '4px', background: '#333', borderRadius: '2px', margin: '12px auto'
+};
+
 const bigDisplayCard: React.CSSProperties = {
     background: '#111',
-    width: '90%',
-    maxWidth: '450px',
-    borderRadius: '32px',
+    width: '100%',
+    maxWidth: '500px',
+    borderTopLeftRadius: '32px',
+    borderTopRightRadius: '32px',
     overflow: 'hidden',
-    position: 'relative',
+    position: 'absolute',
+    bottom: 0,
     border: '1px solid #222',
-    animation: 'slideUp 0.3s ease-out'
+    animation: 'slideUp 0.3s cubic-bezier(0.25, 1, 0.5, 1)'
 };
 
-const bigImage: React.CSSProperties = {
-    width: '100%',
-    height: '350px',
-    objectFit: 'cover'
-};
+const bigImage: React.CSSProperties = { width: '100%', height: '40vh', objectFit: 'cover' };
 
 const closeBtn: React.CSSProperties = {
-    position: 'absolute',
-    top: '20px',
-    right: '20px',
-    background: 'rgba(0,0,0,0.5)',
-    color: 'white',
-    border: 'none',
-    width: '35px',
-    height: '35px',
-    borderRadius: '50%',
-    cursor: 'pointer',
-    zIndex: 10,
-    backdropFilter: 'blur(5px)'
+    position: 'absolute', top: '15px', right: '15px', background: 'rgba(0,0,0,0.5)',
+    color: 'white', border: 'none', width: '30px', height: '30px', borderRadius: '50%',
+    zIndex: 11, backdropFilter: 'blur(5px)'
 };
 
-const bigTitle: React.CSSProperties = { margin: 0, fontSize: '24px', fontWeight: 800 };
-
-const bigPrice: React.CSSProperties = { 
-    fontSize: '20px', 
-    fontWeight: 800, 
-    color: '#C5FF41',
-    background: 'rgba(197, 255, 65, 0.1)',
-    padding: '4px 12px',
-    borderRadius: '10px'
-};
-
-const bigDescription: React.CSSProperties = {
-    color: '#999',
-    lineHeight: '1.6',
-    margin: '20px 0',
-    fontSize: '14px'
-};
+const bigTitle: React.CSSProperties = { margin: 0, fontSize: '20px', fontWeight: 800 };
+const bigPrice: React.CSSProperties = { fontSize: '18px', fontWeight: 800, color: '#C5FF41' };
+const bigDescription: React.CSSProperties = { color: '#888', lineHeight: '1.5', margin: '15px 0 25px 0', fontSize: '13px' };
 
 const bigActionBtn: React.CSSProperties = {
-    width: '100%',
-    background: '#C5FF41',
-    color: 'black',
-    border: 'none',
-    padding: '18px',
-    borderRadius: '16px',
-    fontWeight: 900,
-    fontSize: '16px',
-    cursor: 'pointer',
-    letterSpacing: '1px'
+    width: '100%', background: '#C5FF41', color: 'black', border: 'none',
+    padding: '16px', borderRadius: '16px', fontWeight: 900, fontSize: '14px'
 };
 
-// Modal Styles (Mirrored from CustomerChat)
-const modalOverlay: React.CSSProperties = { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 };
-const glassModal: React.CSSProperties = { background: '#111', border: '1px solid #333', padding: '30px', borderRadius: '24px', width: '300px', textAlign: 'center' };
-const quantityInput: React.CSSProperties = { width: '100%', backgroundColor: '#000', border: '1px solid #333', borderRadius: '12px', padding: '12px', color: 'white', marginBottom: '20px', textAlign: 'center', fontSize: '20px', outline: 'none' };
-const primaryBtn: React.CSSProperties = { background: '#C5FF41', color: 'black', border: 'none', padding: '12px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', flex: 1 };
-const secondaryBtn: React.CSSProperties = { background: 'transparent', color: 'white', border: '1px solid #333', padding: '12px', borderRadius: '12px', cursor: 'pointer', flex: 1 };
-const loaderStyle: React.CSSProperties = { color: 'white', display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', letterSpacing: '2px', fontSize: '12px' };
-const emptyState: React.CSSProperties = { gridColumn: '1/-1', textAlign: 'center', padding: '60px', opacity: 0.3, fontSize: '14px' };
+const modalOverlay: React.CSSProperties = { 
+    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, 
+    backgroundColor: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)', 
+    display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 
+};
+
+const glassModal: React.CSSProperties = { 
+    background: '#111', border: '1px solid #333', padding: '24px', 
+    borderRadius: '24px', width: '85%', maxWidth: '320px', textAlign: 'center' 
+};
+
+const quantityInput: React.CSSProperties = { 
+    width: '100%', backgroundColor: '#000', border: '1px solid #333', 
+    borderRadius: '12px', padding: '15px', color: 'white', marginBottom: '20px', 
+    textAlign: 'center', fontSize: '24px', fontWeight: 'bold' 
+};
+
+const primaryBtn: React.CSSProperties = { background: '#C5FF41', color: 'black', border: 'none', padding: '14px', borderRadius: '12px', fontWeight: 'bold', flex: 1 };
+const secondaryBtn: React.CSSProperties = { background: 'transparent', color: 'white', border: '1px solid #333', padding: '14px', borderRadius: '12px', flex: 1 };
+const loaderStyle: React.CSSProperties = { color: '#666', display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', fontSize: '10px', letterSpacing: '1px' };
+const emptyState: React.CSSProperties = { gridColumn: '1/-1', textAlign: 'center', padding: '100px 0', opacity: 0.3, fontSize: '12px' };
 
 export default MarketFront;

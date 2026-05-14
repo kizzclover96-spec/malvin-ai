@@ -126,8 +126,9 @@ const Dashboard = (props: any) => {
         setAiMessage('');
     };
 
-    const shareUrl = `https://malvinai.com/chat/${auth.currentUser.uid}`;
-    const marketFrontUrl = `${window.location.origin}/market/${userBrand?.slug || userBrand?.id}`;
+    // Replace the hardcoded strings with this:
+    const shareUrl = `${window.location.origin}/chat/${auth.currentUser?.uid}`;
+    const marketFrontUrl = `${window.location.origin}/chat/${auth.currentUser?.uid}`;
 
     // Render Preview Mode
     if (activeTab === 'Preview') {
@@ -136,7 +137,7 @@ const Dashboard = (props: any) => {
                 <div style={{ position: 'fixed', top: '20px', left: '20px', zIndex: 9999 }}>
                     <BackButton onClick={() => setActiveTab('Invoices')} />
                 </div>
-                <MarketFront brandId={userBrand?.id} userBrand={userBrand} brandName={userBrand?.name} />
+                <MarketFront brandId={userBrand?.id} />
             </div>
         );
     }
