@@ -1,7 +1,7 @@
 import { db, auth } from "../firebase";
 import { ref as dbRef, onValue, set, update } from "firebase/database";
 import { signOut } from "firebase/auth";
-import { firestore, auth } from "../firebase"; 
+import { firestore } from "../firebase"; 
 import { collection, addDoc } from "firebase/firestore";
 import Memories from './memories'; 
 import Simulator from './Simulator';
@@ -16,6 +16,7 @@ import { jsPDF } from 'jspdf';
 import React, {  useRef, useState, useMemo } from "react";
 import {  useEffect } from 'react';
 import '../App.css';
+import { io } from "socket.io-client";
 
 const socket = io('http://localhost:3001');
 import {
