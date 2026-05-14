@@ -112,15 +112,15 @@ const Chats = ({ brandId, userBrand }: any) => {
     };
 
     return (
-        <div style={{ maxWidth: '1600px', margin: '0 auto', padding: '0 20px' }}>
+        <div style={{ maxWidth: '100%', margin: '0 auto', padding: '0 10px' }}>
             <div style={{ 
                 display: 'grid', 
                 /* Adjusted columns: Sidebar is slightly smaller relative to the feed */
-                gridTemplateColumns: '320px 1fr', 
-                gap: '24px', 
+                gridTemplateColumns: '300px 1fr', 
+                gap: '20px', 
                 /* Height increased to 85% of viewport for a "Big Screen" feel */
-                height: '85vh', 
-                marginTop: '20px',
+                height: '70vh', 
+                marginTop: '10px',
                 minHeight: '600px' 
             }}>
                 
@@ -218,7 +218,7 @@ const Chats = ({ brandId, userBrand }: any) => {
                                         alignSelf: msg.sender === 'manager' ? 'flex-end' : 'flex-start', 
                                         background: msg.sender === 'manager' ? '#C5FF41' : '#1A1A1A', 
                                         color: msg.sender === 'manager' ? '#000' : '#fff',
-                                        padding: '10px 15px', borderRadius: '15px', maxWidth: '70%', fontSize: '14px'
+                                        padding: '10px 15px', borderRadius: '15px', maxWidth: '85%', fontSize: '14px'
                                     }}>
                                         {msg.text}
                                     </div>
