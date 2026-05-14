@@ -3,6 +3,7 @@ import { collection, query, where, onSnapshot, orderBy, addDoc, serverTimestamp,
 import { firestore } from "../firebase";
 import { io } from 'socket.io-client';
 
+// Initialize socket OUTSIDE to prevent multiple connections
 const socket = io('http://localhost:3001');
 
 const ChatCard = ({ children, style }: any) => (
@@ -13,7 +14,6 @@ const ChatCard = ({ children, style }: any) => (
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
-        height: '100%', // Ensure children fill the card
         ...style
     }}>{children}</div>
 );
@@ -25,6 +25,7 @@ const Chats = ({ brandId, userBrand }: any) => {
     const [chats, setChats] = useState<any[]>([]);
     const [inputValue, setInputValue] = useState('');
 
+    // 1. Sort chats: Unread ones first
     const sortedChats = useMemo(() => {
         return [...chats].sort((a, b) => {
             if (a.viewedByManager === b.viewedByManager) return 0;
@@ -32,15 +33,18 @@ const Chats = ({ brandId, userBrand }: any) => {
         });
     }, [chats]);
 
+    // 2. Listen for AI Actions (Socket)
     useEffect(() => {
         socket.on('ai-action', (action) => {
             if (isAutopilot && selectedChatId) {
+                console.log("🤖 Malvin Action:", action.text);
                 handleManagerSend(action.text); 
             }
         });
         return () => { socket.off('ai-action'); };
     }, [isAutopilot, selectedChatId]);
 
+    // 3. Single Listener for the Chat List
     useEffect(() => {
         const idToUse = brandId || userBrand?.id;
         if (!idToUse) return;
@@ -59,6 +63,7 @@ const Chats = ({ brandId, userBrand }: any) => {
         return () => unsubscribe();
     }, [brandId, userBrand?.id]);
 
+    // 4. Listener for Messages in Selected Chat
     useEffect(() => {
         if (!selectedChatId) return;
 
@@ -78,6 +83,7 @@ const Chats = ({ brandId, userBrand }: any) => {
         setSelectedChatId(chatId);
         try {
             const chatRef = doc(firestore, "conversations", chatId);
+            // This clears the green highlight and the red dot
             await updateDoc(chatRef, { viewedByManager: true });
         } catch (e) {
             console.error("Error marking as read:", e);
@@ -96,7 +102,7 @@ const Chats = ({ brandId, userBrand }: any) => {
             await setDoc(doc(firestore, "conversations", selectedChatId), {
                 lastMessage: text,
                 updatedAt: serverTimestamp(),
-                viewedByManager: true 
+                viewedByManager: true // Manager sent it, so they've seen it
             }, { merge: true });
 
             setInputValue('');
@@ -106,7 +112,6 @@ const Chats = ({ brandId, userBrand }: any) => {
     };
 
     return (
-        /* Increased maxWidth to allow the UI to breathe */
         <div style={{ maxWidth: '1600px', margin: '0 auto', padding: '0 20px' }}>
             <div style={{ 
                 display: 'grid', 
@@ -121,8 +126,8 @@ const Chats = ({ brandId, userBrand }: any) => {
                 
                 {/* LEFT: CHAT LIST */}
                 <ChatCard>
-                    <div style={{ padding: '24px', borderBottom: '1px solid #222', fontWeight: 700, fontSize: '16px', letterSpacing: '0.5px' }}>
-                        Conversations
+                    <div style={{ padding: '20px', borderBottom: '1px solid #222', fontWeight: 600, fontSize: '14px' }}>
+                        Active Conversations
                     </div>
                     <div style={{ flex: 1, overflowY: 'auto', padding: '12px' }}>
                         {sortedChats.map((chat, index) => {
@@ -134,40 +139,45 @@ const Chats = ({ brandId, userBrand }: any) => {
                                     key={chat.id}
                                     onClick={() => handleSelectChat(chat.id)}
                                     style={{
-                                        padding: '16px',
-                                        borderRadius: '20px',
+                                        padding: '15px',
+                                        borderRadius: '18px',
                                         cursor: 'pointer',
                                         display: 'flex',
                                         alignItems: 'center',
-                                        gap: '14px',
-                                        marginBottom: '10px',
+                                        gap: '12px',
+                                        marginBottom: '8px',
+                                        position: 'relative',
+                                        // BRIGHT GREEN BORDER for unread, subtle for read
                                         border: isUnread ? '1px solid #C5FF41' : '1px solid transparent',
+                                        // SOFT GREEN GLOW background for unread
                                         backgroundColor: isSelected ? '#1A1A1A' : (isUnread ? 'rgba(197, 255, 65, 0.08)' : 'transparent'),
-                                        transition: 'all 0.2s ease'
+                                        transition: '0.3s'
                                     }}
                                 >
                                     <div style={{ 
-                                        width: '44px', height: '44px', borderRadius: '50%', 
-                                        display: 'flex', alignItems: 'center', 
+                                        width: '42px', height: '42px', borderRadius: '50%', 
+                                        background: '#333', display: 'flex', alignItems: 'center', 
                                         justifyContent: 'center', color: isUnread ? '#000' : '#C5FF41', 
-                                        fontWeight: 800,
-                                        backgroundColor: isUnread ? '#C5FF41' : '#222',
+                                        fontWeight: 'bold',
+                                        backgroundColor: isUnread ? '#C5FF41' : '#333', // Flip colors if unread
                                     }}>
                                         {chats.length - index}
                                     </div>
                                     
                                     <div style={{ flex: 1, overflow: 'hidden' }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                                            <div style={{ fontSize: '14px', fontWeight: 700, color: isUnread ? '#C5FF41' : '#fff' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <div style={{ fontSize: '14px', fontWeight: 600, color: isUnread ? '#C5FF41' : '#fff' }}>
                                                 Client #{chats.length - index}
                                             </div>
+                                            {/* Small Green Indicator Dot */}
                                             {isUnread && (
-                                                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#C5FF41', boxShadow: '0 0 10px #C5FF41' }} />
+                                                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#C5FF41' }} />
                                             )}
                                         </div>
                                         <div style={{ 
                                             fontSize: '12px', 
-                                            color: isUnread ? '#eee' : '#888', 
+                                            color: isUnread ? '#fff' : '#666', 
+                                            fontWeight: isUnread ? '600' : '400',
                                             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' 
                                         }}>
                                             {chat.lastMessage || "No messages yet"}
@@ -185,74 +195,45 @@ const Chats = ({ brandId, userBrand }: any) => {
                         <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
                             <div style={{ padding: '24px', borderBottom: '1px solid #222', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#050505' }}>
                                 <div>
-                                    <div style={{ fontWeight: 800, fontSize: '18px', color: '#fff' }}>Client Session</div>
-                                    <div style={{ fontSize: '12px', color: isAutopilot ? '#C5FF41' : '#666', fontWeight: 600, marginTop: '2px' }}>
-                                        {isAutopilot ? '● AUTOPILOT ACTIVE' : '○ MANUAL OVERRIDE'}
+                                    <div style={{ fontWeight: 700, color: '#fff' }}>Chat Detail</div>
+                                    <div style={{ fontSize: '11px', color: isAutopilot ? '#C5FF41' : '#666' }}>
+                                        {isAutopilot ? '🤖 AUTOPILOT ON' : '👤 MANUAL MODE'}
                                     </div>
                                 </div>
                                 <button 
                                     onClick={() => setIsAutopilot(!isAutopilot)}
                                     style={{ 
-                                        background: isAutopilot ? 'rgba(197, 255, 65, 0.1)' : '#C5FF41',
+                                        background: isAutopilot ? 'rgba(197, 255, 65, 0.1)' : '#fff',
                                         color: isAutopilot ? '#C5FF41' : '#000',
-                                        border: isAutopilot ? '1px solid #C5FF41' : 'none', 
-                                        padding: '10px 20px', borderRadius: '14px', cursor: 'pointer', fontWeight: 800,
-                                        transition: '0.3s'
+                                        border: 'none', padding: '8px 16px', borderRadius: '12px', cursor: 'pointer', fontWeight: 700
                                     }}
                                 >
-                                    {isAutopilot ? 'Take Over' : 'Enable AI'}
+                                    {isAutopilot ? 'Take Over' : 'Enable Malvin'}
                                 </button>
                             </div>
 
-                            <div style={{ flex: 1, padding: '30px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                            <div style={{ flex: 1, padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                                 {activeMessages.map((msg) => (
                                     <div key={msg.id} style={{ 
                                         alignSelf: msg.sender === 'manager' ? 'flex-end' : 'flex-start', 
                                         background: msg.sender === 'manager' ? '#C5FF41' : '#1A1A1A', 
                                         color: msg.sender === 'manager' ? '#000' : '#fff',
-                                        padding: '14px 18px', 
-                                        borderRadius: msg.sender === 'manager' ? '20px 20px 4px 20px' : '20px 20px 20px 4px', 
-                                        maxWidth: '65%', 
-                                        fontSize: '15px',
-                                        lineHeight: '1.4',
-                                        boxShadow: '0 4px 15px rgba(0,0,0,0.2)'
+                                        padding: '10px 15px', borderRadius: '15px', maxWidth: '70%', fontSize: '14px'
                                     }}>
                                         {msg.text}
                                     </div>
                                 ))}
                             </div>
 
-                            <div style={{ padding: '24px', background: '#050505', borderTop: '1px solid #222', display: 'flex', gap: '15px' }}>
+                            <div style={{ padding: '20px', display: 'flex', gap: '10px' }}>
                                 <input 
                                     value={inputValue} 
                                     onChange={(e) => setInputValue(e.target.value)}
                                     onKeyDown={(e) => e.key === 'Enter' && handleManagerSend(inputValue)}
-                                    placeholder="Type a message..."
-                                    style={{ 
-                                        flex: 1, 
-                                        background: '#111', 
-                                        border: '1px solid #333', 
-                                        color: '#fff', 
-                                        padding: '16px', 
-                                        borderRadius: '16px',
-                                        fontSize: '15px',
-                                        outline: 'none'
-                                    }}
+                                    placeholder="Reply..."
+                                    style={{ flex: 1, background: '#111', border: '1px solid #333', color: '#fff', padding: '12px', borderRadius: '12px' }}
                                 />
-                                <button 
-                                    onClick={() => handleManagerSend(inputValue)} 
-                                    style={{ 
-                                        background: '#C5FF41', 
-                                        padding: '0 30px', 
-                                        borderRadius: '16px', 
-                                        fontWeight: 900, 
-                                        fontSize: '14px',
-                                        cursor: 'pointer',
-                                        border: 'none'
-                                    }}
-                                >
-                                    SEND
-                                </button>
+                                <button onClick={() => handleManagerSend(inputValue)} style={{ background: '#C5FF41', padding: '0 20px', borderRadius: '12px', fontWeight: 800 }}>SEND</button>
                             </div>
                         </div>
                     ) : (
