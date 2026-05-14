@@ -426,6 +426,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     const [showTrustMsg, setShowTrustMsg] = React.useState(false);
     const [isMenuOpen, setIsMenuOpen] = React.useState(false);
     const agent = useRemoteParticipant({ kind: ParticipantKind.AGENT });
+    const [isChatting, setIsChatting] = useState(false);
     const [messages, setMessages] = useState([]);
     const onToggleDisable = () => {
         setDisabled(!disabled);
