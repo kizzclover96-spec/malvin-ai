@@ -1,94 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { auth, db } from '../firebase';
 import { signOut } from 'firebase/auth';
-import { ref, onValue, update, runTransaction, push, child, serverTimestamp, DataSnapshot } from "firebase/database";
-
-const glassStyle: React.CSSProperties = {
-    background: 'rgba(255, 255, 255, 0.03)',
-    backdropFilter: 'blur(20px)',
-    WebkitBackdropFilter: 'blur(20px)',
-    borderRadius: '24px',
-    border: '1px solid rgba(255, 255, 255, 0.08)',
-    padding: '24px',
-    color: 'white',
-};
-
-const AuraBackground = () => {
-  return (
-    <div style={{
-      position: 'absolute',
-      inset: 0,
-      overflow: 'hidden',
-      zIndex: 0,
-      pointerEvents: 'none'
-    }}>
-      <style>{`
-        @keyframes waveFlow1 {
-          0% { transform: translateX(-20%) translateY(0%) rotate(0deg); }
-          50% { transform: translateX(20%) translateY(-10%) rotate(8deg); }
-          100% { transform: translateX(-20%) translateY(0%) rotate(0deg); }
-        }
-
-        @keyframes waveFlow2 {
-          0% { transform: translateX(20%) translateY(0%) rotate(0deg); }
-          50% { transform: translateX(-20%) translateY(10%) rotate(-8deg); }
-          100% { transform: translateX(20%) translateY(0%) rotate(0deg); }
-        }
-
-        .aura-wave {
-          position: absolute;
-          width: 900px;
-          height: 400px;
-          filter: blur(120px);
-          opacity: 0.6;
-          mix-blend-mode: screen;
-        }
-      `}</style>
-
-      {/* PURPLE WAVE */}
-      <div
-        className="aura-wave"
-        style={{
-          top: '20%',
-          left: '-10%',
-          background: 'linear-gradient(90deg, rgba(168,85,247,0.6), rgba(236,72,153,0.4), transparent)',
-          animation: 'waveFlow1 12s ease-in-out infinite',
-          opacity: 0.7,
-        }}
-      />
-
-      {/* BLUE WAVE */}
-      <div
-        className="aura-wave"
-        style={{
-          bottom: '10%',
-          right: '-10%',
-          background: 'linear-gradient(90deg, rgba(59,130,246,0.6), rgba(99,102,241,0.4), transparent)',
-          animation: 'waveFlow2 14s ease-in-out infinite',
-          opacity: 0.7,
-        }}
-      />
-
-      {/* EXTRA GLOW CENTER */}
-      <div
-        style={{
-          position: 'absolute',
-          width: '500px',
-          height: '500px',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          background: 'radial-gradient(circle, rgba(168,85,247,0.25), transparent 70%)',
-          filter: 'blur(100px)',
-        }}
-      />
-    </div>
-  );
-};
+import { ref, onValue, update, push, serverTimestamp, DataSnapshot } from "firebase/database";
 
 const AdsManager = () => {
     const [users, setUsers] = useState<any[]>([]);
-    const [pendingRequests, setPendingRequests] = useState<any[]>([]);
     const [selectedUser, setSelectedUser] = useState<any>(null);
     const [editBalance, setEditBalance] = useState('');
     const [editBrandName, setEditBrandName] = useState('');
@@ -97,18 +13,15 @@ const AdsManager = () => {
 
     useEffect(() => {
         const usersRef = ref(db, 'users');
-        const unsubUsers = onValue(usersRef, (snapshot) => {
+        const unsubUsers = onValue(usersRef, (snapshot: DataSnapshot) => {
             const data = snapshot.val();
             if (data) {
                 const formatted = Object.keys(data).map(k => ({
                     uid: k,
                     ...data[k],
-                    displayName: data[k].brandName || data[k].email || "UNKNOWN_ENTITY",
-                    status: data[k].status || 'Active'
+                    displayName: data[k].brandName || data[k].email || "GHOST_USER",
                 }));
                 setUsers(formatted);
-                
-                // Sync currently selected user data if it changes in DB
                 if (selectedUser) {
                     const updated = formatted.find(u => u.uid === selectedUser.uid);
                     if (updated) setSelectedUser(updated);
@@ -116,9 +29,8 @@ const AdsManager = () => {
             }
         });
 
-        // 2. Fetch Audit Logs (Limited to last 50)
         const logsRef = ref(db, 'admin/audit_log');
-        const unsubLogs = onValue(logsRef, (snapshot) => {
+        onValue(logsRef, (snapshot) => {
             const data = snapshot.val();
             if (data) {
                 const list = Object.keys(data).map(k => ({ id: k, ...data[k] }));
@@ -126,92 +38,32 @@ const AdsManager = () => {
             }
         });
 
-        // 2. Fetch Global Pending Wires
         const adQueueRef = ref(db, 'admin/ad_queue');
-        const unsubAds = onValue(adQueueRef, (snapshot) => {
+        onValue(adQueueRef, (snapshot) => {
             const data = snapshot.val();
             setAdRequests(data ? Object.keys(data).map(k => ({ id: k, ...data[k] })) : []);
         });
 
-        return () => { unsubUsers(); unsubLogs(); unsubAds(); };
-    }, [selectedUser?.uid]); // Dependency ensures sync
+        return () => unsubUsers();
+    }, [selectedUser?.uid]);
 
-       
-
-    // --- HELPER: LOG ACTION ---
-    const logAction = async (action: string, targetUid: string, details: string) => {
-        const logRef = ref(db, 'admin/audit_log');
-        await push(logRef, {
-            adminEmail: auth.currentUser?.email,
-            action,
-            targetUid,
-            details,
-            timestamp: serverTimestamp(),
-            readableDate: new Date().toLocaleString()
-        });
+    // --- HANDLERS ---
+    const handleSelectUser = (u: any) => {
+        setSelectedUser(u);
+        setEditBrandName(u.brandName || '');
+        setEditBalance(u.treasury?.balance?.toString() || '0');
     };
-  
-    // 1. Add this helper to identify clusters of accounts
+
     const getIpClusterCount = (ip: string) => {
-        if (!ip) return 0;
-        return users.filter(u => u.security?.lastIp === ip).length;
+        return ip ? users.filter(u => u.security?.lastIp === ip).length : 0;
     };
 
-    const toggleGlobalMarket = async (isLocked: boolean) => {
-        if (!window.confirm("WARNING: This will hide the entire Marketfront for all users. Proceed?")) return;
-        await update(ref(db, 'system_settings'), { market_lockdown: isLocked });
-        logAction('GLOBAL_LOCKDOWN', 'SYSTEM', `Market set to ${isLocked ? 'HIDDEN' : 'VISIBLE'}`);
-    };
-
-    // --- LOGIC: VERIFICATION ---
-    const toggleVerification = async (user: any) => {
-        const newStatus = !user.isVerified;
-        await update(ref(db, `users/${user.uid}`), { isVerified: newStatus });
-        logAction(newStatus ? 'VERIFY_USER' : 'UNVERIFY_USER', user.uid, `Verified status changed to ${newStatus}`);
-    };
-
-    // --- LOGIC: HIDE MARKETFRONT (Panic Button) ---
-    const toggleMarketVisibility = async (user: any) => {
-        const newHidden = !user.marketHidden;
-        await update(ref(db, `users/${user.uid}`), { marketHidden: newHidden });
-        logAction(newHidden ? 'HIDE_MARKET' : 'SHOW_MARKET', user.uid, `Market visibility: ${!newHidden}`);
-    };
-
-    const handleLogout = () => signOut(auth);
-    // --- LOGIC: CLEAR FUNDS ---
-    const clearFunds = async (req: any) => {
-        try {
-            // A. Update the User's Balance (Keep runTransaction for safety with numbers)
-            const userBalanceRef = ref(db, `users/${req.userId}/treasury/balance`);
-            await runTransaction(userBalanceRef, (current) => (current || 0) + req.amount);
-
-            // B. Use a multi-path update to delete from admin AND add to ledger
-            // First, generate a new key for the ledger entry
-            const newLedgerKey = push(child(ref(db), `users/${req.userId}/treasury/ledger`)).key;
-
-            const updates: any = {};
-            
-            // Path 1: Delete from Admin Queue (setting to null in an object deletes it)
-            updates[`admin/pending_wires/${req.id}`] = null;
-            
-            // Path 2: Add to User Ledger
-            updates[`users/${req.userId}/treasury/ledger/${newLedgerKey}`] = {
-                type: 'Inflow',
-                amount: req.amount,
-                label: 'Wire_Transfer_Settled',
-                date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }).toUpperCase(),
-                status: 'Completed',
-                timestamp: Date.now()
-            };
-
-            // Execute both simultaneously
-            await update(ref(db), updates);
-
-            alert(`Funds (€${req.amount}) successfully cleared for ${req.userEmail}`);
-        } catch (err) {
-            console.error("Clear Funds Error:", err);
-            alert("System Error: Check console for permission/syntax details.");
-        }
+    const logAction = async (action: string, targetUid: string, details: string) => {
+        await push(ref(db, 'admin/audit_log'), {
+            adminEmail: auth.currentUser?.email,
+            action, targetUid, details,
+            timestamp: serverTimestamp(),
+        });
     };
 
     const handleSaveChanges = async () => {
@@ -221,140 +73,46 @@ const AdsManager = () => {
         updates[`users/${selectedUser.uid}/treasury/balance`] = parseFloat(editBalance);
         
         await update(ref(db), updates);
-        logAction('UPDATE_ACCOUNT', selectedUser.uid, `New Name: ${editBrandName}, New Bal: ${editBalance}`);
-        alert("Account Updated.");
-    };
-
-    const toggleAccountStatus = async () => {
-        if (!selectedUser) return;
-        const newStatus = selectedUser.status === 'Banned' ? 'Active' : 'Banned';
-        
-        if (window.confirm(`Are you sure you want to set status to ${newStatus}?`)) {
-            try {
-                await update(ref(db, `users/${selectedUser.uid}`), { 
-                    status: newStatus 
-                });
-                logAction(newStatus === 'Banned' ? 'BAN_USER' : 'UNBAN_USER', selectedUser.uid, `Manual status override to ${newStatus}`);
-                alert(`Account ${newStatus} successfully.`);
-            } catch (err) {
-                alert("Database Error: Ban failed.");
-            }
-        }
-    };
-
-    // --- LOGIC: MANUAL OVERRIDE ---
-    const updateManualBalance = async () => {
-        if (!selectedUser || !editBalance) return;
-        await update(ref(db, `users/${selectedUser.uid}/treasury`), {
-            balance: parseFloat(editBalance)
-        });
-        alert("Balance Updated Manually");
-    };
-
-    // --- LOGIC: APPROVE AD ---
-    const approveAd = async (req: any) => {
-        try {
-            const updates: any = {};
-            // 1. Set campaign status to Active on the user's side
-            updates[`users/${req.userId}/campaigns/${req.campaignId}/status`] = 'Active';
-            
-            // 2. Remove from Admin Queue
-            updates[`admin/ad_queue/${req.id}`] = null;
-
-            await update(ref(db), updates);
-            alert(`Campaign "${req.title}" is now LIVE.`);
-        } catch (err) {
-            console.error("Ad Approval Error:", err);
-        }
+        logAction('UPDATE_ACCOUNT', selectedUser.uid, `Name: ${editBrandName}, Bal: ${editBalance}`);
+        alert("DATABASE_SYNC_SUCCESS");
     };
 
     return (
         <div style={adminLayout}>
-            <AuraBackground />
             <header style={headerStyle}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '20px', position: 'relative' }}>
-                    <h1 style={{ fontSize: '24px', letterSpacing: '2px', margin: 0 }}>MALVIN_ADMIN</h1>
-                    <div style={badge}>v2.0_SECURE</div>
-                </div>
-                {/* --- TOP BAR: SYSTEM STATUS & PANIC BUTTON --- */}
-                <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
-                    <div style={panelStyle}>
-                        <span style={labelStyle}>GLOBAL_MARKET_STATUS</span>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '10px' }}>
-                            <button 
-                                onClick={() => toggleGlobalMarket(true)} 
-                                style={{ ...toolBtn, background: '#ff4d4d', color: '#fff' }}>
-                                ACTIVATE_LOCKDOWN
-                            </button>
-                            <button 
-                                onClick={() => toggleGlobalMarket(false)} 
-                                style={{ ...toolBtn, borderColor: '#C5FF41', color: '#C5FF41' }}>
-                                RESTORE_SYSTEM
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                <button onClick={handleLogout} style={logoutBtn}>LOGOUT</button>
+                <h1 style={{ fontSize: '20px', letterSpacing: '3px' }}>MALVIN_ADMIN_V2</h1>
+                <button onClick={() => signOut(auth)} style={logoutBtn}>LOGOUT</button>
             </header>
             
-            <div style={{ display: 'grid', gridTemplateColumns: '350px 1fr 400px', gap: '24px', position: 'relative' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '380px 1fr 350px', gap: '24px' }}>
 
-                
-                {/* --- USER_DATABASE (Updated with Bot Detection) --- */}
+                {/* --- UPDATED MERCHANT DIRECTORY --- */}
                 <section style={panelStyle}>
                     <h3 style={sectionTitle}>MERCHANT_DIRECTORY</h3>
-                    <div style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-                        {users.map(u => {
-                            <div key={u.uid} 
-                                onClick={() => {
-                                    setSelectedUser(u);
-                                    setEditBrandName(u.brandName || '');
-                                    setEditBalance(u.treasury?.balance?.toString() || '0');
-                                }}
-                                style={{
-                                    ...userCard, 
-                                    borderLeft: selectedUser?.uid === u.uid ? '4px solid #C5FF41' : '4px solid transparent',
-                                    background: u.status === 'Banned' ? 'rgba(255, 77, 77, 0.1)' : 'rgba(255,255,255,0.03)'
-                                }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                    <span style={{fontWeight: 600, fontSize: '13px'}}>
-                                        {u.isVerified && "✓ "} {u.displayName}
-                                    </span>
-                                    {u.status === 'Banned' && <span style={{color: '#ff4d4d', fontSize: '9px', fontWeight: 900}}>BANNED</span>}
-                                </div>
-                                <div style={{fontSize: '10px', opacity: 0.5, marginTop: '4px'}}>
-                                    ID: {u.uid.substring(0, 8)}... • €{u.treasury?.balance || 0}
-                                </div>
-                            </div>
+                    <div style={{ maxHeight: '75vh', overflowY: 'auto', paddingRight: '8px' }}>
+                        {users.map((u) => {
                             const ipCount = getIpClusterCount(u.security?.lastIp);
-                            const isSuspicious = ipCount > 2; // More than 2 accounts on 1 IP is a red flag
+                            const isHighRisk = ipCount > 2;
+                            const isSelected = selectedUser?.uid === u.uid;
 
                             return (
-                                <div key={u.uid} 
-                                    onClick={() => setSelectedUser(u)}
+                                <div key={u.uid} onClick={() => handleSelectUser(u)}
                                     style={{
-                                        ...userCard, 
-                                        border: selectedUser?.uid === u.uid ? '1px solid #C5FF41' : '1px solid transparent',
-                                        background: isSuspicious ? 'rgba(255, 77, 77, 0.08)' : 'rgba(255,255,255,0.03)'
+                                        ...userCard,
+                                        borderLeft: isSelected ? '4px solid #C5FF41' : '4px solid transparent',
+                                        background: u.status === 'Banned' ? 'rgba(255, 77, 77, 0.1)' : isSelected ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.03)',
                                     }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <span style={{fontWeight: 600}}>
-                                            {u.isVerified && "✓ "} {u.brandName}
-                                        </span>
-                                        {isSuspicious && (
-                                            <span style={botTag}>BOT_DETECTED</span>
-                                        )}
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                        <span style={{ fontSize: '14px', fontWeight: 700 }}>{u.brandName || "UNNAMED_BRAND"}</span>
+                                        {isHighRisk && <span style={botTag}>RISK_CLUSTER</span>}
                                     </div>
-                                    <div style={{fontSize: '10px', opacity: 0.5}}>
-                                        IP: {u.security?.lastIp || 'NO_DATA'} • {ipCount} ACCOUNTS
-                                    </div>
-                                    {/* Progress bar showing risk level */}
-                                    <div style={{width: '100%', height: '2px', background: '#222', marginTop: '8px'}}>
-                                        <div style={{
-                                            width: `${Math.min(ipCount * 20, 100)}%`, 
-                                            height: '100%', 
-                                            background: isSuspicious ? '#ff4d4d' : '#C5FF41'
-                                        }} />
+                                    
+                                    <div style={dirMetadata}><span style={{opacity: 0.4}}>EMAIL:</span> {u.email}</div>
+                                    <div style={dirMetadata}><span style={{opacity: 0.4}}>B_ID:</span> <span style={{fontFamily: 'monospace'}}>{u.uid}</span></div>
+
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px', fontSize: '10px', opacity: 0.6 }}>
+                                        <span style={{color: '#C5FF41'}}>€{u.treasury?.balance || 0}</span>
+                                        <span>IP: {u.security?.lastIp || 'NONE'}</span>
                                     </div>
                                 </div>
                             );
@@ -362,141 +120,51 @@ const AdsManager = () => {
                     </div>
                 </section>
 
-                {/* --- CENTER: ACTIVITY FEED --- */}
-                <section style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                    <div style={panelStyle}>
-                        <h3 style={sectionTitle}>ACCOUNT_MODERATOR</h3>
-                        {selectedUser ? (
-                            <div style={{display: 'flex', flexDirection: 'column', gap: '15px'}}>
-                                {/* --- FIX 2: SHOW CURRENT STATUS & EMAIL --- */}
-                                <div style={statusInfoBox}>
-                                    <div>
-                                        <label style={labelStyle}>CURRENT_STATUS</label>
-                                        <div style={{ 
-                                            color: selectedUser.status === 'Banned' ? '#ff4d4d' : '#C5FF41', 
-                                            fontWeight: 900, fontSize: '18px' 
-                                        }}>
-                                            {selectedUser.status.toUpperCase()}
-                                        </div>
-                                    </div>
-                                    <div style={{textAlign: 'right'}}>
-                                        <label style={labelStyle}>LOGIN_EMAIL</label>
-                                        <div style={{fontSize: '12px'}}>{selectedUser.email || 'NO_EMAIL_FOUND'}</div>
-                                    </div>
-                                </div>
-
-                                <div style={toolRow}>
-                                    <button onClick={() => toggleVerification(selectedUser)} style={selectedUser.isVerified ? verifyBtnActive : toolBtn}>
-                                        {selectedUser.isVerified ? 'REVOKE_VERIFIED' : 'GRANT_VERIFIED'}
-                                    </button>
-                                    <button onClick={() => toggleMarketVisibility(selectedUser)} style={selectedUser.marketHidden ? toolBtnPanic : toolBtn}>
-                                        {selectedUser.marketHidden ? 'RESTORE_MARKET' : 'HIDE_MARKETFRONT'}
-                                    </button>
-                                </div>
-                                
-                                <label style={labelStyle}>RENAME_BRAND</label>
-                                <input style={inputStyle} value={editBrandName} onChange={e => setEditBrandName(e.target.value)} placeholder="Enter New Brand Name" />
-                                
-                                <label style={labelStyle}>ADJUST_TREASURY</label>
-                                <input style={inputStyle} type="number" value={editBalance} onChange={e => setEditBalance(e.target.value)} placeholder="Set Balance €" />
-                                
-                                <div style={{display: 'flex', gap: '10px', marginTop: '10px'}}>
-                                    <button onClick={handleSaveChanges} style={approveBtn}>SAVE_CHANGES</button>
-                                    <button onClick={toggleAccountStatus} style={{...secondaryBtn, borderColor: selectedUser.status === 'Banned' ? '#C5FF41' : '#ff4d4d', color: selectedUser.status === 'Banned' ? '#C5FF41' : '#ff4d4d'}}>
-                                        {selectedUser.status === 'Banned' ? 'LIFT_RESTRICTION' : 'BAN_PERMANENTLY'}
-                                    </button>
-                                </div>
-                            </div>
-                        ) : <div style={{opacity: 0.2, textAlign: 'center', padding: '60px'}}>SELECT_USER_FROM_DIRECTORY</div>}
-                    </div>
-
-                    <div style={panelStyle}>
-                        <h3 style={sectionTitle}>SYSTEM_AD_QUEUE</h3>
-                        {adRequests.map(ad => (
-                            <div key={ad.id} style={itemStyle}>
-                                <div style={{fontSize: '12px'}}>{ad.title} <br/><span style={{opacity: 0.5}}>{ad.userEmail}</span></div>
-                                <button onClick={() => approveAd(ad)} style={approveBtn}>DEPLOY</button>
-                            </div>
-                        ))}
-                    </div>
-                </section>
-                {/* --- RIGHT: USER EDITOR --- */}
+                {/* --- CENTER: MODERATOR --- */}
                 <section style={panelStyle}>
-                    <h3 style={sectionTitle}>NEURAL_METADATA</h3>
-                    {selectedUser && (
-                        <div style={statusBox}>
-                            <p style={{fontSize: '11px', margin: '5px 0'}}>UID: {selectedUser.uid}</p>
-                            <p style={{fontSize: '11px', margin: '5px 0'}}>IP_LOG: {selectedUser.security?.lastIp || 'UNKNOWN'}</p>
+                    <h3 style={sectionTitle}>ACCOUNT_MODERATOR</h3>
+                    {selectedUser ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                            <label style={labelStyle}>EDIT_BRAND_NAME</label>
+                            <input style={inputStyle} value={editBrandName} onChange={e => setEditBrandName(e.target.value)} />
+                            
+                            <label style={labelStyle}>ADJUST_TREASURY_BALANCE</label>
+                            <input style={inputStyle} type="number" value={editBalance} onChange={e => setEditBalance(e.target.value)} />
+                            
+                            <button onClick={handleSaveChanges} style={approveBtn}>SAVE_CHANGES</button>
                         </div>
-                    )}
-                    <h3 style={{...sectionTitle, marginTop: '30px'}}>SECURITY_AUDIT_LOG</h3>
-                    <div style={{height: '40vh', overflowY: 'auto'}}>
+                    ) : <div style={{textAlign: 'center', opacity: 0.3, padding: '50px'}}>SELECT_USER_DATA</div>}
+                </section>
+
+                {/* --- RIGHT: AUDIT LOGS --- */}
+                <section style={panelStyle}>
+                    <h3 style={sectionTitle}>SYSTEM_AUDIT_LOG</h3>
+                    <div style={{ height: '70vh', overflowY: 'auto' }}>
                         {auditLogs.map(log => (
                             <div key={log.id} style={logItem}>
-                                <div style={{color: '#C5FF41', fontSize: '10px'}}>{log.action}</div>
-                                <div style={{fontSize: '11px', opacity: 0.7}}>{log.details}</div>
+                                <div style={{ color: '#C5FF41', fontSize: '10px' }}>{log.action}</div>
+                                <div style={{ fontSize: '11px', opacity: 0.7 }}>{log.details}</div>
                             </div>
                         ))}
                     </div>
                 </section>
-
             </div>
         </div>
     );
 };
 
 // --- STYLES ---
-const botTag: React.CSSProperties = {
-    background: '#ff4d4d',
-    color: '#fff',
-    fontSize: '8px',
-    padding: '2px 6px',
-    borderRadius: '4px',
-    fontWeight: 900,
-    letterSpacing: '1px'
-};
-
-// --- NEW STYLES ---
-const statusInfoBox: React.CSSProperties = {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '15px',
-    background: 'rgba(255,255,255,0.05)',
-    borderRadius: '12px',
-    border: '1px solid rgba(255,255,255,0.1)'
-};
-
-const panicBtn: React.CSSProperties = {
-    background: '#ff4d4d',
-    color: '#fff',
-    border: 'none',
-    padding: '8px 16px',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontSize: '11px',
-    fontWeight: 900
-};
-
-const gridMain: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1fr 1.2fr 1fr', gap: '24px', position: 'relative', height: '80vh' };
-const scrollArea: React.CSSProperties = { height: '100%', overflowY: 'auto', paddingRight: '10px' };
-const toolRow: React.CSSProperties = { display: 'flex', gap: '10px' };
-const toolBtn: React.CSSProperties = { flex: 1, background: '#111', border: '1px solid #333', color: '#fff', padding: '10px', borderRadius: '8px', fontSize: '10px', cursor: 'pointer' };
-const verifyBtnActive: React.CSSProperties = { ...toolBtn, borderColor: '#C5FF41', color: '#C5FF41', background: 'rgba(197, 255, 65, 0.05)' };
-const toolBtnPanic: React.CSSProperties = { ...toolBtn, borderColor: '#ff4d4d', color: '#ff4d4d', background: 'rgba(255, 77, 77, 0.05)' };
-const logItem: React.CSSProperties = { padding: '12px', borderBottom: '1px solid #111', marginBottom: '5px' };
-const adminLayout: React.CSSProperties = { background: '#000', minHeight: '100vh', padding: '40px', color: '#fff', fontFamily: 'Inter, sans-serif', overflow: 'hidden' };
-const headerStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px', borderBottom: '1px solid #222', paddingBottom: '20px', position: 'relative' };
-const badge: React.CSSProperties = { background: '#C5FF41', color: '#000', padding: '5px 12px', borderRadius: '4px', fontSize: '10px', fontWeight: 900 };
+const adminLayout: React.CSSProperties = { background: '#000', minHeight: '100vh', padding: '40px', color: '#fff', fontFamily: 'Inter, sans-serif' };
 const panelStyle: React.CSSProperties = { background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '24px', padding: '24px', backdropFilter: 'blur(10px)' };
-const sectionTitle: React.CSSProperties = { fontSize: '12px', letterSpacing: '2px', opacity: 0.4, marginBottom: '20px', borderBottom: '1px solid #222', paddingBottom: '10px' };
-const userCard: React.CSSProperties = { padding: '15px', borderRadius: '12px', background: 'rgba(255,255,255,0.03)', marginBottom: '10px', cursor: 'pointer', transition: '0.2s' };
-const itemStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px', background: '#000', borderRadius: '12px', marginBottom: '10px', border: '1px solid #111' };
-const approveBtn: React.CSSProperties = { background: '#C5FF41', color: '#000', border: 'none', padding: '10px 18px', borderRadius: '8px', fontWeight: 700, cursor: 'pointer', fontSize: '11px' };
-const inputStyle: React.CSSProperties = { width: '100%', background: '#000', border: '1px solid #222', padding: '12px', borderRadius: '8px', color: '#fff', marginTop: '5px' };
+const userCard: React.CSSProperties = { padding: '16px', borderRadius: '12px', marginBottom: '12px', cursor: 'pointer', transition: '0.2s', border: '1px solid rgba(255,255,255,0.05)' };
+const dirMetadata: React.CSSProperties = { fontSize: '10px', marginBottom: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' };
+const sectionTitle: React.CSSProperties = { fontSize: '11px', letterSpacing: '2px', opacity: 0.4, marginBottom: '20px', borderBottom: '1px solid #222', paddingBottom: '10px' };
+const inputStyle: React.CSSProperties = { width: '100%', background: '#000', border: '1px solid #333', padding: '12px', borderRadius: '8px', color: '#fff' };
+const approveBtn: React.CSSProperties = { background: '#C5FF41', color: '#000', border: 'none', padding: '12px', borderRadius: '8px', fontWeight: 700, cursor: 'pointer' };
 const labelStyle: React.CSSProperties = { fontSize: '10px', opacity: 0.5 };
-const statusBox: React.CSSProperties = { marginTop: '30px', padding: '15px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px' };
-const logoutBtn: React.CSSProperties = { background: 'transparent', border: '1px solid #ff4d4d', color: '#ff4d4d', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '11px', fontWeight: 700 };
-const secondaryBtn: React.CSSProperties = { background: 'transparent', color: '#ff4d4d', border: '1px solid #ff4d4d', width: '100%', padding: '10px', borderRadius: '8px', cursor: 'pointer' };
+const logItem: React.CSSProperties = { padding: '10px', borderBottom: '1px solid #111' };
+const botTag: React.CSSProperties = { background: '#ff4d4d', color: '#fff', fontSize: '8px', padding: '2px 6px', borderRadius: '4px', fontWeight: 900 };
+const headerStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', marginBottom: '30px' };
+const logoutBtn: React.CSSProperties = { background: 'transparent', border: '1px solid #ff4d4d', color: '#ff4d4d', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer' };
 
 export default AdsManager;
