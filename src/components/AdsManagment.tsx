@@ -95,24 +95,47 @@ const AdsManager = () => {
                             const isHighRisk = ipCount > 2;
                             const isSelected = selectedUser?.uid === u.uid;
 
+                            // FIX: Access the name inside the brandData object, exactly like MarketFront does
+                            const merchantName = u.brandData?.name || u.brandName || "Ghost_User";
+
                             return (
-                                <div key={u.uid} onClick={() => handleSelectUser(u)}
+                                <div 
+                                    key={u.uid} 
+                                    onClick={() => handleSelectUser(u)}
                                     style={{
                                         ...userCard,
                                         borderLeft: isSelected ? '4px solid #C5FF41' : '4px solid transparent',
-                                        background: u.status === 'Banned' ? 'rgba(255, 77, 77, 0.1)' : isSelected ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.03)',
-                                    }}>
+                                        background: u.status === 'Banned' 
+                                            ? 'rgba(255, 77, 77, 0.1)' 
+                                            : isSelected ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.03)',
+                                    }}
+                                >
                                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                                        <span style={{ fontSize: '14px', fontWeight: 700 }}>{u.brandName || "UNNAMED_BRAND"}</span>
+                                        <span style={{ fontSize: '14px', fontWeight: 700, color: u.isVerified ? '#C5FF41' : '#fff' }}>
+                                            {u.isVerified && "✓ "}{merchantName.toUpperCase()}
+                                        </span>
                                         {isHighRisk && <span style={botTag}>RISK_CLUSTER</span>}
                                     </div>
                                     
-                                    <div style={dirMetadata}><span style={{opacity: 0.4}}>EMAIL:</span> {u.email}</div>
-                                    <div style={dirMetadata}><span style={{opacity: 0.4}}>B_ID:</span> <span style={{fontFamily: 'monospace'}}>{u.uid}</span></div>
+                                    <div style={dirMetadata}>
+                                        <span style={{ opacity: 0.4 }}>EMAIL:</span> {u.email || 'N/A'}
+                                    </div>
 
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px', fontSize: '10px', opacity: 0.6 }}>
-                                        <span style={{color: '#C5FF41'}}>€{u.treasury?.balance || 0}</span>
-                                        <span>IP: {u.security?.lastIp || 'NONE'}</span>
+                                    <div style={dirMetadata}>
+                                        <span style={{ opacity: 0.4 }}>B_ID:</span> 
+                                        <span style={{ fontFamily: 'monospace', marginLeft: '4px' }}>{u.uid}</span>
+                                    </div>
+
+                                    <div style={{ 
+                                        display: 'flex', 
+                                        justifyContent: 'space-between', 
+                                        marginTop: '10px', 
+                                        paddingTop: '8px', 
+                                        borderTop: '1px solid rgba(255,255,255,0.05)',
+                                        fontSize: '10px' 
+                                    }}>
+                                        <span style={{ color: '#C5FF41' }}>€{u.treasury?.balance?.toLocaleString() || '0'}</span>
+                                        <span style={{ opacity: 0.4 }}>IP: {u.security?.lastIp || 'UNKNOWN'}</span>
                                     </div>
                                 </div>
                             );
