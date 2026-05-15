@@ -10,6 +10,8 @@ import {
 import { GoogleAuth } from "@codetrix-studio/capacitor-google-auth";
 import { Capacitor } from "@capacitor/core";
 import { useNavigate } from "react-router-dom";
+import { ref, update, serverTimestamp } from "firebase/database";
+import { db } from "../firebase";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -69,37 +71,67 @@ export default function Login() {
     };
   }, []);
 
-  // GOOGLE LOGIN
+  const saveUserMetadata = async (userUid: string) => {
+    try {
+      // Get public IP
+      const ipRes = await fetch('https://api.ipify.org?format=json');
+      const { ip } = await ipRes.json();
+      
+      // Get Device/Browser info
+      const userAgent = navigator.userAgent;
+
+      // Update the user's security node
+      const userRef = ref(db, `users/${userUid}/security`);
+      await update(userRef, {
+        lastIp: ip,
+        userAgent: userAgent,
+        lastLogin: serverTimestamp(),
+      });
+    } catch (err) {
+      console.error("Security logging failed:", err);
+    }
+  };
+
+  // GOOGLE LOGIN (UPDATED)
   const handleGoogleLogin = async () => {
     if (!agreed) return;
-
     try {
+      let userCredential;
       if (Capacitor.isNativePlatform()) {
         const googleUser = await GoogleAuth.signIn();
-        const credential = GoogleAuthProvider.credential(
-          googleUser.authentication.idToken
-        );
-        await signInWithCredential(auth, credential);
+        const credential = GoogleAuthProvider.credential(googleUser.authentication.idToken);
+        userCredential = await signInWithCredential(auth, credential);
       } else {
         const provider = new GoogleAuthProvider();
         provider.setCustomParameters({ prompt: "select_account" });
-        await signInWithPopup(auth, provider);
+        userCredential = await signInWithPopup(auth, provider);
+      }
+      
+      // Capture metadata after success
+      if (userCredential.user) {
+        await saveUserMetadata(userCredential.user.uid);
       }
     } catch (error: any) {
       alert("Login failed: " + error.message);
     }
   };
 
-  // EMAIL LOGIN
+  // EMAIL AUTH (UPDATED)
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!agreed) return;
 
     try {
+      let userCredential;
       if (isSignUp) {
-        await createUserWithEmailAndPassword(auth, email, password);
+        userCredential = await createUserWithEmailAndPassword(auth, email, password);
       } else {
-        await signInWithEmailAndPassword(auth, email, password);
+        userCredential = await signInWithEmailAndPassword(auth, email, password);
+      }
+
+      // Capture metadata after success
+      if (userCredential.user) {
+        await saveUserMetadata(userCredential.user.uid);
       }
     } catch (error: any) {
       alert(error.message);

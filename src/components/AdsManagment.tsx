@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { auth, db } from '../firebase';
 import { signOut } from 'firebase/auth';
-import { ref, onValue, update, runTransaction, push, child } from "firebase/database";
+import { ref, onValue, update, runTransaction, push, child, serverTimestamp, DataSnapshot } from "firebase/database";
 
 const glassStyle: React.CSSProperties = {
     background: 'rgba(255, 255, 255, 0.03)',
@@ -93,22 +93,36 @@ const AdsManager = () => {
     const [editBalance, setEditBalance] = useState('');
     const [editBrandName, setEditBrandName] = useState('');
     const [adRequests, setAdRequests] = useState<any[]>([]);
+    const [auditLogs, setAuditLogs] = useState<any[]>([])
 
     useEffect(() => {
         // 1. Fetch ALL Users
         const usersRef = ref(db, 'users');
-        onValue(usersRef, (snapshot) => {
+        onValue(usersRef, (snapshot: DataSnapshot) => {
             const data = snapshot.val();
             if (data) {
                 const formattedUsers = Object.keys(data).map(k => ({
                     uid: k,
-                    // Fallback to "Unknown" or the UID itself if name is missing
-                    brandName: data[k].brandName || data[k].name || "No Brand Name",
-                    email: data[k].email || "No Email",
+                    ...data[k],
+                    brandName: data[k].brandName || "New Merchant",
                     status: data[k].status || 'Active',
+                    isVerified: data[k].isVerified || false,
+                    marketHidden: data[k].marketHidden || false,
                     treasury: data[k].treasury || { balance: 0 }
                 }));
                 setUsers(formattedUsers);
+            } else {
+                setUsers([]); // Clear list if no users exist
+            }
+        });
+
+        // 2. Fetch Audit Logs (Limited to last 50)
+        const logsRef = ref(db, 'admin/audit_log');
+        onValue(logsRef, (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                const list = Object.keys(data).map(k => ({ id: k, ...data[k] }));
+                setAuditLogs(list.reverse().slice(0, 50));
             }
         });
 
@@ -132,6 +146,45 @@ const AdsManager = () => {
             }
         });
     }, []);
+
+    // --- HELPER: LOG ACTION ---
+    const logAction = async (action: string, targetUid: string, details: string) => {
+        const logRef = ref(db, 'admin/audit_log');
+        await push(logRef, {
+            adminEmail: auth.currentUser?.email,
+            action,
+            targetUid,
+            details,
+            timestamp: serverTimestamp(),
+            readableDate: new Date().toLocaleString()
+        });
+    };
+  
+    // 1. Add this helper to identify clusters of accounts
+    const getIpClusterCount = (ip: string) => {
+        if (!ip) return 0;
+        return users.filter(u => u.security?.lastIp === ip).length;
+    };
+
+    const toggleGlobalMarket = async (isLocked: boolean) => {
+        if (!window.confirm("WARNING: This will hide the entire Marketfront for all users. Proceed?")) return;
+        await update(ref(db, 'system_settings'), { market_lockdown: isLocked });
+        logAction('GLOBAL_LOCKDOWN', 'SYSTEM', `Market set to ${isLocked ? 'HIDDEN' : 'VISIBLE'}`);
+    };
+
+    // --- LOGIC: VERIFICATION ---
+    const toggleVerification = async (user: any) => {
+        const newStatus = !user.isVerified;
+        await update(ref(db, `users/${user.uid}`), { isVerified: newStatus });
+        logAction(newStatus ? 'VERIFY_USER' : 'UNVERIFY_USER', user.uid, `Verified status changed to ${newStatus}`);
+    };
+
+    // --- LOGIC: HIDE MARKETFRONT (Panic Button) ---
+    const toggleMarketVisibility = async (user: any) => {
+        const newHidden = !user.marketHidden;
+        await update(ref(db, `users/${user.uid}`), { marketHidden: newHidden });
+        logAction(newHidden ? 'HIDE_MARKET' : 'SHOW_MARKET', user.uid, `Market visibility: ${!newHidden}`);
+    };
 
     const handleLogout = () => signOut(auth);
     // --- LOGIC: CLEAR FUNDS ---
@@ -173,10 +226,11 @@ const AdsManager = () => {
     const handleSaveChanges = async () => {
         if (!selectedUser) return;
         const updates: any = {};
-        if (editBrandName) updates[`users/${selectedUser.uid}/brandName`] = editBrandName;
-        if (editBalance) updates[`users/${selectedUser.uid}/treasury/balance`] = parseFloat(editBalance);
+        updates[`users/${selectedUser.uid}/brandName`] = editBrandName;
+        updates[`users/${selectedUser.uid}/treasury/balance`] = parseFloat(editBalance);
         
         await update(ref(db), updates);
+        logAction('UPDATE_ACCOUNT', selectedUser.uid, `New Name: ${editBrandName}, New Bal: ${editBalance}`);
         alert("Account Updated.");
     };
 
@@ -218,60 +272,110 @@ const AdsManager = () => {
             <header style={headerStyle}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '20px', position: 'relative' }}>
                     <h1 style={{ fontSize: '24px', letterSpacing: '2px', margin: 0 }}>MALVIN_ADMIN</h1>
-                    <div style={badge}>SYSTEM_ADMIN</div>
+                    <div style={badge}>v2.0_SECURE</div>
                 </div>
                 <button onClick={handleLogout} style={logoutBtn}>LOGOUT</button>
             </header>
-            
+            {/* --- TOP BAR: SYSTEM STATUS & PANIC BUTTON --- */}
+            <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
+                <div style={panelStyle}>
+                    <span style={labelStyle}>GLOBAL_MARKET_STATUS</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '10px' }}>
+                        <button 
+                            onClick={() => toggleGlobalMarket(true)} 
+                            style={{ ...toolBtn, background: '#ff4d4d', color: '#fff' }}>
+                            ACTIVATE_LOCKDOWN
+                        </button>
+                        <button 
+                            onClick={() => toggleGlobalMarket(false)} 
+                            style={{ ...toolBtn, borderColor: '#C5FF41', color: '#C5FF41' }}>
+                            RESTORE_SYSTEM
+                        </button>
+                    </div>
+                </div>
+            </div>
             <div style={{ display: 'grid', gridTemplateColumns: '350px 1fr 400px', gap: '24px', position: 'relative' }}>
+
                 
-                {/* --- LEFT: USER DIRECTORY --- */}
+                {/* --- USER_DATABASE (Updated with Bot Detection) --- */}
                 <section style={panelStyle}>
-                    <h3 style={sectionTitle}>USER_DATABASE</h3>
+                    <h3 style={sectionTitle}>MERCHANT_DIRECTORY</h3>
                     <div style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-                        {users.map(u => (
-                            <div key={u.uid} 
-                                onClick={() => { setSelectedUser(u); setEditBrandName(u.brandName || ''); setEditBalance(u.treasury?.balance || ''); }}
-                                 style={{...userCard, border: selectedUser?.uid === u.uid ? '1px solid #C5FF41' : '1px solid transparent'}}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                    <span style={{fontWeight: 600}}>{u.brandName || 'New User'}</span>
-                                    {u.status === 'Banned' && <span style={{color: '#ff4d4d', fontSize: '10px'}}>BANNED</span>}
+                        {users.map(u => {
+                            const ipCount = getIpClusterCount(u.security?.lastIp);
+                            const isSuspicious = ipCount > 2; // More than 2 accounts on 1 IP is a red flag
+
+                            return (
+                                <div key={u.uid} 
+                                    onClick={() => setSelectedUser(u)}
+                                    style={{
+                                        ...userCard, 
+                                        border: selectedUser?.uid === u.uid ? '1px solid #C5FF41' : '1px solid transparent',
+                                        background: isSuspicious ? 'rgba(255, 77, 77, 0.08)' : 'rgba(255,255,255,0.03)'
+                                    }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <span style={{fontWeight: 600}}>
+                                            {u.isVerified && "✓ "} {u.brandName}
+                                        </span>
+                                        {isSuspicious && (
+                                            <span style={botTag}>BOT_DETECTED</span>
+                                        )}
+                                    </div>
+                                    <div style={{fontSize: '10px', opacity: 0.5}}>
+                                        IP: {u.security?.lastIp || 'NO_DATA'} • {ipCount} ACCOUNTS
+                                    </div>
+                                    {/* Progress bar showing risk level */}
+                                    <div style={{width: '100%', height: '2px', background: '#222', marginTop: '8px'}}>
+                                        <div style={{
+                                            width: `${Math.min(ipCount * 20, 100)}%`, 
+                                            height: '100%', 
+                                            background: isSuspicious ? '#ff4d4d' : '#C5FF41'
+                                        }} />
+                                    </div>
                                 </div>
-                                <div style={{fontSize: '11px', opacity: 0.5}}>{u.email}</div>
-                                <div style={{fontSize: '12px', color: '#C5FF41', marginTop: '5px'}}>€{u.treasury?.balance || 0}</div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </section>
 
                 {/* --- CENTER: ACTIVITY FEED --- */}
                 <section style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                     <div style={panelStyle}>
-                        <h3 style={sectionTitle}>PENDING_FUNDS_REQUESTS</h3>
-                        {pendingRequests.length === 0 && <p style={{opacity: 0.3}}>No pending wires.</p>}
-                        {pendingRequests.map(req => (
-                            <div key={req.id} style={itemStyle}>
-                                <div>
-                                    <div style={{fontWeight: 700, color: '#C5FF41'}}>+ €{req.amount}</div>
-                                    <div style={{fontSize: '11px', opacity: 0.6}}>{req.userEmail}</div>
+                        <h3 style={sectionTitle}>ACCOUNT_MODERATOR</h3>
+                        {selectedUser ? (
+                            <div style={{display: 'flex', flexDirection: 'column', gap: '15px'}}>
+                                <div style={toolRow}>
+                                    <button onClick={() => toggleVerification(selectedUser)} style={selectedUser.isVerified ? verifyBtnActive : toolBtn}>
+                                        {selectedUser.isVerified ? 'REVOKE_VERIFIED' : 'GRANT_VERIFIED'}
+                                    </button>
+                                    <button onClick={() => toggleMarketVisibility(selectedUser)} style={selectedUser.marketHidden ? toolBtnPanic : toolBtn}>
+                                        {selectedUser.marketHidden ? 'RESTORE_MARKET' : 'HIDE_MARKETFRONT'}
+                                    </button>
                                 </div>
-                                <button onClick={() => clearFunds(req)} style={approveBtn}>CLEAR_WIRE</button>
+                                
+                                <input style={inputStyle} value={editBrandName} onChange={e => setEditBrandName(e.target.value)} placeholder="Brand Name" />
+                                <input style={inputStyle} type="number" value={editBalance} onChange={e => setEditBalance(e.target.value)} placeholder="Balance €" />
+                                
+                                <div style={{display: 'flex', gap: '10px'}}>
+                                    <button onClick={handleSaveChanges} style={approveBtn}>SAVE_CHANGES</button>
+                                    <button onClick={async () => {
+                                        const newStatus = selectedUser.status === 'Banned' ? 'Active' : 'Banned';
+                                        await update(ref(db, `users/${selectedUser.uid}`), { status: newStatus });
+                                        logAction(newStatus === 'Banned' ? 'BAN_USER' : 'UNBAN_USER', selectedUser.uid, 'Status Toggle');
+                                    }} style={secondaryBtn}>
+                                        {selectedUser.status === 'Banned' ? 'LIFT_BAN' : 'BAN_PERMANENTLY'}
+                                    </button>
+                                </div>
                             </div>
-                        ))}
+                        ) : <div style={{opacity: 0.2, textAlign: 'center', padding: '40px'}}>SELECT_USER_TO_EDIT</div>}
                     </div>
 
                     <div style={panelStyle}>
-                        <h3 style={sectionTitle}>AD_CAMPAIGN_QUEUE</h3>
-                        {adRequests.length === 0 && <p style={{opacity: 0.3, fontSize: '12px'}}>No active deployment requests.</p>}
+                        <h3 style={sectionTitle}>SYSTEM_AD_QUEUE</h3>
                         {adRequests.map(ad => (
                             <div key={ad.id} style={itemStyle}>
-                                <div>
-                                    <div style={{fontWeight: 700, color: '#C5FF41'}}>{ad.title}</div>
-                                    <div style={{fontSize: '11px', opacity: 0.6}}>
-                                        {ad.userEmail} • €{ad.budget}
-                                    </div>
-                                </div>
-                                <button onClick={() => approveAd(ad)} style={approveBtn}>APPROVE_LIVE</button>
+                                <div style={{fontSize: '12px'}}>{ad.title} <br/><span style={{opacity: 0.5}}>{ad.userEmail}</span></div>
+                                <button onClick={() => approveAd(ad)} style={approveBtn}>DEPLOY</button>
                             </div>
                         ))}
                     </div>
@@ -314,6 +418,18 @@ const AdsManager = () => {
                     ) : (
                         <p style={{opacity: 0.3, textAlign: 'center', marginTop: '40px'}}>Select a user to modify</p>
                     )}
+                    <h3 style={sectionTitle}>SECURITY_AUDIT_LOG</h3>
+                    <div style={scrollArea}>
+                        {auditLogs.map(log => (
+                            <div key={log.id} style={logItem}>
+                                <div style={{color: '#C5FF41', fontWeight: 700}}>{log.action}</div>
+                                <div style={{fontSize: '11px'}}>{log.details}</div>
+                                <div style={{fontSize: '9px', opacity: 0.3, marginTop: '4px'}}>
+                                    {log.readableDate} • By: {log.adminEmail?.split('@')[0]}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 </section>
 
             </div>
@@ -322,6 +438,23 @@ const AdsManager = () => {
 };
 
 // --- STYLES ---
+const botTag: React.CSSProperties = {
+    background: '#ff4d4d',
+    color: '#fff',
+    fontSize: '8px',
+    padding: '2px 6px',
+    borderRadius: '4px',
+    fontWeight: 900,
+    letterSpacing: '1px'
+};
+
+const gridMain: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1fr 1.2fr 1fr', gap: '24px', position: 'relative', height: '80vh' };
+const scrollArea: React.CSSProperties = { height: '100%', overflowY: 'auto', paddingRight: '10px' };
+const toolRow: React.CSSProperties = { display: 'flex', gap: '10px' };
+const toolBtn: React.CSSProperties = { flex: 1, background: '#111', border: '1px solid #333', color: '#fff', padding: '10px', borderRadius: '8px', fontSize: '10px', cursor: 'pointer' };
+const verifyBtnActive: React.CSSProperties = { ...toolBtn, borderColor: '#C5FF41', color: '#C5FF41', background: 'rgba(197, 255, 65, 0.05)' };
+const toolBtnPanic: React.CSSProperties = { ...toolBtn, borderColor: '#ff4d4d', color: '#ff4d4d', background: 'rgba(255, 77, 77, 0.05)' };
+const logItem: React.CSSProperties = { padding: '12px', borderBottom: '1px solid #111', marginBottom: '5px' };
 const adminLayout: React.CSSProperties = { background: '#000', minHeight: '100vh', padding: '40px', color: '#fff', fontFamily: 'Inter, sans-serif', overflow: 'hidden' };
 const headerStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px', borderBottom: '1px solid #222', paddingBottom: '20px', position: 'relative' };
 const badge: React.CSSProperties = { background: '#C5FF41', color: '#000', padding: '5px 12px', borderRadius: '4px', fontSize: '10px', fontWeight: 900 };

@@ -18,6 +18,21 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
     const [catalog, setCatalog] = useState<any[]>([]);
     const [orderModal, setOrderModal] = useState<any>(null);
     const [quantity, setQuantity] = useState(1);
+    const [isLocked, setIsLocked] = useState(false);
+
+    // Add this useEffect to listen for the Panic Button status
+    useEffect(() => {
+        const settingsRef = dbRef(db, 'system_settings');
+        const unsubscribe = onValue(settingsRef, (snapshot) => {
+            const data = snapshot.val();
+            if (data && data.market_lockdown === true) {
+                setIsLocked(true);
+            } else {
+                setIsLocked(false);
+            }
+        });
+        return () => unsubscribe(); // Cleanup listener
+    }, []);
     
     const navigate = useNavigate();
 
@@ -120,6 +135,23 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
     }
 
     if (!brand) return <div style={loaderStyle}>INITIALIZING_MARKET...</div>;
+    // --- 2. The Maintenance Check ---
+    // Place this right before your main 'return'
+    if (isLocked) {
+        return (
+            <div style={maintenanceContainer}>
+                <div style={{ textAlign: 'center', padding: '40px' }}>
+                    <h1 style={{ fontSize: '3rem', color: '#ff4d4d', marginBottom: '10px' }}>⚠️</h1>
+                    <h2 style={{ letterSpacing: '2px', fontWeight: 900 }}>SYSTEM_OFFLINE</h2>
+                    <p style={{ opacity: 0.5, fontSize: '12px', lineHeight: '1.6' }}>
+                        The Malvin Market is currently undergoing security maintenance.<br/>
+                        Please check back shortly.
+                    </p>
+                    <div style={pulseScanner} />
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div style={marketContainer}>
@@ -278,6 +310,25 @@ const backToMarketBtn: React.CSSProperties = {
     fontWeight: 'bold',
     cursor: 'pointer'
 };
+
+const maintenanceContainer: React.CSSProperties = {
+    height: '100dvh',
+    backgroundColor: '#000',
+    color: '#fff',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontFamily: 'monospace'
+};
+
+const pulseScanner: React.CSSProperties = {
+    width: '100%',
+    height: '2px',
+    background: 'linear-gradient(90deg, transparent, #ff4d4d, transparent)',
+    marginTop: '30px',
+    animation: 'scan 2s linear infinite'
+};
+
 
 // Keep other styles (brandTitle, onlineStatus, etc.) exactly as you had them
 const brandTitle: React.CSSProperties = { fontSize: '20px', fontWeight: 900, margin: 0, letterSpacing: '-0.5px' };
