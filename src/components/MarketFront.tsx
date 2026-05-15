@@ -9,8 +9,9 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
     const { brandId: urlBrandId } = useParams();
     const brandId = propBrandId || urlBrandId;
 
-    // --- ADDED THIS STATE ---
-    const [view, setView] = useState<'market' | 'chat'>('market');
+    // Fixed: Combined into one state declaration
+    const [view, setView] = useState<'market' | 'chat' | 'booking'>('market');
+    const [bookedDates, setBookedDates] = useState<string[]>([]);
     
     const [selectedProduct, setSelectedProduct] = useState<any>(null);
     const [brand, setBrand] = useState<any>(userBrand || null);
@@ -20,25 +21,57 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
     
     const navigate = useNavigate();
 
+    // Sync Booked Dates
     useEffect(() => {
         if (!brandId) return;
+        const bookingsPath = dbRef(db, `users/${brandId}/bookings`);
+        onValue(bookingsPath, (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                // Convert object of objects into an array of date strings
+                setBookedDates(Object.values(data).map((b: any) => b.date));
+            }
+        });
+    }, [brandId]);
 
+    // Sync Brand and Catalog
+    useEffect(() => {
+        if (!brandId) return;
         const brandPath = dbRef(db, `users/${brandId}/brandData`);
         onValue(brandPath, (snapshot) => {
-            const data = snapshot.val();
-            setBrand(data || { name: "Store" });
+            setBrand(snapshot.val() || { name: "Store" });
         });
 
         const catalogPath = dbRef(db, `users/${brandId}/catalog`);
         onValue(catalogPath, (snapshot) => {
             const data = snapshot.val();
-            if (data) {
-                setCatalog(Object.keys(data).map(k => ({ id: k, ...data[k] })));
-            } else {
-                setCatalog([]);
-            }
+            setCatalog(data ? Object.keys(data).map(k => ({ id: k, ...data[k] })) : []);
         });
     }, [brandId]);
+
+    // Handle the actual booking submission
+    const handleBookDate = (date: string) => {
+        if (!date) return;
+        if (bookedDates.includes(date)) {
+            alert("This date is already taken!");
+            return;
+        }
+
+        // Save to Firebase Realtime Database
+        const newBookingRef = dbRef(db, `users/${brandId}/bookings/${Date.now()}`);
+        const bookingData = {
+            date: date,
+            timestamp: Date.now(),
+            status: 'pending'
+        };
+
+        import('firebase/database').then(({ set }) => {
+            set(newBookingRef, bookingData).then(() => {
+                alert(`Success! Date ${date} reserved.`);
+                setView('market');
+            });
+        });
+    };
 
     const handleConfirmOrder = () => {
         if (!orderModal) return;
@@ -46,6 +79,30 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
         // Switch view instead of navigating
         setView('chat');
     };
+
+    if (view === 'booking') {
+        return (
+            <div style={{ position: 'relative', height: '100dvh', backgroundColor: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+                <button onClick={() => setView('market')} style={backToMarketBtn}>← Back</button>
+                
+                <div style={glassModal}>
+                    <h2 style={{ color: '#C5FF41', marginBottom: '10px', fontSize: '20px' }}>RESERVE SESSION</h2>
+                    <p style={{ fontSize: '11px', opacity: 0.5, marginBottom: '25px', letterSpacing: '1px' }}>SELECT AN AVAILABLE DATE</p>
+                    
+                    <input 
+                        type="date" 
+                        style={{...quantityInput, fontSize: '18px'}} 
+                        min={new Date().toISOString().split('T')[0]} // Prevents booking past dates
+                        onChange={(e) => handleBookDate(e.target.value)}
+                    />
+                    
+                    <div style={{ fontSize: '11px', color: bookedDates.length > 0 ? '#C5FF41' : '#444', marginTop: '10px' }}>
+                        {bookedDates.length} DATES ALREADY RESERVED
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     // --- CHAT VIEW TOGGLE ---
     if (view === 'chat') {
@@ -80,12 +137,14 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
                     <h1 style={brandTitle}>{brand.name?.toUpperCase()}</h1>
                     <div style={onlineStatus}><span style={dotStyle} /> Active Now</div>
                 </div>
-                <button 
-                    onClick={() => setView('chat')} 
-                    style={dmButton}
-                >
-                    Message 💬
-                </button>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                    <button onClick={() => setView('booking')} style={bookingBtnStyle}>
+                        Book 🗓️
+                    </button>
+                    <button onClick={() => setView('chat')} style={dmButton}>
+                        💬
+                    </button>
+                </div>
             </header>
 
             <div style={productGrid}>
@@ -192,6 +251,18 @@ const productGrid: React.CSSProperties = {
     width: '100%',
     maxWidth: '400px', // Keeps cards tight together
 };
+
+const bookingBtnStyle: React.CSSProperties = { 
+    background: 'rgba(255,255,255,0.1)', 
+    color: 'white', 
+    border: '1px solid #333', 
+    padding: '10px 15px', 
+    borderRadius: '24px', 
+    fontSize: '13px', 
+    fontWeight: 800, 
+    cursor: 'pointer' 
+};
+
 
 const backToMarketBtn: React.CSSProperties = {
     position: 'absolute',

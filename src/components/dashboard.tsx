@@ -8,6 +8,8 @@ import AdsManager from './AdsManager';
 import Payments from './Payments';
 import { io } from 'socket.io-client';
 import { collection, query, where, onSnapshot } from "firebase/firestore";
+import { ref as dbRef, onValue } from "firebase/database"; // Add dbRef and onValue to imports
+import { db } from '../firebase'; // Ensure Realtime DB is imported
 
 const socket = io('http://localhost:3001');
 
@@ -47,10 +49,34 @@ const Dashboard = (props: any) => {
     const [isProcessing, setIsProcessing] = useState(false);
     const [hasUnread, setHasUnread] = useState(false);
     const [toast, setToast] = useState({ show: false, msg: '', sender: '' });
+    const [orderCount, setOrderCount] = useState(0);
+    const [bookedDates, setBookedDates] = useState<string[]>([]); // Store dates as "YYYY-MM-DD"
+    const [showCalendar, setShowCalendar] = useState(false);
 
     const videoRef = useRef<HTMLVideoElement>(null);
     const visionInterval = useRef<any>(null);
     const chatEndRef = useRef<HTMLDivElement>(null);
+    
+
+    useEffect(() => {
+        if (!userBrand?.id) return;
+
+        // Reference the same path used in MarketFront
+        const bookingsPath = dbRef(db, `users/${userBrand.id}/bookings`);
+        
+        const unsubscribe = onValue(bookingsPath, (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                // Pulling the date strings from the objects saved by MarketFront
+                const dates = Object.values(data).map((b: any) => b.date);
+                setBookedDates(dates);
+            } else {
+                setBookedDates([]);
+            }
+        });
+
+        return () => unsubscribe();
+    }, [userBrand?.id]);
 
     // Sync Notifications
     useEffect(() => {
@@ -194,16 +220,65 @@ const Dashboard = (props: any) => {
                         {/* Upper Bento */}
                         <div style={upperGridStyle}>
                             <DashboardCard>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
-                                    <div>
-                                        <div style={{ fontSize: '12px', color: '#666' }}>MONTHLY REVENUE</div>
-                                        <div style={{ fontSize: '32px', fontWeight: 700 }}>€172,560.00</div>
-                                    </div>
-                                    <div style={{ color: '#C5FF41' }}>+12.4%</div>
-                                </div>
-                                <div style={progressBarStyle}><div style={{ width: '70%', background: '#C5FF41', height: '100%' }} /></div>
-                            </DashboardCard>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                    <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+                                        
+                                        {/* BOOKING SECTION */}
+                                        <div 
+                                            onClick={() => setShowCalendar(true)} 
+                                            style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px' }}
+                                        >
+                                            <div>
+                                                <span style={{ fontSize: '10px', color: '#666', fontWeight: 800, letterSpacing: '1px' }}>RESERVATIONS</span>
+                                                <div style={{ fontSize: '32px', fontWeight: 700, color: bookedDates.length > 0 ? '#C5FF41' : '#fff' }}>
+                                                    {bookedDates.length}
+                                                </div>
+                                            </div>
+                                            
+                                            {/* Glow dot lights up if there are bookings */}
+                                            <div style={{ 
+                                                width: '12px', 
+                                                height: '12px', 
+                                                borderRadius: '50%', 
+                                                backgroundColor: bookedDates.length > 0 ? '#C5FF41' : '#222',
+                                                boxShadow: bookedDates.length > 0 ? '0 0 15px #C5FF41' : 'none',
+                                                transition: '0.3s'
+                                            }} />
+                                        </div>
 
+                                        <div style={{ width: '1px', height: '40px', background: '#1A1A1A' }} />
+
+                                        {/* ORDERS SECTION */}
+                                        <div>
+                                            <span style={{ fontSize: '10px', color: '#666', fontWeight: 800, letterSpacing: '1px' }}>PENDING_ORDERS</span>
+                                            <div style={{ display: 'flex', alignItems: 'baseline' }}>
+                                                <input 
+                                                    type="number"
+                                                    value={orderCount}
+                                                    onChange={(e) => setOrderCount(parseInt(e.target.value) || 0)}
+                                                    style={{ 
+                                                        background: 'none', border: 'none', color: 'white', 
+                                                        fontSize: '32px', fontWeight: 700, width: '60px', outline: 'none'
+                                                    }} 
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div style={{ textAlign: 'right' }}>
+                                        <div style={{ color: '#C5FF41', fontSize: '10px', fontWeight: 900 }}>LIVE_SYNC</div>
+                                        <div style={{ color: '#333', fontSize: '10px' }}>ID: {userBrand?.id?.slice(0,8)}</div>
+                                    </div>
+                                </div>
+
+                                <div style={{ marginTop: '20px', padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid #1A1A1A' }}>
+                                    <span style={{ fontSize: '11px', color: '#888' }}>
+                                        {bookedDates.length > 0 
+                                            ? `Next session: ${[...bookedDates].sort().reverse()[0]}` 
+                                            : "No upcoming sessions"}
+                                    </span>
+                                </div>
+                            </DashboardCard>
                             <DashboardCard style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <div>
                                     <div style={{ fontSize: '12px', color: '#666' }}>ACTIVE CUSTOMERS</div>
@@ -266,11 +341,52 @@ const Dashboard = (props: any) => {
                     </div>
                 )}
             </div>
+            {showCalendar && (
+                <div style={modalOverlayStyle} onClick={() => setShowCalendar(false)}>
+                    <div style={calendarCardStyle} onClick={e => e.stopPropagation()}>
+                        <h3 style={{ color: '#C5FF41', margin: '0 0 10px 0' }}>SESSION LOG</h3>
+                        <p style={{ fontSize: '11px', color: '#666', marginBottom: '20px' }}>CLIENT RESERVATIONS RECORDED VIA MARKETFRONT</p>
+                        
+                        <div style={{ maxHeight: '300px', overflowY: 'auto', textAlign: 'left', marginBottom: '20px' }}>
+                            {bookedDates.length === 0 ? (
+                                <div style={{ color: '#333', textAlign: 'center', padding: '20px' }}>NO_DATA_FOUND</div>
+                            ) : (
+                                bookedDates.sort().map((date, idx) => (
+                                    <div key={idx} style={dateRowStyle}>
+                                        <span style={{ color: '#C5FF41' }}>[ SESSION ]</span>
+                                        <span style={{ color: '#fff', fontWeight: 600 }}>{date}</span>
+                                        <span style={{ fontSize: '10px', color: '#444' }}>CONFIRMED</span>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+
+                        <button style={{ ...secondaryBtnStyle, width: '100%', padding: '15px' }} onClick={() => setShowCalendar(false)}>
+                            CLOSE_LOG
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
 
 // Styles
+const modalOverlayStyle: React.CSSProperties = {
+    position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+    backgroundColor: 'rgba(0,0,0,0.9)', zIndex: 20000,
+    display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(10px)'
+};
+
+const calendarCardStyle: React.CSSProperties = {
+    background: '#111', border: '1px solid #1A1A1A', padding: '30px', 
+    borderRadius: '32px', width: '400px', textAlign: 'center', boxShadow: '0 20px 50px rgba(0,0,0,0.5)'
+};
+
+const dateRowStyle: React.CSSProperties = {
+    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+    padding: '12px 0', borderBottom: '1px solid #1A1A1A', fontSize: '13px', fontFamily: 'monospace'
+};
 const mainContainerStyle: React.CSSProperties = { backgroundColor: '#000', height: '100vh', width: '100%', color: 'white', display: 'flex', flexDirection: 'column', overflow: 'hidden' };
 const headerWrapper: React.CSSProperties = { width: '100%', maxWidth: '1400px', margin: '0 auto', padding: '20px', display: 'flex', alignItems: 'center', position: 'relative' };
 const navPillStyle: React.CSSProperties = { position: 'absolute', left: '50%', transform: 'translateX(-50%)', background: '#111', padding: '6px', borderRadius: '40px', display: 'flex', gap: '5px', border: '1px solid #222' };
