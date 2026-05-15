@@ -19,14 +19,14 @@ const Impressum = () => {
       <p><strong>Angaben gemäß § 5 TMG</strong></p>
 
       <p>
-        Praise Imasuen<br />
-        Im Waager 41<br />
-        72581 Dettingen an der Erms<br />
+        Pr...<br />
+        Im ...<br />
+        7..s<br />
         Deutschland
       </p>
 
       <p>
-        E-Mail: kizzclover96@gmail.com<br />
+        E-Mail: malvinsupportteam@gmail.com<br />
         Telefon: 015210312714
       </p>
 
