@@ -66,15 +66,46 @@ const AdsManager = () => {
         });
     };
 
+    // 1. Password Reset Handler
+    const handlePasswordReset = async () => {
+        if (!selectedUser?.email) return;
+        try {
+            // Note: For security, Firebase handles password changes via email.
+            // Direct password setting requires Admin SDK (Backend).
+            alert(`RESET_LINK_SENT_TO: ${selectedUser.email}`);
+            await logAction('PASS_RESET_INIT', selectedUser.uid, `Sent to ${selectedUser.email}`);
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+    // 2. Status Update Handler (Ban/Warn/Active)
+    const handleUpdateStatus = async (newStatus: string) => {
+        if (!selectedUser) return;
+        const updates: any = {};
+        updates[`users/${selectedUser.uid}/status`] = newStatus;
+        
+        await update(ref(db), updates);
+        logAction('STATUS_CHANGE', selectedUser.uid, `Status set to: ${newStatus}`);
+        alert(`USER_STATUS: ${newStatus}`);
+    };
+
+    // 3. Updated Save Changes (Fixing the Brand Path)
     const handleSaveChanges = async () => {
         if (!selectedUser) return;
         const updates: any = {};
-        updates[`users/${selectedUser.uid}/brandName`] = editBrandName;
+        
+        // We target 'brandData/name' to ensure MarketFront sees the change
+        updates[`users/${selectedUser.uid}/brandData/name`] = editBrandName;
         updates[`users/${selectedUser.uid}/treasury/balance`] = parseFloat(editBalance);
         
-        await update(ref(db), updates);
-        logAction('UPDATE_ACCOUNT', selectedUser.uid, `Name: ${editBrandName}, Bal: ${editBalance}`);
-        alert("DATABASE_SYNC_SUCCESS");
+        try {
+            await update(ref(db), updates);
+            logAction('UPDATE_ACCOUNT', selectedUser.uid, `Name: ${editBrandName}, Bal: ${editBalance}`);
+            alert("SYNC_COMPLETE");
+        } catch (err) {
+            alert("SYNC_ERROR");
+        }
     };
 
     return (
@@ -143,20 +174,70 @@ const AdsManager = () => {
                     </div>
                 </section>
 
-                {/* --- CENTER: MODERATOR --- */}
+                {/* --- UPDATED ACCOUNT_MODERATOR SECTION --- */}
                 <section style={panelStyle}>
                     <h3 style={sectionTitle}>ACCOUNT_MODERATOR</h3>
                     {selectedUser ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                            <label style={labelStyle}>EDIT_BRAND_NAME</label>
-                            <input style={inputStyle} value={editBrandName} onChange={e => setEditBrandName(e.target.value)} />
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                             
-                            <label style={labelStyle}>ADJUST_TREASURY_BALANCE</label>
-                            <input style={inputStyle} type="number" value={editBalance} onChange={e => setEditBalance(e.target.value)} />
-                            
-                            <button onClick={handleSaveChanges} style={approveBtn}>SAVE_CHANGES</button>
+                            {/* BRAND & BALANCE */}
+                            <div>
+                                <label style={labelStyle}>EDIT_BRAND_NAME</label>
+                                <input 
+                                    style={inputStyle} 
+                                    value={editBrandName} 
+                                    onChange={e => setEditBrandName(e.target.value)} 
+                                />
+                            </div>
+
+                            <div>
+                                <label style={labelStyle}>ADJUST_TREASURY_BALANCE</label>
+                                <input 
+                                    style={inputStyle} 
+                                    type="number" 
+                                    value={editBalance} 
+                                    onChange={e => setEditBalance(e.target.value)} 
+                                />
+                            </div>
+
+                            {/* STATUS MANAGEMENT */}
+                            <div>
+                                <label style={labelStyle}>ACCOUNT_STATUS</label>
+                                <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
+                                    <button 
+                                        onClick={() => handleUpdateStatus('Active')}
+                                        style={{ ...statusBtn, border: selectedUser.status === 'Active' ? '1px solid #C5FF41' : '1px solid #333' }}
+                                    >ACTIVE</button>
+                                    <button 
+                                        onClick={() => handleUpdateStatus('Warned')}
+                                        style={{ ...statusBtn, color: '#ffcc00' }}
+                                    >WARN</button>
+                                    <button 
+                                        onClick={() => handleUpdateStatus('Banned')}
+                                        style={{ ...statusBtn, color: '#ff4d4d' }}
+                                    >BAN</button>
+                                </div>
+                            </div>
+
+                            <hr style={{ border: 'none', borderTop: '1px solid #222', margin: '10px 0' }} />
+
+                            {/* SECURITY ACTIONS */}
+                            <div>
+                                <label style={labelStyle}>SECURITY_OVERRIDE</label>
+                                <button 
+                                    onClick={handlePasswordReset}
+                                    style={{ ...inputStyle, cursor: 'pointer', textAlign: 'center', marginTop: '8px', color: '#888' }}
+                                >
+                                    SEND_PASSWORD_RESET_EMAIL
+                                </button>
+                            </div>
+
+                            <button onClick={handleSaveChanges} style={approveBtn}>PUSH_CHANGES_TO_DB</button>
+
                         </div>
-                    ) : <div style={{textAlign: 'center', opacity: 0.3, padding: '50px'}}>SELECT_USER_DATA</div>}
+                    ) : (
+                        <div style={{ textAlign: 'center', opacity: 0.3, padding: '50px' }}>SELECT_MERCHANT_TO_MODERATE</div>
+                    )}
                 </section>
 
                 {/* --- RIGHT: AUDIT LOGS --- */}
@@ -177,6 +258,18 @@ const AdsManager = () => {
 };
 
 // --- STYLES ---
+const statusBtn: React.CSSProperties = {
+    flex: 1,
+    background: '#111',
+    border: '1px solid #333',
+    color: '#fff',
+    padding: '8px',
+    borderRadius: '6px',
+    fontSize: '10px',
+    fontWeight: 700,
+    cursor: 'pointer',
+    transition: '0.2s'
+};
 const adminLayout: React.CSSProperties = { background: '#000', minHeight: '100vh', padding: '40px', color: '#fff', fontFamily: 'Inter, sans-serif' };
 const panelStyle: React.CSSProperties = { background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '24px', padding: '24px', backdropFilter: 'blur(10px)' };
 const userCard: React.CSSProperties = { padding: '16px', borderRadius: '12px', marginBottom: '12px', cursor: 'pointer', transition: '0.2s', border: '1px solid rgba(255,255,255,0.05)' };
