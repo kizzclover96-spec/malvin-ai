@@ -93,32 +93,32 @@ const AdsManager = () => {
     const [editBalance, setEditBalance] = useState('');
     const [editBrandName, setEditBrandName] = useState('');
     const [adRequests, setAdRequests] = useState<any[]>([]);
-    const [auditLogs, setAuditLogs] = useState<any[]>([])
+    const [auditLogs, setAuditLogs] = useState<any[]>([]);
 
     useEffect(() => {
-        // 1. Fetch ALL Users
         const usersRef = ref(db, 'users');
-        onValue(usersRef, (snapshot: DataSnapshot) => {
+        const unsubUsers = onValue(usersRef, (snapshot) => {
             const data = snapshot.val();
             if (data) {
-                const formattedUsers = Object.keys(data).map(k => ({
+                const formatted = Object.keys(data).map(k => ({
                     uid: k,
                     ...data[k],
-                    brandName: data[k].brandName || "New Merchant",
-                    status: data[k].status || 'Active',
-                    isVerified: data[k].isVerified || false,
-                    marketHidden: data[k].marketHidden || false,
-                    treasury: data[k].treasury || { balance: 0 }
+                    displayName: data[k].brandName || data[k].email || "UNKNOWN_ENTITY",
+                    status: data[k].status || 'Active'
                 }));
-                setUsers(formattedUsers);
-            } else {
-                setUsers([]); // Clear list if no users exist
+                setUsers(formatted);
+                
+                // Sync currently selected user data if it changes in DB
+                if (selectedUser) {
+                    const updated = formatted.find(u => u.uid === selectedUser.uid);
+                    if (updated) setSelectedUser(updated);
+                }
             }
         });
 
         // 2. Fetch Audit Logs (Limited to last 50)
         const logsRef = ref(db, 'admin/audit_log');
-        onValue(logsRef, (snapshot) => {
+        const unsubLogs = onValue(logsRef, (snapshot) => {
             const data = snapshot.val();
             if (data) {
                 const list = Object.keys(data).map(k => ({ id: k, ...data[k] }));
@@ -127,25 +127,16 @@ const AdsManager = () => {
         });
 
         // 2. Fetch Global Pending Wires
-        const adminQueueRef = ref(db, `admin/pending_wires`);
-        onValue(adminQueueRef, (snapshot) => {
+        const adQueueRef = ref(db, 'admin/ad_queue');
+        const unsubAds = onValue(adQueueRef, (snapshot) => {
             const data = snapshot.val();
-            if (data) {
-                setPendingRequests(Object.keys(data).map(k => ({ id: k, ...data[k] })));
-            }
+            setAdRequests(data ? Object.keys(data).map(k => ({ id: k, ...data[k] })) : []);
         });
 
-        // 3. Fetch Global Ad Queue
-        const adQueueRef = ref(db, `admin/ad_queue`);
-        onValue(adQueueRef, (snapshot) => {
-            const data = snapshot.val();
-            if (data) {
-                setAdRequests(Object.keys(data).map(k => ({ id: k, ...data[k] })));
-            } else {
-                setAdRequests([]);
-            }
-        });
-    }, []);
+        return () => { unsubUsers(); unsubLogs(); unsubAds(); };
+    }, [selectedUser?.uid]); // Dependency ensures sync
+
+       
 
     // --- HELPER: LOG ACTION ---
     const logAction = async (action: string, targetUid: string, details: string) => {
@@ -235,9 +226,20 @@ const AdsManager = () => {
     };
 
     const toggleAccountStatus = async () => {
+        if (!selectedUser) return;
         const newStatus = selectedUser.status === 'Banned' ? 'Active' : 'Banned';
-        await update(ref(db, `users/${selectedUser.uid}`), { status: newStatus });
-        alert(`User is now ${newStatus}`);
+        
+        if (window.confirm(`Are you sure you want to set status to ${newStatus}?`)) {
+            try {
+                await update(ref(db, `users/${selectedUser.uid}`), { 
+                    status: newStatus 
+                });
+                logAction(newStatus === 'Banned' ? 'BAN_USER' : 'UNBAN_USER', selectedUser.uid, `Manual status override to ${newStatus}`);
+                alert(`Account ${newStatus} successfully.`);
+            } catch (err) {
+                alert("Database Error: Ban failed.");
+            }
+        }
     };
 
     // --- LOGIC: MANUAL OVERRIDE ---
@@ -274,26 +276,27 @@ const AdsManager = () => {
                     <h1 style={{ fontSize: '24px', letterSpacing: '2px', margin: 0 }}>MALVIN_ADMIN</h1>
                     <div style={badge}>v2.0_SECURE</div>
                 </div>
-                <button onClick={handleLogout} style={logoutBtn}>LOGOUT</button>
-            </header>
-            {/* --- TOP BAR: SYSTEM STATUS & PANIC BUTTON --- */}
-            <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
-                <div style={panelStyle}>
-                    <span style={labelStyle}>GLOBAL_MARKET_STATUS</span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '10px' }}>
-                        <button 
-                            onClick={() => toggleGlobalMarket(true)} 
-                            style={{ ...toolBtn, background: '#ff4d4d', color: '#fff' }}>
-                            ACTIVATE_LOCKDOWN
-                        </button>
-                        <button 
-                            onClick={() => toggleGlobalMarket(false)} 
-                            style={{ ...toolBtn, borderColor: '#C5FF41', color: '#C5FF41' }}>
-                            RESTORE_SYSTEM
-                        </button>
+                {/* --- TOP BAR: SYSTEM STATUS & PANIC BUTTON --- */}
+                <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
+                    <div style={panelStyle}>
+                        <span style={labelStyle}>GLOBAL_MARKET_STATUS</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '10px' }}>
+                            <button 
+                                onClick={() => toggleGlobalMarket(true)} 
+                                style={{ ...toolBtn, background: '#ff4d4d', color: '#fff' }}>
+                                ACTIVATE_LOCKDOWN
+                            </button>
+                            <button 
+                                onClick={() => toggleGlobalMarket(false)} 
+                                style={{ ...toolBtn, borderColor: '#C5FF41', color: '#C5FF41' }}>
+                                RESTORE_SYSTEM
+                            </button>
+                        </div>
                     </div>
                 </div>
-            </div>
+                <button onClick={handleLogout} style={logoutBtn}>LOGOUT</button>
+            </header>
+            
             <div style={{ display: 'grid', gridTemplateColumns: '350px 1fr 400px', gap: '24px', position: 'relative' }}>
 
                 
@@ -302,6 +305,27 @@ const AdsManager = () => {
                     <h3 style={sectionTitle}>MERCHANT_DIRECTORY</h3>
                     <div style={{ maxHeight: '70vh', overflowY: 'auto' }}>
                         {users.map(u => {
+                            <div key={u.uid} 
+                                onClick={() => {
+                                    setSelectedUser(u);
+                                    setEditBrandName(u.brandName || '');
+                                    setEditBalance(u.treasury?.balance?.toString() || '0');
+                                }}
+                                style={{
+                                    ...userCard, 
+                                    borderLeft: selectedUser?.uid === u.uid ? '4px solid #C5FF41' : '4px solid transparent',
+                                    background: u.status === 'Banned' ? 'rgba(255, 77, 77, 0.1)' : 'rgba(255,255,255,0.03)'
+                                }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span style={{fontWeight: 600, fontSize: '13px'}}>
+                                        {u.isVerified && "✓ "} {u.displayName}
+                                    </span>
+                                    {u.status === 'Banned' && <span style={{color: '#ff4d4d', fontSize: '9px', fontWeight: 900}}>BANNED</span>}
+                                </div>
+                                <div style={{fontSize: '10px', opacity: 0.5, marginTop: '4px'}}>
+                                    ID: {u.uid.substring(0, 8)}... • €{u.treasury?.balance || 0}
+                                </div>
+                            </div>
                             const ipCount = getIpClusterCount(u.security?.lastIp);
                             const isSuspicious = ipCount > 2; // More than 2 accounts on 1 IP is a red flag
 
@@ -344,6 +368,23 @@ const AdsManager = () => {
                         <h3 style={sectionTitle}>ACCOUNT_MODERATOR</h3>
                         {selectedUser ? (
                             <div style={{display: 'flex', flexDirection: 'column', gap: '15px'}}>
+                                {/* --- FIX 2: SHOW CURRENT STATUS & EMAIL --- */}
+                                <div style={statusInfoBox}>
+                                    <div>
+                                        <label style={labelStyle}>CURRENT_STATUS</label>
+                                        <div style={{ 
+                                            color: selectedUser.status === 'Banned' ? '#ff4d4d' : '#C5FF41', 
+                                            fontWeight: 900, fontSize: '18px' 
+                                        }}>
+                                            {selectedUser.status.toUpperCase()}
+                                        </div>
+                                    </div>
+                                    <div style={{textAlign: 'right'}}>
+                                        <label style={labelStyle}>LOGIN_EMAIL</label>
+                                        <div style={{fontSize: '12px'}}>{selectedUser.email || 'NO_EMAIL_FOUND'}</div>
+                                    </div>
+                                </div>
+
                                 <div style={toolRow}>
                                     <button onClick={() => toggleVerification(selectedUser)} style={selectedUser.isVerified ? verifyBtnActive : toolBtn}>
                                         {selectedUser.isVerified ? 'REVOKE_VERIFIED' : 'GRANT_VERIFIED'}
@@ -353,21 +394,20 @@ const AdsManager = () => {
                                     </button>
                                 </div>
                                 
-                                <input style={inputStyle} value={editBrandName} onChange={e => setEditBrandName(e.target.value)} placeholder="Brand Name" />
-                                <input style={inputStyle} type="number" value={editBalance} onChange={e => setEditBalance(e.target.value)} placeholder="Balance €" />
+                                <label style={labelStyle}>RENAME_BRAND</label>
+                                <input style={inputStyle} value={editBrandName} onChange={e => setEditBrandName(e.target.value)} placeholder="Enter New Brand Name" />
                                 
-                                <div style={{display: 'flex', gap: '10px'}}>
+                                <label style={labelStyle}>ADJUST_TREASURY</label>
+                                <input style={inputStyle} type="number" value={editBalance} onChange={e => setEditBalance(e.target.value)} placeholder="Set Balance €" />
+                                
+                                <div style={{display: 'flex', gap: '10px', marginTop: '10px'}}>
                                     <button onClick={handleSaveChanges} style={approveBtn}>SAVE_CHANGES</button>
-                                    <button onClick={async () => {
-                                        const newStatus = selectedUser.status === 'Banned' ? 'Active' : 'Banned';
-                                        await update(ref(db, `users/${selectedUser.uid}`), { status: newStatus });
-                                        logAction(newStatus === 'Banned' ? 'BAN_USER' : 'UNBAN_USER', selectedUser.uid, 'Status Toggle');
-                                    }} style={secondaryBtn}>
-                                        {selectedUser.status === 'Banned' ? 'LIFT_BAN' : 'BAN_PERMANENTLY'}
+                                    <button onClick={toggleAccountStatus} style={{...secondaryBtn, borderColor: selectedUser.status === 'Banned' ? '#C5FF41' : '#ff4d4d', color: selectedUser.status === 'Banned' ? '#C5FF41' : '#ff4d4d'}}>
+                                        {selectedUser.status === 'Banned' ? 'LIFT_RESTRICTION' : 'BAN_PERMANENTLY'}
                                     </button>
                                 </div>
                             </div>
-                        ) : <div style={{opacity: 0.2, textAlign: 'center', padding: '40px'}}>SELECT_USER_TO_EDIT</div>}
+                        ) : <div style={{opacity: 0.2, textAlign: 'center', padding: '60px'}}>SELECT_USER_FROM_DIRECTORY</div>}
                     </div>
 
                     <div style={panelStyle}>
@@ -382,51 +422,19 @@ const AdsManager = () => {
                 </section>
                 {/* --- RIGHT: USER EDITOR --- */}
                 <section style={panelStyle}>
-                    <h3 style={sectionTitle}>ACCOUNT_MODERATOR</h3>
-                    {selectedUser ? (
-                        <div>
-                            <div style={{marginBottom: '20px'}}>
-                                <label style={labelStyle}>BRAND_IDENTITY</label>
-                                <input 
-                                    style={inputStyle} 
-                                    value={editBrandName} 
-                                    onChange={(e) => setEditBrandName(e.target.value)}
-                                />
-                            </div>
-                            <div style={{marginBottom: '20px'}}>
-                                <label style={labelStyle}>TREASURY_LIQUIDITY (EUR)</label>
-                                <input 
-                                    style={inputStyle} 
-                                    type="number" 
-                                    value={editBalance}
-                                    onChange={(e) => setEditBalance(e.target.value)}
-                                />
-                            </div>
-
-                            <button onClick={handleSaveChanges} style={{...approveBtn, width: '100%', marginBottom: '10px'}}>APPLY_CHANGES</button>
-                            <button onClick={toggleAccountStatus} style={secondaryBtn}>
-                                {selectedUser.status === 'Banned' ? 'UNBAN_USER' : 'BAN_ACCOUNT'}
-                            </button>
-
-                            <div style={statusBox}>
-                                <label style={labelStyle}>NEURAL_METADATA</label>
-                                <p style={{fontSize: '11px', margin: '5px 0'}}>UID: {selectedUser.uid}</p>
-                                <p style={{fontSize: '11px', margin: '5px 0'}}>Email: {selectedUser.email}</p>
-                                <p style={{fontSize: '11px', margin: '5px 0'}}>Brand: {selectedUser.brandName}</p>
-                            </div>
+                    <h3 style={sectionTitle}>NEURAL_METADATA</h3>
+                    {selectedUser && (
+                        <div style={statusBox}>
+                            <p style={{fontSize: '11px', margin: '5px 0'}}>UID: {selectedUser.uid}</p>
+                            <p style={{fontSize: '11px', margin: '5px 0'}}>IP_LOG: {selectedUser.security?.lastIp || 'UNKNOWN'}</p>
                         </div>
-                    ) : (
-                        <p style={{opacity: 0.3, textAlign: 'center', marginTop: '40px'}}>Select a user to modify</p>
                     )}
-                    <h3 style={sectionTitle}>SECURITY_AUDIT_LOG</h3>
-                    <div style={scrollArea}>
+                    <h3 style={{...sectionTitle, marginTop: '30px'}}>SECURITY_AUDIT_LOG</h3>
+                    <div style={{height: '40vh', overflowY: 'auto'}}>
                         {auditLogs.map(log => (
                             <div key={log.id} style={logItem}>
-                                <div style={{color: '#C5FF41', fontWeight: 700}}>{log.action}</div>
-                                <div style={{fontSize: '11px'}}>{log.details}</div>
-                                <div style={{fontSize: '9px', opacity: 0.3, marginTop: '4px'}}>
-                                    {log.readableDate} • By: {log.adminEmail?.split('@')[0]}
-                                </div>
+                                <div style={{color: '#C5FF41', fontSize: '10px'}}>{log.action}</div>
+                                <div style={{fontSize: '11px', opacity: 0.7}}>{log.details}</div>
                             </div>
                         ))}
                     </div>
@@ -446,6 +454,28 @@ const botTag: React.CSSProperties = {
     borderRadius: '4px',
     fontWeight: 900,
     letterSpacing: '1px'
+};
+
+// --- NEW STYLES ---
+const statusInfoBox: React.CSSProperties = {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '15px',
+    background: 'rgba(255,255,255,0.05)',
+    borderRadius: '12px',
+    border: '1px solid rgba(255,255,255,0.1)'
+};
+
+const panicBtn: React.CSSProperties = {
+    background: '#ff4d4d',
+    color: '#fff',
+    border: 'none',
+    padding: '8px 16px',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '11px',
+    fontWeight: 900
 };
 
 const gridMain: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1fr 1.2fr 1fr', gap: '24px', position: 'relative', height: '80vh' };
