@@ -17,6 +17,7 @@ import React, {  useRef, useState, useMemo } from "react";
 import {  useEffect } from 'react';
 import '../App.css';
 import { io } from "socket.io-client";
+import { doc, getDoc } from "firebase/firestore";
 
 //const socket = io('http://localhost:3001');
 import {
@@ -429,6 +430,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     const [isMenuOpen, setIsMenuOpen] = React.useState(false);
     const agent = useRemoteParticipant({ kind: ParticipantKind.AGENT });
     const [isChatting, setIsChatting] = useState(false);
+    const [isPremium, setIsPremium] = useState(false);
     const [aiMessage, setAiMessage] = useState('');
     const [aiHistory, setAiHistory] = useState<any[]>([]);
     const [isProcessing, setIsProcessing] = useState(false);
@@ -449,7 +451,36 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     const handleSaveSimulation = (data: any) => {
         setHistory(prev => [data, ...prev]);
     };
+    
+    useEffect(() => {
+        const checkPremium = async () => {
+            const currentUser = auth.currentUser;
 
+            if (!currentUser) return;
+
+            try {
+                const userRef = doc(firestore, "users", currentUser.uid);
+                const userSnap = await getDoc(userRef);
+
+                if (userSnap.exists()) {
+                    const data = userSnap.data();
+
+                    console.log("USER DATA:", data);
+
+                    if (data.premium === true) {
+                        setIsPremium(true);
+                        console.log("Premium unlocked");
+                    } else {
+                        setIsPremium(false);
+                    }
+                }
+            } catch (err) {
+                console.error("Premium check failed:", err);
+            }
+        };
+
+        checkPremium();
+    }, []);
     const handleSaveNote = async () => {
         if (!currentNote.trim()) return;
 
@@ -496,7 +527,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
         }
         alert("Strategy Saved to Intel Vault.");
     };
-
+    
     const handleUpdateBrand = (newData) => {
         setUserBrand(prev => ({
             ...prev,
@@ -551,7 +582,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
             console.error("Error signing out: ", error);
         }
     };
-    
+
     const [userBrand, setUserBrand] = useState({
         id: "",
         name: "Connecting...",

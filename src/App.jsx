@@ -13,6 +13,8 @@ import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import Impressum from "./pages/Impressum";
 import MarketFront from "./components/MarketFront";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "./firebase";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -20,18 +22,33 @@ function App() {
   const [hasWokenUp, setHasWokenUp] = useState(false);
   // New state to toggle between the Landing Display and the Login Form
   const [showLogin, setShowLogin] = useState(false);
+  const [isPremium, setIsPremium] = useState(false);
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      setLoading(false);
-      if (!currentUser) {
-        setHasWokenUp(false);
-        setShowLogin(false); // Reset to landing page on logout
+  const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+    setUser(currentUser);
+
+    if (currentUser) {
+      try {
+        const userRef = doc(db, "users", currentUser.uid);
+
+        const userSnap = await getDoc(userRef);
+
+        if (userSnap.exists()) {
+          const userData = userSnap.data();
+
+          setIsPremium(userData?.premium === true);
+        }
+      } catch (err) {
+        console.error("Premium check failed:", err);
       }
-    });
-    return () => unsubscribe();
-  }, []);
+    } else {
+      setHasWokenUp(false);
+      setShowLogin(false);
+      setIsPremium(false);
+    }
+
+    setLoading(false);
+  });
 
   if (loading) {
     return <div style={{ backgroundColor: '#000', height: '100vh' }} />;
@@ -66,7 +83,10 @@ function App() {
                   onWakeClick={() => setHasWokenUp(true)} 
                 />
               ) : (
-                <Malvinui userEmail={user.email} />
+                <Malvinui 
+                  userEmail={user.email}
+                  isPremium={isPremium}
+                />
               )
             } />
 
