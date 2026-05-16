@@ -56,7 +56,7 @@ const Payments = ({ userBrand }: { userBrand: any }) => {
             return;
         }
 
-        const checkoutUrl = `https://malvin.lemonsqueezy.com/checkout/buy/${pointsVariantId}?checkout[custom][user_id]=${userId}`;
+        const checkoutUrl = `https://checkout.lemonsqueezy.com/checkout/buy/${pointsVariantId}?checkout[custom][user_id]=${userId}`;
 
         setShowFundingModal(false);
         window.open(checkoutUrl, '_blank');
