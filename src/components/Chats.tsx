@@ -53,9 +53,11 @@ const Chats = ({ brandId, userBrand }: any) => {
         };
     }, [isAutopilot, selectedChatId]); // This keeps the listener fresh when you switch chats
 
+    
     // 3. Single Listener for the Chat List
     useEffect(() => {
         const idToUse = brandId || userBrand?.id;
+        console.log("🔥 idToUse:", idToUse);
         if (!idToUse) return;
 
         const q = query(
@@ -82,6 +84,8 @@ const Chats = ({ brandId, userBrand }: any) => {
         );
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
+            console.log("🔥 chats size:", snapshot.size);
+            console.log("🔥 first doc:", snapshot.docs[0]?.data());
             setActiveMessages(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
         });
 
