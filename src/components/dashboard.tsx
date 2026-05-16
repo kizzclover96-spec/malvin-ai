@@ -186,7 +186,7 @@ const Dashboard = (props: any) => {
         setAiMessage('');
 
         try {
-            const response = await fetch('/api/malvin', {
+            const response = await fetch('https://maivin-backend.vercel.app/api', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
