@@ -173,13 +173,23 @@ const Dashboard = (props: any) => {
             visionInterval.current = setInterval(() => captureFrame(), 30000);
         } catch (err) { console.error(err); }
     };
-
+    // Auto-scroll Malvin chat when a new message streams or hits history
+    useEffect(() => {
+        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [aiHistory, isProcessing]);
+    
     const sendToMalvin = async (customText?: string, imageBase64?: string) => {
         const messageToSend = customText || aiMessage;
         if (!messageToSend.trim() && !imageBase64) return;
 
+        // 1. Build the new message object
+        const newHistoryItem = { role: 'user', text: messageToSend };
+        
+        // 2. Capture the exact historical snapshot right before state updates asynchronously
+        const updatedHistory = [...aiHistory, newHistoryItem];
+
         if (messageToSend) {
-            setAiHistory(prev => [...prev, { role: 'user', text: messageToSend }]);
+            setAiHistory(updatedHistory);
         }
         
         setIsProcessing(true);
@@ -191,7 +201,8 @@ const Dashboard = (props: any) => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     text: messageToSend,
-                    image: imageBase64 
+                    image: imageBase64,
+                    history: updatedHistory // Pass the conversation chain over the wire
                 })
             });
 
