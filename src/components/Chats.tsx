@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { collection, query, where, onSnapshot, orderBy, addDoc, serverTimestamp, doc, setDoc, updateDoc } from "firebase/firestore";
+import { collection, query, where, onSnapshot, orderBy, addDoc, serverTimestamp, doc, setDoc, updateDoc, getDocs  } from "firebase/firestore";
 import { firestore } from "../firebase";
 import { io } from 'socket.io-client';
 
@@ -34,6 +34,7 @@ const Chats = ({ brandId, userBrand }: any) => {
         });
     }, [chats]);
 
+    
     // 2. Listen for AI Actions (Socket)
     useEffect(() => {
         const handleAiAction = (action: any) => {
@@ -54,6 +55,15 @@ const Chats = ({ brandId, userBrand }: any) => {
         };
     }, [isAutopilot, selectedChatId]); // This keeps the listener fresh when you switch chats
 
+    getDocs(collection(firestore, "brands"))
+    useEffect(() => {
+        const logAll = async () => {
+            const snap = await getDocs(collection(firestore, "conversations"));
+            console.log("ROOT conversations:", snap.docs.map(d => d.data()));
+        };
+
+        logAll();
+    }, []);
     
     // 3. Single Listener for the Chat List
     useEffect(() => {
@@ -72,7 +82,7 @@ const Chats = ({ brandId, userBrand }: any) => {
         onSnapshot(collection(firestore, "conversations"), (snapshot) => {
             console.log("🔥 ALL conversations:", snapshot.docs.map(d => d.data()));
         });
-        
+
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const chatList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             console.log("🔥 chats:", chatList);
