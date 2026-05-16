@@ -177,32 +177,32 @@ const Dashboard = (props: any) => {
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [aiHistory, isProcessing]);
-    
+
     const sendToMalvin = async (customText?: string, imageBase64?: string) => {
         const messageToSend = customText || aiMessage;
         if (!messageToSend.trim() && !imageBase64) return;
 
-        // 1. Build the new message object
         const newHistoryItem = { role: 'user', text: messageToSend };
-        
-        // 2. Capture the exact historical snapshot right before state updates asynchronously
         const updatedHistory = [...aiHistory, newHistoryItem];
 
-        if (messageToSend) {
-            setAiHistory(updatedHistory);
-        }
-        
+        setAiHistory(updatedHistory);
         setIsProcessing(true);
         setAiMessage('');
 
         try {
+            // 🔐 GET FIREBASE TOKEN HERE
+            const token = await auth.currentUser?.getIdToken();
+
             const response = await fetch('https://maivin-backend.vercel.app/api', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`
+                },
                 body: JSON.stringify({
                     text: messageToSend,
                     image: imageBase64,
-                    history: updatedHistory // Pass the conversation chain over the wire
+                    history: updatedHistory
                 })
             });
 
@@ -211,9 +211,13 @@ const Dashboard = (props: any) => {
             if (data.text) {
                 setAiHistory(prev => [...prev, { role: 'malvin', text: data.text }]);
             }
+
         } catch (err) {
             console.error("AI_API_ERROR:", err);
-            setAiHistory(prev => [...prev, { role: 'malvin', text: "SYSTEM_OFFLINE: Could not reach brain." }]);
+            setAiHistory(prev => [
+                ...prev,
+                { role: 'malvin', text: "SYSTEM_OFFLINE: Could not reach brain." }
+            ]);
         } finally {
             setIsProcessing(false);
         }
