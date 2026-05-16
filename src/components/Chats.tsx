@@ -68,7 +68,11 @@ const Chats = ({ brandId, userBrand }: any) => {
             collection(firestore, "conversations"),
             where("brandId", "==", String(idToUse))
         );
-
+         
+        onSnapshot(collection(firestore, "conversations"), (snapshot) => {
+            console.log("🔥 ALL conversations:", snapshot.docs.map(d => d.data()));
+        });
+        
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const chatList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             console.log("🔥 chats:", chatList);
