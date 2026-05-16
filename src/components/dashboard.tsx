@@ -8,12 +8,22 @@ import AdsManager from './AdsManager';
 import Payments from './Payments';
 import { io } from 'socket.io-client';
 import { collection, query, where, onSnapshot } from "firebase/firestore";
-import { ref as dbRef, onValue } from "firebase/database"; // Add dbRef and onValue to imports
-import { db } from '../firebase'; // Ensure Realtime DB is imported
+import { ref as dbRef, onValue, update } from "firebase/database"; 
+import { db } from '../firebase'; 
 
-const socket = io('http://localhost:3001');
+// Exporting this so you can import it and use it anywhere else (Chats, MarketFront, etc.)
+export const VerifiedBadge = () => (
+  <svg 
+    width="14" 
+    height="14" 
+    viewBox="0 0 24 24" 
+    fill="#007fff" 
+    style={{ display: 'inline-block', marginLeft: '6px', verticalAlign: 'middle' }}
+  >
+    <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+  </svg>
+);
 
-// UI Components
 const DashboardCard = ({ children, style }: any) => (
   <div style={{
     background: '#111111',
@@ -50,24 +60,37 @@ const Dashboard = (props: any) => {
     const [hasUnread, setHasUnread] = useState(false);
     const [toast, setToast] = useState({ show: false, msg: '', sender: '' });
     const [orderCount, setOrderCount] = useState(0);
-    const [bookedDates, setBookedDates] = useState<string[]>([]); // Store dates as "YYYY-MM-DD"
+    const [bookedDates, setBookedDates] = useState<string[]>([]); 
     const [showCalendar, setShowCalendar] = useState(false);
+
+    // Profile States
+    const [bio, setBio] = useState('');
+    const [isVerified, setIsVerified] = useState(false);
+    const [isSavingBio, setIsSavingBio] = useState(false);
 
     const videoRef = useRef<HTMLVideoElement>(null);
     const visionInterval = useRef<any>(null);
     const chatEndRef = useRef<HTMLDivElement>(null);
-    
 
+    // Listen to profile details & reservations
     useEffect(() => {
         if (!userBrand?.id) return;
 
-        // Reference the same path used in MarketFront
-        const bookingsPath = dbRef(db, `users/${userBrand.id}/bookings`);
-        
-        const unsubscribe = onValue(bookingsPath, (snapshot) => {
+        // Sync Bio & Verified status from database path
+        const profileRef = dbRef(db, `users/${userBrand.id}/profile`);
+        const unsubscribeProfile = onValue(profileRef, (snapshot) => {
             const data = snapshot.val();
             if (data) {
-                // Pulling the date strings from the objects saved by MarketFront
+                setBio(data.bio || '');
+                setIsVerified(data.isVerified || false);
+            }
+        });
+
+        // Sync Reservations
+        const bookingsPath = dbRef(db, `users/${userBrand.id}/bookings`);
+        const unsubscribeBookings = onValue(bookingsPath, (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
                 const dates = Object.values(data).map((b: any) => b.date);
                 setBookedDates(dates);
             } else {
@@ -75,8 +98,24 @@ const Dashboard = (props: any) => {
             }
         });
 
-        return () => unsubscribe();
+        return () => {
+            unsubscribeProfile();
+            unsubscribeBookings();
+        };
     }, [userBrand?.id]);
+
+    // Save manually edited Bio changes to Firebase Realtime DB
+    const saveBio = async () => {
+        if (!userBrand?.id) return;
+        setIsSavingBio(true);
+        try {
+            await update(dbRef(db, `users/${userBrand.id}/profile`), { bio });
+        } catch (err) {
+            console.error("Error updating bio:", err);
+        } finally {
+            setIsSavingBio(false);
+        }
+    };
 
     // Sync Notifications
     useEffect(() => {
@@ -113,15 +152,16 @@ const Dashboard = (props: any) => {
     // AI Vision
     const captureFrame = () => {
         if (!videoRef.current || isProcessing) return;
-        setIsProcessing(true);
+        
         const canvas = document.createElement("canvas");
         canvas.width = 1280;
         canvas.height = 720;
         const ctx = canvas.getContext("2d");
+        
         if (ctx) {
             ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-            const base64 = canvas.toDataURL("image/jpeg", 0.5).split(',')[1];
-            socket.emit('screen-stream', { image: base64, text: "Analyzing dashboard..." });
+            const base64 = canvas.toDataURL("image/jpeg", 0.4); 
+            sendToMalvin("Analyze this dashboard view.", base64);
         }
     };
 
@@ -130,33 +170,47 @@ const Dashboard = (props: any) => {
             const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
             if (videoRef.current) videoRef.current.srcObject = stream;
             setIsVisionActive(true);
-            visionInterval.current = setInterval(() => captureFrame(), 10000);
+            visionInterval.current = setInterval(() => captureFrame(), 30000);
         } catch (err) { console.error(err); }
     };
 
-    useEffect(() => {
-        socket.on('ai-reply', (data) => {
-            setAiHistory(prev => [...prev, { role: 'malvin', text: data.text }]);
-            setIsProcessing(false);
-        });
-        return () => {
-            socket.off('ai-reply');
-            if (visionInterval.current) clearInterval(visionInterval.current);
-        };
-    }, []);
+    const sendToMalvin = async (customText?: string, imageBase64?: string) => {
+        const messageToSend = customText || aiMessage;
+        if (!messageToSend.trim() && !imageBase64) return;
 
-    const sendToMalvin = () => {
-        if (!aiMessage.trim()) return;
-        setAiHistory(prev => [...prev, { role: 'user', text: aiMessage }]);
-        socket.emit('screen-stream', { text: aiMessage });
+        if (messageToSend) {
+            setAiHistory(prev => [...prev, { role: 'user', text: messageToSend }]);
+        }
+        
+        setIsProcessing(true);
         setAiMessage('');
+
+        try {
+            const response = await fetch('/api/malvin', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    text: messageToSend,
+                    image: imageBase64 
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.text) {
+                setAiHistory(prev => [...prev, { role: 'malvin', text: data.text }]);
+            }
+        } catch (err) {
+            console.error("AI_API_ERROR:", err);
+            setAiHistory(prev => [...prev, { role: 'malvin', text: "SYSTEM_OFFLINE: Could not reach brain." }]);
+        } finally {
+            setIsProcessing(false);
+        }
     };
 
-    // Replace the hardcoded strings with this:
     const shareUrl = `${window.location.origin}/chat/${auth.currentUser?.uid}`;
     const marketFrontUrl = `${window.location.origin}/chat/${auth.currentUser?.uid}`;
 
-    // Render Preview Mode
     if (activeTab === 'Preview') {
         return (
             <div style={{ position: 'relative', background: '#000', minHeight: '100vh' }}>
@@ -181,8 +235,7 @@ const Dashboard = (props: any) => {
             `}</style>
 
             {toast.show && (
-                <div className="notification-toast" onClick={() => setActiveTab('Chats')}
-                    style={toastStyle}>
+                <div className="notification-toast" onClick={() => setActiveTab('Chats')} style={toastStyle}>
                     <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#C5FF41' }} />
                     <div style={{ flex: 1 }}>
                         <div style={{ fontSize: '10px', color: '#666', fontWeight: 800 }}>NEW MESSAGE</div>
@@ -234,12 +287,8 @@ const Dashboard = (props: any) => {
                                                     {bookedDates.length}
                                                 </div>
                                             </div>
-                                            
-                                            {/* Glow dot lights up if there are bookings */}
                                             <div style={{ 
-                                                width: '12px', 
-                                                height: '12px', 
-                                                borderRadius: '50%', 
+                                                width: '12px', height: '12px', borderRadius: '50%', 
                                                 backgroundColor: bookedDates.length > 0 ? '#C5FF41' : '#222',
                                                 boxShadow: bookedDates.length > 0 ? '0 0 15px #C5FF41' : 'none',
                                                 transition: '0.3s'
@@ -266,12 +315,44 @@ const Dashboard = (props: any) => {
                                     </div>
                                     
                                     <div style={{ textAlign: 'right' }}>
-                                        <div style={{ color: '#C5FF41', fontSize: '10px', fontWeight: 900 }}>LIVE_SYNC</div>
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+                                            <div style={{ color: '#C5FF41', fontSize: '10px', fontWeight: 900 }}>LIVE_SYNC</div>
+                                            {isVerified && <VerifiedBadge />}
+                                        </div>
                                         <div style={{ color: '#333', fontSize: '10px' }}>ID: {userBrand?.id?.slice(0,8)}</div>
                                     </div>
                                 </div>
 
-                                <div style={{ marginTop: '20px', padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid #1A1A1A' }}>
+                                {/* MANUALLY EDITABLE BIO (Upper-left card, under data fields) */}
+                                <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                    <span style={{ fontSize: '10px', color: '#666', fontWeight: 800, letterSpacing: '1px' }}>STORE_FRONT_BIO</span>
+                                    <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end' }}>
+                                        <textarea 
+                                            value={bio}
+                                            onChange={(e) => setBio(e.target.value)}
+                                            placeholder="Write something cool about your brand for the storefront marketplace..."
+                                            maxLength={160}
+                                            style={{
+                                                flex: 1, height: '54px', background: '#070707', color: '#fff',
+                                                border: '1px solid #1A1A1A', borderRadius: '12px', padding: '10px',
+                                                fontSize: '12px', outline: 'none', resize: 'none', fontFamily: 'sans-serif'
+                                            }}
+                                        />
+                                        <button 
+                                            onClick={saveBio}
+                                            disabled={isSavingBio}
+                                            style={{
+                                                padding: '10px 14px', borderRadius: '12px', border: 'none',
+                                                background: '#222', color: '#C5FF41', fontSize: '11px', fontWeight: 700,
+                                                cursor: 'pointer', height: '54px', transition: '0.2s', opacity: isSavingBio ? 0.5 : 1
+                                            }}
+                                        >
+                                            {isSavingBio ? '...' : 'SAVE'}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div style={{ marginTop: '12px', padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid #1A1A1A' }}>
                                     <span style={{ fontSize: '11px', color: '#888' }}>
                                         {bookedDates.length > 0 
                                             ? `Next session: ${[...bookedDates].sort().reverse()[0]}` 
@@ -279,9 +360,12 @@ const Dashboard = (props: any) => {
                                     </span>
                                 </div>
                             </DashboardCard>
+
                             <DashboardCard style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <div>
-                                    <div style={{ fontSize: '12px', color: '#666' }}>ACTIVE CUSTOMERS</div>
+                                    <div style={{ fontSize: '12px', color: '#666' }}>
+                                        ACTIVE CUSTOMERS {isVerified && <VerifiedBadge />}
+                                    </div>
                                     <div style={{ fontSize: '32px', fontWeight: 700 }}>{chatCount}</div>
                                 </div>
                                 <button onClick={() => setActiveTab('Ads')} style={actionBtnStyle}>+ Add Customers</button>
@@ -334,7 +418,7 @@ const Dashboard = (props: any) => {
                                 </div>
                                 <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
                                     <input value={aiMessage} onChange={e => setAiMessage(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendToMalvin()} placeholder="Ask Malvin..." style={aiInputStyle} />
-                                    <button onClick={sendToMalvin} style={aiSendBtn}>SEND</button>
+                                    <button onClick={() => sendToMalvin()} style={aiSendBtn}>SEND</button>
                                 </div>
                             </DashboardCard>
                         </div>
@@ -407,5 +491,4 @@ const aiChatArea: React.CSSProperties = { flex: 1, background: '#080808', border
 const aiInputStyle: React.CSSProperties = { flex: 1, background: '#111', border: '1px solid #333', borderRadius: '15px', padding: '12px', color: '#fff' };
 const aiSendBtn: React.CSSProperties = { background: '#C5FF41', border: 'none', padding: '0 20px', borderRadius: '15px', fontWeight: 700, cursor: 'pointer' };
 const visionBadge: React.CSSProperties = { padding: '8px 16px', borderRadius: '12px', cursor: 'pointer', fontSize: '10px', fontWeight: 700, letterSpacing: '1px' };
-
 export default Dashboard;
