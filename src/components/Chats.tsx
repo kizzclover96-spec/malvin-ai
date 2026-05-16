@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { collection, query, where, onSnapshot, orderBy, addDoc, serverTimestamp, doc, setDoc, updateDoc, getDocs  } from "firebase/firestore";
 import { firestore } from "../firebase";
 import { io } from 'socket.io-client';
+import { db } from "../firebase";
 
 // Initialize socket OUTSIDE to prevent multiple connections
 //const socket = io('http://localhost:3001');
@@ -68,26 +69,32 @@ const Chats = ({ brandId, userBrand }: any) => {
     // 3. Single Listener for the Chat List
     useEffect(() => {
         const idToUse = brandId || userBrand?.id;
-        console.log("🔥 brandId:", brandId);
-        console.log("🔥 userBrand:", userBrand);
-        console.log("🔥 idToUse:", idToUse);
-        console.log("RAW idToUse:", JSON.stringify(idToUse));
-        if (!idToUse) return;
+        if (!idToUse) {
+            console.log("⚠️ Chat listener skipped: No brandId or userBrand.id available.");
+            return;
+        }
+
+        console.log("🔍 Running query for brandId matching exactly:", String(idToUse));
 
         const q = query(
             collection(firestore, "conversations"),
             where("brandId", "==", String(idToUse))
         );
-         
-        onSnapshot(collection(firestore, "conversations"), (snapshot) => {
-            console.log("🔥 ALL conversations:", snapshot.docs.map(d => d.data()));
-        });
-
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const chatList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            console.log("🔥 chats:", chatList);
-            setChats(chatList);
-        });
+        
+        const unsubscribe = onSnapshot(q, 
+            (snapshot) => {
+                console.log("📊 Snapshot triggered! Document count found:", snapshot.size);
+                if (snapshot.empty) {
+                    console.log("❓ Query returned 0 documents. Check if the brandId value matches perfectly in Firestore.");
+                } else {
+                    const chatList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    setChats(chatList);
+                }
+            },
+            (error) => {
+                console.error("❌ Firestore Snapshot Error:", error);
+            }
+        );
 
         return () => unsubscribe();
     }, [brandId, userBrand?.id]);
