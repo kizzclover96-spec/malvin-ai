@@ -18,6 +18,7 @@ import {  useEffect } from 'react';
 import '../App.css';
 import { io } from "socket.io-client";
 import { doc, getDoc } from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth";
 
 //const socket = io('http://localhost:3001');
 import {
@@ -453,33 +454,40 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     };
     
     useEffect(() => {
-        const checkPremium = async () => {
-            const currentUser = auth.currentUser;
-
-            if (!currentUser) return;
+        // 1. Listen for the auth state to securely resolve (handles loading states)
+        const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+            if (!currentUser) {
+                console.log("👤 No authenticated user found yet.");
+                setIsPremium(false);
+                return;
+            }
 
             try {
+                console.log("🔄 Fetching subscription status for UID:", currentUser.uid);
                 const userRef = doc(firestore, "users", currentUser.uid);
                 const userSnap = await getDoc(userRef);
 
                 if (userSnap.exists()) {
                     const data = userSnap.data();
-
-                    console.log("USER DATA:", data);
+                    console.log("📡 USER DATA:", data);
 
                     if (data.premium === true) {
                         setIsPremium(true);
-                        console.log("Premium unlocked");
+                        console.log("👑 Premium unlocked");
                     } else {
                         setIsPremium(false);
                     }
+                } else {
+                    console.warn("⚠️ User document does not exist in Firestore.");
+                    setIsPremium(false);
                 }
             } catch (err) {
-                console.error("Premium check failed:", err);
+                console.error("❌ Premium check failed:", err);
             }
-        };
+        });
 
-        checkPremium();
+        // 2. Clean up the listener when the component unmounts to prevent memory leaks
+        return () => unsubscribe();
     }, []);
     const handleSaveNote = async () => {
         if (!currentNote.trim()) return;
