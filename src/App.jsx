@@ -14,7 +14,7 @@ import Privacy from "./pages/Privacy";
 import Impressum from "./pages/Impressum";
 import MarketFront from "./components/MarketFront";
 import { doc, getDoc } from "firebase/firestore";
-import { db } from "./firebase";
+import { firestore } from "./firebase";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -30,7 +30,8 @@ function App() {
 
       if (currentUser) {
         try {
-          const userRef = doc(db, "users", currentUser.uid);
+          // Updated 'db' to 'firestore' here
+          const userRef = doc(firestore, "users", currentUser.uid); 
           const userSnap = await getDoc(userRef);
 
           if (userSnap.exists()) {
