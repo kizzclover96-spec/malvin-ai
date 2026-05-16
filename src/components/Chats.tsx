@@ -61,12 +61,12 @@ const Chats = ({ brandId, userBrand }: any) => {
         console.log("🔥 brandId:", brandId);
         console.log("🔥 userBrand:", userBrand);
         console.log("🔥 idToUse:", idToUse);
+        console.log("RAW idToUse:", JSON.stringify(idToUse));
         if (!idToUse) return;
 
         const q = query(
             collection(firestore, "conversations"),
-            where("brandId", "==", String(idToUse)),
-            orderBy("updatedAt", "desc")
+            where("brandId", "==", String(idToUse))
         );
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
