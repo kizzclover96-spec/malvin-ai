@@ -6,7 +6,7 @@ import MarketFront from './MarketFront';
 import Catalog from './Catalog';
 import AdsManager from './AdsManager';
 import Payments from './Payments';
-import { io } from 'socket.io-client';
+//import { io } from 'socket.io-client';
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { ref as dbRef, onValue, update } from "firebase/database"; 
 import { db } from '../firebase'; 

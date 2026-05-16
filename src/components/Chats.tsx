@@ -4,7 +4,7 @@ import { firestore } from "../firebase";
 import { io } from 'socket.io-client';
 
 // Initialize socket OUTSIDE to prevent multiple connections
-const socket = io('http://localhost:3001');
+//const socket = io('http://localhost:3001');
 
 const ChatCard = ({ children, style }: any) => (
     <div style={{
@@ -46,10 +46,10 @@ const Chats = ({ brandId, userBrand }: any) => {
             }
         };
 
-        socket.on('ai-action', handleAiAction);
+        //socket.on('ai-action', handleAiAction);
 
         return () => { 
-            socket.off('ai-action', handleAiAction); 
+            //socket.off('ai-action', handleAiAction); 
         };
     }, [isAutopilot, selectedChatId]); // This keeps the listener fresh when you switch chats
 

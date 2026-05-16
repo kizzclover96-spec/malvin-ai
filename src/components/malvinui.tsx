@@ -18,7 +18,7 @@ import {  useEffect } from 'react';
 import '../App.css';
 import { io } from "socket.io-client";
 
-const socket = io('http://localhost:3001');
+//const socket = io('http://localhost:3001');
 import {
   LiveKitRoom,
   RoomAudioRenderer,
@@ -777,7 +777,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
         setIsChatting(true); // Don't forget to hide the cards!
         setIsProcessing(true); // Start the "thinking" state
         setAiHistory(prev => [...prev, { role: 'user', text: aiMessage }]);
-        socket.emit('screen-stream', { text: aiMessage });
+        //socket.emit('screen-stream', { text: aiMessage });
         setAiMessage('');
     }
     // ICONS (Using your SVG code)

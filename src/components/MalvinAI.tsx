@@ -1,15 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { io } from 'socket.io-client';
 
-const socket = io('http://localhost:3001'); // Connecting to your backend
+// Replace this with your exact Vercel URL (make sure it spells malvin or maivin exactly as deployed)
+const BACKEND_API_URL = 'https://maivin-backend.vercel.app/api'; 
 
 const MalvinAI = () => {
     const [message, setMessage] = useState('');
     const [chatHistory, setChatHistory] = useState<{role: string, text: string}[]>([]);
     const [isActive, setIsActive] = useState(false);
     const videoRef = useRef<HTMLVideoElement>(null);
+    const latestFrameRef = useRef<string | null>(null); // Stores the latest screenshot safely
 
-    // 1. THE "EYES": Capture the Screen
+    // 1. Capture the Screen and save the frame locally
     const startVision = async () => {
         try {
             const stream = await navigator.mediaDevices.getDisplayMedia({
@@ -22,59 +23,73 @@ const MalvinAI = () => {
             }
             setIsActive(true);
 
-            // Send a screenshot every 3 seconds
+            // Periodically take a screenshot and update our reference pointer
             const interval = setInterval(() => {
-                captureAndSendFrame();
+                captureFrame();
             }, 3000);
 
             stream.getVideoTracks()[0].onended = () => {
                 clearInterval(interval);
                 setIsActive(false);
+                latestFrameRef.current = null;
             };
         } catch (err) {
             console.error("Vision failed:", err);
         }
     };
 
-    const captureAndSendFrame = () => {
+    const captureFrame = () => {
         if (!videoRef.current) return;
         
         const canvas = document.createElement("canvas");
         canvas.width = 1280;
         canvas.height = 720;
-        const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
+        const ctx = canvas.getContext("2d");
         if (ctx) {
             ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+            // Convert to base64 and store it in our reference pointer
             const base64Image = canvas.toDataURL("image/jpeg", 0.5).split(',')[1];
-            
-            // Only send if the user is currently asking something
-            // or send periodically for "Live Feedback"
-            socket.emit('screen-stream', { image: base64Image, text: "Analyze this screen and wait for my command." });
+            latestFrameRef.current = base64Image;
         }
     };
 
-    // 2. THE "MOUTH": Listen for AI replies
-    useEffect(() => {
-        socket.on('ai-reply', (data) => {
-            setChatHistory(prev => [...prev, { role: 'malvin', text: data.text }]);
-        });
+    // 2. Send Message + Latest Screen Frame to Vercel Backend via HTTP POST
+    const handleSend = async () => {
+        const textToSend = message.trim();
+        if (!textToSend) return;
 
-        socket.on('ai-action', (action) => {
-            console.log("AI wants to execute action:", action);
-            // This is where you'd trigger your 'handleManagerSend' function!
-        });
-
-        return () => {
-            socket.off('ai-reply');
-            socket.off('ai-action');
-        };
-    }, []);
-
-    const handleSend = () => {
-        if (!message.trim()) return;
-        setChatHistory(prev => [...prev, { role: 'user', text: message }]);
-        socket.emit('screen-stream', { text: message }); // Sending text to backend
+        // Optimistically add user message to the UI chat window
+        setChatHistory(prev => [...prev, { role: 'user', text: textToSend }]);
         setMessage('');
+
+        // Grab the most recent screenshot taken by the interval if vision is active
+        const imageToSend = isActive ? latestFrameRef.current : null;
+
+        try {
+            const response = await fetch(BACKEND_API_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    text: textToSend,
+                    image: imageToSend
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`Server returned code ${response.status}`);
+            }
+
+            const data = await response.json();
+            
+            // Add Malvin's response text to the UI layout
+            setChatHistory(prev => [...prev, { role: 'malvin', text: data.text }]);
+
+        } catch (err) {
+            console.error("Failed to fetch response from Malvin:", err);
+            setChatHistory(prev => [...prev, { role: 'malvin', text: "Connection error. Could not reach my brain." }]);
+        }
     };
 
     return (
@@ -83,7 +98,6 @@ const MalvinAI = () => {
             background: '#000', border: '1px solid #C5FF41', borderRadius: '20px',
             display: 'flex', flexDirection: 'column', zIndex: 9999, overflow: 'hidden'
         }}>
-            {/* Hidden video element for streaming */}
             <video ref={videoRef} autoPlay style={{ display: 'none' }} />
 
             <div style={{ padding: '15px', background: '#111', color: '#C5FF41', fontWeight: 800, display: 'flex', justifyContent: 'space-between' }}>
@@ -99,12 +113,13 @@ const MalvinAI = () => {
                 ))}
             </div>
 
-            {!isActive ? (
-                <button onClick={startVision} style={{ margin: '10px', padding: '10px', background: '#C5FF41', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: 700 }}>
-                    Enable AI Vision
-                </button>
-            ) : (
-                <div style={{ padding: '10px', display: 'flex', gap: '5px' }}>
+            <div style={{ padding: '10px', display: 'flex', gap: '5px', flexDirection: 'column' }}>
+                {!isActive && (
+                    <button onClick={startVision} style={{ marginBottom: '5px', padding: '10px', background: '#C5FF41', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: 700 }}>
+                        Enable AI Vision
+                    </button>
+                )}
+                <div style={{ display: 'flex', gap: '5px' }}>
                     <input 
                         value={message} 
                         onChange={(e) => setMessage(e.target.value)}
@@ -114,7 +129,7 @@ const MalvinAI = () => {
                     />
                     <button onClick={handleSend} style={{ background: '#C5FF41', border: 'none', padding: '8px 15px', borderRadius: '8px', fontWeight: 700 }}>SEND</button>
                 </div>
-            )}
+            </div>
         </div>
     );
 };
