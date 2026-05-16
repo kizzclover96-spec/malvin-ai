@@ -14,9 +14,9 @@ if (!variantId) {
 const storeUrl = "https://malvin.lemonsqueezy.com";
 
 const checkoutUrl = variantId
-  ? `${storeUrl}/checkout/buy/${variantId}`
+  ? `https://checkout.lemonsqueezy.com/buy/${variantId}`
   : undefined;
-  
+
 const premiumPlan = {
   name: "Premium",
   price: "€20/mo",
