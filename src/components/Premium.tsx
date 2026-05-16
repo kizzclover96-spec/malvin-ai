@@ -1,4 +1,7 @@
 import React from 'react';
+import { auth } from "../firebase";
+
+const userId = auth.currentUser?.uid;
 
 interface PremiumProps {
   onBack: () => void;
@@ -14,8 +17,8 @@ if (!variantId) {
 const storeUrl = "https://malvin.lemonsqueezy.com";
 
 const checkoutUrl = variantId
-  ? `https://checkout.lemonsqueezy.com/buy/${variantId}`
-  : undefined;
+  ? `https://checkout.lemonsqueezy.com/buy/${variantId}?checkout[custom][user_id]=${userId}`
+  : null;
 
 const premiumPlan = {
   name: "Premium",
