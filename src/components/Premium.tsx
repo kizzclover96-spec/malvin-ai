@@ -13,14 +13,14 @@ if (!variantId) {
 
 const storeUrl = "https://malvin.lemonsqueezy.com";
 
+const checkoutUrl = variantId
+  ? `${storeUrl}/checkout/buy/${variantId}`
+  : undefined;
+  
 const premiumPlan = {
   name: "Premium",
   price: "€20/mo",
-  variantId: variantId,
-  // This constructs the direct link to your checkout
-  checkoutUrl: variantId 
-    ? `${storeUrl}/checkout/buy/${variantId}`
-    : "#" 
+  variantId
 };
 
 const Premium: React.FC<PremiumProps> = ({ onBack }) => {
@@ -109,7 +109,13 @@ const Premium: React.FC<PremiumProps> = ({ onBack }) => {
 
           <button 
             style={upgradeBtn} 
-            onClick={() => window.open(premiumPlan.checkoutUrl, '_blank')}
+            onClick={() => {
+              if (!checkoutUrl) {
+                alert("Payment not configured");
+                return;
+              }
+              window.open(checkoutUrl, "_blank");
+            }}
             onMouseEnter={(e) => {
               e.currentTarget.style.transform = 'scale(1.02)';
               e.currentTarget.style.boxShadow = '0 15px 30px rgba(255, 215, 0, 0.4)';
