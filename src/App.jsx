@@ -24,31 +24,33 @@ function App() {
   const [showLogin, setShowLogin] = useState(false);
   const [isPremium, setIsPremium] = useState(false);
 
-  const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-    setUser(currentUser);
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      setUser(currentUser);
 
-    if (currentUser) {
-      try {
-        const userRef = doc(db, "users", currentUser.uid);
+      if (currentUser) {
+        try {
+          const userRef = doc(db, "users", currentUser.uid);
+          const userSnap = await getDoc(userRef);
 
-        const userSnap = await getDoc(userRef);
-
-        if (userSnap.exists()) {
-          const userData = userSnap.data();
-
-          setIsPremium(userData?.premium === true);
+          if (userSnap.exists()) {
+            const userData = userSnap.data();
+            setIsPremium(userData?.premium === true);
+          }
+        } catch (err) {
+          console.error("Premium check failed:", err);
         }
-      } catch (err) {
-        console.error("Premium check failed:", err);
+      } else {
+        setHasWokenUp(false);
+        setShowLogin(false);
+        setIsPremium(false);
       }
-    } else {
-      setHasWokenUp(false);
-      setShowLogin(false);
-      setIsPremium(false);
-    }
 
-    setLoading(false);
-  });
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   if (loading) {
     return <div style={{ backgroundColor: '#000', height: '100vh' }} />;
