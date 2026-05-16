@@ -30,6 +30,7 @@ const Chats = ({ brandId, userBrand }: any) => {
         return [...chats].sort((a, b) => {
             if (a.viewedByManager === b.viewedByManager) return 0;
             return a.viewedByManager ? 1 : -1;
+            
         });
     }, [chats]);
 
@@ -57,6 +58,8 @@ const Chats = ({ brandId, userBrand }: any) => {
     // 3. Single Listener for the Chat List
     useEffect(() => {
         const idToUse = brandId || userBrand?.id;
+        console.log("🔥 brandId:", brandId);
+        console.log("🔥 userBrand:", userBrand);
         console.log("🔥 idToUse:", idToUse);
         if (!idToUse) return;
 
@@ -68,6 +71,7 @@ const Chats = ({ brandId, userBrand }: any) => {
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const chatList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            console.log("🔥 chats:", chatList);
             setChats(chatList);
         });
 
