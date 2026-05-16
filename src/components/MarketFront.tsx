@@ -5,11 +5,23 @@ import { ref as dbRef, onValue } from "firebase/database";
 import { ProductCard } from './ProductView';
 import CustomerChat from './CustomerChat';
 
+// Reusable Verified Badge Component
+const VerifiedBadge = () => (
+    <svg 
+        width="14" 
+        height="14" 
+        viewBox="0 0 24 24" 
+        fill="#007fff" 
+        style={{ display: 'inline-block', marginLeft: '6px', verticalAlign: 'middle' }}
+    >
+        <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+    </svg>
+);
+
 const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?: string, userBrand?: any, brandName?: string }) => {
     const { brandId: urlBrandId } = useParams();
     const brandId = propBrandId || urlBrandId;
 
-    // Fixed: Combined into one state declaration
     const [view, setView] = useState<'market' | 'chat' | 'booking'>('market');
     const [bookedDates, setBookedDates] = useState<string[]>([]);
     
@@ -20,7 +32,11 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
     const [quantity, setQuantity] = useState(1);
     const [isLocked, setIsLocked] = useState(false);
 
-    // Add this useEffect to listen for the Panic Button status
+    // Dynamic Profile States (Bio & Meta Verification)
+    const [bio, setBio] = useState('');
+    const [isVerified, setIsVerified] = useState(false);
+
+    // Sync Panic Button/System Settings
     useEffect(() => {
         const settingsRef = dbRef(db, 'system_settings');
         const unsubscribe = onValue(settingsRef, (snapshot) => {
@@ -31,7 +47,7 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
                 setIsLocked(false);
             }
         });
-        return () => unsubscribe(); // Cleanup listener
+        return () => unsubscribe();
     }, []);
     
     const navigate = useNavigate();
@@ -40,31 +56,51 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
     useEffect(() => {
         if (!brandId) return;
         const bookingsPath = dbRef(db, `users/${brandId}/bookings`);
-        onValue(bookingsPath, (snapshot) => {
+        const unsubscribe = onValue(bookingsPath, (snapshot) => {
             const data = snapshot.val();
             if (data) {
-                // Convert object of objects into an array of date strings
                 setBookedDates(Object.values(data).map((b: any) => b.date));
+            } else {
+                setBookedDates([]);
             }
         });
+        return () => unsubscribe();
     }, [brandId]);
 
-    // Sync Brand and Catalog
+    // Sync Brand Profile (Bio & Verification Status)
+    useEffect(() => {
+        if (!brandId) return;
+        const profilePath = dbRef(db, `users/${brandId}/profile`);
+        const unsubscribe = onValue(profilePath, (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                setBio(data.bio || '');
+                setIsVerified(data.isVerified || false);
+            }
+        });
+        return () => unsubscribe();
+    }, [brandId]);
+
+    // Sync Brand Identity and Catalog
     useEffect(() => {
         if (!brandId) return;
         const brandPath = dbRef(db, `users/${brandId}/brandData`);
-        onValue(brandPath, (snapshot) => {
+        const unsubscribeBrand = onValue(brandPath, (snapshot) => {
             setBrand(snapshot.val() || { name: "Store" });
         });
 
         const catalogPath = dbRef(db, `users/${brandId}/catalog`);
-        onValue(catalogPath, (snapshot) => {
+        const unsubscribeCatalog = onValue(catalogPath, (snapshot) => {
             const data = snapshot.val();
             setCatalog(data ? Object.keys(data).map(k => ({ id: k, ...data[k] })) : []);
         });
+
+        return () => {
+            unsubscribeBrand();
+            unsubscribeCatalog();
+        };
     }, [brandId]);
 
-    // Handle the actual booking submission
     const handleBookDate = (date: string) => {
         if (!date) return;
         if (bookedDates.includes(date)) {
@@ -72,7 +108,6 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
             return;
         }
 
-        // Save to Firebase Realtime Database
         const newBookingRef = dbRef(db, `users/${brandId}/bookings/${Date.now()}`);
         const bookingData = {
             date: date,
@@ -91,7 +126,6 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
     const handleConfirmOrder = () => {
         if (!orderModal) return;
         setOrderModal(null);
-        // Switch view instead of navigating
         setView('chat');
     };
 
@@ -107,7 +141,7 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
                     <input 
                         type="date" 
                         style={{...quantityInput, fontSize: '18px'}} 
-                        min={new Date().toISOString().split('T')[0]} // Prevents booking past dates
+                        min={new Date().toISOString().split('T')[0]} 
                         onChange={(e) => handleBookDate(e.target.value)}
                     />
                     
@@ -119,7 +153,6 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
         );
     }
 
-    // --- CHAT VIEW TOGGLE ---
     if (view === 'chat') {
         return (
             <div style={{ position: 'relative', height: '100dvh', backgroundColor: '#000' }}>
@@ -135,8 +168,7 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
     }
 
     if (!brand) return <div style={loaderStyle}>INITIALIZING_MARKET...</div>;
-    // --- 2. The Maintenance Check ---
-    // Place this right before your main 'return'
+
     if (isLocked) {
         return (
             <div style={maintenanceContainer}>
@@ -165,11 +197,28 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
             `}</style>
 
             <header style={headerStyle}>
-                <div style={{ flex: 1, zIndex: 101 }}>
-                    <h1 style={brandTitle}>{brand.name?.toUpperCase()}</h1>
+                <div style={{ flex: 1, zIndex: 101, paddingRight: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
+                        <h1 style={brandTitle}>{brand.name?.toUpperCase()}</h1>
+                        {isVerified && <VerifiedBadge />}
+                    </div>
+                    
+                    {/* Dynamic User Bio Display */}
+                    {bio && (
+                        <p style={{ 
+                            margin: '6px 0 0 0', 
+                            fontSize: '12px', 
+                            color: '#aaa', 
+                            lineHeight: '1.4',
+                            fontWeight: 400 
+                        }}>
+                            {bio}
+                        </p>
+                    )}
+                    
                     <div style={onlineStatus}><span style={dotStyle} /> Active Now</div>
                 </div>
-                <div style={{ display: 'flex', gap: '8px' }}>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
                     <button onClick={() => setView('booking')} style={bookingBtnStyle}>
                         Book 🗓️
                     </button>
@@ -258,15 +307,15 @@ const marketContainer: React.CSSProperties = {
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
     display: 'flex',
     flexDirection: 'column',
-    alignItems: 'center' // Centers the grid on the screen
+    alignItems: 'center'
 };
 
 const headerStyle: React.CSSProperties = { 
     display: 'flex', 
     width: '100%',
-    maxWidth: '400px', // Matches Grid Width
+    maxWidth: '400px', 
     justifyContent: 'space-between', 
-    alignItems: 'center', 
+    alignItems: 'flex-start', 
     padding: '24px 0',
     position: 'sticky',
     top: 0,
@@ -281,7 +330,7 @@ const productGrid: React.CSSProperties = {
     gap: '12px', 
     paddingBottom: '40px',
     width: '100%',
-    maxWidth: '400px', // Keeps cards tight together
+    maxWidth: '400px', 
 };
 
 const bookingBtnStyle: React.CSSProperties = { 
@@ -292,9 +341,9 @@ const bookingBtnStyle: React.CSSProperties = {
     borderRadius: '24px', 
     fontSize: '13px', 
     fontWeight: 800, 
-    cursor: 'pointer' 
+    cursor: 'pointer',
+    whiteSpace: 'nowrap'
 };
-
 
 const backToMarketBtn: React.CSSProperties = {
     position: 'absolute',
@@ -329,10 +378,8 @@ const pulseScanner: React.CSSProperties = {
     animation: 'scan 2s linear infinite'
 };
 
-
-// Keep other styles (brandTitle, onlineStatus, etc.) exactly as you had them
-const brandTitle: React.CSSProperties = { fontSize: '20px', fontWeight: 900, margin: 0, letterSpacing: '-0.5px' };
-const onlineStatus: React.CSSProperties = { fontSize: '11px', color: '#888', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' };
+const brandTitle: React.CSSProperties = { fontSize: '20px', fontWeight: 900, margin: 0, letterSpacing: '-0.5px', display: 'inline-block' };
+const onlineStatus: React.CSSProperties = { fontSize: '11px', color: '#888', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px' };
 const dotStyle: React.CSSProperties = { width: '7px', height: '7px', background: '#C5FF41', borderRadius: '50%', boxShadow: '0 0 8px #C5FF41' };
 const dmButton: React.CSSProperties = { background: '#C5FF41', color: 'black', border: 'none', padding: '10px 20px', borderRadius: '24px', fontSize: '13px', fontWeight: 800, cursor: 'pointer' };
 const cardWrapper: React.CSSProperties = { cursor: 'pointer', width: '100%' };
