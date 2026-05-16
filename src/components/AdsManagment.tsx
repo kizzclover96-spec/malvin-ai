@@ -8,6 +8,7 @@ const AdsManager = () => {
     const [selectedUser, setSelectedUser] = useState<any>(null);
     const [editBalance, setEditBalance] = useState('');
     const [editBrandName, setEditBrandName] = useState('');
+    const [editIsVerified, setEditIsVerified] = useState(false); // Dynamic Verification State
     const [adRequests, setAdRequests] = useState<any[]>([]);
     const [auditLogs, setAuditLogs] = useState<any[]>([]);
 
@@ -19,7 +20,8 @@ const AdsManager = () => {
                 const formatted = Object.keys(data).map(k => ({
                     uid: k,
                     ...data[k],
-                    displayName: data[k].brandName || data[k].email || "GHOST_USER",
+                    displayName: data[k].brandData?.name || data[k].brandName || data[k].email || "GHOST_USER",
+                    isVerified: data[k].profile?.isVerified || false // Reading flag locally from nested node
                 }));
                 setUsers(formatted);
                 if (selectedUser) {
@@ -30,7 +32,7 @@ const AdsManager = () => {
         });
 
         const logsRef = ref(db, 'admin/audit_log');
-        onValue(logsRef, (snapshot) => {
+        const unsubLogs = onValue(logsRef, (snapshot) => {
             const data = snapshot.val();
             if (data) {
                 const list = Object.keys(data).map(k => ({ id: k, ...data[k] }));
@@ -39,19 +41,24 @@ const AdsManager = () => {
         });
 
         const adQueueRef = ref(db, 'admin/ad_queue');
-        onValue(adQueueRef, (snapshot) => {
+        const unsubAdQueue = onValue(adQueueRef, (snapshot) => {
             const data = snapshot.val();
             setAdRequests(data ? Object.keys(data).map(k => ({ id: k, ...data[k] })) : []);
         });
 
-        return () => unsubUsers();
+        return () => {
+            unsubUsers();
+            unsubLogs();
+            unsubAdQueue();
+        };
     }, [selectedUser?.uid]);
 
     // --- HANDLERS ---
     const handleSelectUser = (u: any) => {
         setSelectedUser(u);
-        setEditBrandName(u.brandName || '');
+        setEditBrandName(u.brandData?.name || u.brandName || '');
         setEditBalance(u.treasury?.balance?.toString() || '0');
+        setEditIsVerified(u.profile?.isVerified || false);
     };
 
     const getIpClusterCount = (ip: string) => {
@@ -66,12 +73,9 @@ const AdsManager = () => {
         });
     };
 
-    // 1. Password Reset Handler
     const handlePasswordReset = async () => {
         if (!selectedUser?.email) return;
         try {
-            // Note: For security, Firebase handles password changes via email.
-            // Direct password setting requires Admin SDK (Backend).
             alert(`RESET_LINK_SENT_TO: ${selectedUser.email}`);
             await logAction('PASS_RESET_INIT', selectedUser.uid, `Sent to ${selectedUser.email}`);
         } catch (err) {
@@ -79,7 +83,6 @@ const AdsManager = () => {
         }
     };
 
-    // 2. Status Update Handler (Ban/Warn/Active)
     const handleUpdateStatus = async (newStatus: string) => {
         if (!selectedUser) return;
         const updates: any = {};
@@ -90,18 +93,17 @@ const AdsManager = () => {
         alert(`USER_STATUS: ${newStatus}`);
     };
 
-    // 3. Updated Save Changes (Fixing the Brand Path)
     const handleSaveChanges = async () => {
         if (!selectedUser) return;
         const updates: any = {};
         
-        // We target 'brandData/name' to ensure MarketFront sees the change
         updates[`users/${selectedUser.uid}/brandData/name`] = editBrandName;
         updates[`users/${selectedUser.uid}/treasury/balance`] = parseFloat(editBalance);
+        updates[`users/${selectedUser.uid}/profile/isVerified`] = editIsVerified; // Push verified configuration change
         
         try {
             await update(ref(db), updates);
-            logAction('UPDATE_ACCOUNT', selectedUser.uid, `Name: ${editBrandName}, Bal: ${editBalance}`);
+            logAction('UPDATE_ACCOUNT', selectedUser.uid, `Name: ${editBrandName}, Bal: ${editBalance}, Verified: ${editIsVerified}`);
             alert("SYNC_COMPLETE");
         } catch (err) {
             alert("SYNC_ERROR");
@@ -117,7 +119,7 @@ const AdsManager = () => {
             
             <div style={{ display: 'grid', gridTemplateColumns: '380px 1fr 350px', gap: '24px' }}>
 
-                {/* --- UPDATED MERCHANT DIRECTORY --- */}
+                {/* --- MERCHANT DIRECTORY --- */}
                 <section style={panelStyle}>
                     <h3 style={sectionTitle}>MERCHANT_DIRECTORY</h3>
                     <div style={{ maxHeight: '75vh', overflowY: 'auto', paddingRight: '8px' }}>
@@ -125,8 +127,6 @@ const AdsManager = () => {
                             const ipCount = getIpClusterCount(u.security?.lastIp);
                             const isHighRisk = ipCount > 2;
                             const isSelected = selectedUser?.uid === u.uid;
-
-                            // FIX: Access the name inside the brandData object, exactly like MarketFront does
                             const merchantName = u.brandData?.name || u.brandName || "Ghost_User";
 
                             return (
@@ -142,7 +142,7 @@ const AdsManager = () => {
                                     }}
                                 >
                                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                                        <span style={{ fontSize: '14px', fontWeight: 700, color: u.isVerified ? '#C5FF41' : '#fff' }}>
+                                        <span style={{ fontSize: '14px', fontWeight: 700, color: u.isVerified ? '#007fff' : '#fff' }}>
                                             {u.isVerified && "✓ "}{merchantName.toUpperCase()}
                                         </span>
                                         {isHighRisk && <span style={botTag}>RISK_CLUSTER</span>}
@@ -174,7 +174,7 @@ const AdsManager = () => {
                     </div>
                 </section>
 
-                {/* --- UPDATED ACCOUNT_MODERATOR SECTION --- */}
+                {/* --- ACCOUNT_MODERATOR SECTION --- */}
                 <section style={panelStyle}>
                     <h3 style={sectionTitle}>ACCOUNT_MODERATOR</h3>
                     {selectedUser ? (
@@ -198,6 +198,33 @@ const AdsManager = () => {
                                     value={editBalance} 
                                     onChange={e => setEditBalance(e.target.value)} 
                                 />
+                            </div>
+
+                            {/* VERIFICATION PRESETS */}
+                            <div>
+                                <label style={labelStyle}>VERIFICATION_STATUS</label>
+                                <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
+                                    <button
+                                        onClick={() => setEditIsVerified(true)}
+                                        style={{ 
+                                            ...statusBtn, 
+                                            border: editIsVerified ? '1px solid #007fff' : '1px solid #333',
+                                            color: editIsVerified ? '#007fff' : '#fff'
+                                        }}
+                                    >
+                                        VERIFIED
+                                    </button>
+                                    <button
+                                        onClick={() => setEditIsVerified(false)}
+                                        style={{ 
+                                            ...statusBtn, 
+                                            border: !editIsVerified ? '1px solid #ff4d4d' : '1px solid #333',
+                                            color: !editIsVerified ? '#ff4d4d' : '#fff'
+                                        }}
+                                    >
+                                        UNVERIFIED
+                                    </button>
+                                </div>
                             </div>
 
                             {/* STATUS MANAGEMENT */}
