@@ -1,26 +1,54 @@
 import React, { useState, useEffect } from 'react';
 import { auth, db } from "../firebase";
-import { ref, onValue, push, set } from "firebase/database";
+import { ref, onValue, push } from "firebase/database";
 
 const pointsVariantId = import.meta.env.VITE_LEMONSQUEEZY_POINTS_VARIANT_ID;
-const storeUrl = "https://malvin.lemonsqueezy.com";
 
 const Payments = ({ userBrand }: { userBrand: any }) => {
-    const [balance, setBalance] = useState(0.00); 
+    const [balance, setBalance] = useState(0.00);
     const [transactions, setTransactions] = useState<any[]>([]);
     const [showFundingModal, setShowFundingModal] = useState(false);
     const [fundingAmount, setFundingAmount] = useState('');
-    
+    const [userId, setUserId] = useState<string | null>(null);
 
-    const userId = auth.currentUser?.uid;
-    // 2. Update the function
-    const handleFundingRequest = async () => {
+    // Auth listener
+    useEffect(() => {
+        const unsub = auth.onAuthStateChanged((user) => {
+            setUserId(user ? user.uid : null);
+        });
+
+        return () => unsub();
+    }, []);
+
+    // Firebase sync
+    useEffect(() => {
         if (!userId) return;
-        
-        if (!pointsVariantId) {
-            console.error("Lemon Squeezy Variant ID is missing!");
-            return;
-        }
+
+        const balanceRef = ref(db, `users/${userId}/treasury/balance`);
+        const ledgerRef = ref(db, `users/${userId}/treasury/ledger`);
+
+        const unsubBalance = onValue(balanceRef, (snapshot) => {
+            setBalance(snapshot.val() || 0);
+        });
+
+        const unsubLedger = onValue(ledgerRef, (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                const list = Object.keys(data).map(k => ({ id: k, ...data[k] }));
+                setTransactions(list.sort((a, b) => b.timestamp - a.timestamp));
+            } else {
+                setTransactions([]);
+            }
+        });
+
+        return () => {
+            unsubBalance();
+            unsubLedger();
+        };
+    }, [userId]);
+
+    const handleFundingRequest = async () => {
+        if (!userId || !pointsVariantId) return;
 
         const amount = parseFloat(fundingAmount);
         if (isNaN(amount) || amount <= 0) {
@@ -28,27 +56,24 @@ const Payments = ({ userBrand }: { userBrand: any }) => {
             return;
         }
 
-        const amountInCents = Math.round(amount * 100);
-
-        // Construct checkout URL
-        const checkoutUrl = `${storeUrl}/checkout/buy/${pointsVariantId}?checkout[custom][user_id]=${userId}&checkout[amount]=${amountInCents}`;
+        const checkoutUrl = `https://malvin.lemonsqueezy.com/checkout/buy/${pointsVariantId}?checkout[custom][user_id]=${userId}`;
 
         setShowFundingModal(false);
         window.open(checkoutUrl, '_blank');
-        
-        const requestData = {
+
+        await push(ref(db, `users/${userId}/treasury/ledger`), {
             type: 'Inflow',
-            amount: amount,
+            amount,
             label: 'Top_Up_Initiated',
-            date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }).toUpperCase(),
+            date: new Date().toLocaleDateString('en-GB', {
+                day: '2-digit',
+                month: 'short'
+            }).toUpperCase(),
             status: 'Awaiting_Payment',
             timestamp: Date.now(),
-        };
-
-        await push(ref(db, `users/${userId}/treasury/ledger`), requestData);
+        });
     };
 
-    // FIX 3: Loading state guard
     if (!userId) {
         return (
             <div style={{ padding: '20px', color: 'white', opacity: 0.5 }}>
@@ -56,31 +81,9 @@ const Payments = ({ userBrand }: { userBrand: any }) => {
             </div>
         );
     }
-    // --- 1. SYNC WITH FIREBASE ---
-    useEffect(() => {
-        if (!userId) return;
-
-        // Listen for Balance updates
-        const balanceRef = ref(db, `users/${userId}/treasury/balance`);
-        onValue(balanceRef, (snapshot) => {
-            setBalance(snapshot.val() || 0);
-        });
-
-        // Listen for Transaction history  
-        const ledgerRef = ref(db, `users/${userId}/treasury/ledger`);
-        onValue(ledgerRef, (snapshot) => {
-            const data = snapshot.val();
-            if (data) {
-                const list = Object.keys(data).map(k => ({ id: k, ...data[k] }));
-                // Sort by timestamp descending
-                setTransactions(list.sort((a, b) => b.timestamp - a.timestamp));
-            }
-        });
-    }, [userId]);
-
-    
 
     return (
+        
         <div style={{ padding: '20px', color: 'white' }}>
             <div style={{ marginBottom: '40px' }}>
                 <h1 style={{ fontSize: '40px', fontWeight: 700, margin: 0 }}>The_Treasury</h1>
@@ -157,16 +160,6 @@ const Payments = ({ userBrand }: { userBrand: any }) => {
                             value={fundingAmount}
                             onChange={(e) => setFundingAmount(e.target.value)}
                         />
-                        
-                        <div style={instructionBox}>
-                            <div style={{ color: '#C5FF41', fontWeight: 700, marginBottom: '10px', fontSize: '12px' }}>WIRE_INSTRUCTIONS:</div>
-                            <div style={{ fontSize: '11px', opacity: 0.7, lineHeight: '1.6' }}>
-                                BANK: NEURAL_RESERVE_INTL<br/>
-                                SWIFT: NRALBE22<br/>
-                                IBAN: BE96 0012 3456 7890<br/>
-                                REF: {userId?.substring(0, 8).toUpperCase()}
-                            </div>
-                        </div>
 
                         <div style={{ display: 'flex', gap: '12px' }}>
                             <button onClick={handleFundingRequest} style={primaryBtn}>Confirm_Request</button>
@@ -212,15 +205,6 @@ const fundingBtn = {
     fontWeight: 700,
     cursor: 'pointer',
     letterSpacing: '1px'
-};
-
-const instructionBox = {
-    background: '#000',
-    padding: '20px',
-    borderRadius: '16px',
-    border: '1px solid rgba(197, 255, 65, 0.2)',
-    marginBottom: '25px',
-    fontFamily: 'monospace'
 };
 
 const modalOverlay = { position: 'fixed' as 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 };
