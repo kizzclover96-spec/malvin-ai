@@ -13,7 +13,33 @@ const ChatCard = ({ children, style }: any) => (
         ...style
     }}>{children}</div>
 );
+const debugActiveConversations = async (brandId) => {
+    try {
+        console.log("🔍 Testing Firestore query for Brand ID:", String(brandId));
+        
+        const q = query(
+            collection(firestore, "conversations"),
+            where("brandId", "==", String(brandId))
+        );
 
+        const querySnapshot = await getDocs(q);
+        
+        if (querySnapshot.empty) {
+            console.log("❌ No matching conversations found for this Brand ID.");
+            return;
+        }
+
+        console.log(`✅ Success! Found ${querySnapshot.size} conversations.`);
+        
+        querySnapshot.forEach((doc) => {
+            console.log(`📄 Document ID: ${doc.id}`);
+            console.log("Data structure:", doc.data());
+        });
+
+    } catch (error) {
+        console.error("🚨 Firestore debug error:", error);
+    }
+};
 const Chats = ({ brandId, userBrand }: any) => {
     const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
     const [isAutopilot, setIsAutopilot] = useState(true);
