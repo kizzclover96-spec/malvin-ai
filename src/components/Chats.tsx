@@ -1,11 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { collection, query, where, onSnapshot, orderBy, addDoc, serverTimestamp, doc, setDoc, updateDoc, getDocs  } from "firebase/firestore";
-import { firestore } from "../firebase";
-import { io } from 'socket.io-client';
-import { db } from "../firebase";
-
-// Initialize socket OUTSIDE to prevent multiple connections
-//const socket = io('http://localhost:3001');
+import { collection, query, where, onSnapshot, orderBy, addDoc, serverTimestamp, doc, setDoc, updateDoc, getDocs } from "firebase/firestore";
+import { firestore, auth } from "../firebase";
 
 const ChatCard = ({ children, style }: any) => (
     <div style={{
@@ -23,7 +18,7 @@ const Chats = ({ brandId, userBrand }: any) => {
     const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
     const [isAutopilot, setIsAutopilot] = useState(true);
     const [activeMessages, setActiveMessages] = useState<any[]>([]);
-    const [chats, setChats] = useState<any[]>([]);
+    const [chats, setChats] = useState<any[]>([]); // This is the state variable being used
     const [inputValue, setInputValue] = useState('');
 
     // 1. Sort chats: Unread ones first
@@ -31,15 +26,12 @@ const Chats = ({ brandId, userBrand }: any) => {
         return [...chats].sort((a, b) => {
             if (a.viewedByManager === b.viewedByManager) return 0;
             return a.viewedByManager ? 1 : -1;
-            
         });
     }, [chats]);
 
-    
-    // 2. Listen for AI Actions (Socket)
+    // 2. Listen for AI Actions (Socket placeholder)
     useEffect(() => {
         const handleAiAction = (action: any) => {
-            // Extract the text regardless of if it's in action.text or action.args.message
             const messageText = action.text || action.args?.message;
             const incomingChatId = action.chatId || action.args?.chatId;
 
@@ -48,56 +40,45 @@ const Chats = ({ brandId, userBrand }: any) => {
                 handleManagerSend(messageText); 
             }
         };
+        return () => {};
+    }, [isAutopilot, selectedChatId]); 
 
-        //socket.on('ai-action', handleAiAction);
-
-        return () => { 
-            //socket.off('ai-action', handleAiAction); 
-        };
-    }, [isAutopilot, selectedChatId]); // This keeps the listener fresh when you switch chats
-
-    getDocs(collection(firestore, "brands"))
+    // Debug Logger
     useEffect(() => {
         const logAll = async () => {
             const snap = await getDocs(collection(firestore, "conversations"));
             console.log("ROOT conversations:", snap.docs.map(d => d.data()));
         };
-
         logAll();
     }, []);
     
-    // 3. Single Listener for the Chat List
+    // 3. Real-time Listener for the Manager Chat List
     useEffect(() => {
-        const idToUse = brandId || userBrand?.id;
-        if (!idToUse) {
-            console.log("⚠️ Chat listener skipped: No brandId or userBrand.id available.");
-            return;
-        }
+        const managerUid = auth.currentUser?.uid;
+        if (!managerUid) return;
 
-        console.log("🔍 Running query for brandId matching exactly:", String(idToUse));
+        const conversationsRef = collection(firestore, "conversations");
 
         const q = query(
-            collection(firestore, "conversations"),
-            where("brandId", "==", String(idToUse))
-        );
-        
-        const unsubscribe = onSnapshot(q, 
-            (snapshot) => {
-                console.log("📊 Snapshot triggered! Document count found:", snapshot.size);
-                if (snapshot.empty) {
-                    console.log("❓ Query returned 0 documents. Check if the brandId value matches perfectly in Firestore.");
-                } else {
-                    const chatList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                    setChats(chatList);
-                }
-            },
-            (error) => {
-                console.error("❌ Firestore Snapshot Error:", error);
-            }
+            conversationsRef,
+            where("brandId", "==", managerUid),
+            orderBy("updatedAt", "desc") 
         );
 
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const activeChats = snapshot.docs.map(doc => ({
+                id: doc.id, 
+                ...doc.data()
+            }));
+            
+            // FIXED: Changed from setConversations to setChats to match your useState
+            setChats(activeChats); 
+        }, (error) => {
+            console.error("Dashboard listener failed:", error);
+        });
+
         return () => unsubscribe();
-    }, [brandId, userBrand?.id]);
+    }, []);
 
     // 4. Listener for Messages in Selected Chat
     useEffect(() => {
@@ -109,8 +90,6 @@ const Chats = ({ brandId, userBrand }: any) => {
         );
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
-            console.log("🔥 chats size:", snapshot.size);
-            console.log("🔥 first doc:", snapshot.docs[0]?.data());
             setActiveMessages(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
         });
 
@@ -121,7 +100,6 @@ const Chats = ({ brandId, userBrand }: any) => {
         setSelectedChatId(chatId);
         try {
             const chatRef = doc(firestore, "conversations", chatId);
-            // This clears the green highlight and the red dot
             await updateDoc(chatRef, { viewedByManager: true });
         } catch (e) {
             console.error("Error marking as read:", e);
@@ -140,7 +118,7 @@ const Chats = ({ brandId, userBrand }: any) => {
             await setDoc(doc(firestore, "conversations", selectedChatId), {
                 lastMessage: text,
                 updatedAt: serverTimestamp(),
-                viewedByManager: true // Manager sent it, so they've seen it
+                viewedByManager: true 
             }, { merge: true });
 
             setInputValue('');
@@ -148,6 +126,7 @@ const Chats = ({ brandId, userBrand }: any) => {
             console.error("Error sending:", e);
         }
     };
+
     // 5. Auto-scroll to bottom
     useEffect(() => {
         const messageContainer = document.getElementById('message-feed');
@@ -160,10 +139,8 @@ const Chats = ({ brandId, userBrand }: any) => {
         <div style={{ maxWidth: '100%', margin: '0 auto', padding: '0 10px' }}>
             <div style={{ 
                 display: 'grid', 
-                /* Adjusted columns: Sidebar is slightly smaller relative to the feed */
                 gridTemplateColumns: '300px 1fr', 
                 gap: '20px', 
-                /* Height increased to 85% of viewport for a "Big Screen" feel */
                 height: '70vh', 
                 marginTop: '10px',
                 minHeight: '600px' 
@@ -178,6 +155,8 @@ const Chats = ({ brandId, userBrand }: any) => {
                         {sortedChats.map((chat, index) => {
                             const isUnread = chat.viewedByManager === false;
                             const isSelected = selectedChatId === chat.id;
+                            // FIXED: Using sortedChats context instead of chats directly to maintain index logic
+                            const clientDisplayNum = sortedChats.length - index;
 
                             return (
                                 <div 
@@ -192,29 +171,26 @@ const Chats = ({ brandId, userBrand }: any) => {
                                         gap: '12px',
                                         marginBottom: '8px',
                                         position: 'relative',
-                                        // BRIGHT GREEN BORDER for unread, subtle for read
                                         border: isUnread ? '1px solid #C5FF41' : '1px solid transparent',
-                                        // SOFT GREEN GLOW background for unread
                                         backgroundColor: isSelected ? '#1A1A1A' : (isUnread ? 'rgba(197, 255, 65, 0.08)' : 'transparent'),
                                         transition: '0.3s'
                                     }}
                                 >
                                     <div style={{ 
                                         width: '42px', height: '42px', borderRadius: '50%', 
-                                        background: '#333', display: 'flex', alignItems: 'center', 
+                                        display: 'flex', alignItems: 'center', 
                                         justifyContent: 'center', color: isUnread ? '#000' : '#C5FF41', 
                                         fontWeight: 'bold',
-                                        backgroundColor: isUnread ? '#C5FF41' : '#333', // Flip colors if unread
+                                        backgroundColor: isUnread ? '#C5FF41' : '#333', 
                                     }}>
-                                        {chats.length - index}
+                                        {clientDisplayNum}
                                     </div>
                                     
                                     <div style={{ flex: 1, overflow: 'hidden' }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                             <div style={{ fontSize: '14px', fontWeight: 600, color: isUnread ? '#C5FF41' : '#fff' }}>
-                                                Client #{chats.length - index}
+                                                Client #{clientDisplayNum}
                                             </div>
-                                            {/* Small Green Indicator Dot */}
                                             {isUnread && (
                                                 <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#C5FF41' }} />
                                             )}
@@ -257,7 +233,8 @@ const Chats = ({ brandId, userBrand }: any) => {
                                 </button>
                             </div>
 
-                            <div style={{ flex: 1, padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            {/* FIXED: ID match for auto-scroll tracking */}
+                            <div id="message-feed" style={{ flex: 1, padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                                 {activeMessages.map((msg) => (
                                     <div key={msg.id} style={{ 
                                         alignSelf: msg.sender === 'manager' ? 'flex-end' : 'flex-start', 
