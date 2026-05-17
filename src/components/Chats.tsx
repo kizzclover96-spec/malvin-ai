@@ -59,6 +59,7 @@ const Chats = ({ brandId, userBrand }: any) => {
 
         const conversationsRef = collection(firestore, "conversations");
 
+        console.log("CURRENT BRAND ID:", brandId);
         const q = query(
             conversationsRef,
             where("brandId", "==", brandId),
