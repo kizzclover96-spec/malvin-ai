@@ -13,33 +13,7 @@ const ChatCard = ({ children, style }: any) => (
         ...style
     }}>{children}</div>
 );
-const debugActiveConversations = async (brandId) => {
-    try {
-        console.log("🔍 Testing Firestore query for Brand ID:", String(brandId));
-        
-        const q = query(
-            collection(firestore, "conversations"),
-            where("brandId", "==", String(brandId))
-        );
 
-        const querySnapshot = await getDocs(q);
-        
-        if (querySnapshot.empty) {
-            console.log("❌ No matching conversations found for this Brand ID.");
-            return;
-        }
-
-        console.log(`✅ Success! Found ${querySnapshot.size} conversations.`);
-        
-        querySnapshot.forEach((doc) => {
-            console.log(`📄 Document ID: ${doc.id}`);
-            console.log("Data structure:", doc.data());
-        });
-
-    } catch (error) {
-        console.error("🚨 Firestore debug error:", error);
-    }
-};
 const Chats = ({ brandId, userBrand }: any) => {
     const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
     const [isAutopilot, setIsAutopilot] = useState(true);
@@ -69,6 +43,7 @@ const Chats = ({ brandId, userBrand }: any) => {
         return () => {};
     }, [isAutopilot, selectedChatId]); 
 
+    
     // Debug Logger
     useEffect(() => {
         const logAll = async () => {
@@ -80,31 +55,35 @@ const Chats = ({ brandId, userBrand }: any) => {
     
     // 3. Real-time Listener for the Manager Chat List
     useEffect(() => {
-        const managerUid = auth.currentUser?.uid;
-        if (!managerUid) return;
+        if (!brandId) return;
 
         const conversationsRef = collection(firestore, "conversations");
 
         const q = query(
             conversationsRef,
-            where("brandId", "==", managerUid),
-            orderBy("updatedAt", "desc") 
+            where("brandId", "==", brandId),
+            orderBy("updatedAt", "desc")
         );
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const activeChats = snapshot.docs.map(doc => ({
-                id: doc.id, 
-                ...doc.data()
-            }));
-            
-            // FIXED: Changed from setConversations to setChats to match your useState
-            setChats(activeChats); 
-        }, (error) => {
-            console.error("Dashboard listener failed:", error);
-        });
+        const unsubscribe = onSnapshot(
+            q,
+            (snapshot) => {
+                const activeChats = snapshot.docs.map((doc) => ({
+                    id: doc.id,
+                    ...(doc.data() as any),
+                }));
+
+                console.log("LIVE CHATS:", activeChats);
+
+                setChats(activeChats);
+            },
+            (error) => {
+                console.error("Dashboard listener failed:", error);
+            }
+        );
 
         return () => unsubscribe();
-    }, []);
+    }, [brandId]);
 
     // 4. Listener for Messages in Selected Chat
     useEffect(() => {
@@ -112,11 +91,18 @@ const Chats = ({ brandId, userBrand }: any) => {
 
         const q = query(
             collection(firestore, "conversations", selectedChatId, "messages"),
-            orderBy("timestamp", "asc")
+            orderBy("timestamp")
         );
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
-            setActiveMessages(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+            const msgs = snapshot.docs.map((doc) => ({
+                id: doc.id,
+                ...(doc.data() as any),
+            }));
+
+            console.log("MESSAGES:", msgs);
+
+            setActiveMessages(msgs);
         });
 
         return () => unsubscribe();
