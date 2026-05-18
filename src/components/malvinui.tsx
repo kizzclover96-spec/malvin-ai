@@ -115,8 +115,6 @@ const MalvinHybridCycler = React.memo(({ content }: { content: any[] }) => {
             setIndex((prev) => (prev + 1) % content.length);
         }, 10000); // 10 Seconds
         console.log("🎞️ Cycler content:", content);
-        return () => clearInterval(timer);
-        console.log("🎞️ Cycler content:", content);
     }, [content.length]); // Only restarts if the list size changes
 
     const current = content[index];
@@ -186,11 +184,17 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
         tier: "Basic Free Tier",
         status: "CEO / Founder"
     });
-    window.onerror = function(message, source, lineno, colno, error) {
-        console.error("🌍 GLOBAL ERROR CAUGHT:");
-        console.error(message);
-        console.error(error);
-    };
+    useEffect(() => {
+        window.onerror = function(message, source, lineno, colno, error) {
+            console.error("🌍 GLOBAL ERROR CAUGHT:");
+            console.error(message);
+            console.error(error);
+        };
+
+        return () => {
+            window.onerror = null;
+        };
+    }, []);
     const [history, setHistory] = useState<any[]>([]);
     
     console.log("🏷️ userBrand:", userBrand);
@@ -369,30 +373,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
         color: 'white',
         textAlign: 'center'
     }; 
-    const ActionPill = ({ icon, label, onClick, color = 'white' }: any) => (
-        <button 
-            onClick={onClick}
-            style={{
-                ...btnReset,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '8px 16px',
-                backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                borderRadius: '20px',
-                color: color,
-                fontSize: '13px',
-                whiteSpace: 'nowrap',
-                transition: 'all 0.2s ease'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)'}
-        >
-            <span>{icon}</span>
-            {label}
-        </button>
-    );
+    
 
     // Add this inside Malvinui to auto-persist the memories
     useEffect(() => {
@@ -480,8 +461,6 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
             </div>
         );
     }
-    
-    const currentUserId = auth.currentUser?.uid;
     if (loadingPremium) {
         return (
             <div style={{ color: "white", padding: 20 }}>
@@ -932,7 +911,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     );
 };
 
-export default Malvinui
+export default Malvinui;
 
 
                             
