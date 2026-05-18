@@ -114,8 +114,9 @@ const MalvinHybridCycler = React.memo(({ content }: { content: any[] }) => {
         const timer = setInterval(() => {
             setIndex((prev) => (prev + 1) % content.length);
         }, 10000); // 10 Seconds
-
+        console.log("🎞️ Cycler content:", content);
         return () => clearInterval(timer);
+        console.log("🎞️ Cycler content:", content);
     }, [content.length]); // Only restarts if the list size changes
 
     const current = content[index];
@@ -151,6 +152,9 @@ const MalvinHybridCycler = React.memo(({ content }: { content: any[] }) => {
     );
 });
 const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
+    console.log("🔥 MALVINUI RENDER STARTED");
+    console.log("📧 userEmail:", userEmail);
+    console.log("🌐 navigator online:", navigator.onLine);
     // 1. STATE & VARS (Fixed missing references)
     const [showTools, setShowTools] = useState(false);
     const [seconds, setSeconds] = React.useState(0);
@@ -168,6 +172,9 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     const [showUserMenu, setShowUserMenu] = React.useState(false);
     const username = "User";
     const [disabled, setDisabled] = React.useState(false);
+    console.log("🧭 activeTab:", activeTab);
+    console.log("👑 isPremium:", isPremium);
+    console.log("⏳ loadingPremium:", loadingPremium);
     
     const [userBrand, setUserBrand] = useState({
         id: "",
@@ -179,48 +186,95 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
         tier: "Basic Free Tier",
         status: "CEO / Founder"
     });
-    
+    window.onerror = function(message, source, lineno, colno, error) {
+        console.error("🌍 GLOBAL ERROR CAUGHT:");
+        console.error(message);
+        console.error(error);
+    };
     const [history, setHistory] = useState<any[]>([]);
+    
+    console.log("🏷️ userBrand:", userBrand);
+    console.log("📚 history length:", history?.length);
     
     
     const handleSaveSimulation = (data: any) => {
         setHistory(prev => [data, ...prev]);
     };
     useEffect(() => {
+        console.log("🚀 Premium useEffect STARTED");
+
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
 
+            console.log("👤 Auth state changed");
+            console.log("👤 Current user:", currentUser);
+
             if (!currentUser) {
+                console.log("❌ No current user");
+
                 setIsPremium(false);
                 setLoadingPremium(false);
+
                 return;
             }
 
             try {
+
+                console.log("🌐 navigator.onLine:", navigator.onLine);
+
                 if (!navigator.onLine) {
-                    console.warn("Offline");
+                    console.warn("⚠️ User offline");
+
                     setLoadingPremium(false);
                     return;
                 }
 
+                console.log("📡 Fetching firestore document...");
+
                 const userRef = doc(firestore, "users", currentUser.uid);
+
+                console.log("📄 userRef:", userRef);
+
                 const userSnap = await getDoc(userRef);
 
+                console.log("📥 Firestore response received");
+
                 if (userSnap.exists()) {
+
+                    console.log("✅ User document exists");
+
                     const data = userSnap.data();
+
+                    console.log("📦 Firestore data:", data);
+
                     setIsPremium(data?.premium === true);
+
                 } else {
+
+                    console.log("❌ User document does not exist");
+
                     setIsPremium(false);
                 }
 
             } catch (err) {
-                console.error("❌ Premium check failed:", err);
+
+                console.error("💥 PREMIUM CHECK CRASH:");
+                console.error(err);
+
                 setIsPremium(false);
+
             } finally {
+
+                console.log("🏁 Premium loading finished");
+
                 setLoadingPremium(false);
             }
         });
 
-        return () => unsubscribe();
+        return () => {
+            console.log("🧹 Premium useEffect cleanup");
+            unsubscribe();
+        };
+
     }, []);
     const addActivity = (text: string, icon: string = "✨") => {
         const newEntry = {
@@ -254,17 +308,20 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
             
             const unsubscribe = onValue(userDbRef, (snapshot) => {
                 const data = snapshot.val();
-                console.log("📡 Raw Brand Data from DB:", data);
+                console.log("📡 Brand snapshot received");
+                console.log("📦 Raw brand data:", data);
+                console.log("🆔 currentUser.uid:", currentUser.uid);
                 
                 // Fallback: If no brand data exists, use the UID as the ID
                 const brandId = data?.id || data?.brandId || currentUser.uid;
-
+                console.log("🛠️ Updating userBrand...");
                 setUserBrand(prev => ({
                     ...prev,
                     ...data, // This spreads existing data if it exists
                     id: brandId, // Guarantees we have an ID for Chats.tsx
                     name: data?.name || "CEO / Founder"
                 }));
+                console.log("✅ userBrand updated");
             });
 
             return () => unsubscribe();
@@ -359,7 +416,9 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
         const secs = seconds % 60;
         return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     };
-    
+    useEffect(() => {
+        console.log("♻️ Malvinui rerendered");
+    });
     const GlobalStyles = () => (
         <style>{`
             @keyframes goldGlow { 
@@ -430,6 +489,8 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
             </div>
         );
     }
+    console.log("🎨 MAIN RENDER");
+    console.log("🧭 Current activeTab:", activeTab);
     return (
         <>
             {/* CASE A: FULL SCREEN MEMORIES TAKEOVER */}
@@ -849,7 +910,15 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                             {activeTab === 'Notes' ? (
                                 <Notes userEmail={userEmail} addActivity={addActivity}/>
                             ) : (
-                                <Face />
+                                (() => {
+                                    try {
+                                        console.log("🟢 Rendering Face");
+                                        return <Face />;
+                                    } catch (err) {
+                                        console.error("💥 FACE COMPONENT CRASHED", err);
+                                        return <div style={{color:"red"}}>Face crashed</div>;
+                                    }
+                                })()
                             )}
                         </div>
                     </div>
