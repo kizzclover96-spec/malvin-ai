@@ -416,7 +416,7 @@ const MalvinHybridCycler = React.memo(({ content }: { content: any[] }) => {
     );
 });
 
-const : React.FC<{ userEmail?: string }> = ({ userEmail }) => {
+const mom: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     // 1. STATE & VARS (Fixed missing references)
     const [marketTrend] = useState([10, 22, 18, 35, 30, 45, 50]);
     const [savedSimulations, setSavedSimulations] = useState<any[]>([]);
@@ -1888,7 +1888,7 @@ export default function Session({ token, serverUrl, userEmail, onDisconnect }: S
     <LiveKitRoom token={token} serverUrl={serverUrl} connect={true} audio={true} video={false} onDisconnected={onDisconnect}>
       <LayoutContextProvider>
         <RoomAudioRenderer />
-        <Malvinui userEmail={userEmail} onDisconnect={onDisconnect} />
+        <mom userEmail={userEmail} onDisconnect={onDisconnect} />
       </LayoutContextProvider>
     </LiveKitRoom>
   );
