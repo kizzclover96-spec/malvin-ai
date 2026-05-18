@@ -35,6 +35,10 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
     // Dynamic Profile States (Bio & Meta Verification)
     const [bio, setBio] = useState('');
     const [isVerified, setIsVerified] = useState(false);
+    useEffect(() => {
+        const link = document.querySelector("link[rel='manifest']");
+        if (link) link.setAttribute("href", "/market-manifest.json");
+    }, []);
 
     // Sync Panic Button/System Settings
     useEffect(() => {

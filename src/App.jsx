@@ -3,7 +3,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "./firebase"; 
 import Login from "./pages/loginscreen"; 
 import Welcomeview from "./pages/welcomeview"; 
-import Malvinui from "./components/malvinui"; 
+import Malvinui from "./components/mala"; 
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import CustomerChat from './components/CustomerChat';
 import AdsManager from "./components/AdsManagment";

@@ -10,6 +10,7 @@ import Payments from './Payments';
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { ref as dbRef, onValue, update } from "firebase/database"; 
 import { db } from '../firebase'; 
+import { push, ref, serverTimestamp } from "firebase/database";
 
 // Exporting this so you can import it and use it anywhere else (Chats, MarketFront, etc.)
 export const VerifiedBadge = () => (
@@ -26,6 +27,7 @@ export const VerifiedBadge = () => (
 
 const DashboardCard = ({ children, style }: any) => (
   <div style={{
+    position: "relative",
     background: '#111111',
     borderRadius: '32px',
     padding: '24px',
@@ -62,6 +64,7 @@ const Dashboard = (props: any) => {
     const [orderCount, setOrderCount] = useState(0);
     const [bookedDates, setBookedDates] = useState<string[]>([]); 
     const [showCalendar, setShowCalendar] = useState(false);
+    const isPremium = userBrand?.isPremium || false; // adjust based on your DB
 
     // Profile States
     const [bio, setBio] = useState('');
@@ -223,8 +226,85 @@ const Dashboard = (props: any) => {
         }
     };
 
+
     const shareUrl = `${window.location.origin}/chat/${auth.currentUser?.uid}`;
     const marketFrontUrl = `${window.location.origin}/chat/${auth.currentUser?.uid}`;
+    const getVerificationState = () => {
+        if (isVerified) return "verified";
+        if (isPremium) return "premium";
+        return "locked";
+    };
+    const VerificationButton = ({ state, onClick }: { state: "premium" | "locked" | "verified", onClick?: () => void }) => {
+        const config = {
+            premium: {
+                text: "Verification Mark",
+                bg: "rgba(255, 215, 0, 0.08)",
+                color: "#FFD700",
+                border: "1px solid rgba(255, 215, 0, 0.4)",
+                glow: "0 0 15px rgba(255, 215, 0, 0.35)",
+                cursor: "pointer",
+                clickable: true
+            },
+            locked: {
+                text: "Verification Mark",
+                bg: "rgba(255,255,255,0.02)",
+                color: "#444",
+                border: "1px solid #222",
+                glow: "none",
+                cursor: "not-allowed",
+                clickable: false
+            },
+            verified: {
+                text: "Verified",
+                bg: "rgba(0, 140, 255, 0.08)",
+                color: "#8ccfff",
+                border: "1px solid rgba(0, 140, 255, 0.35)",
+                glow: "0 0 12px rgba(0, 140, 255, 0.25)",
+                cursor: "default",
+                clickable: false
+            }
+        };
+
+        const c = config[state];
+
+        return (
+            <div
+                style={{
+                    position: "absolute",
+                    top: "12px",
+                    right: "12px",
+                    padding: "6px 10px",
+                    fontSize: "10px",
+                    fontWeight: 700,
+                    letterSpacing: "1px",
+                    borderRadius: "12px",
+                    background: c.bg,
+                    color: c.color,
+                    border: c.border,
+                    cursor: c.cursor,
+                    boxShadow: c.glow,
+                    backdropFilter: "blur(10px)",
+                    transition: "0.3s ease",
+                    userSelect: "none"
+                }}
+            >
+                {c.text}
+            </div>
+        );
+    };
+
+    const requestVerification = async () => {
+        if (!userBrand?.id) return;
+
+        await push(ref(db, "admin/verification_requests"), {
+            uid: userBrand.id,
+            brandName: userBrand?.brandData?.name || "UNKNOWN",
+            email: auth.currentUser?.email,
+            status: "pending",
+            createdAt: serverTimestamp(),
+            isPremium: userBrand?.isPremium || false
+        });
+    };
 
     if (activeTab === 'Preview') {
         return (
@@ -377,6 +457,7 @@ const Dashboard = (props: any) => {
                             </DashboardCard>
 
                             <DashboardCard style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <VerificationButton state={getVerificationState()} onClick={() => { if (getVerificationState() === "premium") { requestVerification(); }}} />
                                 <div>
                                     <div style={{ fontSize: '12px', color: '#666' }}>
                                         ACTIVE CUSTOMERS {isVerified && <VerifiedBadge />}

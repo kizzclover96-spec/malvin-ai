@@ -197,11 +197,33 @@ const neuralVisions = [
         tag: 'SYSTEM_EXIT'
     }
 ];
+interface MarketTrendsProps {
+    onBack: () => void;
+    brandName: string;
+    userBrand: any;
+}
 
-const MarketTrends = ({ onBack, userBrand }) => {
-  const [projections, setProjections] = useState([]);
-  const [livePosts, setLivePosts] = useState([]);
-  const [opportunities, setOpportunities] = useState([]);
+interface Projection {
+  title: string;
+  img: string;
+  tag: string;
+}
+
+interface LivePost {
+  user: string;
+  text: string;
+  type: string;
+}
+
+interface Opportunity {
+  title: string;
+  action: string;
+  impact: string;
+}
+const MarketTrends: React.FC<MarketTrendsProps> = ({ onBack, brandName, userBrand }) => {
+  const [projections, setProjections] = useState<Projection[]>([]);
+  const [livePosts, setLivePosts] = useState<LivePost[]>([]);
+  const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const brand = userBrand?.name || 'Enterprise';
   const sector = userBrand?.category || 'Industry';
 
@@ -211,7 +233,7 @@ const MarketTrends = ({ onBack, userBrand }) => {
 
     const dynamicVisions = neuralVisions.map(v => ({
       ...v,
-      title: v.title.replaceAll('${sector}', sector)
+      title: v.title.split('${sector}').join(sector)
     }));
     const selected = [...dynamicVisions]
       .sort(() => 0.5 - Math.random())
@@ -226,7 +248,7 @@ const MarketTrends = ({ onBack, userBrand }) => {
        const template = updatesText[Math.floor(Math.random() * updatesText.length)];
        
        // Inject sector into the live text
-       const cleanText = template.text.replaceAll('${sector}', sector);
+       const cleanText = template.text.split('${sector}').join(sector);
 
        setLivePosts(prev => [
          { user: randomUser, text: cleanText, type: template.type },

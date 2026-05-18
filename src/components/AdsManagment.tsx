@@ -11,7 +11,30 @@ const AdsManager = () => {
     const [editIsVerified, setEditIsVerified] = useState(false); // Dynamic Verification State
     const [adRequests, setAdRequests] = useState<any[]>([]);
     const [auditLogs, setAuditLogs] = useState<any[]>([]);
+    const [verificationRequests, setVerificationRequests] = useState<any[]>([]);
+    const [processingId, setProcessingId] = useState<string | null>(null);
+    
 
+    useEffect(() => {
+        const verificationRef = ref(db, 'admin/verification_requests');
+
+        const unsubVerification = onValue(verificationRef, (snapshot) => {
+            const data = snapshot.val();
+
+            if (data) {
+                const list = Object.keys(data).map(k => ({
+                    id: k,
+                    ...data[k]
+                }));
+
+                setVerificationRequests(list.reverse());
+            } else {
+                setVerificationRequests([]);
+            }
+        });
+
+        return () => unsubVerification();
+    }, []);
     useEffect(() => {
         const usersRef = ref(db, 'users');
         const unsubUsers = onValue(usersRef, (snapshot: DataSnapshot) => {
@@ -30,7 +53,7 @@ const AdsManager = () => {
                 }
             }
         });
-
+        
         const logsRef = ref(db, 'admin/audit_log');
         const unsubLogs = onValue(logsRef, (snapshot) => {
             const data = snapshot.val();
@@ -51,6 +74,7 @@ const AdsManager = () => {
             unsubLogs();
             unsubAdQueue();
         };
+        
     }, [selectedUser?.uid]);
 
     // --- HANDLERS ---
@@ -268,6 +292,109 @@ const AdsManager = () => {
                 </section>
 
                 {/* --- RIGHT: AUDIT LOGS --- */}
+                <section style={panelStyle}>
+                    <h3 style={sectionTitle}>VERIFICATION_REQUESTS</h3>
+
+                    <div style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+                        {verificationRequests.length === 0 ? (
+                            <div style={{ opacity: 0.3, fontSize: '12px' }}>
+                                NO_PENDING_REQUESTS
+                            </div>
+                        ) : (
+                            verificationRequests.map(req => (
+                                <div key={req.id} style={{
+                                    padding: '12px',
+                                    borderBottom: '1px solid #111',
+                                    fontSize: '12px'
+                                }}>
+                                    <div style={{ color: '#C5FF41', fontWeight: 700 }}>
+                                        {req.brandName}
+                                    </div>
+
+                                    <div style={{ fontSize: '10px', opacity: 0.6 }}>
+                                        UID: {req.uid}
+                                    </div>
+
+                                    <div style={{ fontSize: '10px', opacity: 0.6 }}>
+                                        EMAIL: {req.email}
+                                    </div>
+
+                                    <div style={{ fontSize: '10px', marginTop: '6px' }}>
+                                        STATUS: {req.status}
+                                    </div>
+
+                                    <button
+                                        style={{
+                                            marginTop: '10px',
+                                            padding: '6px 10px',
+                                            fontSize: '10px',
+                                            border: '1px solid #C5FF41',
+                                            background: processingId === req.id ? '#333' : 'transparent',
+                                            color: '#C5FF41',
+                                            cursor: processingId === req.id ? 'not-allowed' : 'pointer',
+                                            opacity: processingId === req.id ? 0.5 : 1
+                                        }}
+                                        disabled={processingId === req.id}
+                                        onClick={async () => {
+                                            try {
+                                                setProcessingId(req.id);
+
+                                                await update(ref(db), {
+                                                    [`users/${req.uid}/profile/isVerified`]: true,
+                                                    [`users/${req.uid}/profile/verifiedAt`]: serverTimestamp(),
+                                                    [`admin/verification_requests/${req.id}/status`]: "approved"
+                                                });
+
+                                                await push(ref(db, 'admin/audit_log'), {
+                                                    adminEmail: auth.currentUser?.email,
+                                                    action: 'VERIFY_USER',
+                                                    targetUid: req.uid,
+                                                    details: `Approved verification for ${req.brandName}`,
+                                                    timestamp: serverTimestamp(),
+                                                });
+
+                                            } finally {
+                                                setProcessingId(null);
+                                            }
+                                        }}
+                                    >
+                                        {processingId === req.id ? "PROCESSING..." : "APPROVE"}
+                                    </button>
+                                    <button
+                                        style={{
+                                            ...statusBtn,
+                                            opacity: processingId === req.id ? 0.5 : 1,
+                                            cursor: processingId === req.id ? 'not-allowed' : 'pointer'
+                                        }}
+                                        disabled={processingId === req.id}
+                                        onClick={async () => {
+                                            try {
+                                                setProcessingId(req.id);
+
+                                                await update(ref(db), {
+                                                    [`admin/verification_requests/${req.id}/status`]: "rejected"
+                                                });
+
+                                                await push(ref(db, 'admin/audit_log'), {
+                                                    adminEmail: auth.currentUser?.email,
+                                                    action: 'REJECT_VERIFY',
+                                                    targetUid: req.uid,
+                                                    details: `Rejected verification for ${req.brandName}`,
+                                                    timestamp: serverTimestamp(),
+                                                });
+
+                                            } finally {
+                                                setProcessingId(null);
+                                            }
+                                        }}
+                                    >
+                                        {processingId === req.id ? "PROCESSING..." : "REJECT"}
+                                    </button>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </section>
                 <section style={panelStyle}>
                     <h3 style={sectionTitle}>SYSTEM_AUDIT_LOG</h3>
                     <div style={{ height: '70vh', overflowY: 'auto' }}>
