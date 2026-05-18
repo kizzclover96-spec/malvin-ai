@@ -694,7 +694,10 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                                 borderRadius: '16px', // Smooth corners
                                 border: '1px solid rgba(255, 255, 255, 0.1)'
                             }}>
-                            <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} setShowTools={setShowTools} addActivity={addActivity} userBrand={userBrand} isPremium={isPremium} />
+                            {/*<Sidebar activeTab={activeTab} setActiveTab={setActiveTab} setShowTools={setShowTools} addActivity={addActivity} userBrand={userBrand} isPremium={isPremium} />*/}
+                            <div style={{ color: "white" }}>
+                              Sidebar disabled for testing
+                            </div>
                         </div>
                             {/* button left section */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }} >
