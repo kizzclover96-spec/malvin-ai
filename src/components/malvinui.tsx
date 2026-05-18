@@ -188,6 +188,7 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
     };
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+
             if (!currentUser) {
                 setIsPremium(false);
                 setLoadingPremium(false);
@@ -195,6 +196,12 @@ const Malvinui: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
             }
 
             try {
+                if (!navigator.onLine) {
+                    console.warn("Offline");
+                    setLoadingPremium(false);
+                    return;
+                }
+
                 const userRef = doc(firestore, "users", currentUser.uid);
                 const userSnap = await getDoc(userRef);
 
