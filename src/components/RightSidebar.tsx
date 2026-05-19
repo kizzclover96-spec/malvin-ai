@@ -58,8 +58,8 @@ const ActivityPanel: React.FC<Props> = ({ activities }) => {
           className="activities-panel"
           style={{
             padding: "20px",
-            minHeight: "120px",
-            maxHeight: "400px",
+            width: "200px",
+            height: "150px",
             overflowY: "auto",
             display: "flex",
             flexDirection: "column",
@@ -141,8 +141,8 @@ const ActivityPanel: React.FC<Props> = ({ activities }) => {
         style={{
           flex: 2,
           padding: "15px",
-          height: "100px",
-          minHeight: "300px",
+          width: "200px",
+          height: "250px",
           flexDirection: "column",
           display: "flex",
           backgroundColor: "rgba(255, 255, 255, 0.03)",
