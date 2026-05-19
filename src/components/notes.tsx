@@ -66,24 +66,12 @@ const Notes = ({ userEmail, addActivity }: NotesProps) => {
     const handleSaveNote = async () => {
         if (!currentNote.trim()) return;
 
-        // 1. Generate Title from the first line or first 30 chars
         const firstLine = currentNote.split('\n')[0];
-        const generatedTitle = firstLine.length > 25 ? firstLine.substring(0, 25) + "..." : firstLine;
+        const title =
+            firstLine.length > 25
+                ? firstLine.substring(0, 25) + "..."
+                : firstLine || "Untitled Strategic Note";
 
-        const newNote = {
-            id: Date.now(),
-            title: generatedTitle || "Untitled Strategic Note",
-            content: currentNote,
-            date: new Date().toLocaleDateString(),
-            createdAt: new Date()
-        };
-        const noteData = {
-            userId: auth.currentUser?.uid,
-            title: generatedTitle || "Untitled Strategic Note",
-            content: currentNote,
-            date: new Date().toLocaleDateString(),
-            createdAt: new Date() // Firestore timestamp
-        };
         const uid = auth.currentUser?.uid;
 
         if (!uid) {
@@ -91,39 +79,40 @@ const Notes = ({ userEmail, addActivity }: NotesProps) => {
             return;
         }
 
+        const noteData = {
+            userId: uid,
+            title,
+            content: currentNote,
+            date: new Date().toLocaleDateString(),
+            createdAt: new Date(),
+        };
+
         try {
-            // --- THIS IS NUMBER 3 ---
-            // Save to permanent Firestore "Memories" collection
-            await addDoc(collection(firestore, "users", uid, "memories"), noteData);
-            
-            // Also update local state so the UI reacts immediately
-            setSavedNotes([noteData, ...savedNotes]);
-            setCurrentNote(""); 
+            const docRef = await addDoc(
+                collection(firestore, "users", uid, "memories"),
+                noteData
+            );
+
+            const savedNote = {
+                ...noteData,
+                id: docRef.id, // ✅ important fix
+            };
+
+            setSavedNotes((prev) => [savedNote, ...prev]);
+            setCurrentNote("");
             setShowHistory(true);
-            addActivity(`Archived to Vault: ${noteData.title}`, "💎");
-            
+
+            addActivity(`Archived to Vault: ${title}`, "💎");
+
             alert("Strategy permanently archived in the Intel Vault.");
         } catch (err) {
             console.error("Firestore Save Error:", err);
             alert("Failed to archive. Check console.");
-        }  
-
-        setSavedNotes([newNote, ...savedNotes]);
-        setCurrentNote(""); // Clear editor after saving
-        setShowHistory(true); // Show them their success
-        if (typeof addActivity === 'function') {
-            addActivity(`Saved Note: ${newNote.title}`, "💾");
         }
-        alert("Strategy Saved to Intel Vault.");
     };
-    const handleDeleteNote = (id?: number) => {
-        const updatedNotes = savedNotes.filter(note => note.id !== id);
-        setSavedNotes(updatedNotes);
-        
-        // Optional: Add activity log for the delete
-        if (typeof addActivity === 'function') {
-            addActivity("Deleted a note from Vault", "🗑️");
-        }
+    const handleDeleteNote = (id?: string) => {
+        setSavedNotes((prev) => prev.filter((note) => note.id !== id));
+        addActivity("Deleted a note from Vault", "🗑️");
     };
         
     
@@ -188,7 +177,7 @@ const Notes = ({ userEmail, addActivity }: NotesProps) => {
 
                                 <button 
                                     onClick={(e) => {
-                                        e.stopPropagation(); // Prevents the note from opening when you click delete
+                                        e.stopPropagation();
                                         handleDeleteNote(note.id);
                                     }}
                                     style={{
