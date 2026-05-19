@@ -36,7 +36,24 @@ const btnReset: React.CSSProperties = {
   cursor: "pointer",
   outline: "none",
 };
-
+const cyberButton: React.CSSProperties = {
+  width: "100%",
+  padding: "12px 16px",
+  borderRadius: "14px",
+  border: "1px solid rgba(180, 120, 255, 0.15)",
+  background: "rgba(255,255,255,0.03)",
+  color: "white",
+  fontSize: "12px",
+  fontWeight: 700,
+  letterSpacing: "1px",
+  cursor: "pointer",
+  textAlign: "left",
+  transition: "all 0.25s ease",
+  backdropFilter: "blur(12px)",
+  WebkitBackdropFilter: "blur(12px)",
+  position: "relative",
+  overflow: "hidden",
+};
 const GlobalStyles = () => (
   <style>{`
     @keyframes goldGlow { 
@@ -138,18 +155,100 @@ const LeftPanel: React.FC<Props> = ({
 
       
       {/* SIDEBAR BUTTONS */}
-      <button onClick={() => setActiveTab("Session")}>
-        ⚡ Session
-      </button>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: "12px",
+          marginTop: "10px",
+          width: "92%",
+          minHeight: "420px",
+        }}
+      >
+        {[
+          { label: "⚡ Session", tab: "Session" },
+          { label: "🧠 Memories", tab: "Memories" },
+          { label: "📊 Dashboard", tab: "MainDashboard" },
+          { label: "🛠 Tools", tab: "ToolModal" },
+          { label: "⚙️ Settings", tab: "Settings" },
+          { label: "📝 Notes", tab: "Notes" },
+          { label: "📈 Trends", tab: "Trends" },
+          { label: "🧪 Simulator", tab: "Simulator" },
+          { label: "✈️ Runway", tab: "Runway" },
+        ].map((item) => (
+          <button
+            key={item.tab}
+            onClick={() => {
+              setActiveTab(item.tab);
 
-      <button onClick={() => setActiveTab("Memories")}>
-        🧠 Memories
-      </button>
+              if (item.tab === "ToolModal") {
+                setShowTools((p) => !p);
+                addActivity("Opened Tools", "🛠️");
+              }
+            }}
+            style={{
+              ...cyberButton,
 
-      <button onClick={() => setActiveTab("MainDashboard")}>
-        📊 Dashboard
-      </button>
+              border:
+                activeTab === item.tab
+                  ? "1px solid rgba(180,120,255,0.7)"
+                  : "1px solid rgba(255,255,255,0.08)",
 
+              boxShadow:
+                activeTab === item.tab
+                  ? `
+                    0 0 10px rgba(191,0,255,0.45),
+                    0 0 20px rgba(0,140,255,0.18),
+                    inset 0 0 20px rgba(255,0,180,0.08)
+                  `
+                  : "none",
+
+              background:
+                activeTab === item.tab
+                  ? "linear-gradient(135deg, rgba(80,0,120,0.25), rgba(0,80,255,0.12))"
+                  : "rgba(255,255,255,0.03)",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = "translateX(4px)";
+              e.currentTarget.style.border =
+                "1px solid rgba(180,120,255,0.9)";
+
+              e.currentTarget.style.boxShadow = `
+                0 0 12px rgba(191,0,255,0.55),
+                0 0 22px rgba(0,140,255,0.22),
+                inset 0 0 25px rgba(255,0,180,0.08)
+              `;
+
+              e.currentTarget.style.background =
+                "linear-gradient(135deg, rgba(90,0,120,0.22), rgba(0,90,255,0.12))";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = "translateX(0px)";
+
+              e.currentTarget.style.boxShadow =
+                activeTab === item.tab
+                  ? `
+                    0 0 10px rgba(191,0,255,0.45),
+                    0 0 20px rgba(0,140,255,0.18),
+                    inset 0 0 20px rgba(255,0,180,0.08)
+                  `
+                  : "none";
+
+              e.currentTarget.style.background =
+                activeTab === item.tab
+                  ? "linear-gradient(135deg, rgba(80,0,120,0.25), rgba(0,80,255,0.12))"
+                  : "rgba(255,255,255,0.03)";
+
+              e.currentTarget.style.border =
+                activeTab === item.tab
+                  ? "1px solid rgba(180,120,255,0.7)"
+                  : "1px solid rgba(255,255,255,0.08)";
+            }}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
       {/* PREMIUM BUTTON */}
       <div
         style={{
@@ -195,234 +294,162 @@ const LeftPanel: React.FC<Props> = ({
           <span>Go Premium</span>
         </button>
       </div>
-
-      <button
-        onClick={() => {
-          setShowTools((p) => !p);
-          addActivity("Opened Tools", "🛠️");
-          setActiveTab("ToolModal");
+      
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: "20px",
+          height: "100%",
         }}
       >
-        🛠 Tools
-      </button>
-
-      <button onClick={() => setActiveTab("Settings")}>
-        ⚙️ Settings
-      </button>
-
-      <button onClick={() => setActiveTab("Notes")}>
-        📝 Notes
-      </button>
-
-      {/* MAIN ROUTER AREA */}
-      <div style={{ marginTop: "20px", flex: 1 }}>
-        {activeTab === "Settings" ? (
-          <Settings
-            auth={auth}
-            userBrand={userBrand}
-            setUserBrand={setUserBrand}
-            onBack={() => setActiveTab("Session")}
-            onUpdate={handleUpdateBrand}
-            onSave={(updated: any) => {
-              setUserBrand(updated);
-              setBrandData(updated);
-              setActiveTab("Session");
-            }}
-          />
-        ) : activeTab === "Memories" ? (
-          <Memories
-            onBack={() => setActiveTab("Session")}
-            data={history}
-          />
-        ) : activeTab === "Calculator" ? (
-          <MarginCalculator
-            onBack={() => setActiveTab("Session")}
-          />
-        ) : activeTab === "Premium" ? (
-          <Premium onBack={() => setActiveTab("Session")} />
-        ) : activeTab === "MainDashboard" ? (
-          <MainDashboard
-            onBack={() => setActiveTab("Session")}
-            userBrand={userBrand}
-            brandName={userBrand.name}
-          />
-        ) : activeTab === "Trends" ? (
-          <MarketTrends
-            userBrand={userBrand}
-            brandName={userBrand.name}
-            onBack={() => setActiveTab("Session")}
-          />
-        ) : activeTab === "Runway" ? (
-          <Runway
-            userBrand={userBrand}
-            onBack={() => setActiveTab("Session")}
-          />
-        ) : activeTab === "Simulator" ? (
-          <Simulator
-            onBack={() => setActiveTab("Session")}
-            onSave={handleSaveSimulation}
-            brandName={userBrand.name}
-          />
-        ) : activeTab === "ToolModal" ? (
-          <ToolModal />
-        ) : (
+        <div
+          className="left buttom-panel"
+          style={{
+            borderRight: "1px solid rgba(255, 255, 255, 0.1)",
+            padding: "20px",
+            flexDirection: "column",
+            display: "flex",
+            backgroundColor: "rgba(255, 255, 255, 0.03)",
+            backdropFilter: "blur(12px)",
+            WebkitBackdropFilter: "blur(12px)",
+            borderRadius: "16px",
+            border: "1px solid rgba(255, 255, 255, 0.1)",
+          }}
+        >
           <div
             style={{
+              width: "45px",
+              height: "45px",
+              borderRadius: "50%",
+              overflow: "hidden",
+              border: "1.5px solid #bf00ff",
+              flexShrink: 0,
               display: "flex",
-              flexDirection: "column",
-              gap: "20px",
-              height: "100%",
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: "rgba(255, 255, 255, 0.05)",
             }}
           >
-            <div
-              className="left buttom-panel"
+            <img
+              src="/Malvin self.png"
+              alt="Malvin AI"
               style={{
-                borderRight: "1px solid rgba(255, 255, 255, 0.1)",
-                padding: "20px",
-                flexDirection: "column",
-                display: "flex",
-                backgroundColor: "rgba(255, 255, 255, 0.03)",
-                backdropFilter: "blur(12px)",
-                WebkitBackdropFilter: "blur(12px)",
-                borderRadius: "16px",
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+              }}
+            />
+          </div>
+
+          <p
+            style={{
+              color: "white",
+              margin: 0,
+              fontWeight: "600",
+            }}
+          >
+            Malvin AI
+          </p>
+
+          <p
+            style={{
+              color: "rgba(255,255,255,0.5)",
+              fontSize: "12px",
+              margin: "5px 0 0 0",
+            }}
+          >
+            Your intelligent collaborator partner
+          </p>
+        </div>
+
+        {/* USER PANEL */}
+        <div
+          style={{
+            position: "relative",
+            width: "100%",
+            marginTop: "auto",
+          }}
+        >
+          {showUserMenu && (
+            <div
+              style={{
+                position: "absolute",
+                bottom: "100%",
+                left: "0",
+                right: "0",
+                marginBottom: "10px",
+                backgroundColor: "rgba(15, 15, 15, 0.95)",
+                backdropFilter: "blur(20px)",
+                borderRadius: "12px",
+                padding: "8px",
                 border: "1px solid rgba(255, 255, 255, 0.1)",
+                boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
+                zIndex: 100,
               }}
             >
-              <div
+              <button
+                onClick={handleLogout}
                 style={{
-                  width: "45px",
-                  height: "45px",
-                  borderRadius: "50%",
-                  overflow: "hidden",
-                  border: "1.5px solid #bf00ff",
-                  flexShrink: 0,
+                  width: "100%",
+                  padding: "12px",
+                  backgroundColor: "rgba(255, 59, 48, 0.15)",
+                  border: "1px solid rgba(255, 59, 48, 0.3)",
+                  borderRadius: "8px",
+                  color: "#ff3b30",
+                  fontSize: "11px",
+                  fontWeight: "800",
+                  cursor: "pointer",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  backgroundColor: "rgba(255, 255, 255, 0.05)",
+                  gap: "10px",
                 }}
               >
-                <img
-                  src="/Malvin self.png"
-                  alt="Malvin AI"
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "cover",
-                  }}
-                />
-              </div>
-
-              <p
-                style={{
-                  color: "white",
-                  margin: 0,
-                  fontWeight: "600",
-                }}
-              >
-                Malvin AI
-              </p>
-
-              <p
-                style={{
-                  color: "rgba(255,255,255,0.5)",
-                  fontSize: "12px",
-                  margin: "5px 0 0 0",
-                }}
-              >
-                Your intelligent collaborator partner
-              </p>
+                LOG OUT
+              </button>
             </div>
+          )}
 
-            {/* USER PANEL */}
+          <div
+            className="left-user-panel"
+            onClick={() => setShowUserMenu(!showUserMenu)}
+            style={{
+              padding: "15px 20px",
+              flexDirection: "column",
+              display: "flex",
+              backgroundColor: "rgba(255, 255, 255, 0.03)",
+              backdropFilter: "blur(12px)",
+              borderRadius: "16px",
+              border: showUserMenu
+                ? "1px solid #bf00ff"
+                : "1px solid rgba(255, 255, 255, 0.1)",
+              cursor: "pointer",
+              transition: "all 0.3s ease",
+            }}
+          >
             <div
               style={{
-                position: "relative",
-                width: "100%",
-                marginTop: "auto",
+                color: "white",
+                fontSize: "14px",
+                fontWeight: "600",
               }}
             >
-              {showUserMenu && (
-                <div
-                  style={{
-                    position: "absolute",
-                    bottom: "100%",
-                    left: "0",
-                    right: "0",
-                    marginBottom: "10px",
-                    backgroundColor: "rgba(15, 15, 15, 0.95)",
-                    backdropFilter: "blur(20px)",
-                    borderRadius: "12px",
-                    padding: "8px",
-                    border: "1px solid rgba(255, 255, 255, 0.1)",
-                    boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
-                    zIndex: 100,
-                  }}
-                >
-                  <button
-                    onClick={handleLogout}
-                    style={{
-                      width: "100%",
-                      padding: "12px",
-                      backgroundColor: "rgba(255, 59, 48, 0.15)",
-                      border: "1px solid rgba(255, 59, 48, 0.3)",
-                      borderRadius: "8px",
-                      color: "#ff3b30",
-                      fontSize: "11px",
-                      fontWeight: "800",
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: "10px",
-                    }}
-                  >
-                    LOG OUT
-                  </button>
-                </div>
-              )}
+              {userEmail?.split("@")[0] || "Guest User"}
+            </div>
 
-              <div
-                className="left-user-panel"
-                onClick={() => setShowUserMenu(!showUserMenu)}
-                style={{
-                  padding: "15px 20px",
-                  flexDirection: "column",
-                  display: "flex",
-                  backgroundColor: "rgba(255, 255, 255, 0.03)",
-                  backdropFilter: "blur(12px)",
-                  borderRadius: "16px",
-                  border: showUserMenu
-                    ? "1px solid #bf00ff"
-                    : "1px solid rgba(255, 255, 255, 0.1)",
-                  cursor: "pointer",
-                  transition: "all 0.3s ease",
-                }}
-              >
-                <div
-                  style={{
-                    color: "white",
-                    fontSize: "14px",
-                    fontWeight: "600",
-                  }}
-                >
-                  {userEmail?.split("@")[0] || "Guest User"}
-                </div>
-
-                <div
-                  style={{
-                    color: "white",
-                    fontSize: "11px",
-                    opacity: 0.4,
-                    marginTop: "4px",
-                  }}
-                >
-                  {userEmail}
-                </div>
-              </div>
+            <div
+              style={{
+                color: "white",
+                fontSize: "11px",
+                opacity: 0.4,
+                marginTop: "4px",
+              }}
+            >
+              {userEmail}
             </div>
           </div>
-        )}
+        </div>
       </div>
       
     </div>

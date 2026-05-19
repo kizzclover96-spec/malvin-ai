@@ -1,6 +1,5 @@
 import React from "react";
 import ImageCycler from "./ImageCycler";
-import { glassPanel } from "../styles/glass";
 
 interface Activity {
   id: number;
@@ -28,37 +27,30 @@ const ActivityPanel: React.FC<Props> = ({ activities }) => {
     >
       <div style={{ color: "white" }}>Participants</div>
 
+      {/* TOP BOX */}
       <div
         className="Right-top-panel"
         style={{
-          width: "200px",
+          width: "180px", // reduced
           height: "100px",
-          borderRight: "1px solid rgba(255, 255, 255, 0.1)",
           padding: "20px",
           display: "flex",
           flexDirection: "column",
-
-          /* --- THE GLASS LOOK --- */
           backgroundColor: "rgba(255, 255, 255, 0.03)",
           backdropFilter: "blur(12px)",
           WebkitBackdropFilter: "blur(12px)",
           borderRadius: "16px",
           border: "1px solid rgba(255, 255, 255, 0.1)",
         }}
-      ></div>
+      />
 
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: "20px",
-        }}
-      >
+      {/* ACTIVITY */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
         <div
           className="activities-panel"
           style={{
             padding: "20px",
-            width: "200px",
+            width: "180px", // reduced
             height: "150px",
             overflowY: "auto",
             display: "flex",
@@ -85,13 +77,7 @@ const ActivityPanel: React.FC<Props> = ({ activities }) => {
             Activity Log
           </p>
 
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "12px",
-            }}
-          >
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
             {activities.map((item) => (
               <div
                 key={item.id}
@@ -99,35 +85,16 @@ const ActivityPanel: React.FC<Props> = ({ activities }) => {
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
-                  animation: "fadeIn 0.3s ease-out",
                 }}
               >
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "10px",
-                  }}
-                >
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                   <span style={{ fontSize: "16px" }}>{item.icon}</span>
-
-                  <span
-                    style={{
-                      color: "white",
-                      fontSize: "13px",
-                      fontWeight: "500",
-                    }}
-                  >
+                  <span style={{ color: "white", fontSize: "13px" }}>
                     {item.text}
                   </span>
                 </div>
 
-                <span
-                  style={{
-                    color: "rgba(255,255,255,0.3)",
-                    fontSize: "10px",
-                  }}
-                >
+                <span style={{ color: "rgba(255,255,255,0.3)", fontSize: "10px" }}>
                   {item.time}
                 </span>
               </div>
@@ -136,15 +103,16 @@ const ActivityPanel: React.FC<Props> = ({ activities }) => {
         </div>
       </div>
 
+      {/* GALLERIA */}
       <div
         className="Right-panel"
         style={{
           flex: 2,
           padding: "15px",
-          width: "200px",
-          height: "250px",
-          flexDirection: "column",
+          width: "180px", // reduced for balance
+          height: "320px", // 🔥 increased height
           display: "flex",
+          flexDirection: "column",
           backgroundColor: "rgba(255, 255, 255, 0.03)",
           backdropFilter: "blur(12px)",
           WebkitBackdropFilter: "blur(12px)",
@@ -164,11 +132,11 @@ const ActivityPanel: React.FC<Props> = ({ activities }) => {
           GALLERIA
         </p>
 
-        {/* THE CYCLER GOES HERE */}
+        {/* CYCLER CONTAINER */}
         <div
           style={{
             flex: 1,
-            height: "300px",
+            height: "100%", // fixed overflow issue
             width: "100%",
             borderRadius: "14px",
             overflow: "hidden",

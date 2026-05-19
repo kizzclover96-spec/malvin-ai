@@ -20,7 +20,8 @@ const ToolModal = ({
     <div
       onClick={() => setShowTools(false)}
       style={{
-        position: "absolute",
+        position: "fixed",
+        animation: "fadeIn 0.2s ease",
         inset: 0,
         zIndex: 100,
         display: "flex",
@@ -40,6 +41,11 @@ const ToolModal = ({
           display: "grid",
           gridTemplateColumns: "repeat(3,1fr)",
           gap: "20px",
+          border: "1px solid rgba(255,255,255,0.08)",
+          boxShadow: `
+            0 0 20px rgba(191,0,255,0.15),
+            0 0 40px rgba(0,140,255,0.08)
+          `,
         }}
       >
         <button
