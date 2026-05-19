@@ -3,7 +3,7 @@ import { ref as dbRef, onValue } from "firebase/database";
 import { signOut } from "firebase/auth";
 import LeftPanel from "./left";
 import ActivityPanel from "./RightSidebar";
-import Notes from "./Notes";
+import Notes from "./notes";
 import Face from "./Face";
 import { AuraBackground } from "../styles/AuraBackground";
 import React, { useState } from "react";
