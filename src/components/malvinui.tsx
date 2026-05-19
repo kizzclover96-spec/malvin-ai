@@ -109,21 +109,27 @@ const MalvinHybridCycler = React.memo(({ content }: { content: any[] }) => {
     const [index, setIndex] = useState(0);
 
     useEffect(() => {
-        if (!content || content.length === 0) return;
+        setIndex(0);
+    }, [content]);
+
+    useEffect(() => {
+        if (!content?.length) return;
 
         const timer = setInterval(() => {
             setIndex((prev) => (prev + 1) % content.length);
-        }, 10000); // 10 Seconds
-        console.log("🎞️ Cycler content:", content);
-    }, [content.length]); // Only restarts if the list size changes
+        }, 10000);
+
+        return () => clearInterval(timer);
+    }, [content]);
 
     const current = content[index];
+
     if (!current) return null;
 
     return (
         <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
-            <div 
-                key={index} 
+            <div
+                key={index}
                 style={{
                     position: 'absolute',
                     inset: 0,
@@ -135,13 +141,26 @@ const MalvinHybridCycler = React.memo(({ content }: { content: any[] }) => {
                 }}
             >
                 {current.type === 'image' ? (
-                    <img 
-                        src={current.value} 
-                        alt="Insight" 
-                        style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '12px' }} 
+                    <img
+                        src={current.value}
+                        alt="Insight"
+                        style={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover',
+                            borderRadius: '12px'
+                        }}
                     />
                 ) : (
-                    <p style={{ fontSize: '18px', color: 'white', textAlign: 'center', fontStyle: 'italic', lineHeight: '1.6' }}>
+                    <p
+                        style={{
+                            fontSize: '18px',
+                            color: 'white',
+                            textAlign: 'center',
+                            fontStyle: 'italic',
+                            lineHeight: '1.6'
+                        }}
+                    >
                         "{current.value}"
                     </p>
                 )}

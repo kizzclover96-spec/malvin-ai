@@ -42,7 +42,16 @@
   z-index: 1;
 }
 
-
+@keyframes slideLeft {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0%);
+        opacity: 1;
+    }
+}
 .mic-button {
   /* 1. Make it a Square first */
   width: 60px;
