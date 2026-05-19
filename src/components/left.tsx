@@ -172,9 +172,7 @@ const LeftPanel: React.FC<Props> = ({
           { label: "🛠 Tools", tab: "ToolModal" },
           { label: "⚙️ Settings", tab: "Settings" },
           { label: "📝 Notes", tab: "Notes" },
-          { label: "📈 Trends", tab: "Trends" },
-          { label: "🧪 Simulator", tab: "Simulator" },
-          { label: "✈️ Runway", tab: "Runway" },
+          
         ].map((item) => (
           <button
             key={item.tab}
