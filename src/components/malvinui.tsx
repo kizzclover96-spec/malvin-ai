@@ -163,6 +163,7 @@ const Malvinui: React.FC<{ userEmail?: string; isPremium?: boolean }> = ({ userE
     const [showTrustMsg, setShowTrustMsg] = React.useState(false);
     const [brandData, setBrandData] = useState<any>(null);
     const [showUserMenu, setShowUserMenu] = React.useState(false);
+    const [setIsPremium] = useState<boolean>(false);
     const username = "User";
     const [disabled, setDisabled] = React.useState(false);
     const [history, setHistory] = useState<any[]>([]);
@@ -219,6 +220,35 @@ const Malvinui: React.FC<{ userEmail?: string; isPremium?: boolean }> = ({ userE
     useEffect(() => {
         localStorage.setItem('malvin_history', JSON.stringify(history));
     }, [history]);
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+            if (!user) {
+            setIsPremium(false);
+            return;
+            }
+
+            const run = async () => {
+            try {
+                const userRef = doc(firestore, "users", user.uid);
+                const snap = await getDoc(userRef);
+
+                if (snap.exists()) {
+                setIsPremium(snap.data()?.premium === true);
+                } else {
+                setIsPremium(false);
+                }
+
+            } catch (err) {
+                console.error("Premium check failed:", err);
+                setIsPremium(false);
+            }
+            };
+
+            run();
+        });
+
+        return () => unsubscribe();
+    }, []);
 
     // TIMER LOGIC
     React.useEffect(() => {
@@ -246,6 +276,20 @@ const Malvinui: React.FC<{ userEmail?: string; isPremium?: boolean }> = ({ userE
     };
     const handleLogout = async () => {
      await signOut(auth);
+    };
+    const addActivity = (text: string, icon = "✨") => {
+        setActivities(prev => [
+            {
+                id: Date.now(),
+                text,
+                icon,
+                time: new Date().toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit"
+                })
+            },
+            ...prev
+        ]);
     };
     return (
         <div style={{ display: "flex", height: "100vh", background: "black" }}>
