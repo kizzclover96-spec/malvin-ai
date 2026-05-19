@@ -161,8 +161,6 @@ const Malvinui: React.FC<{ userEmail?: string; isPremium?: boolean }> = ({ userE
     const [seconds, setSeconds] = React.useState(0);
     const [activeTab, setActiveTab] = React.useState('Session'); 
     const [showTrustMsg, setShowTrustMsg] = React.useState(false);
-    const [isPremium, setIsPremium] = useState<boolean>(false);
-    const [loadingPremium, setLoadingPremium] = useState<boolean>(true);
     const [brandData, setBrandData] = useState<any>(null);
     const [showUserMenu, setShowUserMenu] = React.useState(false);
     const username = "User";
@@ -184,82 +182,7 @@ const Malvinui: React.FC<{ userEmail?: string; isPremium?: boolean }> = ({ userE
         icon: "✨", 
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
     }]);
-    useEffect(() => {
-        console.log("🚀 Premium useEffect STARTED");
-
-        const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-
-            console.log("👤 Auth state changed");
-            console.log("👤 Current user:", currentUser);
-
-            if (!currentUser) {
-                console.log("❌ No current user");
-
-                setIsPremium(false);
-                setLoadingPremium(false);
-
-                return;
-            }
-
-            try {
-
-                console.log("🌐 navigator.onLine:", navigator.onLine);
-
-                if (!navigator.onLine) {
-                    console.warn("⚠️ User offline");
-
-                    setLoadingPremium(false);
-                    return;
-                }
-
-                console.log("📡 Fetching firestore document...");
-
-                const userRef = doc(firestore, "users", currentUser.uid);
-
-                console.log("📄 userRef:", userRef);
-
-                const userSnap = await getDoc(userRef);
-
-                console.log("📥 Firestore response received");
-
-                if (userSnap.exists()) {
-
-                    console.log("✅ User document exists");
-
-                    const data = userSnap.data();
-
-                    console.log("📦 Firestore data:", data);
-
-                    setIsPremium(data?.premium === true);
-
-                } else {
-
-                    console.log("❌ User document does not exist");
-
-                    setIsPremium(false);
-                }
-
-            } catch (err) {
-
-                console.error("💥 PREMIUM CHECK CRASH:");
-                console.error(err);
-
-                setIsPremium(false);
-
-            } finally {
-
-                console.log("🏁 Premium loading finished");
-
-                setLoadingPremium(false);
-            }
-        });
-
-        return () => {
-            console.log("🧹 Premium useEffect cleanup");
-            unsubscribe();
-        };
-
-    }, []);
+    
     useEffect(() => {
         // 3. Put the user logic INSIDE the useEffect
         const currentUser = auth.currentUser;
