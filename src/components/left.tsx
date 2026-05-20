@@ -99,17 +99,7 @@ const LeftPanel: React.FC<Props> = ({
   const [showUserMenu, setShowUserMenu] = useState(false);
 
   return (
-    <div
-      className="left-section"
-      style={{
-        flex: 1,
-        display: "flex",
-        borderRight: "1px solid #222",
-        padding: "20px",
-        gap: "10px",
-        flexDirection: "column",
-      }}
-    >
+    <div>
       <GlobalStyles />
 
       <div className="background-blobs">

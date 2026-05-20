@@ -15,6 +15,7 @@ import Impressum from "./pages/Impressum";
 import MarketFront from "./components/MarketFront";
 import { doc, getDoc } from "firebase/firestore";
 import { firestore } from "./firebase";
+import Dashboard from "./components/Dashboard";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -86,7 +87,7 @@ function App() {
                   onWakeClick={() => setHasWokenUp(true)} 
                 />
               ) : (
-                <Malvinui 
+                <Dashboard
                   userEmail={user.email}
                   isPremium={isPremium}
                 />
