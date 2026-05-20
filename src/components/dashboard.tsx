@@ -210,7 +210,6 @@ const Dashboard = (props: any) => {
     const [orderCount, setOrderCount] = useState(0);
     const [bookedDates, setBookedDates] = useState<string[]>([]); 
     const [showCalendar, setShowCalendar] = useState(false);
-    const isPremium = userBrand?.isPremium || false; // adjust based on your DB
     const [showTrustMsg, setShowTrustMsg] = useState(false);
     const [seconds, setSeconds] = useState(0);
     const [showTools, setShowTools] = useState(false);
