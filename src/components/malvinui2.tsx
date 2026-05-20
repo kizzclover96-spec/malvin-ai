@@ -921,6 +921,7 @@ const mom: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                     setUserBrand={setUserBrand} 
                     onBack={() => setActiveTab('Session')} // Goes back to main view 
                     onUpdate={handleUpdateBrand}
+                    brandName={userBrand?.name || "Malvin"}
                     onSave={(updatedBrand) => {
                         setUserBrand(updatedBrand);
                         setBrandData(updatedBrand); // If you still use brandData elsewhere
@@ -939,17 +940,17 @@ const mom: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
             ) : activeTab === 'Premium' ? (
                 <Premium onBack={() => setActiveTab('Session')}
                   userBrand={userBrand}
-                  brandName={userBrand.name}
+                  brandName={userBrand?.name || "Malvin"}
                 />
             ) : activeTab === 'MainDashboard' ? (
                 <MainDashboard onBack={() => setActiveTab('Session')} 
                   userBrand={userBrand}
-                  brandName={userBrand.name}
+                  brandName={userBrand?.name || "Malvin"}
                 />
             ) : activeTab === 'Trends' ? (
                 <MarketTrends 
                  onBack={() => setActiveTab('Session')} 
-                 brandName={userBrand.name}
+                 brandName={userBrand?.name || "Malvin"}
                 />
             ) : activeTab === 'Runway' ? (
                 <Runway
@@ -959,7 +960,7 @@ const mom: React.FC<{ userEmail?: string }> = ({ userEmail }) => {
                 <Simulator 
                    onBack={() => setActiveTab('Session')} 
                    onSave={handleSaveSimulation}
-                   brandName={userBrand.name}
+                   brandName={userBrand?.name || "Malvin"}
                 />
             ) : (
                 <div className="main-full-ui" style={{ display: 'flex', height: '100vh', width: '100vw', backgroundColor: "black" }}> 

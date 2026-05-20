@@ -682,12 +682,16 @@ const Malvinui: React.FC<{
                         {activeTab === "Dashboard" && (
                             <Dashboard
                                 onBack={() => setActiveTab("Session")}
+                                userBrand={userBrand}
+                                brandName={userBrand?.name || "Malvin"}
                             />
                         )}
 
                         {activeTab === "Premium" && (
                             <Premium
                                 onBack={() => setActiveTab("Session")}
+                                userBrand={userBrand}
+                                brandName={userBrand?.name || "Malvin"}
                             />
                         )}
 
@@ -699,7 +703,18 @@ const Malvinui: React.FC<{
 
                         {activeTab === "Settings" && (
                             <Settings
-                                onBack={() => setActiveTab("Session")}
+                                auth={auth}
+                                userBrand={userBrand} 
+                                setUserBrand={setUserBrand} 
+                                onBack={() => setActiveTab('Session')} // Goes back to main view 
+                                onUpdate={handleUpdateBrand}
+                                brandName={userBrand?.name || "Malvin"}
+                                onSave={(updatedBrand) => {
+                                    setUserBrand(updatedBrand);
+                                    setBrandData(updatedBrand); // If you still use brandData elsewhere
+                                    setActiveTab('Session');
+                                    id: auth.currentUser?.uid
+                                }}
                             />
                         )}
                     </div>
