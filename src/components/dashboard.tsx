@@ -249,8 +249,25 @@ const Dashboard = (props: any) => {
         const profileRef = dbRef(db, `users/${userBrand.id}/profile`);
         const bookingsRef = dbRef(db, `users/${userBrand.id}/bookings`);
 
-        onValue(profileRef, ...);
-        onValue(bookingsRef, ...);
+        onValue(profileRef, (snapshot) => {
+            const data = snapshot.val();
+
+            if (data) {
+                setBio(data.bio || "");
+                setIsVerified(data.isVerified || false);
+            }
+        });
+
+        onValue(bookingsRef, (snapshot) => {
+            const data = snapshot.val();
+
+            if (data) {
+                const dates = Object.values(data).map((b: any) => b.date);
+                setBookedDates(dates);
+            } else {
+                setBookedDates([]);
+            }
+        });
 
         return () => {
             off(profileRef);
