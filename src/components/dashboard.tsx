@@ -1,8 +1,8 @@
 import { db, auth, firestore } from "../firebase";
 import { ref as dbRef, onValue, update, push, ref, serverTimestamp } from "firebase/database";
-import { collection, query, where, onSnapshot } from "firebase/firestore";
+import { collection, query, where, onSnapshot, doc, getDoc } from "firebase/firestore";
 import { signOut, onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { off } from "firebase/database";
 
 import React, { useState, useRef, useEffect } from 'react';
 import { QRCode } from 'react-qrcode-logo';
@@ -224,6 +224,16 @@ const Dashboard = (props: any) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const visionInterval = useRef<any>(null);
     const chatEndRef = useRef<HTMLDivElement>(null);
+    const [userBrand, setUserBrand] = useState({
+        id: "",
+        name: "Connecting...",
+        context: "",
+        profilePic: null,
+        currency: "Euro (€)",
+        language: "English (US)",
+        tier: "Basic Free Tier",
+        status: "CEO / Founder"
+    });
     useEffect(() => {
         const unsub = onAuthStateChanged(auth, (user) => {
             if (!user) return;
@@ -236,31 +246,15 @@ const Dashboard = (props: any) => {
     useEffect(() => {
         if (!userBrand?.id) return;
 
-        // Sync Bio & Verified status from database path
         const profileRef = dbRef(db, `users/${userBrand.id}/profile`);
-        const unsubscribeProfile = onValue(profileRef, (snapshot) => {
-            const data = snapshot.val();
-            if (data) {
-                setBio(data.bio || '');
-                setIsVerified(data.isVerified || false);
-            }
-        });
+        const bookingsRef = dbRef(db, `users/${userBrand.id}/bookings`);
 
-        // Sync Reservations
-        const bookingsPath = dbRef(db, `users/${userBrand.id}/bookings`);
-        const unsubscribeBookings = onValue(bookingsPath, (snapshot) => {
-            const data = snapshot.val();
-            if (data) {
-                const dates = Object.values(data).map((b: any) => b.date);
-                setBookedDates(dates);
-            } else {
-                setBookedDates([]);
-            }
-        });
+        onValue(profileRef, ...);
+        onValue(bookingsRef, ...);
 
         return () => {
-            unsubscribeProfile();
-            unsubscribeBookings();
+            off(profileRef);
+            off(bookingsRef);
         };
     }, [userBrand?.id]);
 
@@ -276,16 +270,7 @@ const Dashboard = (props: any) => {
             setIsSavingBio(false);
         }
     };
-    const [userBrand, setUserBrand] = useState({
-        id: "",
-        name: "Connecting...",
-        context: "",
-        profilePic: null,
-        currency: "Euro (€)",
-        language: "English (US)",
-        tier: "Basic Free Tier",
-        status: "CEO / Founder"
-    });
+    
     useEffect(() => {
         const currentUser = auth.currentUser;
 
@@ -424,8 +409,10 @@ const Dashboard = (props: any) => {
 
         try {
             // 🔐 GET FIREBASE TOKEN HERE
-            const token = await auth.currentUser?.getIdToken();
+            const user = auth.currentUser;
+            if (!user) return;
 
+            const token = await user.getIdToken();
             const response = await fetch('https://maivin-backend.vercel.app/api', {
                 method: 'POST',
                 headers: {
@@ -538,6 +525,13 @@ const Dashboard = (props: any) => {
     const handleLogout = async () => {
         await signOut(auth);
     };
+    useEffect(() => {
+        return () => {
+            if (visionInterval.current) {
+            clearInterval(visionInterval.current);
+            }
+        };
+    }, []);
 
     if (activeTab === 'Preview') {
         return (
