@@ -659,50 +659,10 @@ const Malvinui: React.FC<{
                         position: "fixed",
                         inset: 0,
                         zIndex: 9999,
-                        background: "rgba(0,0,0,0.92)",
-                        backdropFilter: "blur(20px)",
-                        WebkitBackdropFilter: "blur(20px)",
-                        display: "flex",
-                        flexDirection: "column",
                         overflow: "hidden"
                     }}
                 >
-                    {/* TOP BAR */}
-                    <div
-                        style={{
-                            height: "70px",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            padding: "0 30px",
-                            borderBottom: "1px solid rgba(255,255,255,0.08)"
-                        }}
-                    >
-                        <h2
-                            style={{
-                                color: "white",
-                                fontSize: "18px",
-                                fontWeight: 700,
-                                letterSpacing: "1px"
-                            }}
-                        >
-                            {activeTab}
-                        </h2>
-
-                        <button
-                            onClick={() => setActiveTab("Session")}
-                            style={{
-                                background: "rgba(255,255,255,0.05)",
-                                border: "1px solid rgba(255,255,255,0.1)",
-                                color: "white",
-                                padding: "10px 18px",
-                                borderRadius: "12px",
-                                cursor: "pointer"
-                            }}
-                        >
-                            Close
-                        </button>
-                    </div>
+                    
 
                     {/* APP CONTENT */}
                     <div

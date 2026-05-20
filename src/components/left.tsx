@@ -246,8 +246,7 @@ const LeftPanel: React.FC<Props> = ({
             {item.label}
           </button>
         ))}
-      </div>
-      {/* PREMIUM BUTTON */}
+        {/* PREMIUM BUTTON */}
       <div
         style={{
           position: "relative",
@@ -292,6 +291,8 @@ const LeftPanel: React.FC<Props> = ({
           <span>Go Premium</span>
         </button>
       </div>
+      </div>
+      
       
       <div
         style={{
