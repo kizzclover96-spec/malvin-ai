@@ -5,7 +5,6 @@ import { doc, getDoc } from "firebase/firestore";
 
 import React, { useState, useRef, useEffect } from 'react';
 import { QRCode } from 'react-qrcode-logo';
-import { firestore} from "../firebase";
 import Chats from './Chats';
 import Premium from "./Premium";
 import Settings from "./Settings";
@@ -343,9 +342,7 @@ const Dashboard = (props: any) => {
         setHistory((prev) => [data, ...prev]);
     };
 
-    const handleLogout = async () => {
-        await signOut(auth);
-    };
+    
 
     // Sync Notifications
     useEffect(() => {
@@ -531,6 +528,9 @@ const Dashboard = (props: any) => {
             createdAt: serverTimestamp(),
             isPremium: userBrand?.isPremium || false
         });
+    };
+    const handleLogout = async () => {
+        await signOut(auth);
     };
 
     if (activeTab === 'Preview') {
