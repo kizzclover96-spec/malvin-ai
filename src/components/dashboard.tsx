@@ -199,7 +199,7 @@ const BackButton = ({
 };
 
 const Dashboard = (props: any) => {
-    const { onBack, addActivity, setBrandData, userEmail, isPremium } = props;
+    const { onBack, addActivity, userEmail, isPremium } = props;
     const [chatCount, setChatCount] = useState(0);
     const [aiMessage, setAiMessage] = useState('');
     const [aiHistory, setAiHistory] = useState<any[]>([]);
