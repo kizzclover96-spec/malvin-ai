@@ -1,5 +1,6 @@
 import { db, auth, firestore } from "../firebase";
-import { ref as dbRef, onValue } from "firebase/database";
+import { ref as dbRef, onValue, update, push, ref, serverTimestamp } from "firebase/database";
+import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { signOut, onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 
@@ -14,8 +15,6 @@ import Catalog from './Catalog';
 import AdsManager from './AdsManager';
 import Payments from './Payments';
 //import { io } from 'socket.io-client';
-import { collection, query, where, onSnapshot } from "firebase/firestore";
-import { ref as dbRef, onValue, update, push, ref, serverTimestamp } from "firebase/database";
 import LeftPanel from "./left";
 import Notes from "./notes";
 import Simulator from "./Simulator";
@@ -225,6 +224,13 @@ const Dashboard = (props: any) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const visionInterval = useRef<any>(null);
     const chatEndRef = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        const unsub = onAuthStateChanged(auth, (user) => {
+            if (!user) return;
+        });
+
+        return () => unsub();
+    }, []);
 
     // Listen to profile details & reservations
     useEffect(() => {
