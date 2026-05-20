@@ -15,7 +15,7 @@ import Impressum from "./pages/Impressum";
 import MarketFront from "./components/MarketFront";
 import { doc, getDoc } from "firebase/firestore";
 import { firestore } from "./firebase";
-import Dashboard from "./components/Dashboard";
+import Dashboard from "./components/dashboard";
 
 function App() {
   const [user, setUser] = useState(null);
