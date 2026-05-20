@@ -5,7 +5,7 @@ import { doc, getDoc } from "firebase/firestore";
 
 import React, { useState, useRef, useEffect } from 'react';
 import { QRCode } from 'react-qrcode-logo';
-import { firestore, auth } from "../firebase";
+import { firestore} from "../firebase";
 import Chats from './Chats';
 import Premium from "./Premium";
 import Settings from "./Settings";
@@ -16,10 +16,10 @@ import AdsManager from './AdsManager';
 import Payments from './Payments';
 //import { io } from 'socket.io-client';
 import { collection, query, where, onSnapshot } from "firebase/firestore";
-import { ref as dbRef, onValue, update } from "firebase/database"; 
-import { db } from '../firebase'; 
+import { ref as dbRef, onValue, update, push, ref, serverTimestamp } from "firebase/database";
 import LeftPanel from "./left";
-import { push, ref, serverTimestamp } from "firebase/database";
+import Notes from "./notes";
+import Simulator from "./Simulator";
 
 // Exporting this so you can import it and use it anywhere else (Chats, MarketFront, etc.)
 export const VerifiedBadge = () => (
@@ -201,10 +201,8 @@ const BackButton = ({
 const Dashboard = (props: any) => {
     const {
         userBrand = {}, onBack, setShowTools, showTools, addActivity,  history, setBrandData, handleSaveSimulation, handleUpdateBrand, handleLogout,
-        userEmail,
-        setUserBrand, ispremuim
+        userEmail, isPremium
     } = props;
-    const [activeTab, setActiveTab] = useState("dashboard");
     const [chatCount, setChatCount] = useState(0);
     const [aiMessage, setAiMessage] = useState('');
     const [aiHistory, setAiHistory] = useState<any[]>([]);
@@ -216,12 +214,13 @@ const Dashboard = (props: any) => {
     const [bookedDates, setBookedDates] = useState<string[]>([]); 
     const [showCalendar, setShowCalendar] = useState(false);
     const isPremium = userBrand?.isPremium || false; // adjust based on your DB
-    const [showTools, setShowTools] = useState(false);
     const [showTrustMsg, setShowTrustMsg] = useState(false);
     const [seconds, setSeconds] = useState(0);
+    const [showTools, setShowTools] = useState(false);
     const [activeTab, setActiveTab] = useState("Session");
     const [brandData, setBrandData] = useState<any>(null);
     const [showUserMenu, setShowUserMenu] = useState(false);
+    const [history, setHistory] = useState<any[]>([]);
 
     // Profile States
     const [bio, setBio] = useState('');
