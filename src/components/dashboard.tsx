@@ -1,3 +1,8 @@
+import { db, auth, firestore } from "../firebase";
+import { ref as dbRef, onValue } from "firebase/database";
+import { signOut, onAuthStateChanged } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
+
 import React, { useState, useRef, useEffect } from 'react';
 import { QRCode } from 'react-qrcode-logo';
 import { firestore, auth } from "../firebase";
@@ -71,7 +76,7 @@ const BackButton = ({
                     alignItems: 'center',
                     gap: '12px',
                     marginBottom: '32px',
-                    zIndex: 10001
+                    zIndex: 1
                 }}
             >
                 <div style={{
@@ -211,6 +216,12 @@ const Dashboard = (props: any) => {
     const [bookedDates, setBookedDates] = useState<string[]>([]); 
     const [showCalendar, setShowCalendar] = useState(false);
     const isPremium = userBrand?.isPremium || false; // adjust based on your DB
+    const [showTools, setShowTools] = useState(false);
+    const [showTrustMsg, setShowTrustMsg] = useState(false);
+    const [seconds, setSeconds] = useState(0);
+    const [activeTab, setActiveTab] = useState("Session");
+    const [brandData, setBrandData] = useState<any>(null);
+    const [showUserMenu, setShowUserMenu] = useState(false);
 
     // Profile States
     const [bio, setBio] = useState('');
@@ -264,6 +275,81 @@ const Dashboard = (props: any) => {
         } finally {
             setIsSavingBio(false);
         }
+    };
+    const [userBrand, setUserBrand] = useState({
+        id: "",
+        name: "Connecting...",
+        context: "",
+        profilePic: null,
+        currency: "Euro (€)",
+        language: "English (US)",
+        tier: "Basic Free Tier",
+        status: "CEO / Founder"
+    });
+    useEffect(() => {
+        const currentUser = auth.currentUser;
+
+        if (currentUser && db) {
+            const userDbRef = dbRef(
+                db,
+                `users/${currentUser.uid}/brandData`
+            );
+
+            const unsubscribe = onValue(userDbRef, (snapshot) => {
+                const data = snapshot.val();
+
+                console.log("📡 Brand snapshot received");
+                console.log("📦 Raw brand data:", data);
+                console.log("🆔 currentUser.uid:", currentUser.uid);
+
+                const brandId =
+                    data?.id || data?.brandId || currentUser.uid;
+
+                console.log("🛠️ Updating userBrand...");
+
+                setUserBrand((prev) => ({
+                    ...prev,
+                    ...data,
+                    id: brandId,
+                    name: data?.name || "CEO / Founder"
+                }));
+
+                console.log("✅ userBrand updated");
+            });
+
+            return () => unsubscribe();
+        }
+    }, []);
+
+    useEffect(() => {
+        const saved = localStorage.getItem("malvin_history");
+
+        if (saved) {
+            setHistory(JSON.parse(saved));
+        }
+    }, []);
+
+    useEffect(() => {
+        localStorage.setItem(
+            "malvin_history",
+            JSON.stringify(history)
+        );
+    }, [history]);
+    const handleUpdateBrand = (
+        newData: Partial<typeof userBrand>
+    ) => {
+        setUserBrand((prev) => ({
+            ...prev,
+            ...newData
+        }));
+    };
+
+    const handleSaveSimulation = (data: any) => {
+        setHistory((prev) => [data, ...prev]);
+    };
+
+    const handleLogout = async () => {
+        await signOut(auth);
     };
 
     // Sync Notifications

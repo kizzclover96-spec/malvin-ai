@@ -4,7 +4,6 @@ import Settings from "./Settings";
 import Memories from "./memories";
 import MarginCalculator from "./MarginCalculator";
 import Premium from "./Premium";
-import MainDashboard from "./dashboard";
 import MarketTrends from "./MarketTrends";
 import Runway from "./Runway";
 import Simulator from "./Simulator";
@@ -102,11 +101,7 @@ const LeftPanel: React.FC<Props> = ({
     <div>
       <GlobalStyles />
 
-      <div className="background-blobs">
-        <div className="blob purple"></div>
-        <div className="blob blue"></div>
-        <div className="blob pink"></div>
-      </div>
+      
 
       {/* HEADER */}
       <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
@@ -158,7 +153,6 @@ const LeftPanel: React.FC<Props> = ({
         {[
           { label: "⚡ Session", tab: "Session" },
           { label: "🧠 Memories", tab: "Memories" },
-          { label: "📊 Dashboard", tab: "MainDashboard" },
           { label: "🛠 Tools", tab: "ToolModal" },
           { label: "⚙️ Settings", tab: "Settings" },
           { label: "📝 Notes", tab: "Notes" },
