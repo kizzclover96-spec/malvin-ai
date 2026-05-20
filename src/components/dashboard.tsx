@@ -197,7 +197,7 @@ const Dashboard = (props: any) => {
     const {
         userBrand = {}, onBack, setShowTools, showTools, addActivity,  history, setBrandData, handleSaveSimulation, handleUpdateBrand, handleLogout,
         userEmail,
-        setUserBrand; ispremuim
+        setUserBrand, ispremuim
     } = props;
     const [activeTab, setActiveTab] = useState("dashboard");
     const [chatCount, setChatCount] = useState(0);
