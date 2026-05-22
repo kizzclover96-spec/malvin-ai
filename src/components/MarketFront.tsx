@@ -4,6 +4,7 @@ import { db } from '../firebase';
 import { ref as dbRef, onValue } from "firebase/database";
 import { ProductCard } from './ProductView';
 import CustomerChat from './CustomerChat';
+import { set } from "firebase/database";
 
 
 // Reusable Verified Badge Component
@@ -122,26 +123,30 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
         };
     }, [brandId]);
 
-    const handleBookDate = (date: string) => {
+    const handleBookDate = async (date: string) => {
         if (!date) return;
+
         if (bookedDates.includes(date)) {
             alert("This date is already taken!");
             return;
         }
 
-        const newBookingRef = dbRef(db, `users/${brandId}/bookings/${Date.now()}`);
-        const bookingData = {
-            date: date,
-            timestamp: Date.now(),
-            status: 'pending'
-        };
+        try {
+            const newBookingRef = dbRef(db, `users/${brandId}/bookings/${Date.now()}`);
 
-        import('firebase/database').then(({ set }) => {
-            set(newBookingRef, bookingData).then(() => {
-                alert(`Success! Date ${date} reserved.`);
-                setView('market');
+            await set(newBookingRef, {
+                date,
+                timestamp: Date.now(),
+                status: "pending"
             });
-        });
+
+            alert(`Success! Date ${date} reserved.`);
+            setView("market");
+
+        } catch (err) {
+            console.error(err);
+            alert("Booking failed. Try again.");
+        }
     };
 
     const handleConfirmOrder = () => {
