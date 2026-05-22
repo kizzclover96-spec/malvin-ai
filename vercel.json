@@ -6,7 +6,7 @@
         { "key": "Cross-Origin-Opener-Policy", "value": "same-origin-allow-popups" }
       ]
     }
-  ]
+  ],
   "rewrites": [
     {
       "source": "/((?!assets/|static/|favicon.ico|logo192.png|manifest.json).*)",
