@@ -5,6 +5,7 @@ import { ref as dbRef, onValue } from "firebase/database";
 import { ProductCard } from './ProductView';
 import CustomerChat from './CustomerChat';
 
+
 // Reusable Verified Badge Component
 const VerifiedBadge = () => (
     <svg 
@@ -31,6 +32,7 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
     const [orderModal, setOrderModal] = useState<any>(null);
     const [quantity, setQuantity] = useState(1);
     const [isLocked, setIsLocked] = useState(false);
+    const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
     // Dynamic Profile States (Bio & Meta Verification)
     const [bio, setBio] = useState('');
@@ -39,6 +41,22 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
         const link = document.querySelector("link[rel='manifest']");
         if (link) link.setAttribute("href", "/market-manifest.json");
     }, []);
+    const installMarket = async () => {
+        if (!deferredPrompt) {
+            alert("Install not available. Open in Chrome mobile.");
+            return;
+        }
+
+        deferredPrompt.prompt();
+
+        const choice = await deferredPrompt.userChoice;
+
+        if (choice.outcome === "accepted") {
+            console.log("Installed");
+        }
+
+        setDeferredPrompt(null);
+    };
 
     // Sync Panic Button/System Settings
     useEffect(() => {
@@ -54,7 +72,7 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
         return () => unsubscribe();
     }, []);
     
-    const navigate = useNavigate();
+    
 
     // Sync Booked Dates
     useEffect(() => {
@@ -62,8 +80,7 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
         const bookingsPath = dbRef(db, `users/${brandId}/bookings`);
         const unsubscribe = onValue(bookingsPath, (snapshot) => {
             const data = snapshot.val();
-            if (data) {
-                setBookedDates(Object.values(data).map((b: any) => b.date));
+            if (data) { setBookedDates( Object.values(data) .filter((b: any) => b?.date) .map((b: any) => b.date) );
             } else {
                 setBookedDates([]);
             }
@@ -132,7 +149,18 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
         setOrderModal(null);
         setView('chat');
     };
+    useEffect(() => {
+        const handler = (e: any) => {
+            e.preventDefault();
+            setDeferredPrompt(e);
+        };
 
+        window.addEventListener("beforeinstallprompt", handler);
+
+        return () => {
+            window.removeEventListener("beforeinstallprompt", handler);
+        };
+    }, []);
     if (view === 'booking') {
         return (
             <div style={{ position: 'relative', height: '100dvh', backgroundColor: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
@@ -188,7 +216,6 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
             </div>
         );
     }
-
     return (
         <div style={marketContainer}>
             <style>{`
@@ -226,6 +253,12 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
                     <div style={onlineStatus}><span style={dotStyle} /> Active Now</div>
                 </div>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                    <button
+                        onClick={installMarket}
+                        style={bookingBtnStyle}
+                    >
+                        Install 📲
+                    </button>
                     <button onClick={() => setView('booking')} style={bookingBtnStyle}>
                         Book 🗓️
                     </button>
@@ -315,7 +348,10 @@ const marketContainer: React.CSSProperties = {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    overflowX: 'hidden'
+    overflowX: 'hidden',
+    paddingTop: 'env(safe-area-inset-top)',
+    paddingBottom: 'env(safe-area-inset-bottom)',
+    overscrollBehavior: 'none'
 };
 
 const headerStyle: React.CSSProperties = { 
