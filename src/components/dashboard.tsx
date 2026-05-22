@@ -633,9 +633,9 @@ const Dashboard = (props: any) => {
                 {/* Content Area */}
                 <div style={contentWrapper}>
                     {activeTab === 'Chats' ? <Chats userBrand={userBrand} brandId={userBrand?.id} /> :
-                    activeTab === 'Ads' ? <AdsManager userBrand={userBrand} /> :
-                    activeTab === 'Catalog' ? <Catalog userBrand={userBrand} /> :
-                    activeTab === 'Payments' ? <Payments userBrand={userBrand} /> :
+                    activeTab === 'Ads' ? <div style={{color: 'white', padding: 20}}>Test Ads Page</div> :
+                    activeTab === 'Catalog' ? <div style={{color: 'white', padding: 20}}>Test Catalog Page</div> :
+                    activeTab === 'Payments' ? <div style={{color: 'white', padding: 20}}>Test Payments Page</div> :
                     (
                         <div style={bentoGridStyle}>
                             {/* Upper Bento*/} 
