@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { auth, db } from '../firebase';
 import { signOut } from 'firebase/auth';
 import { ref, onValue, update, push, serverTimestamp, DataSnapshot } from "firebase/database";
+import { doc, collection, addDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { firestore } from "./firebase"; // Your firestore initialization file
 
 const AdsManager = () => {
     const [users, setUsers] = useState<any[]>([]);
@@ -140,28 +142,33 @@ const AdsManager = () => {
     };
 
     // --- NEW: INTERCOM BRAND DISPATCHER ---
-    const handleSendMessage = async () => {
-        if (!selectedUser || !chatMessage.trim()) return;
-        setSendingMsg(true);
+
+   
+    const sendMessage= async (selectedUser, messageText) => {
+        if (!messageText.trim() || !selectedUser?.uid) return;
+
+        // The chat UI uses the conversation ID (selectedChatId) to read subcollections.
+        // Assuming the conversation ID is the user's UID or a shared ID:
+        const chatId = selectedUser.uid; 
 
         try {
-            // Pushes directly to the selected target's unique support thread node
-            const targetChatRef = ref(db, `messages/${selectedUser.uid}`);
-            await push(targetChatRef, {
-                senderName: "malvin.io",
-                senderVerified: true, // Verification indicator for UI rendering
-                message: chatMessage.trim(),
-                timestamp: serverTimestamp(),
-                isAdminResponse: true
+            // 1. Add the new message to the subcollection path: conversations/$chatId/messages
+            await addDoc(collection(firestore, "conversations", chatId, "messages"), {
+            text: messageText,
+            sender: 'manager', // 'manager' lets the bubble render green on their screen
+            timestamp: serverTimestamp()
             });
 
-            await logAction('OUTBOUND_MSG', selectedUser.uid, `Sent verified system ping to: ${editBrandName}`);
-            setChatMessage('');
-            alert("MESSAGE_DISPATCHED");
+            // 2. Update the parent conversation document so it bubbles up in their sidebar
+            await setDoc(doc(firestore, "conversations", chatId), {
+            lastMessage: messageText,
+            updatedAt: serverTimestamp(),
+            viewedByManager: true 
+            }, { merge: true });
+
+            console.log("📨 Message synced to Firestore successfully!");
         } catch (error) {
-            alert("SEND_FAIL");
-        } finally {
-            setSendingMsg(false);
+            console.error("Error writing to Firestore:", error);
         }
     };
 
