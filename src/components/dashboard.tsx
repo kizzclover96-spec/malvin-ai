@@ -18,7 +18,6 @@ import Payments from './Payments';
 import LeftPanel from "./left";
 import Notes from "./notes";
 import Simulator from "./Simulator";
-import Memories from "./memories";
 
 // Exporting this so you can import it and use it anywhere else (Chats, MarketFront, etc.)
 export const VerifiedBadge = () => (
@@ -212,7 +211,7 @@ const Dashboard = (props: any) => {
     const [showTrustMsg, setShowTrustMsg] = useState(false);
     const [seconds, setSeconds] = useState(0);
     const [showTools, setShowTools] = useState(false);
-    const [activeTab, setActiveTab] = useState("Session");
+    const [activeTab, setActiveTab] = useState("Dashboard");
     const [brandData, setBrandData] = useState<any>(null);
     const [showUserMenu, setShowUserMenu] = useState(false);
     const [history, setHistory] = useState<any[]>([]);
@@ -723,7 +722,7 @@ const Dashboard = (props: any) => {
                                     <div style={{ marginTop: '12px', padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid #1A1A1A' }}>
                                         <span style={{ fontSize: '11px', color: '#888' }}>
                                             {bookedDates.length > 0 
-                                                ? `Next session: ${[...bookedDates].sort().reverse()[0]}` 
+                                                ? `Next session: ${[...bookedDates] .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0]}` 
                                                 : "No upcoming sessions"}
                                         </span>
                                     </div>
@@ -826,8 +825,8 @@ const Dashboard = (props: any) => {
                         style={{
                             position: "fixed",
                             inset: 0,
-                            background: "#000",
-                            zIndex: 9999
+                            zIndex: 9999,
+                            overflow: "hidden"
                         }}
                     >
                         <div
@@ -843,13 +842,12 @@ const Dashboard = (props: any) => {
                                     addActivity={addActivity}
                                 />
                             )}
-                            
 
                             
 
                             {activeTab === "Premium" && (
                                 <Premium
-                                    onBack={() => setActiveTab("Session")}
+                                    onBack={() => setActiveTab("Dashboard")}
                                     userBrand={userBrand}
                                     brandName={userBrand?.name || "Malvin"}
                                 />
@@ -857,7 +855,7 @@ const Dashboard = (props: any) => {
 
                             {activeTab === "Simulator" && (
                                 <Simulator
-                                    onBack={() => setActiveTab("Session")}
+                                    onBack={() => setActiveTab("Dashboard")}
                                 />
                             )}
 
@@ -866,21 +864,24 @@ const Dashboard = (props: any) => {
                                     auth={auth}
                                     userBrand={userBrand} 
                                     setUserBrand={setUserBrand} 
-                                    onBack={() => setActiveTab('Session')} // Goes back to main view 
+                                    onBack={() => setActiveTab('Dashboard')} // Goes back to main view 
                                     onUpdate={handleUpdateBrand}
                                     brandName={userBrand?.name || "Malvin"}
                                     onSave={(updatedBrand) => {
-                                        setUserBrand(updatedBrand);
-                                        setBrandData(updatedBrand); // If you still use brandData elsewhere
-                                        setActiveTab('Session');
-                                        id: auth.currentUser?.uid
+                                        setUserBrand({
+                                            ...updatedBrand,
+                                            id: auth.currentUser?.uid
+                                        });
+
+                                        setBrandData(updatedBrand);
+                                        setActiveTab('Dashboard');
                                     }}
                                 />
                             )}
                         </div>
                     </div>
                 )}
-                <ToolModal onBack={() => setActiveTab('Session')} 
+                <ToolModal onBack={() => setActiveTab('Dashboard')} 
                     showTools={showTools}
                     setShowTools={setShowTools}
                     setActiveTab={setActiveTab}
