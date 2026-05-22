@@ -5,8 +5,8 @@ import { firestore, auth } from "../firebase";
 const ChatCard = ({ children, style }: any) => (
     <div style={{
         background: '#111111',
-        borderRadius: '24px',
-        border: '1px solid #1A1A1A',
+        borderRadius: '0px', // WhatsApp style usually has sharp or minimal edges when full-screen
+        borderRight: '1px solid #222',
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
@@ -18,26 +18,22 @@ const Chats = ({ brandId, userBrand }: any) => {
     const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
     const [isAutopilot, setIsAutopilot] = useState(true);
     const [activeMessages, setActiveMessages] = useState<any[]>([]);
-    const [chats, setChats] = useState<any[]>([]); // This is the state variable being used
+    const [chats, setChats] = useState<any[]>([]); 
     const [inputValue, setInputValue] = useState('');
 
-    // 1. Sort chats: Unread ones first
-    // 1. Sort chats safely: Unread ones first, handling updating timestamps cleanly
+    // 1. Sort chats: Unread ones first safely
     const sortedChats = useMemo(() => {
         return [...chats].sort((a, b) => {
-            // First priority: Read vs Unread
             if (a.viewedByManager !== b.viewedByManager) {
                 return a.viewedByManager ? 1 : -1;
             }
-            
-            // Second priority: Time ordering fallback validation
             const timeA = a.updatedAt?.seconds || a.updatedAt?.toMillis?.() || 0;
             const timeB = b.updatedAt?.seconds || b.updatedAt?.toMillis?.() || 0;
             return timeB - timeA; 
         });
     }, [chats]);
 
-    // 2. Listen for AI Actions (Socket placeholder)
+    // 2. Listen for AI Actions
     useEffect(() => {
         const handleAiAction = (action: any) => {
             const messageText = action.text || action.args?.message;
@@ -51,32 +47,12 @@ const Chats = ({ brandId, userBrand }: any) => {
         return () => {};
     }, [isAutopilot, selectedChatId]); 
 
-    
-    // Debug Logger
-    useEffect(() => {
-        const logAll = async () => {
-            const snap = await getDocs(collection(firestore, "conversations"));
-            console.log("ROOT conversations:", snap.docs.map(d => d.data()));
-        };
-        logAll();
-    }, []);
-    
-    // 3. Real-time Listener for the Manager Chat List
     // 3. Real-time Listener for the Manager Chat List
     useEffect(() => {
-        // Force target brand id validation check
         const validBrandId = typeof brandId === 'object' ? brandId?.id : brandId;
-        if (!validBrandId) {
-            console.warn("⚠️ Chats component loaded without a valid brandId string!");
-            return;
-        }
+        if (!validBrandId) return;
 
         const conversationsRef = collection(firestore, "conversations");
-
-        console.log("🔍 ATTEMPTING LISTEN FOR BRAND ID:", String(validBrandId));
-        
-        // Safety check: if you want an immediate fallback fix before building indexes,
-        // remove the `.orderBy("updatedAt", "desc")` line entirely.
         const q = query(
             conversationsRef,
             where("brandId", "==", String(validBrandId)),
@@ -90,16 +66,10 @@ const Chats = ({ brandId, userBrand }: any) => {
                     id: doc.id,
                     ...(doc.data() as any),
                 }));
-
-                console.log("🚀 LIVE CHATS FETCHED SUCCESSFULLY:", activeChats);
                 setChats(activeChats);
             },
             (error) => {
-                console.error("❌ Dashboard listener failed absolute validation:", error);
-                
-                // AUTOMATIC FALLBACK: If index isn't ready yet, fetch anyway without sorting
                 if (error.message.includes("requires an index")) {
-                    console.log("🔄 Index missing. Attempting immediate fallback load without order constraints...");
                     const fallbackQuery = query(conversationsRef, where("brandId", "==", String(validBrandId)));
                     getDocs(fallbackQuery).then(snap => {
                         const fallbackChats = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -126,9 +96,6 @@ const Chats = ({ brandId, userBrand }: any) => {
                 id: doc.id,
                 ...(doc.data() as any),
             }));
-
-            console.log("MESSAGES:", msgs);
-
             setActiveMessages(msgs);
         });
 
@@ -173,53 +140,44 @@ const Chats = ({ brandId, userBrand }: any) => {
             messageContainer.scrollTop = messageContainer.scrollHeight;
         }
     }, [activeMessages]);
-    // Debug Logger & Seed Test
-    useEffect(() => {
-        const runDiagnostics = async () => {
-            const conversationsRef = collection(firestore, "conversations");
-            const snap = await getDocs(conversationsRef);
-            console.log("📊 Total raw documents found in cloud collection:", snap.size);
-            
-            if (snap.size === 0 && brandId) {
-                console.log("🧪 Collection is completely empty. Attempting to seed a test chat line...");
-                try {
-                    const mockDocRef = await addDoc(conversationsRef, {
-                        brandId: String(brandId),
-                        clientPhone: "+123456789",
-                        lastMessage: "Hello! This is a test conversation.",
-                        updatedAt: serverTimestamp(),
-                        viewedByManager: false
-                    });
-                    console.log("✅ Test chat seeded successfully! Generated ID:", mockDocRef.id);
-                } catch (e) {
-                    console.error("❌ Failed to write test document to Firestore:", e);
-                }
-            }
-        };
-        if (brandId) runDiagnostics();
-    }, [brandId]);
 
     return (
-        <div style={{ maxWidth: '100%', margin: '0 auto', padding: '0 10px' }}>
+        <div style={{ 
+            width: '100vw', 
+            height: '100vh', 
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            background: '#111',
+            color: '#fff',
+            fontFamily: 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif'
+        }}>
             <div style={{ 
                 display: 'grid', 
-                gridTemplateColumns: '300px 1fr', 
-                gap: '20px', 
-                height: '70vh', 
-                marginTop: '10px',
-                minHeight: '600px' 
+                gridTemplateColumns: '350px 1fr', // Sidebar fixed, Chat area fills the rest
+                height: '100%',
+                width: '100%'
             }}>
                 
-                {/* LEFT: CHAT LIST */}
-                <ChatCard>
-                    <div style={{ padding: '20px', borderBottom: '1px solid #222', fontWeight: 600, fontSize: '14px' }}>
+                {/* LEFT: CHAT LIST (Sidebar) */}
+                <ChatCard style={{ background: '#111111' }}>
+                    <div style={{ 
+                        padding: '20px', 
+                        borderBottom: '1px solid #222', 
+                        fontWeight: 600, 
+                        fontSize: '16px',
+                        background: '#1c1c1c',
+                        display: 'flex',
+                        alignItems: 'center',
+                        height: '60px',
+                        boxSizing: 'border-box'
+                    }}>
                         Active Conversations
                     </div>
-                    <div style={{ flex: 1, overflowY: 'auto', padding: '12px' }}>
+                    <div style={{ flex: 1, overflowY: 'auto', padding: '8px 4px' }}>
                         {sortedChats.map((chat, index) => {
                             const isUnread = chat.viewedByManager === false;
                             const isSelected = selectedChatId === chat.id;
-                            // FIXED: Using sortedChats context instead of chats directly to maintain index logic
                             const clientDisplayNum = sortedChats.length - index;
 
                             return (
@@ -227,32 +185,32 @@ const Chats = ({ brandId, userBrand }: any) => {
                                     key={chat.id}
                                     onClick={() => handleSelectChat(chat.id)}
                                     style={{
-                                        padding: '15px',
-                                        borderRadius: '18px',
+                                        padding: '12px 16px',
                                         cursor: 'pointer',
                                         display: 'flex',
                                         alignItems: 'center',
-                                        gap: '12px',
-                                        marginBottom: '8px',
-                                        position: 'relative',
-                                        border: isUnread ? '1px solid #C5FF41' : '1px solid transparent',
-                                        backgroundColor: isSelected ? '#1A1A1A' : (isUnread ? 'rgba(197, 255, 65, 0.08)' : 'transparent'),
-                                        transition: '0.3s'
+                                        gap: '15px',
+                                        borderBottom: '1px solid #1a1a1a',
+                                        backgroundColor: isSelected ? '#2a2a2a' : 'transparent',
+                                        transition: 'background 0.2s'
                                     }}
+                                    onMouseEnter={(e) => !isSelected && (e.currentTarget.style.backgroundColor = '#1c1c1c')}
+                                    onMouseLeave={(e) => !isSelected && (e.currentTarget.style.backgroundColor = 'transparent')}
                                 >
                                     <div style={{ 
-                                        width: '42px', height: '42px', borderRadius: '50%', 
+                                        width: '45px', height: '45px', borderRadius: '50%', 
                                         display: 'flex', alignItems: 'center', 
                                         justifyContent: 'center', color: isUnread ? '#000' : '#C5FF41', 
-                                        fontWeight: 'bold',
+                                        fontWeight: 'bold', fontSize: '15px',
                                         backgroundColor: isUnread ? '#C5FF41' : '#333', 
+                                        flexShrink: 0
                                     }}>
                                         {clientDisplayNum}
                                     </div>
                                     
                                     <div style={{ flex: 1, overflow: 'hidden' }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <div style={{ fontSize: '14px', fontWeight: 600, color: isUnread ? '#C5FF41' : '#fff' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                                            <div style={{ fontSize: '15px', fontWeight: 500, color: '#fff' }}>
                                                 Client #{clientDisplayNum}
                                             </div>
                                             {isUnread && (
@@ -260,9 +218,8 @@ const Chats = ({ brandId, userBrand }: any) => {
                                             )}
                                         </div>
                                         <div style={{ 
-                                            fontSize: '12px', 
-                                            color: isUnread ? '#fff' : '#666', 
-                                            fontWeight: isUnread ? '600' : '400',
+                                            fontSize: '13px', 
+                                            color: isUnread ? '#C5FF41' : '#aaa', 
                                             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' 
                                         }}>
                                             {chat.lastMessage || "No messages yet"}
@@ -274,58 +231,114 @@ const Chats = ({ brandId, userBrand }: any) => {
                     </div>
                 </ChatCard>
 
-                {/* RIGHT: MESSAGE FEED */}
-                <ChatCard style={{ background: '#000', border: '1px solid #222' }}>
+                {/* RIGHT: MESSAGE FEED (Main View) */}
+                <ChatCard style={{ background: '#0b141a', border: 'none' }}>
                     {selectedChatId ? (
                         <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                            <div style={{ padding: '24px', borderBottom: '1px solid #222', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#050505' }}>
+                            
+                            {/* Chat Header */}
+                            <div style={{ 
+                                padding: '10px 20px', 
+                                borderBottom: '1px solid #222', 
+                                display: 'flex', 
+                                justifyContent: 'space-between', 
+                                alignItems: 'center', 
+                                background: '#1c1c1c',
+                                height: '60px',
+                                boxSizing: 'border-box'
+                            }}>
                                 <div>
-                                    <div style={{ fontWeight: 700, color: '#fff' }}>Chat Detail</div>
-                                    <div style={{ fontSize: '11px', color: isAutopilot ? '#C5FF41' : '#666' }}>
-                                        {isAutopilot ? '🤖 AUTOPILOT ON' : '👤 MANUAL MODE'}
+                                    <div style={{ fontWeight: 600, color: '#fff', fontSize: '16px' }}>Client Window</div>
+                                    <div style={{ fontSize: '11px', color: isAutopilot ? '#C5FF41' : '#aaa', marginTop: '2px' }}>
+                                        {isAutopilot ? '🤖 AUTOPILOT ENABLED' : '👤 MANUAL CONTROL'}
                                     </div>
                                 </div>
                                 <button 
                                     onClick={() => setIsAutopilot(!isAutopilot)}
                                     style={{ 
-                                        background: isAutopilot ? 'rgba(197, 255, 65, 0.1)' : '#fff',
+                                        background: isAutopilot ? 'rgba(197, 255, 65, 0.15)' : '#fff',
                                         color: isAutopilot ? '#C5FF41' : '#000',
-                                        border: 'none', padding: '8px 16px', borderRadius: '12px', cursor: 'pointer', fontWeight: 700
+                                        border: 'none', padding: '8px 16px', borderRadius: '20px', cursor: 'pointer', fontWeight: 600, fontSize: '13px'
                                     }}
                                 >
                                     {isAutopilot ? 'Take Over' : 'Enable Malvin'}
                                 </button>
                             </div>
 
-                            {/* FIXED: ID match for auto-scroll tracking */}
-                            <div id="message-feed" style={{ flex: 1, padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                {activeMessages.map((msg) => (
-                                    <div key={msg.id} style={{ 
-                                        alignSelf: msg.sender === 'manager' ? 'flex-end' : 'flex-start', 
-                                        background: msg.sender === 'manager' ? '#C5FF41' : '#1A1A1A', 
-                                        color: msg.sender === 'manager' ? '#000' : '#fff',
-                                        padding: '10px 15px', borderRadius: '15px', maxWidth: '85%', fontSize: '14px'
-                                    }}>
-                                        {msg.text}
-                                    </div>
-                                ))}
+                            {/* Message Bubble Space */}
+                            <div 
+                                id="message-feed" 
+                                style={{ 
+                                    flex: 1, 
+                                    padding: '20px 10%', // Extra horizontal padding gives it that spacious clean chat feel
+                                    overflowY: 'auto', 
+                                    display: 'flex', 
+                                    flexDirection: 'column', 
+                                    gap: '6px',
+                                    backgroundColor: '#0b141a',
+                                    backgroundImage: 'radial-gradient(rgba(255,255,255,0.03) 1px, transparent 0)',
+                                    backgroundSize: '24px 24px'
+                                }}
+                            >
+                                {activeMessages.map((msg) => {
+                                    const isManager = msg.sender === 'manager';
+                                    return (
+                                        <div key={msg.id} style={{ 
+                                            alignSelf: isManager ? 'flex-end' : 'flex-start', 
+                                            background: isManager ? '#005c4b' : '#202c33', // Deep native green & dark gray setup
+                                            color: '#fff',
+                                            padding: '8px 14px', 
+                                            borderRadius: isManager ? '8px 0px 8px 8px' : '0px 8px 8px 8px', 
+                                            maxWidth: '65%', 
+                                            fontSize: '14px',
+                                            boxShadow: '0 1px 0.5px rgba(0,0,0,0.13)',
+                                            lineHeight: '1.4'
+                                        }}>
+                                            {msg.text}
+                                        </div>
+                                    );
+                                })}
                             </div>
 
-                            <div style={{ padding: '20px', display: 'flex', gap: '10px' }}>
+                            {/* Footer Input Strip */}
+                            <div style={{ padding: '12px 24px', display: 'flex', gap: '12px', background: '#1c1c1c', alignItems: 'center' }}>
                                 <input 
                                     value={inputValue} 
                                     onChange={(e) => setInputValue(e.target.value)}
                                     onKeyDown={(e) => e.key === 'Enter' && handleManagerSend(inputValue)}
-                                    placeholder="Reply..."
-                                    style={{ flex: 1, background: '#111', border: '1px solid #333', color: '#fff', padding: '12px', borderRadius: '12px' }}
+                                    placeholder="Type a message"
+                                    style={{ 
+                                        flex: 1, 
+                                        background: '#2a2a2a', 
+                                        border: 'none', 
+                                        color: '#fff', 
+                                        padding: '12px 18px', 
+                                        borderRadius: '8px',
+                                        fontSize: '14px',
+                                        outline: 'none'
+                                    }}
                                 />
-                                <button onClick={() => handleManagerSend(inputValue)} style={{ background: '#C5FF41', padding: '0 20px', borderRadius: '12px', fontWeight: 800 }}>SEND</button>
+                                <button 
+                                    onClick={() => handleManagerSend(inputValue)} 
+                                    style={{ 
+                                        background: '#00a884', 
+                                        color: '#fff',
+                                        padding: '12px 24px', 
+                                        borderRadius: '8px', 
+                                        fontWeight: 600, 
+                                        border: 'none', 
+                                        cursor: 'pointer' 
+                                    }}
+                                >
+                                    SEND
+                                </button>
                             </div>
                         </div>
                     ) : (
-                        <div style={{ margin: 'auto', textAlign: 'center', opacity: 0.4 }}>
-                            <div style={{ fontSize: '50px', marginBottom: '20px' }}>💬</div>
-                            <h3 style={{ fontWeight: 400 }}>Select a client to view conversation history</h3>
+                        <div style={{ margin: 'auto', textAlign: 'center', opacity: 0.5 }}>
+                            <div style={{ fontSize: '60px', marginBottom: '15px' }}>💻</div>
+                            <h3 style={{ fontWeight: 300, color: '#fff', fontSize: '20px' }}>Keep your phone connected</h3>
+                            <p style={{ fontSize: '14px', color: '#aaa', maxWidth: '300px', margin: '0 auto' }}>Select a conversation from the sidebar to view messages.</p>
                         </div>
                     )}
                 </ChatCard>
