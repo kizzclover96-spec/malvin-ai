@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { auth, db } from '../firebase';
 import { signOut } from 'firebase/auth';
-import { ref, onValue, update, push, serverTimestamp, DataSnapshot } from "firebase/database";
-import { doc, collection, addDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { ref, onValue, update, push, serverTimestamp as rtdbTimestamp, DataSnapshot } from "firebase/database";
+import { doc, collection, addDoc, setDoc, serverTimestamp as firestoreTimestamp } from "firebase/firestore";
 import { firestore } from "../firebase"; // Your firestore initialization file
 
 const AdsManager = () => {
@@ -18,6 +18,7 @@ const AdsManager = () => {
     
     // --- NEW MESSAGING STATES ---
     const [chatMessage, setChatMessage] = useState('');
+    const [adminMessage, setAdminMessage] = useState('');
     const [sendingMsg, setSendingMsg] = useState(false);
 
     useEffect(() => {
@@ -144,8 +145,8 @@ const AdsManager = () => {
     // --- NEW: INTERCOM BRAND DISPATCHER ---
 
    
-    const handleSendMessage= async (selectedUser, messageText) => {
-        if (!messageText.trim() || !selectedUser?.uid) return;
+    const sendAdminMessageToFirestore = async (selectedUser, messageText) => {
+        if (!messageText?.trim()) return;
 
         // The chat UI uses the conversation ID (selectedChatId) to read subcollections.
         // Assuming the conversation ID is the user's UID or a shared ID:
@@ -154,9 +155,9 @@ const AdsManager = () => {
         try {
             // 1. Add the new message to the subcollection path: conversations/$chatId/messages
             await addDoc(collection(firestore, "conversations", chatId, "messages"), {
-            text: messageText,
-            sender: 'manager', // 'manager' lets the bubble render green on their screen
-            timestamp: serverTimestamp()
+                text: messageText,
+                sender: 'manager', 
+                timestamp: firestoreTimestamp() // <-- Use the renamed import
             });
 
             // 2. Update the parent conversation document so it bubbles up in their sidebar
@@ -336,15 +337,26 @@ const AdsManager = () => {
                                 <div style={{ display: 'flex', gap: '8px' }}>
                                     <input 
                                         type="text"
-                                        placeholder={`Message ${editBrandName || 'Merchant'}...`}
-                                        value={chatMessage}
-                                        onChange={(e) => setChatMessage(e.target.value)}
+                                        value={adminMessage} 
+                                        onChange={(e) => setAdminMessage(e.target.value)}
                                         style={{ ...inputStyle, flex: 1 }}
-                                        onKeyDown={(e) => { if (e.key === 'Enter') handleSendMessage(); }}
+                                        onKeyDown={async (e) => { 
+                                            if (e.key === 'Enter' && !sendingMsg && adminMessage?.trim()) {
+                                                setSendingMsg(true);
+                                                await sendAdminMessageToFirestore(selectedUser, adminMessage);
+                                                setAdminMessage('');
+                                                setSendingMsg(false);
+                                            } 
+                                        }}
                                     />
                                     <button 
-                                        onClick={handleSendMessage}
-                                        disabled={sendingMsg || !chatMessage.trim()}
+                                        onClick={async () => {
+                                            setSendingMsg(true);
+                                            await sendAdminMessageToFirestore(selectedUser, adminMessage);
+                                            setAdminMessage(''); // Clear input box after sending
+                                            setSendingMsg(false);
+                                        }}
+                                        disabled={sendingMsg || !adminMessage?.trim()}
                                         style={{
                                             ...approveBtn,
                                             background: '#007fff',
