@@ -173,6 +173,31 @@ const Chats = ({ brandId, userBrand }: any) => {
             messageContainer.scrollTop = messageContainer.scrollHeight;
         }
     }, [activeMessages]);
+    // Debug Logger & Seed Test
+    useEffect(() => {
+        const runDiagnostics = async () => {
+            const conversationsRef = collection(firestore, "conversations");
+            const snap = await getDocs(conversationsRef);
+            console.log("📊 Total raw documents found in cloud collection:", snap.size);
+            
+            if (snap.size === 0 && brandId) {
+                console.log("🧪 Collection is completely empty. Attempting to seed a test chat line...");
+                try {
+                    const mockDocRef = await addDoc(conversationsRef, {
+                        brandId: String(brandId),
+                        clientPhone: "+123456789",
+                        lastMessage: "Hello! This is a test conversation.",
+                        updatedAt: serverTimestamp(),
+                        viewedByManager: false
+                    });
+                    console.log("✅ Test chat seeded successfully! Generated ID:", mockDocRef.id);
+                } catch (e) {
+                    console.error("❌ Failed to write test document to Firestore:", e);
+                }
+            }
+        };
+        if (brandId) runDiagnostics();
+    }, [brandId]);
 
     return (
         <div style={{ maxWidth: '100%', margin: '0 auto', padding: '0 10px' }}>
