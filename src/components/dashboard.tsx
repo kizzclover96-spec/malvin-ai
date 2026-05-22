@@ -291,37 +291,34 @@ const Dashboard = (props: any) => {
         const currentUser = auth.currentUser;
 
         if (currentUser && db) {
-            const userDbRef = dbRef(
-                db,
-                `users/${currentUser.uid}/brandData`
-            );
+            const userDbRef = dbRef(db, `users/${currentUser.uid}/brandData`);
 
             const unsubscribe = onValue(userDbRef, (snapshot) => {
                 const data = snapshot.val();
+                if (!data) return; // Prevent crashing if data is empty
 
-                console.log("📡 Brand snapshot received");
-                console.log("📦 Raw brand data:", data);
-                console.log("🆔 currentUser.uid:", currentUser.uid);
+                const brandId = data?.id || data?.brandId || currentUser.uid;
 
-                const brandId =
-                    data?.id || data?.brandId || currentUser.uid;
-
-                console.log("🛠️ Updating userBrand...");
-
-                setUserBrand((prev) => ({
-                    ...prev,
-                    ...data,
-                    id: brandId,
-                    name: data?.name || "CEO / Founder"
-                }));
-
-                console.log("✅ userBrand updated");
+                // ⚡ FIX: Use functional updates to read the exact current state 
+                // and check if an update is genuinely necessary.
+                setUserBrand((prev) => {
+                    // If the name and ID are already identical, do nothing! Break the loop.
+                    if (prev.id === brandId && prev.name === (data?.name || "CEO / Founder") && prev.context === data?.context) {
+                        return prev; 
+                    }
+                    
+                    return {
+                        ...prev,
+                        ...data,
+                        id: brandId,
+                        name: data?.name || "CEO / Founder"
+                    };
+                });
             });
 
             return () => unsubscribe();
         }
     }, []);
-
     useEffect(() => {
         const saved = localStorage.getItem("malvin_history");
 
