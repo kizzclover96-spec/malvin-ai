@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { auth, db } from '../firebase';
 import { signOut } from 'firebase/auth';
+// Rename them using 'as' so they don't clash or get left undefined
 import { ref, onValue, update, push, serverTimestamp as rtdbTimestamp, DataSnapshot } from "firebase/database";
 import { doc, collection, addDoc, setDoc, serverTimestamp as firestoreTimestamp } from "firebase/firestore";
 import { firestore } from "../firebase"; // Your firestore initialization file
@@ -155,16 +156,16 @@ const AdsManager = () => {
         try {
             // 1. Add the new message to the subcollection path: conversations/$chatId/messages
             await addDoc(collection(firestore, "conversations", chatId, "messages"), {
-                text: messageText,
-                sender: 'manager', 
-                timestamp: firestoreTimestamp() // <-- Use the renamed import
-            });
+            text: messageText,
+            sender: 'manager', 
+            timestamp: firestoreTimestamp() // 🌟 Updated here
+        });
 
             // 2. Update the parent conversation document so it bubbles up in their sidebar
             await setDoc(doc(firestore, "conversations", chatId), {
-            lastMessage: messageText,
-            updatedAt: serverTimestamp(),
-            viewedByManager: true 
+                lastMessage: messageText,
+                updatedAt: firestoreTimestamp(), // 🌟 Updated here
+                viewedByManager: true 
             }, { merge: true });
 
             console.log("📨 Message synced to Firestore successfully!");
