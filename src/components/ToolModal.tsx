@@ -134,7 +134,7 @@ const ToolModal = ({
           label="Margins"
           icon="🧮"
           onClick={() => {
-            setActiveTab("Calculator");
+            setActiveTab("MarginCalculator");
             setShowTools(false);
             addActivity("Opened Margin Calc", "🧮");
           }}
@@ -144,7 +144,7 @@ const ToolModal = ({
           label="Trends"
           icon="📈"
           onClick={() => {
-            setActiveTab("Trends");
+            setActiveTab("MarketTrends");
             setShowTools(false);
             addActivity("Checked Trends", "📈");
           }}
