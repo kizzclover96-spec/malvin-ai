@@ -10,6 +10,7 @@ const ChatCard = ({ children, style }: any) => (
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
+        boxSizing: 'border-box',
         ...style
     }}>{children}</div>
 );
@@ -144,17 +145,18 @@ const Chats = ({ brandId, userBrand }: any) => {
     return (
         <div style={{ 
             width: '100%', 
-            // Automatically adapts your viewport height minus your dashboard header height
             height: 'calc(100vh - 80px)', 
             background: '#111',
             color: '#fff',
-            fontFamily: 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif'
+            fontFamily: 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif',
+            boxSizing: 'border-box'
         }}>
             <div style={{ 
                 display: 'grid', 
                 gridTemplateColumns: '350px 1fr', 
                 height: '100%',
-                width: '100%'
+                width: '100%',
+                boxSizing: 'border-box'
             }}>
                 
                 {/* LEFT: CHAT LIST (Sidebar) */}
@@ -190,7 +192,8 @@ const Chats = ({ brandId, userBrand }: any) => {
                                         gap: '15px',
                                         borderBottom: '1px solid #1a1a1a',
                                         backgroundColor: isSelected ? '#2a2a2a' : 'transparent',
-                                        transition: 'background 0.2s'
+                                        transition: 'background 0.2s',
+                                        boxSizing: 'border-box'
                                     }}
                                     onMouseEnter={(e) => !isSelected && (e.currentTarget.style.backgroundColor = '#1c1c1c')}
                                     onMouseLeave={(e) => !isSelected && (e.currentTarget.style.backgroundColor = 'transparent')}
@@ -232,7 +235,7 @@ const Chats = ({ brandId, userBrand }: any) => {
                 {/* RIGHT: MESSAGE FEED (Main View) */}
                 <ChatCard style={{ background: '#0b141a', border: 'none' }}>
                     {selectedChatId ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, boxSizing: 'border-box' }}>
                             
                             {/* Chat Header */}
                             <div style={{ 
@@ -275,7 +278,8 @@ const Chats = ({ brandId, userBrand }: any) => {
                                     gap: '6px',
                                     backgroundColor: '#0b141a',
                                     backgroundImage: 'radial-gradient(rgba(255,255,255,0.03) 1px, transparent 0)',
-                                    backgroundSize: '24px 24px'
+                                    backgroundSize: '24px 24px',
+                                    boxSizing: 'border-box'
                                 }}
                             >
                                 {activeMessages.map((msg) => {
@@ -283,14 +287,16 @@ const Chats = ({ brandId, userBrand }: any) => {
                                     return (
                                         <div key={msg.id} style={{ 
                                             alignSelf: isManager ? 'flex-end' : 'flex-start', 
-                                            background: isManager ? '#005c4b' : '#202c33', 
+                                            background: isManager ? '#005c4b' : '#128c7e', // Both variants now stylized with custom greens
                                             color: '#fff',
                                             padding: '8px 14px', 
                                             borderRadius: isManager ? '8px 0px 8px 8px' : '0px 8px 8px 8px', 
                                             maxWidth: '65%', 
                                             fontSize: '14px',
                                             boxShadow: '0 1px 0.5px rgba(0,0,0,0.13)',
-                                            lineHeight: '1.4'
+                                            lineHeight: '1.4',
+                                            wordBreak: 'break-word', // Keeps layout crisp regardless of string lengths
+                                            boxSizing: 'border-box'
                                         }}>
                                             {msg.text}
                                         </div>
@@ -299,7 +305,7 @@ const Chats = ({ brandId, userBrand }: any) => {
                             </div>
 
                             {/* Footer Input Strip */}
-                            <div style={{ padding: '12px 24px', display: 'flex', gap: '12px', background: '#1c1c1c', alignItems: 'center' }}>
+                            <div style={{ padding: '12px 24px', display: 'flex', gap: '12px', background: '#1c1c1c', alignItems: 'center', boxSizing: 'border-box' }}>
                                 <input 
                                     value={inputValue} 
                                     onChange={(e) => setInputValue(e.target.value)}
@@ -313,7 +319,8 @@ const Chats = ({ brandId, userBrand }: any) => {
                                         padding: '12px 18px', 
                                         borderRadius: '8px',
                                         fontSize: '14px',
-                                        outline: 'none'
+                                        outline: 'none',
+                                        boxSizing: 'border-box'
                                     }}
                                 />
                                 <button 
@@ -325,7 +332,8 @@ const Chats = ({ brandId, userBrand }: any) => {
                                         borderRadius: '8px', 
                                         fontWeight: 600, 
                                         border: 'none', 
-                                        cursor: 'pointer' 
+                                        cursor: 'pointer',
+                                        boxSizing: 'border-box'
                                     }}
                                 >
                                     SEND
