@@ -586,6 +586,26 @@ const Dashboard = (props: any) => {
                     />
                 );
 
+            case "Runway":
+                return (
+                    <Runway onBack={() => setActiveTab("Dashboard")} />
+                );
+
+            case "MarginCalculator":
+                return (
+                    <MarginCalculator onBack={() => setActiveTab("Dashboard")} />
+                );
+
+            case "MarketTrends":
+                return (
+                    <MarketTrends onBack={() => setActiveTab("Dashboard")} />
+                );
+
+            case "Memories":
+                return (
+                    <Memories onBack={() => setActiveTab("Dashboard")} />
+                );
+
             case "Settings":
                 return (
                     <Settings
