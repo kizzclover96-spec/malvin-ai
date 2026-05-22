@@ -835,6 +835,7 @@ const Dashboard = (props: any) => {
                             {activeTab === "Notes" && (
                                 <Notes
                                     userEmail={userEmail}
+                                    onBack={() => setActiveTab("Dashboard")}
                                 />
                             )}
 

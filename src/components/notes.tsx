@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { glassPanel } from "../styles/glass";
 import { auth, firestore } from "../firebase";
-import { collection, addDoc } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 
 const btnReset = { background: 'none', border: 'none', padding: 0, cursor: 'pointer', outline: 'none' };
 const smallActionStyle = {
@@ -19,11 +19,12 @@ const smallActionStyle = {
 
 interface NotesProps {
    userEmail?: string;
-   addActivity: (text: string, icon?: string) => void;
+   addActivity?: (text: string, icon?: string) => void;
+   onBack?: () => void;
 }
-const Notes = ({ userEmail, addActivity }: NotesProps) => {    
+const Notes = ({ userEmail, addActivity, onBack }: NotesProps) => {    
     const [showHistory, setShowHistory] = useState(false);
-    const [savedNotes, setSavedNotes] = useState<Array<{ userId?: string; title: string; content: string; date: string; createdAt: Date; id?: number }>>([]);
+    const [savedNotes, setSavedNotes] = useState<Array<{ userId?: string; title: string; content: string; date: string; createdAt: serverTimestamp(),; id?: string; }>>([]);
     const noteRef = useRef<HTMLDivElement | null>(null);
     
     const [currentNote, setCurrentNote] = useState("");
@@ -84,7 +85,7 @@ const Notes = ({ userEmail, addActivity }: NotesProps) => {
             title,
             content: currentNote,
             date: new Date().toLocaleDateString(),
-            createdAt: new Date(),
+            createdAt: serverTimestamp(),
         };
 
         try {
@@ -102,7 +103,7 @@ const Notes = ({ userEmail, addActivity }: NotesProps) => {
             setCurrentNote("");
             setShowHistory(true);
 
-            addActivity(`Archived to Vault: ${title}`, "💎");
+            addActivity?.(`Archived to Vault: ${title}`, "💎");
 
             alert("Strategy permanently archived in the Intel Vault.");
         } catch (err) {
@@ -112,7 +113,7 @@ const Notes = ({ userEmail, addActivity }: NotesProps) => {
     };
     const handleDeleteNote = (id?: string) => {
         setSavedNotes((prev) => prev.filter((note) => note.id !== id));
-        addActivity("Deleted a note from Vault", "🗑️");
+        addActivity?.("Deleted a note from Vault", "🗑️");
     };
         
     
@@ -126,6 +127,20 @@ const Notes = ({ userEmail, addActivity }: NotesProps) => {
             {/* NOTEPAD HEADER */}
             <div style={{ padding: '15px 20px', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.2)' }}>
                 <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+                    {onBack && (
+                        <button
+                            onClick={onBack}
+                            style={{
+                                ...btnReset,
+                                color: '#bf00ff',
+                                fontSize: '11px',
+                                fontWeight: 'bold',
+                                letterSpacing: '1px'
+                            }}
+                        >
+                            ← BACK
+                        </button>
+                    )}
                     <span style={{ color: '#bf00ff', fontWeight: '900', fontSize: '10px', letterSpacing: '2px' }}>INTEL DRAFT</span>
                     {savedNotes.length > 0 && (
                         <button 
