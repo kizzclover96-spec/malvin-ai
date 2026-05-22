@@ -3,7 +3,7 @@ import { auth, db } from '../firebase';
 import { signOut } from 'firebase/auth';
 import { ref, onValue, update, push, serverTimestamp, DataSnapshot } from "firebase/database";
 import { doc, collection, addDoc, setDoc, serverTimestamp } from "firebase/firestore";
-import { firestore } from "./firebase"; // Your firestore initialization file
+import { firestore } from "../firebase"; // Your firestore initialization file
 
 const AdsManager = () => {
     const [users, setUsers] = useState<any[]>([]);
