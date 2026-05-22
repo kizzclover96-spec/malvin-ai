@@ -46,6 +46,7 @@ const ToolModal = ({
             0 0 20px rgba(191,0,255,0.15),
             0 0 40px rgba(0,140,255,0.08)
           `,
+          zIndex: 2
         }}
       >
         <button

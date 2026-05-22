@@ -18,6 +18,7 @@ import Payments from './Payments';
 import LeftPanel from "./left";
 import Notes from "./notes";
 import Simulator from "./Simulator";
+import Memories from "./memories";
 
 // Exporting this so you can import it and use it anywhere else (Chats, MarketFront, etc.)
 export const VerifiedBadge = () => (
@@ -823,7 +824,12 @@ const Dashboard = (props: any) => {
                 {activeTab !== "Dashboard" && (
                     <div
                         style={{
-                            inset: 0,
+                            position: "fixed",
+                            top: 0,
+                            left: 0,
+                            width: "100vw",
+                            height: "100vh",
+                            background: "#000",
                             zIndex: 9999,
                             overflow: "hidden"
                         }}
@@ -840,6 +846,9 @@ const Dashboard = (props: any) => {
                                     userEmail={userEmail}
                                     addActivity={addActivity}
                                 />
+                            )}
+                            {activeTab === "Memories" && (
+                                <Memories/>
                             )}
 
                             
