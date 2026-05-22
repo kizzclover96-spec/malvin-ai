@@ -4,12 +4,13 @@ import { firestore, auth } from "../firebase";
 
 const ChatCard = ({ children, style }: any) => (
     <div style={{
-        background: '#111111',
+        background: '#000000',
         borderRadius: '0px', 
-        borderRight: '1px solid #222',
+        borderRight: '1px solid #1c1c1e',
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
+        height: '100%',
         boxSizing: 'border-box',
         ...style
     }}>{children}</div>
@@ -146,10 +147,11 @@ const Chats = ({ brandId, userBrand }: any) => {
         <div style={{ 
             width: '100%', 
             height: 'calc(100vh - 80px)', 
-            background: '#111',
+            background: '#000000',
             color: '#fff',
-            fontFamily: 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif',
-            boxSizing: 'border-box'
+            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+            boxSizing: 'border-box',
+            overflow: 'hidden'
         }}>
             <div style={{ 
                 display: 'grid', 
@@ -160,21 +162,23 @@ const Chats = ({ brandId, userBrand }: any) => {
             }}>
                 
                 {/* LEFT: CHAT LIST (Sidebar) */}
-                <ChatCard style={{ background: '#111111' }}>
+                <ChatCard style={{ background: '#000000' }}>
                     <div style={{ 
-                        padding: '20px', 
-                        borderBottom: '1px solid #222', 
-                        fontWeight: 600, 
-                        fontSize: '16px',
-                        background: '#1c1c1c',
+                        padding: '0 24px', 
+                        borderBottom: '1px solid #1c1c1e', 
+                        fontWeight: 700, 
+                        fontSize: '20px',
+                        letterSpacing: '-0.5px',
+                        background: '#000000',
                         display: 'flex',
                         alignItems: 'center',
-                        height: '60px',
-                        boxSizing: 'border-box'
+                        height: '75px',
+                        boxSizing: 'border-box',
+                        flexShrink: 0
                     }}>
-                        Active Conversations
+                        Messages
                     </div>
-                    <div style={{ flex: 1, overflowY: 'auto', padding: '8px 4px' }}>
+                    <div style={{ flex: 1, overflowY: 'auto', padding: '10px 0' }}>
                         {sortedChats.map((chat, index) => {
                             const isUnread = chat.viewedByManager === false;
                             const isSelected = selectedChatId === chat.id;
@@ -185,42 +189,43 @@ const Chats = ({ brandId, userBrand }: any) => {
                                     key={chat.id}
                                     onClick={() => handleSelectChat(chat.id)}
                                     style={{
-                                        padding: '12px 16px',
+                                        padding: '14px 24px',
                                         cursor: 'pointer',
                                         display: 'flex',
                                         alignItems: 'center',
-                                        gap: '15px',
-                                        borderBottom: '1px solid #1a1a1a',
-                                        backgroundColor: isSelected ? '#2a2a2a' : 'transparent',
-                                        transition: 'background 0.2s',
-                                        boxSizing: 'border-box'
+                                        gap: '16px',
+                                        backgroundColor: isSelected ? '#121212' : 'transparent',
+                                        transition: 'background 0.2s ease'
                                     }}
-                                    onMouseEnter={(e) => !isSelected && (e.currentTarget.style.backgroundColor = '#1c1c1c')}
+                                    onMouseEnter={(e) => !isSelected && (e.currentTarget.style.backgroundColor = '#0a0a0a')}
                                     onMouseLeave={(e) => !isSelected && (e.currentTarget.style.backgroundColor = 'transparent')}
                                 >
                                     <div style={{ 
-                                        width: '45px', height: '45px', borderRadius: '50%', 
+                                        width: '56px', height: '56px', borderRadius: '50%', 
                                         display: 'flex', alignItems: 'center', 
-                                        justifyContent: 'center', color: isUnread ? '#000' : '#C5FF41', 
-                                        fontWeight: 'bold', fontSize: '15px',
-                                        backgroundColor: isUnread ? '#C5FF41' : '#333', 
-                                        flexShrink: 0
+                                        justifyContent: 'center', color: isUnread ? '#000' : '#fff', 
+                                        fontWeight: '600', fontSize: '16px',
+                                        background: isUnread ? 'linear-gradient(45deg, #2bb35c, #38d777)' : '#262626', 
+                                        flexShrink: 0,
+                                        border: isSelected ? '2px solid #38d777' : 'none',
+                                        boxSizing: 'border-box'
                                     }}>
                                         {clientDisplayNum}
                                     </div>
                                     
                                     <div style={{ flex: 1, overflow: 'hidden' }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                                            <div style={{ fontSize: '15px', fontWeight: 500, color: '#fff' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
+                                            <div style={{ fontSize: '14px', fontWeight: isUnread ? 700 : 400, color: '#fff' }}>
                                                 Client #{clientDisplayNum}
                                             </div>
                                             {isUnread && (
-                                                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#C5FF41' }} />
+                                                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#38d777' }} />
                                             )}
                                         </div>
                                         <div style={{ 
                                             fontSize: '13px', 
-                                            color: isUnread ? '#C5FF41' : '#aaa', 
+                                            color: isUnread ? '#fff' : '#a8a8a8', 
+                                            fontWeight: isUnread ? 600 : 400,
                                             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' 
                                         }}>
                                             {chat.lastMessage || "No messages yet"}
@@ -233,33 +238,40 @@ const Chats = ({ brandId, userBrand }: any) => {
                 </ChatCard>
 
                 {/* RIGHT: MESSAGE FEED (Main View) */}
-                <ChatCard style={{ background: '#0b141a', border: 'none' }}>
+                <ChatCard style={{ background: '#000000', border: 'none' }}>
                     {selectedChatId ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, boxSizing: 'border-box' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', boxSizing: 'border-box' }}>
                             
                             {/* Chat Header */}
                             <div style={{ 
-                                padding: '10px 20px', 
-                                borderBottom: '1px solid #222', 
+                                padding: '0 24px', 
+                                borderBottom: '1px solid #1c1c1e', 
                                 display: 'flex', 
                                 justifyContent: 'space-between', 
                                 alignItems: 'center', 
-                                background: '#1c1c1c',
-                                height: '60px',
-                                boxSizing: 'border-box'
+                                background: '#000000',
+                                height: '75px',
+                                boxSizing: 'border-box',
+                                flexShrink: 0
                             }}>
-                                <div>
-                                    <div style={{ fontWeight: 600, color: '#fff', fontSize: '16px' }}>Client Window</div>
-                                    <div style={{ fontSize: '11px', color: isAutopilot ? '#C5FF41' : '#aaa', marginTop: '2px' }}>
-                                        {isAutopilot ? '🤖 AUTOPILOT ENABLED' : '👤 MANUAL CONTROL'}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                    <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#262626', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 'bold' }}>
+                                        C
+                                    </div>
+                                    <div>
+                                        <div style={{ fontWeight: 600, color: '#fff', fontSize: '15px' }}>Client Window</div>
+                                        <div style={{ fontSize: '11px', color: isAutopilot ? '#38d777' : '#a8a8a8', fontWeight: 500, letterSpacing: '0.5px', marginTop: '2px' }}>
+                                            {isAutopilot ? '● AUTOPILOT ENABLED' : '○ MANUAL CONTROL'}
+                                        </div>
                                     </div>
                                 </div>
                                 <button 
                                     onClick={() => setIsAutopilot(!isAutopilot)}
                                     style={{ 
-                                        background: isAutopilot ? 'rgba(197, 255, 65, 0.15)' : '#fff',
-                                        color: isAutopilot ? '#C5FF41' : '#000',
-                                        border: 'none', padding: '8px 16px', borderRadius: '20px', cursor: 'pointer', fontWeight: 600, fontSize: '13px'
+                                        background: isAutopilot ? '#262626' : '#38d777',
+                                        color: isAutopilot ? '#fff' : '#fff',
+                                        border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '13px',
+                                        transition: 'background 0.2s'
                                     }}
                                 >
                                     {isAutopilot ? 'Take Over' : 'Enable Malvin'}
@@ -271,14 +283,13 @@ const Chats = ({ brandId, userBrand }: any) => {
                                 id="message-feed" 
                                 style={{ 
                                     flex: 1, 
-                                    padding: '20px 10%', 
+                                    padding: '24px 30px', 
                                     overflowY: 'auto', 
                                     display: 'flex', 
                                     flexDirection: 'column', 
-                                    gap: '6px',
-                                    backgroundColor: '#0b141a',
-                                    backgroundImage: 'radial-gradient(rgba(255,255,255,0.03) 1px, transparent 0)',
-                                    backgroundSize: '24px 24px',
+                                    gap: '12px',
+                                    backgroundColor: '#000000',
+                                    maxHeight: 'calc(100% - 150px)', // Rigid height safety lock
                                     boxSizing: 'border-box'
                                 }}
                             >
@@ -287,15 +298,14 @@ const Chats = ({ brandId, userBrand }: any) => {
                                     return (
                                         <div key={msg.id} style={{ 
                                             alignSelf: isManager ? 'flex-end' : 'flex-start', 
-                                            background: isManager ? '#005c4b' : '#128c7e', // Both variants now stylized with custom greens
+                                            background: isManager ? '#2bb35c' : '#262626', 
                                             color: '#fff',
-                                            padding: '8px 14px', 
-                                            borderRadius: isManager ? '8px 0px 8px 8px' : '0px 8px 8px 8px', 
-                                            maxWidth: '65%', 
+                                            padding: '10px 16px', 
+                                            borderRadius: '20px', 
+                                            maxWidth: '60%', 
                                             fontSize: '14px',
-                                            boxShadow: '0 1px 0.5px rgba(0,0,0,0.13)',
                                             lineHeight: '1.4',
-                                            wordBreak: 'break-word', // Keeps layout crisp regardless of string lengths
+                                            wordBreak: 'break-word',
                                             boxSizing: 'border-box'
                                         }}>
                                             {msg.text}
@@ -305,46 +315,74 @@ const Chats = ({ brandId, userBrand }: any) => {
                             </div>
 
                             {/* Footer Input Strip */}
-                            <div style={{ padding: '12px 24px', display: 'flex', gap: '12px', background: '#1c1c1c', alignItems: 'center', boxSizing: 'border-box' }}>
-                                <input 
-                                    value={inputValue} 
-                                    onChange={(e) => setInputValue(e.target.value)}
-                                    onKeyDown={(e) => e.key === 'Enter' && handleManagerSend(inputValue)}
-                                    placeholder="Type a message"
-                                    style={{ 
-                                        flex: 1, 
-                                        background: '#2a2a2a', 
-                                        border: 'none', 
-                                        color: '#fff', 
-                                        padding: '12px 18px', 
-                                        borderRadius: '8px',
-                                        fontSize: '14px',
-                                        outline: 'none',
-                                        boxSizing: 'border-box'
-                                    }}
-                                />
-                                <button 
-                                    onClick={() => handleManagerSend(inputValue)} 
-                                    style={{ 
-                                        background: '#00a884', 
-                                        color: '#fff',
-                                        padding: '12px 24px', 
-                                        borderRadius: '8px', 
-                                        fontWeight: 600, 
-                                        border: 'none', 
-                                        cursor: 'pointer',
-                                        boxSizing: 'border-box'
-                                    }}
-                                >
-                                    SEND
-                                </button>
+                            <div style={{ 
+                                padding: '16px 24px', 
+                                display: 'flex', 
+                                background: '#000000', 
+                                alignItems: 'center',
+                                borderTop: 'none',
+                                boxSizing: 'border-box',
+                                flexShrink: 0
+                            }}>
+                                <div style={{
+                                    display: 'flex',
+                                    flex: 1,
+                                    alignItems: 'center',
+                                    background: '#000000',
+                                    border: '1px solid #262626',
+                                    borderRadius: '24px',
+                                    padding: '4px 6px 4px 18px',
+                                    boxSizing: 'border-box'
+                                }}>
+                                    <input 
+                                        value={inputValue} 
+                                        onChange={(e) => setInputValue(e.target.value)}
+                                        onKeyDown={(e) => e.key === 'Enter' && handleManagerSend(inputValue)}
+                                        placeholder="Message..."
+                                        style={{ 
+                                            flex: 1, 
+                                            background: 'transparent', 
+                                            border: 'none', 
+                                            color: '#fff', 
+                                            padding: '10px 0', 
+                                            fontSize: '14px',
+                                            outline: 'none'
+                                        }}
+                                    />
+                                    <button 
+                                        onClick={() => handleManagerSend(inputValue)} 
+                                        disabled={!inputValue.trim()}
+                                        style={{ 
+                                            background: 'transparent', 
+                                            color: inputValue.trim() ? '#38d777' : '#004d1c',
+                                            padding: '0 12px', 
+                                            fontWeight: 700, 
+                                            fontSize: '14px',
+                                            border: 'none', 
+                                            cursor: inputValue.trim() ? 'pointer' : 'default',
+                                            transition: 'color 0.2s ease'
+                                        }}
+                                    >
+                                        Send
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     ) : (
-                        <div style={{ margin: 'auto', textAlign: 'center', opacity: 0.5 }}>
-                            <div style={{ fontSize: '60px', marginBottom: '15px' }}>💻</div>
-                            <h3 style={{ fontWeight: 300, color: '#fff', fontSize: '20px' }}>Keep your phone connected</h3>
-                            <p style={{ fontSize: '14px', color: '#aaa', maxWidth: '300px', margin: '0 auto' }}>Select a conversation from the sidebar to view messages.</p>
+                        <div style={{ margin: 'auto', textAlign: 'center' }}>
+                            <div style={{ 
+                                fontSize: '80px', 
+                                marginBottom: '16px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                width: '120px',
+                                height: '120px',
+                                borderRadius: '50%',
+                                border: '2px solid #fff'
+                            }}>✉️</div>
+                            <h3 style={{ fontWeight: 400, color: '#fff', fontSize: '22px', margin: '10px 0 5px 0' }}>Your Messages</h3>
+                            <p style={{ fontSize: '14px', color: '#737373', maxWidth: '300px', margin: '0 auto' }}>Select a conversation from the sidebar to view details and autopilot controls.</p>
                         </div>
                     )}
                 </ChatCard>
