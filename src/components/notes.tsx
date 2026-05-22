@@ -24,7 +24,14 @@ interface NotesProps {
 }
 const Notes = ({ userEmail, addActivity, onBack }: NotesProps) => {    
     const [showHistory, setShowHistory] = useState(false);
-    const [savedNotes, setSavedNotes] = useState<Array<{ userId?: string; title: string; content: string; date: string; createdAt: serverTimestamp(),; id?: string; }>>([]);
+    const [savedNotes, setSavedNotes] = useState<Array<{
+        userId?: string;
+        title: string;
+        content: string;
+        date: string;
+        createdAt: any;
+        id?: string;
+    }>>([]);
     const noteRef = useRef<HTMLDivElement | null>(null);
     
     const [currentNote, setCurrentNote] = useState("");
