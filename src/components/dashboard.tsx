@@ -54,10 +54,10 @@ const fullscreenTabs = [
    "Notes",
    "Settings",
    "Premium",
-   "Simulator"
-   "Runway"
-   "MarginCalculator"
-   "MarketTrends"
+   "Simulator",
+   "Runway",
+   "MarginCalculator",
+   "MarketTrends",
    "Memories"
 ];
 
@@ -895,6 +895,9 @@ const Dashboard = (props: any) => {
                         showTools={showTools}
                         setShowTools={setShowTools}
                         setActiveTab={setActiveTab}
+                        addActivity={(text, icon) => {
+                            console.log(text, icon);
+                        }}
                     />
                 </div>
             </>       
