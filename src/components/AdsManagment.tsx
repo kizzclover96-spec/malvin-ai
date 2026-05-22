@@ -144,7 +144,7 @@ const AdsManager = () => {
     // --- NEW: INTERCOM BRAND DISPATCHER ---
 
    
-    const sendMessage= async (selectedUser, messageText) => {
+    const handleSendMessage= async (selectedUser, messageText) => {
         if (!messageText.trim() || !selectedUser?.uid) return;
 
         // The chat UI uses the conversation ID (selectedChatId) to read subcollections.
