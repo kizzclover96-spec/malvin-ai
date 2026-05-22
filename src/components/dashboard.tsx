@@ -823,14 +823,16 @@ const Dashboard = (props: any) => {
                             position: "fixed",
                             inset: 0,
                             zIndex: 9999,
-                            overflow: "hidden"
+                            overflow: "hidden",
+                            pointerEvents: 'none'
                         }}
                     >
                         <div
                             style={{
                                 width: "100%",
                                 height: "100%",
-                                overflowY: "auto"
+                                overflowY: "auto",
+                                pointerEvents: 'auto'
                             }}
                         >
                             {activeTab === "Notes" && (
