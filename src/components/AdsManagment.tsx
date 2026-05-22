@@ -3,7 +3,7 @@ import { auth, db } from '../firebase';
 import { signOut } from 'firebase/auth';
 // Rename them using 'as' so they don't clash or get left undefined
 import { ref, onValue, update, push, serverTimestamp as rtdbTimestamp, DataSnapshot } from "firebase/database";
-import { doc, collection, addDoc, setDoc, serverTimestamp as firestoreTimestamp } from "firebase/firestore";
+import { doc, collection, query, orderBy, onSnapshot, addDoc, setDoc, serverTimestamp as firestoreTimestamp } from "firebase/firestore";
 import { firestore } from "../firebase"; // Your firestore initialization file
 
 const AdsManager = () => {
@@ -18,10 +18,10 @@ const AdsManager = () => {
     const [processingId, setProcessingId] = useState<string | null>(null);
     
     // --- NEW MESSAGING STATES ---
-    const [chatMessage, setChatMessage] = useState('');
+    const [chatMessage, setChatMessage] = useState(''); // Keep this if you use it elsewhere
     const [adminMessage, setAdminMessage] = useState('');
     const [sendingMsg, setSendingMsg] = useState(false);
-
+    const [conversationMessages, setConversationMessages] = useState<any[]>([]); // 🌟 ADD THIS
     useEffect(() => {
         const verificationRef = ref(db, 'admin/verification_requests');
 
@@ -173,6 +173,32 @@ const AdsManager = () => {
             console.error("Error writing to Firestore:", error);
         }
     };
+    useEffect(() => {
+        if (!selectedUser?.uid) {
+            setConversationMessages([]);
+            return;
+        }
+
+        // Point to the messages subcollection for the selected user
+        const messagesQuery = query(
+            collection(firestore, "conversations", selectedUser.uid, "messages"),
+            orderBy("timestamp", "asc")
+        );
+
+        // Listen for real-time updates
+        const unsubscribeChat = onSnapshot(messagesQuery, (snapshot) => {
+            const msgs = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            setConversationMessages(msgs);
+        }, (error) => {
+            console.error("Error listening to chat history:", error);
+        });
+
+        // Clean up the listener when the user changes or component unmounts
+        return () => unsubscribeChat();
+    }, [selectedUser?.uid]);
 
     return (
         <div style={adminLayout}>
@@ -327,17 +353,65 @@ const AdsManager = () => {
 
                             <hr style={{ border: 'none', borderTop: '1px solid #222', margin: '5px 0' }} />
 
-                            {/* --- NEW: BRAND LIVE MESSENGER MODULE --- */}
+                            {/* --- BRAND LIVE MESSENGER MODULE --- */}
                             <div style={messengerContainer}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '12px' }}>
                                     <label style={labelStyle}>SECURE_INTERCOM_DISPATCH</label>
                                     <span style={{ fontSize: '10px', color: '#007fff', fontWeight: 'bold' }}>
-                                        (As: malvin.io ✓)
+                                        (Chatting with: {selectedUser.brandData?.name || selectedUser.brandName || "User"})
                                     </span>
                                 </div>
+
+                                {/* 🌟 NEW: Live Message History Feed Box */}
+                                <div style={{
+                                    height: '200px',
+                                    overflowY: 'auto',
+                                    background: '#000',
+                                    border: '1px solid #222',
+                                    borderRadius: '8px',
+                                    padding: '12px',
+                                    marginBottom: '12px',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '8px'
+                                }}>
+                                    {conversationMessages.length === 0 ? (
+                                        <div style={{ textAlign: 'center', opacity: 0.3, fontSize: '11px', marginTop: '80px' }}>
+                                            NO_CONVERSATION_HISTORY
+                                        </div>
+                                    ) : (
+                                        conversationMessages.map((msg) => {
+                                            const isAdmin = msg.sender === 'manager';
+                                            return (
+                                                <div 
+                                                    key={msg.id} 
+                                                    style={{
+                                                        alignSelf: isAdmin ? 'flex-end' : 'flex-start',
+                                                        background: isAdmin ? 'rgba(0, 127, 255, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                                                        border: isAdmin ? '1px solid #007fff' : '1px solid #333',
+                                                        color: '#fff',
+                                                        padding: '8px 12px',
+                                                        borderRadius: '12px',
+                                                        maxWidth: '80%',
+                                                        fontSize: '12px',
+                                                        wordBreak: 'break-word'
+                                                    }}
+                                                >
+                                                    <div style={{ fontSize: '9px', opacity: 0.5, marginBottom: '2px', fontWeight: 'bold' }}>
+                                                        {isAdmin ? 'MALVIN_ADMIN' : 'MERCHANT'}
+                                                    </div>
+                                                    {msg.text}
+                                                </div>
+                                            );
+                                        })
+                                    )}
+                                </div>
+
+                                {/* Input Control Block */}
                                 <div style={{ display: 'flex', gap: '8px' }}>
                                     <input 
                                         type="text"
+                                        placeholder="Type a message secure payload..."
                                         value={adminMessage} 
                                         onChange={(e) => setAdminMessage(e.target.value)}
                                         style={{ ...inputStyle, flex: 1 }}
@@ -352,9 +426,10 @@ const AdsManager = () => {
                                     />
                                     <button 
                                         onClick={async () => {
+                                            if (!adminMessage.trim() || sendingMsg) return;
                                             setSendingMsg(true);
                                             await sendAdminMessageToFirestore(selectedUser, adminMessage);
-                                            setAdminMessage(''); // Clear input box after sending
+                                            setAdminMessage('');
                                             setSendingMsg(false);
                                         }}
                                         disabled={sendingMsg || !adminMessage?.trim()}
@@ -363,15 +438,14 @@ const AdsManager = () => {
                                             background: '#007fff',
                                             color: '#fff',
                                             padding: '0 16px',
-                                            opacity: (sendingMsg || !chatMessage.trim()) ? 0.4 : 1,
-                                            cursor: (sendingMsg || !chatMessage.trim()) ? 'not-allowed' : 'pointer'
+                                            opacity: (sendingMsg || !adminMessage?.trim()) ? 0.4 : 1,
+                                            cursor: (sendingMsg || !adminMessage?.trim()) ? 'not-allowed' : 'pointer'
                                         }}
                                     >
                                         {sendingMsg ? '...' : 'SEND'}
                                     </button>
                                 </div>
                             </div>
-
                         </div>
                     ) : (
                         <div style={{ textAlign: 'center', opacity: 0.3, padding: '50px' }}>SELECT_MERCHANT_TO_MODERATE</div>
