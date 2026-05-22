@@ -223,14 +223,14 @@ const Dashboard = (props: any) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const visionInterval = useRef<any>(null);
     const chatEndRef = useRef<HTMLDivElement>(null);
-   const [userBrand, setUserBrand] = useState({
+    const [userBrand, setUserBrand] = useState({
         id: "",
         name: "Connecting...",
         context: "",
         profilePic: null,
         currency: "Euro (€)",
         language: "English (US)",
-        tier: isPremium ? "Premium Pro Tier" : "Basic Free Tier", // Can now use verified status cleanly
+        tier: "Basic Free Tier",
         status: "CEO / Founder"
     });
     useEffect(() => {
@@ -599,7 +599,7 @@ const Dashboard = (props: any) => {
 
                 {/* Header */}
                 <div style={headerWrapper}>
-                    {/*<BackButton
+                    <BackButton
                         activeTab={activeTab}
                         setActiveTab={setActiveTab}
                         setShowTools={setShowTools}
@@ -611,9 +611,9 @@ const Dashboard = (props: any) => {
                         handleUpdateBrand={handleUpdateBrand}
                         handleLogout={handleLogout}
                         userEmail={userEmail}
-                    />*/}
+                    />
                     <div style={navPillStyle}>
-                        {['Ads', 'Invoices', 'Payments', 'Chats', 'Catalog'].map(item => (
+                        {['Ads', 'Dashboard', 'Payments', 'Chats', 'Catalog'].map(item => (
                             <div key={item} onClick={() => setActiveTab(item)} style={{
                                 ...navItemStyle,
                                 backgroundColor: activeTab === item ? '#C5FF41' : 'transparent',
