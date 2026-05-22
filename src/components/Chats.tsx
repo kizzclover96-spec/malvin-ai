@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { collection, query, where, onSnapshot, orderBy, addDoc, serverTimestamp, doc, setDoc, updateDoc, getDocs } from "firebase/firestore";
 import { firestore, auth } from "../firebase";
+import AdminInternalSupport from './AdminInternalSupport';
 
 const ChatCard = ({ children, style }: any) => (
     <div style={{
@@ -22,6 +23,9 @@ const Chats = ({ brandId, userBrand }: any) => {
     const [activeMessages, setActiveMessages] = useState<any[]>([]);
     const [chats, setChats] = useState<any[]>([]); 
     const [inputValue, setInputValue] = useState('');
+    const [isInternalOpen, setIsInternalOpen] = useState(false);
+    const [hasNewInternalMsg, setHasNewInternalMsg] = useState(false);
+    const adminChatRoomId = "global_system_coordination"; // Constant channel key identifier
 
     // 1. Sort chats: Unread ones first safely
     const sortedChats = useMemo(() => {
@@ -104,8 +108,32 @@ const Chats = ({ brandId, userBrand }: any) => {
         return () => unsubscribe();
     }, [selectedChatId]);
 
+    // 5. Dynamic Real-time Listener for the Gold Admin Notification Badge
+    useEffect(() => {
+        const docRef = doc(firestore, "admin_support", adminChatRoomId);
+        const unsubscribe = onSnapshot(docRef, (docSnap) => {
+            if (docSnap.exists()) {
+                setHasNewInternalMsg(docSnap.data().unread === true);
+            }
+        });
+        return () => unsubscribe();
+    }, []);
+
+    // 6. Clear notification status when explicitly clicking the Internal Desk panel
+    const handleOpenInternalSupport = async () => {
+        setIsInternalOpen(true);
+        setSelectedChatId(null); // Clear selected client space focus 
+        try {
+            const adminDocRef = doc(firestore, "admin_support", adminChatRoomId);
+            await updateDoc(adminDocRef, { unread: false });
+        } catch (e) {
+            console.error("Error clearing admin notification status:", e);
+        }
+    };
+
     const handleSelectChat = async (chatId: string) => {
         setSelectedChatId(chatId);
+        setIsInternalOpen(false); // 🌟 FIX: Auto-close internal support panel when jumping to client profiles
         try {
             const chatRef = doc(firestore, "conversations", chatId);
             await updateDoc(chatRef, { viewedByManager: true });
@@ -135,7 +163,7 @@ const Chats = ({ brandId, userBrand }: any) => {
         }
     };
 
-    // 5. Auto-scroll to bottom
+    // 7. Auto-scroll to bottom
     useEffect(() => {
         const messageContainer = document.getElementById('message-feed');
         if (messageContainer) {
@@ -235,11 +263,40 @@ const Chats = ({ brandId, userBrand }: any) => {
                             );
                         })}
                     </div>
+                    
+                    {/* BOTTOM SIDEBAR ANCHOR: ADMIN BUTTON */}
+                    <div style={{ padding: '16px', borderTop: '1px solid #1c1c1e', background: '#000' }}>
+                        <button
+                            onClick={handleOpenInternalSupport}
+                            style={{
+                                width: '100%',
+                                padding: '14px',
+                                borderRadius: '8px',
+                                fontWeight: 'bold',
+                                fontSize: '13px',
+                                letterSpacing: '0.5px',
+                                cursor: 'pointer',
+                                border: 'none',
+                                transition: 'all 0.3s ease',
+                                background: hasNewInternalMsg ? 'linear-gradient(45deg, #ffd700, #ffae00)' : '#1a1a1a',
+                                color: hasNewInternalMsg ? '#000000' : '#737373', // 🌟 Tweak: Cleaner pale text color when inactive
+                                boxShadow: hasNewInternalMsg ? '0 0 15px rgba(255, 215, 0, 0.4)' : 'none'
+                            }}
+                        >
+                            {hasNewInternalMsg ? '⚠️ INTERNAL ADMIN DESK (NEW)' : 'INTERNAL ADMIN DESK'}
+                        </button>
+                    </div>
                 </ChatCard>
 
                 {/* RIGHT: MESSAGE FEED (Main View) */}
                 <ChatCard style={{ background: '#000000', border: 'none' }}>
-                    {selectedChatId ? (
+                    {/* 🌟 FIX: Prioritize internal view over selected layout to avoid conditional render overlap breaks */}
+                    {isInternalOpen ? (
+                        <AdminInternalSupport 
+                            adminChatId={adminChatRoomId} 
+                            onClose={() => setIsInternalOpen(false)} 
+                        />    
+                    ) : selectedChatId ? (
                         <div style={{ display: 'flex', flexDirection: 'column', height: '100%', boxSizing: 'border-box' }}>
                             
                             {/* Chat Header */}
@@ -269,7 +326,7 @@ const Chats = ({ brandId, userBrand }: any) => {
                                     onClick={() => setIsAutopilot(!isAutopilot)}
                                     style={{ 
                                         background: isAutopilot ? '#262626' : '#38d777',
-                                        color: isAutopilot ? '#fff' : '#fff',
+                                        color: '#fff',
                                         border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '13px',
                                         transition: 'background 0.2s'
                                     }}
@@ -289,7 +346,7 @@ const Chats = ({ brandId, userBrand }: any) => {
                                     flexDirection: 'column', 
                                     gap: '12px',
                                     backgroundColor: '#000000',
-                                    maxHeight: 'calc(100% - 150px)', // Rigid height safety lock
+                                    maxHeight: 'calc(100% - 150px)', 
                                     boxSizing: 'border-box'
                                 }}
                             >
@@ -320,7 +377,6 @@ const Chats = ({ brandId, userBrand }: any) => {
                                 display: 'flex', 
                                 background: '#000000', 
                                 alignItems: 'center',
-                                borderTop: 'none',
                                 boxSizing: 'border-box',
                                 flexShrink: 0
                             }}>
