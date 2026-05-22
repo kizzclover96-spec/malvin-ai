@@ -51,7 +51,6 @@ const BackButton = ({
     activeTab,
     setActiveTab,
     setShowTools,
-    addActivity,
     userBrand,
     setUserBrand,
     setBrandData,
@@ -179,7 +178,6 @@ const BackButton = ({
                         activeTab={activeTab}
                         setActiveTab={setActiveTab}
                         setShowTools={setShowTools}
-                        addActivity={addActivity}
                         auth={auth}
                         userBrand={userBrand}
                         setUserBrand={setUserBrand}
@@ -197,7 +195,7 @@ const BackButton = ({
 };
 
 const Dashboard = (props: any) => {
-    const { onBack, addActivity, userEmail, isPremium } = props;
+    const { onBack, userEmail, isPremium } = props;
     const [chatCount, setChatCount] = useState(0);
     const [aiMessage, setAiMessage] = useState('');
     const [aiHistory, setAiHistory] = useState<any[]>([]);
@@ -558,7 +556,6 @@ const Dashboard = (props: any) => {
                         activeTab={activeTab}
                         setActiveTab={setActiveTab}
                         setShowTools={setShowTools}
-                        addActivity={addActivity}
                         userBrand={userBrand}
                         setUserBrand={setUserBrand}
                         setBrandData={setBrandData}
@@ -605,7 +602,6 @@ const Dashboard = (props: any) => {
                         activeTab={activeTab}
                         setActiveTab={setActiveTab}
                         setShowTools={setShowTools}
-                        addActivity={addActivity}
                         userBrand={userBrand}
                         setUserBrand={setUserBrand}
                         setBrandData={setBrandData}
@@ -839,7 +835,6 @@ const Dashboard = (props: any) => {
                             {activeTab === "Notes" && (
                                 <Notes
                                     userEmail={userEmail}
-                                    addActivity={addActivity}
                                 />
                             )}
 
@@ -885,7 +880,6 @@ const Dashboard = (props: any) => {
                     showTools={showTools}
                     setShowTools={setShowTools}
                     setActiveTab={setActiveTab}
-                    addActivity={addActivity}
                 />
             </div>
         </>       

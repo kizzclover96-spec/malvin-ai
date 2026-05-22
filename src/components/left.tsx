@@ -13,7 +13,6 @@ interface Props {
   activeTab: string;
   setActiveTab: (tab: string) => void;
   setShowTools: React.Dispatch<React.SetStateAction<boolean>>;
-  addActivity: (text: string, icon?: string) => void;
 
   auth: any;
   userBrand: any;
@@ -84,7 +83,6 @@ const LeftPanel: React.FC<Props> = ({
   activeTab,
   setActiveTab,
   setShowTools,
-  addActivity,
   auth,
   userBrand,
   setUserBrand,
@@ -163,7 +161,6 @@ const LeftPanel: React.FC<Props> = ({
 
               if (item.tab === "ToolModal") {
                 setShowTools((p) => !p);
-                addActivity("Opened Tools", "🛠️");
               }
             }}
             style={{
