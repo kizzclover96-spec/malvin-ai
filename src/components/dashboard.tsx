@@ -632,8 +632,8 @@ const Dashboard = (props: any) => {
                 </div>*/} 
                 {/* Content Area */}
                 <div style={contentWrapper}>
-                    {activeTab === 'Chats' ? <Chats userBrand={userBrand} brandId={userBrand?.id} /> :
-                    activeTab === 'Ads' ? <div style={{color: 'white', padding: 20}}>Test Ads Page</div> :
+                    {activeTab === 'Chats' ? <div style={{color: 'white', padding: 20}}>Test Chats Page</div> :
+                    activeTab === 'Ads' ? <AdsManager userBrand={userBrand} /> :
                     activeTab === 'Catalog' ? <div style={{color: 'white', padding: 20}}>Test Catalog Page</div> :
                     activeTab === 'Payments' ? <div style={{color: 'white', padding: 20}}>Test Payments Page</div> :
                     (
