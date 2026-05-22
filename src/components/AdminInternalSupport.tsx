@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { collection, query, onSnapshot, orderBy, addDoc, serverTimestamp, doc, setDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { firestore, storage } from "../firebase"; // Ensure your storage instance is imported
+import { firestore, storage } from "../firebase"; 
 
 interface AdminInternalSupportProps {
     adminChatId: string; // A unique document ID dedicated to this specific admin channel
@@ -14,7 +14,7 @@ const AdminInternalSupport = ({ adminChatId, onClose }: AdminInternalSupportProp
     const [uploading, setUploading] = useState(false);
     const feedRef = useRef<HTMLDivElement>(null);
 
-    // 1. Listen to internal admin messages
+    // 1. Listen to internal admin messages safely
     useEffect(() => {
         if (!adminChatId) return;
 
@@ -23,16 +23,27 @@ const AdminInternalSupport = ({ adminChatId, onClose }: AdminInternalSupportProp
             orderBy("timestamp", "asc")
         );
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const msgs = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
+        // 🌟 FIX: Added { includeMetadataChanges: true } and fallback dates 
+        // to prevent UI breaks when serverTimestamp() is computing.
+        const unsubscribe = onSnapshot(q, { includeMetadataChanges: true }, (snapshot) => {
+            const msgs = snapshot.docs.map(doc => {
+                const data = doc.data();
+                return {
+                    id: doc.id,
+                    ...data,
+                    // Safe evaluation: if Firestore hasn't returned the true timestamp yet, 
+                    // use local client clock so order doesn't break.
+                    timestamp: data.timestamp ? data.timestamp.toDate() : new Date()
+                };
+            });
             setMessages(msgs);
+        }, (error) => {
+            console.error("Internal Admin chat listener error: ", error);
         });
 
         // Mark as read when opened
-        setDoc(doc(firestore, "admin_support", adminChatId), { unread: false }, { merge: true });
+        setDoc(doc(firestore, "admin_support", adminChatId), { unread: false }, { merge: true })
+            .catch(err => console.error("Could not update read status:", err));
 
         return () => unsubscribe();
     }, [adminChatId]);
@@ -74,12 +85,10 @@ const AdminInternalSupport = ({ adminChatId, onClose }: AdminInternalSupportProp
 
         setUploading(true);
         try {
-            // Path structure for verification files
             const storageRef = ref(storage, `admin_verifications/${adminChatId}/${Date.now()}_${file.name}`);
             const snapshot = await uploadBytes(storageRef, file);
             const downloadUrl = await getDownloadURL(snapshot.ref);
 
-            // Add file message attachment payload to firestore
             await addDoc(collection(firestore, "admin_support", adminChatId, "messages"), {
                 text: `Sent a file: ${file.name}`,
                 fileUrl: downloadUrl,
