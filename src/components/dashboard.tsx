@@ -18,6 +18,10 @@ import Payments from './Payments';
 import LeftPanel from "./left";
 import Notes from "./notes";
 import Simulator from "./Simulator";
+import Runway from "./Runway";
+import MarginCalculator from "./MarginCalculator";
+import MarketTrends from "./MarketTrends";
+import Memories from "./memories"
 
 // Exporting this so you can import it and use it anywhere else (Chats, MarketFront, etc.)
 export const VerifiedBadge = () => (
@@ -51,6 +55,10 @@ const fullscreenTabs = [
    "Settings",
    "Premium",
    "Simulator"
+   "Runway"
+   "MarginCalculator"
+   "MarketTrends"
+   "Memories"
 ];
 
 const BackButton = ({

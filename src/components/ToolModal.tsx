@@ -159,6 +159,16 @@ const ToolModal = ({
             addActivity("Audited Cashflow", "🔥");
           }}
         />
+
+        <AppIconButton
+          label="Memories"
+          icon="🧾"
+          onClick={() => {
+            setActiveTab("Memories");
+            setShowTools(false);
+            addActivity("Checked Memories", "📈");
+          }}
+        />
       </div>
     </div>
   );
