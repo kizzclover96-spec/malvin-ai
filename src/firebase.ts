@@ -3,6 +3,12 @@ import { getDatabase } from "firebase/database";
 import { getAuth, GoogleAuthProvider, browserLocalPersistence, setPersistence } from "firebase/auth";
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
 
+if (!import.meta.env.VITE_FIREBASE_PROJECT_ID) {
+  console.error(
+    "🚨 CRITICAL ERROR: VITE_FIREBASE_PROJECT_ID is empty! " +
+    "Check your .env file and restart your local npm dev server."
+  );
+}
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,

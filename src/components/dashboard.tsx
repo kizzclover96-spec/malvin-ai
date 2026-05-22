@@ -599,7 +599,7 @@ const Dashboard = (props: any) => {
 
                 {/* Header */}
                 <div style={headerWrapper}>
-                    <BackButton
+                    {/*<BackButton
                         activeTab={activeTab}
                         setActiveTab={setActiveTab}
                         setShowTools={setShowTools}
@@ -611,14 +611,23 @@ const Dashboard = (props: any) => {
                         handleUpdateBrand={handleUpdateBrand}
                         handleLogout={handleLogout}
                         userEmail={userEmail}
-                    />
+                    />*/}
                     <div style={navPillStyle}>
                         {['Ads', 'Invoices', 'Payments', 'Chats', 'Catalog'].map(item => (
-                            <div key={item} onClick={() => setActiveTab(item)} style={{
-                                ...navItemStyle,
-                                backgroundColor: activeTab === item ? '#C5FF41' : 'transparent',
-                                color: activeTab === item ? 'black' : '#666',
-                            }}>
+                            <div 
+                                key={item} 
+                                onClick={() => {
+                                    console.log("🎯 Clicked tab:", item); // Add this line to debug
+                                    setActiveTab(item);
+                                }} 
+                                style={{
+                                    ...navItemStyle,
+                                    cursor: 'pointer', // Ensure the cursor shows it's clickable
+                                    pointerEvents: 'auto', // Force element to intercept mouse interactions
+                                    backgroundColor: activeTab === item ? '#C5FF41' : 'transparent',
+                                    color: activeTab === item ? 'black' : '#666',
+                                }}
+                            >
                                 {item}
                                 {item === 'Chats' && hasUnread && <div style={unreadDotStyle} />}
                             </div>
