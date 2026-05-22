@@ -51,14 +51,14 @@ const DashboardCard = ({ children, style }: any) => (
   </div>
 );
 const fullscreenTabs = [
-   "Notes",
-   "Settings",
-   "Premium",
-   "Simulator",
-   "Runway",
-   "MarginCalculator",
-   "MarketTrends",
-   "Memories"
+  "Notes",
+  "Settings",
+  "Premium",
+  "Simulator",
+  "Runway",
+  "MarginCalculator",
+  "MarketTrends",
+  "Memories"
 ];
 
 const BackButton = ({
