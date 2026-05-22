@@ -825,13 +825,9 @@ const Dashboard = (props: any) => {
                     <div
                         style={{
                             position: "fixed",
-                            top: 0,
-                            left: 0,
-                            width: "100vw",
-                            height: "100vh",
+                            inset: 0,
                             background: "#000",
-                            zIndex: 9999,
-                            overflow: "hidden"
+                            zIndex: 9999
                         }}
                     >
                         <div
@@ -847,9 +843,7 @@ const Dashboard = (props: any) => {
                                     addActivity={addActivity}
                                 />
                             )}
-                            {activeTab === "Memories" && (
-                                <Memories/>
-                            )}
+                            
 
                             
 

@@ -151,7 +151,7 @@ const LeftPanel: React.FC<Props> = ({
         }}
       >
         {[
-          { label: "🧠 Memories", tab: "Memories" },
+          { label: "🧠 Session", tab: "Session" },
           { label: "🛠 Tools", tab: "ToolModal" },
           { label: "⚙️ Settings", tab: "Settings" },
           { label: "📝 Notes", tab: "Notes" },
