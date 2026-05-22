@@ -625,22 +625,29 @@ const Dashboard = (props: any) => {
                         ))}
                     </div>
                 </div>
-
-                {/* Content Area */}
+                {/* Comment out your real components and use this test block */}
                 <div style={contentWrapper}>
+                    {activeTab === 'Chats' ? <div style={{color: 'white', padding: 20}}>Test Chats Page</div> :
+                    activeTab === 'Ads' ? <div style={{color: 'white', padding: 20}}>Test Ads Page</div> :
+                    activeTab === 'Catalog' ? <div style={{color: 'white', padding: 20}}>Test Catalog Page</div> :
+                    activeTab === 'Payments' ? <div style={{color: 'white', padding: 20}}>Test Payments Page</div> :
+                    <div style={bentoGridStyle}>Dashboard Default View</div>}
+                </div>
+                {/* Content Area */}
+                {/*<div style={contentWrapper}>
                     {activeTab === 'Chats' ? <Chats userBrand={userBrand} brandId={userBrand?.id} /> :
                     activeTab === 'Ads' ? <AdsManager userBrand={userBrand} /> :
                     activeTab === 'Catalog' ? <Catalog userBrand={userBrand} /> :
                     activeTab === 'Payments' ? <Payments userBrand={userBrand} /> :
                     (
                         <div style={bentoGridStyle}>
-                            {/* Upper Bento */}
+                            {/* Upper Bento 
                             <div style={upperGridStyle}>
                                 <DashboardCard>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                                         <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
                                             
-                                            {/* BOOKING SECTION */}
+                                            {/* BOOKING SECTION 
                                             <div 
                                                 onClick={() => setShowCalendar(true)} 
                                                 style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px' }}
@@ -661,7 +668,7 @@ const Dashboard = (props: any) => {
 
                                             <div style={{ width: '1px', height: '40px', background: '#1A1A1A' }} />
 
-                                            {/* ORDERS SECTION */}
+                                            {/* ORDERS SECTION *
                                             <div>
                                                 <span style={{ fontSize: '10px', color: '#666', fontWeight: 800, letterSpacing: '1px' }}>PENDING_ORDERS</span>
                                                 <div style={{ display: 'flex', alignItems: 'baseline' }}>
@@ -687,7 +694,7 @@ const Dashboard = (props: any) => {
                                         </div>
                                     </div>
 
-                                    {/* MANUALLY EDITABLE BIO (Upper-left card, under data fields) */}
+                                    {/* MANUALLY EDITABLE BIO (Upper-left card, under data fields) *
                                     <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                         <span style={{ fontSize: '10px', color: '#666', fontWeight: 800, letterSpacing: '1px' }}>STORE_FRONT_BIO</span>
                                         <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end' }}>
@@ -737,7 +744,7 @@ const Dashboard = (props: any) => {
                                 </DashboardCard>
                             </div>
 
-                            {/* Lower Grid */}
+                            {/* Lower Grid *
                             <div style={lowerGridStyle}>
                                 <DashboardCard style={{ overflowY: 'auto' }}>
                                     <div style={{ background: '#000', padding: '15px', borderRadius: '12px', border: '1px solid #222', marginBottom: '20px' }}>
@@ -759,7 +766,7 @@ const Dashboard = (props: any) => {
                                     </div>
                                 </DashboardCard>
 
-                                {/* Malvin AI */}
+                                {/* Malvin AI *
                                 <DashboardCard style={{ flex: 1, overflow: 'hidden' }}>
                                     <video ref={videoRef} autoPlay style={{ display: 'none' }} />
                                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
@@ -789,7 +796,7 @@ const Dashboard = (props: any) => {
                             </div>
                         </div>
                     )}
-                </div>
+                </div>*
                 {showCalendar && (
                     <div style={modalOverlayStyle} onClick={() => setShowCalendar(false)}>
                         <div style={calendarCardStyle} onClick={e => e.stopPropagation()}>
@@ -816,7 +823,7 @@ const Dashboard = (props: any) => {
                         </div>
                     </div>
                 )}
-                {/* FULLSCREEN APP LAYER */}
+                {/* FULLSCREEN APP LAYER *
                 {activeTab !== "Dashboard" && (
                     <div
                         style={{
@@ -884,7 +891,7 @@ const Dashboard = (props: any) => {
                     showTools={showTools}
                     setShowTools={setShowTools}
                     setActiveTab={setActiveTab}
-                />
+                />*/}
             </div>
         </>       
     );
