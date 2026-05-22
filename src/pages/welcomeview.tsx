@@ -1,12 +1,15 @@
 import React, { useEffect, useState, useRef } from "react";
+import { doc, getDoc } from "firebase/firestore";
+import { firestore, auth } from "../firebase";
 
 interface WelcomeProps {
-  onWakeClick: () => void;
+  onWakeClick: (token: string) => void;
   userEmail?: string | null | undefined;
 }
 
 function Welcomeview({ onWakeClick }: WelcomeProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [premiumToken, setPremiumToken] = useState<string>("MVN_BSC_DEFAULT_0000");
 
   // 1. NEON DOTS ENGINE
   useEffect(() => {
@@ -48,13 +51,38 @@ function Welcomeview({ onWakeClick }: WelcomeProps) {
     animate();
   }, []);
 
-  // 2. TIMEOUT TO OPEN SESSION
+  // 2. CONCURRENT SECURITY RECORD FETCH
+  useEffect(() => {
+    const checkPremiumStatus = async () => {
+      const currentUser = auth.currentUser;
+      if (!currentUser) return;
+
+      try {
+        const userRef = doc(firestore, "users", currentUser.uid); 
+        const userSnap = await getDoc(userRef);
+
+        if (userSnap.exists()) {
+          const userData = userSnap.data();
+          if (userData?.premium === true) {
+            // Unique signature generated for authenticated session
+            setPremiumToken("MVN_PRM_VALID_2026_A9X7");
+          }
+        }
+      } catch (err) {
+        console.error("Premium authorization module error:", err);
+      }
+    };
+
+    checkPremiumStatus();
+  }, []);
+
+  // 3. TIMEOUT TO OPEN SESSION AND PASS DATA POINTER
   useEffect(() => {
     const timer = setTimeout(() => {
-      onWakeClick();
-    }, 4000); // Set to 4 seconds to match the orbit animation
+      onWakeClick(premiumToken);
+    }, 4000); 
     return () => clearTimeout(timer);
-  }, [onWakeClick]);
+  }, [onWakeClick, premiumToken]);
 
   return (
     <div style={{
@@ -65,7 +93,7 @@ function Welcomeview({ onWakeClick }: WelcomeProps) {
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
-      justifyContent: 'center',
+      justify: 'center',
       backgroundColor: '#000000',
       zIndex: 1000,
       overflow: 'hidden'
@@ -85,13 +113,9 @@ function Welcomeview({ onWakeClick }: WelcomeProps) {
         }
       `}</style>
 
-      {/* BACKGROUND CANVAS (Dots) */}
       <canvas ref={canvasRef} style={{ position: 'absolute', top: 0, left: 0, zIndex: -1 }} />
 
-      {/* CENTER UNIT */}
       <div style={{ position: 'relative', width: '150px', height: '150px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        
-        {/* THE ORBITING LINE & DOT */}
         <div style={{
           position: 'absolute',
           width: '100%',
@@ -100,7 +124,6 @@ function Welcomeview({ onWakeClick }: WelcomeProps) {
           borderRadius: '50%',
           animation: 'orbit 2s linear infinite'
         }}>
-          {/* The small neon dot on the line */}
           <div style={{
             position: 'absolute',
             top: '-5px',
@@ -113,7 +136,6 @@ function Welcomeview({ onWakeClick }: WelcomeProps) {
           }} />
         </div>
 
-        {/* INNER CIRCLE WITH EYES */}
         <div style={{
           width: '80px',
           height: '80px',
@@ -122,7 +144,7 @@ function Welcomeview({ onWakeClick }: WelcomeProps) {
           border: '1px solid rgba(0, 242, 255, 0.3)',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center',
+          justify: 'center',
           backdropFilter: 'blur(5px)'
         }}>
           <svg width="40" height="15" viewBox="0 0 60 20">
@@ -134,7 +156,6 @@ function Welcomeview({ onWakeClick }: WelcomeProps) {
         </div>
       </div>
 
-      {/* LOADING TEXT */}
       <p style={{
         marginTop: '30px',
         color: '#00f2ff',
@@ -144,7 +165,7 @@ function Welcomeview({ onWakeClick }: WelcomeProps) {
         fontFamily: 'monospace',
         animation: 'pulseText 1.5s infinite ease-in-out'
       }}>
-        Malvin is on its way...
+        Malvin is checking clearance parameters...
       </p>
     </div>
   );

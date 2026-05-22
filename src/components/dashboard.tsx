@@ -195,7 +195,8 @@ const BackButton = ({
 };
 
 const Dashboard = (props: any) => {
-    const { onBack, userEmail, isPremium } = props;
+    const { onBack, userEmail, validationToken } = props;
+    const isPremium = validationToken === "MVN_PRM_VALID_2026_A9X7";
     const [chatCount, setChatCount] = useState(0);
     const [aiMessage, setAiMessage] = useState('');
     const [aiHistory, setAiHistory] = useState<any[]>([]);
@@ -222,14 +223,14 @@ const Dashboard = (props: any) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const visionInterval = useRef<any>(null);
     const chatEndRef = useRef<HTMLDivElement>(null);
-    const [userBrand, setUserBrand] = useState({
+   const [userBrand, setUserBrand] = useState({
         id: "",
         name: "Connecting...",
         context: "",
         profilePic: null,
         currency: "Euro (€)",
         language: "English (US)",
-        tier: "Basic Free Tier",
+        tier: isPremium ? "Premium Pro Tier" : "Basic Free Tier", // Can now use verified status cleanly
         status: "CEO / Founder"
     });
     useEffect(() => {

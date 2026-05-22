@@ -22,10 +22,18 @@ const Chats = ({ brandId, userBrand }: any) => {
     const [inputValue, setInputValue] = useState('');
 
     // 1. Sort chats: Unread ones first
+    // 1. Sort chats safely: Unread ones first, handling updating timestamps cleanly
     const sortedChats = useMemo(() => {
         return [...chats].sort((a, b) => {
-            if (a.viewedByManager === b.viewedByManager) return 0;
-            return a.viewedByManager ? 1 : -1;
+            // First priority: Read vs Unread
+            if (a.viewedByManager !== b.viewedByManager) {
+                return a.viewedByManager ? 1 : -1;
+            }
+            
+            // Second priority: Time ordering fallback validation
+            const timeA = a.updatedAt?.seconds || a.updatedAt?.toMillis?.() || 0;
+            const timeB = b.updatedAt?.seconds || b.updatedAt?.toMillis?.() || 0;
+            return timeB - timeA; 
         });
     }, [chats]);
 
@@ -54,15 +62,24 @@ const Chats = ({ brandId, userBrand }: any) => {
     }, []);
     
     // 3. Real-time Listener for the Manager Chat List
+    // 3. Real-time Listener for the Manager Chat List
     useEffect(() => {
-        if (!brandId) return;
+        // Force target brand id validation check
+        const validBrandId = typeof brandId === 'object' ? brandId?.id : brandId;
+        if (!validBrandId) {
+            console.warn("⚠️ Chats component loaded without a valid brandId string!");
+            return;
+        }
 
         const conversationsRef = collection(firestore, "conversations");
 
-        console.log("CURRENT BRAND ID:", brandId);
+        console.log("🔍 ATTEMPTING LISTEN FOR BRAND ID:", String(validBrandId));
+        
+        // Safety check: if you want an immediate fallback fix before building indexes,
+        // remove the `.orderBy("updatedAt", "desc")` line entirely.
         const q = query(
             conversationsRef,
-            where("brandId", "==", brandId),
+            where("brandId", "==", String(validBrandId)),
             orderBy("updatedAt", "desc")
         );
 
@@ -74,12 +91,21 @@ const Chats = ({ brandId, userBrand }: any) => {
                     ...(doc.data() as any),
                 }));
 
-                console.log("LIVE CHATS:", activeChats);
-
+                console.log("🚀 LIVE CHATS FETCHED SUCCESSFULLY:", activeChats);
                 setChats(activeChats);
             },
             (error) => {
-                console.error("Dashboard listener failed:", error);
+                console.error("❌ Dashboard listener failed absolute validation:", error);
+                
+                // AUTOMATIC FALLBACK: If index isn't ready yet, fetch anyway without sorting
+                if (error.message.includes("requires an index")) {
+                    console.log("🔄 Index missing. Attempting immediate fallback load without order constraints...");
+                    const fallbackQuery = query(conversationsRef, where("brandId", "==", String(validBrandId)));
+                    getDocs(fallbackQuery).then(snap => {
+                        const fallbackChats = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                        setChats(fallbackChats);
+                    }).catch(err => console.error("Fallback failed:", err));
+                }
             }
         );
 

@@ -5,47 +5,30 @@ import Login from "./pages/loginscreen";
 import Welcomeview from "./pages/welcomeview"; 
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import AdsManager from "./components/AdsManagment";
-import LandingPage from "./pages/LandingPage"; // Import your new page
+import LandingPage from "./pages/LandingPage";
 import CookieBanner from "./components/CookieBanner";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import Impressum from "./pages/Impressum";
 import MarketFront from "./components/MarketFront";
-import { doc, getDoc } from "firebase/firestore";
-import { firestore } from "./firebase";
 import Dashboard from "./components/dashboard";
 
 function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [hasWokenUp, setHasWokenUp] = useState(false);
-  // New state to toggle between the Landing Display and the Login Form
   const [showLogin, setShowLogin] = useState(false);
-  const [isPremium, setIsPremium] = useState(false);
+  const [dashboardToken, setDashboardToken] = useState("");
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
 
-      if (currentUser) {
-        try {
-          // Updated 'db' to 'firestore' here
-          const userRef = doc(firestore, "users", currentUser.uid); 
-          const userSnap = await getDoc(userRef);
-
-          if (userSnap.exists()) {
-            const userData = userSnap.data();
-            setIsPremium(userData?.premium === true);
-          }
-        } catch (err) {
-          console.error("Premium check failed:", err);
-        }
-      } else {
+      if (!currentUser) {
         setHasWokenUp(false);
         setShowLogin(false);
-        setIsPremium(false);
+        setDashboardToken("");
       }
-
       setLoading(false);
     });
 
@@ -58,6 +41,11 @@ function App() {
 
   const isAdmin = user?.email === 'kizzclover96@gmail.com';
 
+  const handleWakeUpSequence = (tokenFromWelcome) => {
+    setDashboardToken(tokenFromWelcome);
+    setHasWokenUp(true);
+  };
+
   return (
     <>
       <Router>
@@ -68,10 +56,8 @@ function App() {
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/impressum" element={<Impressum />} />
 
-
             <Route path="/" element={
               !user ? (
-                // If not logged in, show LandingPage UNLESS they clicked the login button
                 !showLogin ? (
                   <LandingPage onLoginClick={() => setShowLogin(true)} />
                 ) : (
@@ -82,12 +68,12 @@ function App() {
               ) : !hasWokenUp ? (
                 <Welcomeview 
                   userEmail={user.email} 
-                  onWakeClick={() => setHasWokenUp(true)} 
+                  onWakeClick={handleWakeUpSequence} 
                 />
               ) : (
                 <Dashboard
                   userEmail={user.email}
-                  isPremium={isPremium}
+                  validationToken={dashboardToken}
                 />
               )
             } />
