@@ -192,6 +192,9 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
     return (
         <div style={marketContainer}>
             <style>{`
+                * {
+                    box-sizing: border-box;
+                }
                 @keyframes slideUp {
                     from { transform: translateY(100%); }
                     to { transform: translateY(0); }
@@ -304,14 +307,15 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
 
 // --- STYLES ---
 const marketContainer: React.CSSProperties = { 
-    backgroundColor: '#000', 
-    minHeight: '100dvh', 
-    color: 'white', 
+    backgroundColor: '#000',
+    minHeight: '100dvh',
+    color: 'white',
     padding: '0 12px',
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
     display: 'flex',
     flexDirection: 'column',
-    alignItems: 'center'
+    alignItems: 'center',
+    overflowX: 'hidden'
 };
 
 const headerStyle: React.CSSProperties = { 
@@ -330,11 +334,13 @@ const headerStyle: React.CSSProperties = {
 
 const productGrid: React.CSSProperties = { 
     display: 'grid', 
-    gridTemplateColumns: 'repeat(2, 1fr)', 
-    gap: '12px', 
+    gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+    gap: '12px',
     paddingBottom: '40px',
     width: '100%',
-    maxWidth: '400px', 
+    maxWidth: '400px',
+    boxSizing: 'border-box',
+    overflowX: 'hidden'
 };
 
 const bookingBtnStyle: React.CSSProperties = { 
@@ -382,11 +388,17 @@ const pulseScanner: React.CSSProperties = {
     animation: 'scan 2s linear infinite'
 };
 
+const cardWrapper: React.CSSProperties = { 
+    cursor: 'pointer',
+    width: '100%',
+    minWidth: 0
+};
+
 const brandTitle: React.CSSProperties = { fontSize: '20px', fontWeight: 900, margin: 0, letterSpacing: '-0.5px', display: 'inline-block' };
 const onlineStatus: React.CSSProperties = { fontSize: '11px', color: '#888', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px' };
 const dotStyle: React.CSSProperties = { width: '7px', height: '7px', background: '#C5FF41', borderRadius: '50%', boxShadow: '0 0 8px #C5FF41' };
 const dmButton: React.CSSProperties = { background: '#C5FF41', color: 'black', border: 'none', padding: '10px 20px', borderRadius: '24px', fontSize: '13px', fontWeight: 800, cursor: 'pointer' };
-const cardWrapper: React.CSSProperties = { cursor: 'pointer', width: '100%' };
+
 const dragHandle: React.CSSProperties = { width: '40px', height: '4px', background: '#333', borderRadius: '2px', margin: '12px auto' };
 const bigDisplayCard: React.CSSProperties = { background: '#111', width: '100%', maxWidth: '500px', borderTopLeftRadius: '32px', borderTopRightRadius: '32px', overflow: 'hidden', position: 'absolute', bottom: 0, border: '1px solid #222', animation: 'slideUp 0.3s ease-out', boxShadow: '0 -10px 40px rgba(0,0,0,0.5)' };
 const bigImage: React.CSSProperties = { width: '100%', height: '45vh', objectFit: 'cover' };
