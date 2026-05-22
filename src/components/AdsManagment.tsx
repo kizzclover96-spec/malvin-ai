@@ -14,6 +14,9 @@ const AdsManager = () => {
     const [verificationRequests, setVerificationRequests] = useState<any[]>([]);
     const [processingId, setProcessingId] = useState<string | null>(null);
     
+    // --- NEW MESSAGING STATES ---
+    const [chatMessage, setChatMessage] = useState('');
+    const [sendingMsg, setSendingMsg] = useState(false);
 
     useEffect(() => {
         const verificationRef = ref(db, 'admin/verification_requests');
@@ -35,6 +38,7 @@ const AdsManager = () => {
 
         return () => unsubVerification();
     }, []);
+
     useEffect(() => {
         const usersRef = ref(db, 'users');
         const unsubUsers = onValue(usersRef, (snapshot: DataSnapshot) => {
@@ -83,6 +87,7 @@ const AdsManager = () => {
         setEditBrandName(u.brandData?.name || u.brandName || '');
         setEditBalance(u.treasury?.balance?.toString() || '0');
         setEditIsVerified(u.profile?.isVerified || false);
+        setChatMessage(''); // Clear messages between brand swaps
     };
 
     const getIpClusterCount = (ip: string) => {
@@ -131,6 +136,32 @@ const AdsManager = () => {
             alert("SYNC_COMPLETE");
         } catch (err) {
             alert("SYNC_ERROR");
+        }
+    };
+
+    // --- NEW: INTERCOM BRAND DISPATCHER ---
+    const handleSendMessage = async () => {
+        if (!selectedUser || !chatMessage.trim()) return;
+        setSendingMsg(true);
+
+        try {
+            // Pushes directly to the selected target's unique support thread node
+            const targetChatRef = ref(db, `messages/${selectedUser.uid}`);
+            await push(targetChatRef, {
+                senderName: "malvin.io",
+                senderVerified: true, // Verification indicator for UI rendering
+                message: chatMessage.trim(),
+                timestamp: serverTimestamp(),
+                isAdminResponse: true
+            });
+
+            await logAction('OUTBOUND_MSG', selectedUser.uid, `Sent verified system ping to: ${editBrandName}`);
+            setChatMessage('');
+            alert("MESSAGE_DISPATCHED");
+        } catch (error) {
+            alert("SEND_FAIL");
+        } finally {
+            setSendingMsg(false);
         }
     };
 
@@ -270,7 +301,7 @@ const AdsManager = () => {
                                 </div>
                             </div>
 
-                            <hr style={{ border: 'none', borderTop: '1px solid #222', margin: '10px 0' }} />
+                            <hr style={{ border: 'none', borderTop: '1px solid #222', margin: '5px 0' }} />
 
                             {/* SECURITY ACTIONS */}
                             <div>
@@ -284,6 +315,42 @@ const AdsManager = () => {
                             </div>
 
                             <button onClick={handleSaveChanges} style={approveBtn}>PUSH_CHANGES_TO_DB</button>
+
+                            <hr style={{ border: 'none', borderTop: '1px solid #222', margin: '5px 0' }} />
+
+                            {/* --- NEW: BRAND LIVE MESSENGER MODULE --- */}
+                            <div style={messengerContainer}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                                    <label style={labelStyle}>SECURE_INTERCOM_DISPATCH</label>
+                                    <span style={{ fontSize: '10px', color: '#007fff', fontWeight: 'bold' }}>
+                                        (As: malvin.io ✓)
+                                    </span>
+                                </div>
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                    <input 
+                                        type="text"
+                                        placeholder={`Message ${editBrandName || 'Merchant'}...`}
+                                        value={chatMessage}
+                                        onChange={(e) => setChatMessage(e.target.value)}
+                                        style={{ ...inputStyle, flex: 1 }}
+                                        onKeyDown={(e) => { if (e.key === 'Enter') handleSendMessage(); }}
+                                    />
+                                    <button 
+                                        onClick={handleSendMessage}
+                                        disabled={sendingMsg || !chatMessage.trim()}
+                                        style={{
+                                            ...approveBtn,
+                                            background: '#007fff',
+                                            color: '#fff',
+                                            padding: '0 16px',
+                                            opacity: (sendingMsg || !chatMessage.trim()) ? 0.4 : 1,
+                                            cursor: (sendingMsg || !chatMessage.trim()) ? 'not-allowed' : 'pointer'
+                                        }}
+                                    >
+                                        {sendingMsg ? '...' : 'SEND'}
+                                    </button>
+                                </div>
+                            </div>
 
                         </div>
                     ) : (
@@ -436,5 +503,14 @@ const logItem: React.CSSProperties = { padding: '10px', borderBottom: '1px solid
 const botTag: React.CSSProperties = { background: '#ff4d4d', color: '#fff', fontSize: '8px', padding: '2px 6px', borderRadius: '4px', fontWeight: 900 };
 const headerStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', marginBottom: '30px' };
 const logoutBtn: React.CSSProperties = { background: 'transparent', border: '1px solid #ff4d4d', color: '#ff4d4d', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer' };
+
+// Messenger container layout
+const messengerContainer: React.CSSProperties = {
+    marginTop: '10px',
+    padding: '16px',
+    background: 'rgba(255, 255, 255, 0.02)',
+    border: '1px solid rgba(255,255,255,0.04)',
+    borderRadius: '12px'
+};
 
 export default AdsManager;
