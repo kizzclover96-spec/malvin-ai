@@ -46,6 +46,12 @@ const DashboardCard = ({ children, style }: any) => (
     {children}
   </div>
 );
+const fullscreenTabs = [
+   "Notes",
+   "Settings",
+   "Premium",
+   "Simulator"
+];
 
 const BackButton = ({
     activeTab,
@@ -193,6 +199,7 @@ const BackButton = ({
         </>
     );
 };
+
 
 const Dashboard = (props: any) => {
     const { onBack, userEmail, validationToken } = props;
@@ -545,6 +552,61 @@ const Dashboard = (props: any) => {
             }
         };
     }, []);
+    const renderFullscreenTab = () => {
+        switch (activeTab) {
+            case "Notes":
+                return (
+                    <Notes
+                        userEmail={userEmail}
+                        onBack={() => setActiveTab("Dashboard")}
+                    />
+                );
+
+            case "Premium":
+                return (
+                    <Premium
+                        onBack={() => setActiveTab("Dashboard")}
+                        userBrand={userBrand}
+                        brandName={userBrand?.name || "Malvin"}
+                    />
+                );
+
+            case "Simulator":
+                return (
+                    <Simulator
+                        onBack={() => setActiveTab("Dashboard")}
+                    />
+                );
+
+            case "Settings":
+                return (
+                    <Settings
+                        auth={auth}
+                        userBrand={userBrand} 
+                        setUserBrand={setUserBrand} 
+                        onBack={() => setActiveTab('Dashboard')} // Goes back to main view 
+                        onUpdate={handleUpdateBrand}
+                        brandName={userBrand?.name || "Malvin"}
+                        onSave={(updatedBrand) => {
+                            setUserBrand({
+                                ...updatedBrand,
+                                id: auth.currentUser?.uid
+                            });
+
+                            setBrandData(updatedBrand);
+                            setActiveTab('Dashboard');
+                        }}
+                    />
+                );
+
+            default:
+            return null;
+        }
+    };
+
+
+
+
 
     if (activeTab === 'Preview') {
         return (
@@ -568,330 +630,277 @@ const Dashboard = (props: any) => {
             </div>
         );
     }
+    const renderDashboardShell = () => {
+        return (
+            <>
+                
+                <div style={mainContainerStyle}>
+                    <style>{`
+                        @keyframes slideIn {
+                            0% { transform: translateY(-100%) translateX(-50%); opacity: 0; }
+                            100% { transform: translateY(0%) translateX(-50%); opacity: 1; }
+                        }
+                        .notification-toast { animation: slideIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+                        ::-webkit-scrollbar { width: 4px; }
+                        ::-webkit-scrollbar-thumb { background: #222; border-radius: 10px; }
+                    `}</style>
 
-    return (
-        <>
-            
-            <div style={mainContainerStyle}>
-                <style>{`
-                    @keyframes slideIn {
-                        0% { transform: translateY(-100%) translateX(-50%); opacity: 0; }
-                        100% { transform: translateY(0%) translateX(-50%); opacity: 1; }
-                    }
-                    .notification-toast { animation: slideIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-                    ::-webkit-scrollbar { width: 4px; }
-                    ::-webkit-scrollbar-thumb { background: #222; border-radius: 10px; }
-                `}</style>
-
-                {toast.show && (
-                    <div className="notification-toast" onClick={() => setActiveTab('Chats')} style={toastStyle}>
-                        <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#C5FF41' }} />
-                        <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: '10px', color: '#666', fontWeight: 800 }}>NEW MESSAGE</div>
-                            <div style={{ fontSize: '13px', fontWeight: 600, color: '#fff' }}>{toast.sender}</div>
-                            <div style={{ fontSize: '12px', color: '#AAA', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '250px' }}>{toast.msg}</div>
-                        </div>
-                    </div>
-                )}
-
-                {/* Header */}
-                <div style={headerWrapper}>
-                    <BackButton
-                        activeTab={activeTab}
-                        setActiveTab={setActiveTab}
-                        setShowTools={setShowTools}
-                        userBrand={userBrand}
-                        setUserBrand={setUserBrand}
-                        setBrandData={setBrandData}
-                        history={history}
-                        handleSaveSimulation={handleSaveSimulation}
-                        handleUpdateBrand={handleUpdateBrand}
-                        handleLogout={handleLogout}
-                        userEmail={userEmail}
-                    />
-                    <div style={navPillStyle}>
-                        {['Ads', 'Dashboard', 'Payments', 'Chats', 'Catalog'].map(item => (
-                            <div key={item} onClick={() => setActiveTab(item)} style={{
-                                ...navItemStyle,
-                                backgroundColor: activeTab === item ? '#C5FF41' : 'transparent',
-                                color: activeTab === item ? 'black' : '#666',
-                            }}>
-                                {item}
-                                {item === 'Chats' && hasUnread && <div style={unreadDotStyle} />}
-                            </div>
-                        ))}
-                    </div>
-                </div>
-                {/* Comment out your real components and use this test block */}
-                {/*<div style={contentWrapper}>
-                    {activeTab === 'Chats' ? <div style={{color: 'white', padding: 20}}>Test Chats Page</div> :
-                    activeTab === 'Ads' ? <div style={{color: 'white', padding: 20}}>Test Ads Page</div> :
-                    activeTab === 'Catalog' ? <div style={{color: 'white', padding: 20}}>Test Catalog Page</div> :
-                    activeTab === 'Payments' ? <div style={{color: 'white', padding: 20}}>Test Payments Page</div> :
-                    <div style={bentoGridStyle}>Dashboard Default View</div>}
-                </div>*/} 
-                {/* Content Area */}
-                <div style={contentWrapper}>
-                    {activeTab === 'Chats' ? <div style={{color: 'white', padding: 20}}>Test Chats Page</div> :
-                    activeTab === 'Ads' ? <AdsManager userBrand={userBrand} /> :
-                    activeTab === 'Catalog' ? <div style={{color: 'white', padding: 20}}>Test Catalog Page</div> :
-                    activeTab === 'Payments' ? <div style={{color: 'white', padding: 20}}>Test Payments Page</div> :
-                    (
-                        <div style={bentoGridStyle}>
-                            {/* Upper Bento*/} 
-                            <div style={upperGridStyle}>
-                                <DashboardCard>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                        <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-                                            
-                                            {/* BOOKING SECTION */} 
-                                            <div 
-                                                onClick={() => setShowCalendar(true)} 
-                                                style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px' }}
-                                            >
-                                                <div>
-                                                    <span style={{ fontSize: '10px', color: '#666', fontWeight: 800, letterSpacing: '1px' }}>RESERVATIONS</span>
-                                                    <div style={{ fontSize: '32px', fontWeight: 700, color: bookedDates.length > 0 ? '#C5FF41' : '#fff' }}>
-                                                        {bookedDates.length}
-                                                    </div>
-                                                </div>
-                                                <div style={{ 
-                                                    width: '12px', height: '12px', borderRadius: '50%', 
-                                                    backgroundColor: bookedDates.length > 0 ? '#C5FF41' : '#222',
-                                                    boxShadow: bookedDates.length > 0 ? '0 0 15px #C5FF41' : 'none',
-                                                    transition: '0.3s'
-                                                }} />
-                                            </div>
-
-                                            <div style={{ width: '1px', height: '40px', background: '#1A1A1A' }} />
-
-                                            {/* ORDERS SECTION */} 
-                                            <div>
-                                                <span style={{ fontSize: '10px', color: '#666', fontWeight: 800, letterSpacing: '1px' }}>PENDING_ORDERS</span>
-                                                <div style={{ display: 'flex', alignItems: 'baseline' }}>
-                                                    <input 
-                                                        type="number"
-                                                        value={orderCount}
-                                                        onChange={(e) => setOrderCount(parseInt(e.target.value) || 0)}
-                                                        style={{ 
-                                                            background: 'none', border: 'none', color: 'white', 
-                                                            fontSize: '32px', fontWeight: 700, width: '60px', outline: 'none'
-                                                        }} 
-                                                    />
-                                                </div>
-                                            </div>
-                                        </div>
-                                        
-                                        <div style={{ textAlign: 'right' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
-                                                <div style={{ color: '#C5FF41', fontSize: '10px', fontWeight: 900 }}>LIVE_SYNC</div>
-                                                {isVerified && <VerifiedBadge />}
-                                            </div>
-                                            <div style={{ color: '#333', fontSize: '10px' }}>ID: {userBrand?.id?.slice(0,8)}</div>
-                                        </div>
-                                    </div>
-
-                                    {/* MANUALLY EDITABLE BIO (Upper-left card, under data fields) */} 
-                                    <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                        <span style={{ fontSize: '10px', color: '#666', fontWeight: 800, letterSpacing: '1px' }}>STORE_FRONT_BIO</span>
-                                        <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end' }}>
-                                            <textarea 
-                                                value={bio}
-                                                onChange={(e) => setBio(e.target.value)}
-                                                placeholder="Write something cool about your brand for the storefront marketplace..."
-                                                maxLength={160}
-                                                style={{
-                                                    flex: 1, height: '54px', background: '#070707', color: '#fff',
-                                                    border: '1px solid #1A1A1A', borderRadius: '12px', padding: '10px',
-                                                    fontSize: '12px', outline: 'none', resize: 'none', fontFamily: 'sans-serif'
-                                                }}
-                                            />
-                                            <button 
-                                                onClick={saveBio}
-                                                disabled={isSavingBio}
-                                                style={{
-                                                    padding: '10px 14px', borderRadius: '12px', border: 'none',
-                                                    background: '#222', color: '#C5FF41', fontSize: '11px', fontWeight: 700,
-                                                    cursor: 'pointer', height: '54px', transition: '0.2s', opacity: isSavingBio ? 0.5 : 1
-                                                }}
-                                            >
-                                                {isSavingBio ? '...' : 'SAVE'}
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    <div style={{ marginTop: '12px', padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid #1A1A1A' }}>
-                                        <span style={{ fontSize: '11px', color: '#888' }}>
-                                            {bookedDates.length > 0 
-                                                ? `Next session: ${[...bookedDates] .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0]}` 
-                                                : "No upcoming sessions"}
-                                        </span>
-                                    </div>
-                                </DashboardCard>
-
-                                <DashboardCard style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <VerificationButton state={getVerificationState()} onClick={() => { if (getVerificationState() === "premium") { requestVerification(); }}} />
-                                    <div>
-                                        <div style={{ fontSize: '12px', color: '#666' }}>
-                                            ACTIVE CUSTOMERS {isVerified && <VerifiedBadge />}
-                                        </div>
-                                        <div style={{ fontSize: '32px', fontWeight: 700 }}>{chatCount}</div>
-                                    </div>
-                                    <button onClick={() => setActiveTab('Ads')} style={actionBtnStyle}>+ Add Customers</button>
-                                </DashboardCard>
-                            </div>
-
-                            {/* Lower Grid */} 
-                            <div style={lowerGridStyle}>
-                                <DashboardCard style={{ overflowY: 'auto' }}>
-                                    <div style={{ background: '#000', padding: '15px', borderRadius: '12px', border: '1px solid #222', marginBottom: '20px' }}>
-                                        <p style={{ fontSize: '10px', color: '#666', marginBottom: '8px' }}>AD LINK</p>
-                                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                                            <code style={codeStyle}>{shareUrl}</code>
-                                        </div>
-                                    </div>
-                                    <div style={qrContainerStyle}>
-                                        <div style={{ flex: 1 }}>
-                                            <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '10px' }}>Online Store</div>
-                                            <div style={{ display: 'flex', gap: '8px' }}>
-                                                <button onClick={() => setActiveTab('Preview')} style={secondaryBtnStyle}>Preview</button>
-                                            </div>
-                                        </div>
-                                        <div style={qrBoxStyle}>
-                                            <QRCode value={marketFrontUrl} size={80} qrStyle="dots" bgColor="#000" fgColor="#C5FF41" />
-                                        </div>
-                                    </div>
-                                </DashboardCard>
-
-                                {/* Malvin AI */} 
-                                <DashboardCard style={{ flex: 1, overflow: 'hidden' }}>
-                                    <video ref={videoRef} autoPlay style={{ display: 'none' }} />
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
-                                        <div style={{ fontSize: '18px', fontWeight: 700 }}>Malvin Assistant</div>
-                                        <div onClick={startVision} style={{ ...visionBadge, backgroundColor: isVisionActive ? '#C5FF41' : '#111', color: isVisionActive ? '#000' : '#fff' }}>
-                                            {isVisionActive ? '● VISION ACTIVE' : '○ ENABLE VISION'}
-                                        </div>
-                                    </div>
-                                    <div style={aiChatArea}>
-                                        {aiHistory.map((chat, i) => (
-                                            <div key={i} style={{ 
-                                                alignSelf: chat.role === 'user' ? 'flex-end' : 'flex-start', 
-                                                maxWidth: '85%', padding: '12px', borderRadius: '15px', 
-                                                background: chat.role === 'user' ? '#222' : 'rgba(197,255,65,0.05)',
-                                                border: chat.role === 'malvin' ? '1px solid #C5FF41' : 'none',
-                                                color: chat.role === 'malvin' ? '#C5FF41' : '#fff',
-                                                fontSize: '13px'
-                                            }}>{chat.text}</div>
-                                        ))}
-                                        <div ref={chatEndRef} />
-                                    </div>
-                                    <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
-                                        <input value={aiMessage} onChange={e => setAiMessage(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendToMalvin()} placeholder="Ask Malvin..." style={aiInputStyle} />
-                                        <button onClick={() => sendToMalvin()} style={aiSendBtn}>SEND</button>
-                                    </div>
-                                </DashboardCard>
+                    {toast.show && (
+                        <div className="notification-toast" onClick={() => setActiveTab('Chats')} style={toastStyle}>
+                            <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#C5FF41' }} />
+                            <div style={{ flex: 1 }}>
+                                <div style={{ fontSize: '10px', color: '#666', fontWeight: 800 }}>NEW MESSAGE</div>
+                                <div style={{ fontSize: '13px', fontWeight: 600, color: '#fff' }}>{toast.sender}</div>
+                                <div style={{ fontSize: '12px', color: '#AAA', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '250px' }}>{toast.msg}</div>
                             </div>
                         </div>
                     )}
-                </div>*
-                {showCalendar && (
-                    <div style={modalOverlayStyle} onClick={() => setShowCalendar(false)}>
-                        <div style={calendarCardStyle} onClick={e => e.stopPropagation()}>
-                            <h3 style={{ color: '#C5FF41', margin: '0 0 10px 0' }}>SESSION LOG</h3>
-                            <p style={{ fontSize: '11px', color: '#666', marginBottom: '20px' }}>CLIENT RESERVATIONS RECORDED VIA MARKETFRONT</p>
-                            
-                            <div style={{ maxHeight: '300px', overflowY: 'auto', textAlign: 'left', marginBottom: '20px' }}>
-                                {bookedDates.length === 0 ? (
-                                    <div style={{ color: '#333', textAlign: 'center', padding: '20px' }}>NO_DATA_FOUND</div>
-                                ) : (
-                                    bookedDates.sort().map((date, idx) => (
-                                        <div key={idx} style={dateRowStyle}>
-                                            <span style={{ color: '#C5FF41' }}>[ SESSION ]</span>
-                                            <span style={{ color: '#fff', fontWeight: 600 }}>{date}</span>
-                                            <span style={{ fontSize: '10px', color: '#444' }}>CONFIRMED</span>
+
+                    {/* Header */}
+                    <div style={headerWrapper}>
+                        <BackButton
+                            activeTab={activeTab}
+                            setActiveTab={setActiveTab}
+                            setShowTools={setShowTools}
+                            userBrand={userBrand}
+                            setUserBrand={setUserBrand}
+                            setBrandData={setBrandData}
+                            history={history}
+                            handleSaveSimulation={handleSaveSimulation}
+                            handleUpdateBrand={handleUpdateBrand}
+                            handleLogout={handleLogout}
+                            userEmail={userEmail}
+                        />
+                        <div style={navPillStyle}>
+                            {['Ads', 'Dashboard', 'Payments', 'Chats', 'Catalog'].map(item => (
+                                <div key={item} onClick={() => setActiveTab(item)} style={{
+                                    ...navItemStyle,
+                                    backgroundColor: activeTab === item ? '#C5FF41' : 'transparent',
+                                    color: activeTab === item ? 'black' : '#666',
+                                }}>
+                                    {item}
+                                    {item === 'Chats' && hasUnread && <div style={unreadDotStyle} />}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                    {/* Comment out your real components and use this test block */}
+                    {/*<div style={contentWrapper}>
+                        {activeTab === 'Chats' ? <div style={{color: 'white', padding: 20}}>Test Chats Page</div> :
+                        activeTab === 'Ads' ? <div style={{color: 'white', padding: 20}}>Test Ads Page</div> :
+                        activeTab === 'Catalog' ? <div style={{color: 'white', padding: 20}}>Test Catalog Page</div> :
+                        activeTab === 'Payments' ? <div style={{color: 'white', padding: 20}}>Test Payments Page</div> :
+                        <div style={bentoGridStyle}>Dashboard Default View</div>}
+                    </div>*/}
+                    {/* Content Area */}
+                    <div style={contentWrapper}>
+                        {activeTab === 'Chats' ? <Chats userBrand={userBrand} brandId={userBrand?.id} /> :
+                        activeTab === 'Ads' ? <AdsManager userBrand={userBrand} /> :
+                        activeTab === 'Catalog' ? <Catalog userBrand={userBrand} /> :
+                        activeTab === 'Payments' ? <Payments userBrand={userBrand} /> :
+                        (
+                            <div style={bentoGridStyle}>
+                                {/* Upper Bento*/} 
+                                <div style={upperGridStyle}>
+                                    <DashboardCard>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                            <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+                                                
+                                                {/* BOOKING SECTION */} 
+                                                <div 
+                                                    onClick={() => setShowCalendar(true)} 
+                                                    style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px' }}
+                                                >
+                                                    <div>
+                                                        <span style={{ fontSize: '10px', color: '#666', fontWeight: 800, letterSpacing: '1px' }}>RESERVATIONS</span>
+                                                        <div style={{ fontSize: '32px', fontWeight: 700, color: bookedDates.length > 0 ? '#C5FF41' : '#fff' }}>
+                                                            {bookedDates.length}
+                                                        </div>
+                                                    </div>
+                                                    <div style={{ 
+                                                        width: '12px', height: '12px', borderRadius: '50%', 
+                                                        backgroundColor: bookedDates.length > 0 ? '#C5FF41' : '#222',
+                                                        boxShadow: bookedDates.length > 0 ? '0 0 15px #C5FF41' : 'none',
+                                                        transition: '0.3s'
+                                                    }} />
+                                                </div>
+
+                                                <div style={{ width: '1px', height: '40px', background: '#1A1A1A' }} />
+
+                                                {/* ORDERS SECTION */} 
+                                                <div>
+                                                    <span style={{ fontSize: '10px', color: '#666', fontWeight: 800, letterSpacing: '1px' }}>PENDING_ORDERS</span>
+                                                    <div style={{ display: 'flex', alignItems: 'baseline' }}>
+                                                        <input 
+                                                            type="number"
+                                                            value={orderCount}
+                                                            onChange={(e) => setOrderCount(parseInt(e.target.value) || 0)}
+                                                            style={{ 
+                                                                background: 'none', border: 'none', color: 'white', 
+                                                                fontSize: '32px', fontWeight: 700, width: '60px', outline: 'none'
+                                                            }} 
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <div style={{ textAlign: 'right' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+                                                    <div style={{ color: '#C5FF41', fontSize: '10px', fontWeight: 900 }}>LIVE_SYNC</div>
+                                                    {isVerified && <VerifiedBadge />}
+                                                </div>
+                                                <div style={{ color: '#333', fontSize: '10px' }}>ID: {userBrand?.id?.slice(0,8)}</div>
+                                            </div>
                                         </div>
-                                    ))
-                                )}
+
+                                        {/* MANUALLY EDITABLE BIO (Upper-left card, under data fields) */} 
+                                        <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                            <span style={{ fontSize: '10px', color: '#666', fontWeight: 800, letterSpacing: '1px' }}>STORE_FRONT_BIO</span>
+                                            <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end' }}>
+                                                <textarea 
+                                                    value={bio}
+                                                    onChange={(e) => setBio(e.target.value)}
+                                                    placeholder="Write something cool about your brand for the storefront marketplace..."
+                                                    maxLength={160}
+                                                    style={{
+                                                        flex: 1, height: '54px', background: '#070707', color: '#fff',
+                                                        border: '1px solid #1A1A1A', borderRadius: '12px', padding: '10px',
+                                                        fontSize: '12px', outline: 'none', resize: 'none', fontFamily: 'sans-serif'
+                                                    }}
+                                                />
+                                                <button 
+                                                    onClick={saveBio}
+                                                    disabled={isSavingBio}
+                                                    style={{
+                                                        padding: '10px 14px', borderRadius: '12px', border: 'none',
+                                                        background: '#222', color: '#C5FF41', fontSize: '11px', fontWeight: 700,
+                                                        cursor: 'pointer', height: '54px', transition: '0.2s', opacity: isSavingBio ? 0.5 : 1
+                                                    }}
+                                                >
+                                                    {isSavingBio ? '...' : 'SAVE'}
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div style={{ marginTop: '12px', padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid #1A1A1A' }}>
+                                            <span style={{ fontSize: '11px', color: '#888' }}>
+                                                {bookedDates.length > 0 
+                                                    ? `Next session: ${[...bookedDates] .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0]}` 
+                                                    : "No upcoming sessions"}
+                                            </span>
+                                        </div>
+                                    </DashboardCard>
+
+                                    <DashboardCard style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <VerificationButton state={getVerificationState()} onClick={() => { if (getVerificationState() === "premium") { requestVerification(); }}} />
+                                        <div>
+                                            <div style={{ fontSize: '12px', color: '#666' }}>
+                                                ACTIVE CUSTOMERS {isVerified && <VerifiedBadge />}
+                                            </div>
+                                            <div style={{ fontSize: '32px', fontWeight: 700 }}>{chatCount}</div>
+                                        </div>
+                                        <button onClick={() => setActiveTab('Ads')} style={actionBtnStyle}>+ Add Customers</button>
+                                    </DashboardCard>
+                                </div>
+
+                                {/* Lower Grid */} 
+                                <div style={lowerGridStyle}>
+                                    <DashboardCard style={{ overflowY: 'auto' }}>
+                                        <div style={{ background: '#000', padding: '15px', borderRadius: '12px', border: '1px solid #222', marginBottom: '20px' }}>
+                                            <p style={{ fontSize: '10px', color: '#666', marginBottom: '8px' }}>AD LINK</p>
+                                            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                                <code style={codeStyle}>{shareUrl}</code>
+                                            </div>
+                                        </div>
+                                        <div style={qrContainerStyle}>
+                                            <div style={{ flex: 1 }}>
+                                                <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '10px' }}>Online Store</div>
+                                                <div style={{ display: 'flex', gap: '8px' }}>
+                                                    <button onClick={() => setActiveTab('Preview')} style={secondaryBtnStyle}>Preview</button>
+                                                </div>
+                                            </div>
+                                            <div style={qrBoxStyle}>
+                                                <QRCode value={marketFrontUrl} size={80} qrStyle="dots" bgColor="#000" fgColor="#C5FF41" />
+                                            </div>
+                                        </div>
+                                    </DashboardCard>
+
+                                    {/* Malvin AI */} 
+                                    <DashboardCard style={{ flex: 1, overflow: 'hidden' }}>
+                                        <video ref={videoRef} autoPlay style={{ display: 'none' }} />
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
+                                            <div style={{ fontSize: '18px', fontWeight: 700 }}>Malvin Assistant</div>
+                                            <div onClick={startVision} style={{ ...visionBadge, backgroundColor: isVisionActive ? '#C5FF41' : '#111', color: isVisionActive ? '#000' : '#fff' }}>
+                                                {isVisionActive ? '● VISION ACTIVE' : '○ ENABLE VISION'}
+                                            </div>
+                                        </div>
+                                        <div style={aiChatArea}>
+                                            {aiHistory.map((chat, i) => (
+                                                <div key={i} style={{ 
+                                                    alignSelf: chat.role === 'user' ? 'flex-end' : 'flex-start', 
+                                                    maxWidth: '85%', padding: '12px', borderRadius: '15px', 
+                                                    background: chat.role === 'user' ? '#222' : 'rgba(197,255,65,0.05)',
+                                                    border: chat.role === 'malvin' ? '1px solid #C5FF41' : 'none',
+                                                    color: chat.role === 'malvin' ? '#C5FF41' : '#fff',
+                                                    fontSize: '13px'
+                                                }}>{chat.text}</div>
+                                            ))}
+                                            <div ref={chatEndRef} />
+                                        </div>
+                                        <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
+                                            <input value={aiMessage} onChange={e => setAiMessage(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendToMalvin()} placeholder="Ask Malvin..." style={aiInputStyle} />
+                                            <button onClick={() => sendToMalvin()} style={aiSendBtn}>SEND</button>
+                                        </div>
+                                    </DashboardCard>
+                                </div>
                             </div>
-
-                            <button style={{ ...secondaryBtnStyle, width: '100%', padding: '15px' }} onClick={() => setShowCalendar(false)}>
-                                CLOSE_LOG
-                            </button>
-                        </div>
+                        )}
                     </div>
-                )}
-                {/* FULLSCREEN APP LAYER */} 
-                {activeTab !== "Dashboard" && (
-                    <div
-                        style={{
-                            position: "fixed",
-                            inset: 0,
-                            zIndex: 9999,
-                            overflow: "hidden",
-                            pointerEvents: 'none'
-                        }}
-                    >
-                        <div
-                            style={{
-                                width: "100%",
-                                height: "100%",
-                                overflowY: "auto",
-                                pointerEvents: 'auto'
-                            }}
-                        >
-                            {activeTab === "Notes" && (
-                                <Notes
-                                    userEmail={userEmail}
-                                    onBack={() => setActiveTab("Dashboard")}
-                                />
-                            )}
+                    {showCalendar && (
+                        <div style={modalOverlayStyle} onClick={() => setShowCalendar(false)}>
+                            <div style={calendarCardStyle} onClick={e => e.stopPropagation()}>
+                                <h3 style={{ color: '#C5FF41', margin: '0 0 10px 0' }}>SESSION LOG</h3>
+                                <p style={{ fontSize: '11px', color: '#666', marginBottom: '20px' }}>CLIENT RESERVATIONS RECORDED VIA MARKETFRONT</p>
+                                
+                                <div style={{ maxHeight: '300px', overflowY: 'auto', textAlign: 'left', marginBottom: '20px' }}>
+                                    {bookedDates.length === 0 ? (
+                                        <div style={{ color: '#333', textAlign: 'center', padding: '20px' }}>NO_DATA_FOUND</div>
+                                    ) : (
+                                        bookedDates.sort().map((date, idx) => (
+                                            <div key={idx} style={dateRowStyle}>
+                                                <span style={{ color: '#C5FF41' }}>[ SESSION ]</span>
+                                                <span style={{ color: '#fff', fontWeight: 600 }}>{date}</span>
+                                                <span style={{ fontSize: '10px', color: '#444' }}>CONFIRMED</span>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
 
-                            
-
-                            {activeTab === "Premium" && (
-                                <Premium
-                                    onBack={() => setActiveTab("Dashboard")}
-                                    userBrand={userBrand}
-                                    brandName={userBrand?.name || "Malvin"}
-                                />
-                            )}
-
-                            {activeTab === "Simulator" && (
-                                <Simulator
-                                    onBack={() => setActiveTab("Dashboard")}
-                                />
-                            )}
-
-                            {activeTab === "Settings" && (
-                                <Settings
-                                    auth={auth}
-                                    userBrand={userBrand} 
-                                    setUserBrand={setUserBrand} 
-                                    onBack={() => setActiveTab('Dashboard')} // Goes back to main view 
-                                    onUpdate={handleUpdateBrand}
-                                    brandName={userBrand?.name || "Malvin"}
-                                    onSave={(updatedBrand) => {
-                                        setUserBrand({
-                                            ...updatedBrand,
-                                            id: auth.currentUser?.uid
-                                        });
-
-                                        setBrandData(updatedBrand);
-                                        setActiveTab('Dashboard');
-                                    }}
-                                />
-                            )}
+                                <button style={{ ...secondaryBtnStyle, width: '100%', padding: '15px' }} onClick={() => setShowCalendar(false)}>
+                                    CLOSE_LOG
+                                </button>
+                            </div>
                         </div>
-                    </div>
-                )}
-                <ToolModal onBack={() => setActiveTab('Dashboard')} 
-                    showTools={showTools}
-                    setShowTools={setShowTools}
-                    setActiveTab={setActiveTab}
-                />
-            </div>
-        </>       
-    );
+                    )}
+                    
+                    <ToolModal onBack={() => setActiveTab('Dashboard')} 
+                        showTools={showTools}
+                        setShowTools={setShowTools}
+                        setActiveTab={setActiveTab}
+                    />
+                </div>
+            </>       
+        );
+    };
+
+    // FULLSCREEN ROUTE
+    if (fullscreenTabs.includes(activeTab)) {
+        return renderFullscreenTab();
+    }
+
+    // NORMAL DASHBOARD
+    return renderDashboardShell();
+
 };
 
 // Styles
