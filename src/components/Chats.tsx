@@ -5,7 +5,7 @@ import { firestore, auth } from "../firebase";
 const ChatCard = ({ children, style }: any) => (
     <div style={{
         background: '#111111',
-        borderRadius: '0px', // WhatsApp style usually has sharp or minimal edges when full-screen
+        borderRadius: '0px', 
         borderRight: '1px solid #222',
         display: 'flex',
         flexDirection: 'column',
@@ -143,18 +143,16 @@ const Chats = ({ brandId, userBrand }: any) => {
 
     return (
         <div style={{ 
-            width: '100vw', 
-            height: '100vh', 
-            position: 'fixed',
-            top: 0,
-            left: 0,
+            width: '100%', 
+            // Automatically adapts your viewport height minus your dashboard header height
+            height: 'calc(100vh - 80px)', 
             background: '#111',
             color: '#fff',
             fontFamily: 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif'
         }}>
             <div style={{ 
                 display: 'grid', 
-                gridTemplateColumns: '350px 1fr', // Sidebar fixed, Chat area fills the rest
+                gridTemplateColumns: '350px 1fr', 
                 height: '100%',
                 width: '100%'
             }}>
@@ -270,7 +268,7 @@ const Chats = ({ brandId, userBrand }: any) => {
                                 id="message-feed" 
                                 style={{ 
                                     flex: 1, 
-                                    padding: '20px 10%', // Extra horizontal padding gives it that spacious clean chat feel
+                                    padding: '20px 10%', 
                                     overflowY: 'auto', 
                                     display: 'flex', 
                                     flexDirection: 'column', 
@@ -285,7 +283,7 @@ const Chats = ({ brandId, userBrand }: any) => {
                                     return (
                                         <div key={msg.id} style={{ 
                                             alignSelf: isManager ? 'flex-end' : 'flex-start', 
-                                            background: isManager ? '#005c4b' : '#202c33', // Deep native green & dark gray setup
+                                            background: isManager ? '#005c4b' : '#202c33', 
                                             color: '#fff',
                                             padding: '8px 14px', 
                                             borderRadius: isManager ? '8px 0px 8px 8px' : '0px 8px 8px 8px', 
