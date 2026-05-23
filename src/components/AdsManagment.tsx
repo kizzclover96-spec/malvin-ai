@@ -77,10 +77,24 @@ const AdsManager = () => {
         });
 
         const adQueueRef = ref(db, 'admin/ad_queue');
-        const unsubAdQueue = onValue(adQueueRef, (snapshot) => {
-            const data = snapshot.val();
-            setAdRequests(data ? Object.keys(data).map(k => ({ id: k, ...data[k] })) : []);
-        });
+        const unsubAdQueue = onValue(
+            adQueueRef,
+            (snapshot) => {
+                const data = snapshot.val();
+
+                setAdRequests(
+                    data
+                        ? Object.keys(data).map(k => ({
+                            id: k,
+                            ...data[k]
+                        }))
+                        : []
+                );
+            },
+            (error) => {
+                console.error("AD_QUEUE_LISTENER_ERROR:", error);
+            }
+        );
 
         return () => {
             unsubUsers();

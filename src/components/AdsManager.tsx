@@ -198,18 +198,21 @@ const AdsManager = ({ userBrand }: any) => {
             const adminAdRef = push(child(dbRef(db), `admin/ad_queue`)).key;
 
             updates[`admin/ad_queue/${adminAdRef}`] = {
-            campaignId,
-            userId,
-            userEmail,
-            title: newAd.title,
-            budget: grandTotal,
-            platform: newAd.platform,
-            description: newAd.description,
-            website: newAd.website,
-            cta: newAd.cta,
-            creativeType: newAd.creativeType,
-            timestamp: Date.now(),
-            creativeUrl: uploadedUrl
+                campaignId,
+                userId,
+                userEmail,
+                title: newAd.title,
+                budget: grandTotal,
+                platform: newAd.platform,
+                description: newAd.description,
+                website: newAd.website,
+                cta: newAd.cta,
+                creativeType: newAd.creativeType,
+                timestamp: Date.now(),
+                creativeUrl: uploadedUrl,
+
+                // ADD THIS
+                status: 'Pending_Admin_Review'
             };
 
             const ledgerKey = push(child(dbRef(db), `users/${userId}/treasury/ledger`)).key;
