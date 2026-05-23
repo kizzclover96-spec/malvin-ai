@@ -1,12 +1,57 @@
 import React, { useState, useEffect } from 'react';
-import { auth, db } from '../firebase';
-import { ref, onValue, push, set, update, runTransaction, child } from "firebase/database";
+
+import { auth, db, storage } from '../firebase';
+import { ref as dbRef } from "firebase/database";
+import { serverTimestamp } from "firebase/database";
+
+import {
+    ref as dbRefRoot,
+    onValue,
+    push,
+    update,
+    child
+} from "firebase/database";
+
+import {
+    ref as storageRef,
+    uploadBytes,
+    getDownloadURL
+} from "firebase/storage";
 
 const AdsManager = ({ userBrand }: any) => {
     const [campaigns, setCampaigns] = useState<any[]>([]);
     const [products, setProducts] = useState<any[]>([]);
     const [showModal, setShowModal] = useState(false);
+    const [creativeFile, setCreativeFile] = useState<File | null>(null);
+    const [deploying, setDeploying] = useState(false);
     const [loading, setLoading] = useState(true);
+    const getStatusColor = (status: string) => {
+        switch(status) {
+            case 'Pending_Admin_Review':
+            return '#ffaa00';
+
+            case 'Approved':
+            return '#00ff88';
+
+            case 'Rejected':
+            return '#ff4d4d';
+
+            case 'Running':
+            return '#4da3ff';
+
+            default:
+            return '#999';
+        }
+    };
+    const [agreements, setAgreements] = useState({
+        terms: false,
+        refund: false,
+        policy: false
+    });
+    const agreementsAccepted =
+    agreements.terms &&
+    agreements.refund &&
+    agreements.policy;
     
     // --- 1. ADD BALANCE STATE ---
     const [currentBalance, setCurrentBalance] = useState(0);
@@ -17,8 +62,15 @@ const AdsManager = ({ userBrand }: any) => {
         budget: '',
         duration: '7',
         targeting: 'Global_Tech',
-        platform: 'Neural_Feed',
-        status: 'Active' 
+
+        platform: 'Meta_Ads',
+
+        website: '',
+        description: '',
+        cta: 'Learn More',
+        creativeType: 'Image',
+
+        status: 'Active'
     });
 
     const totalInvestment = (Number(newAd.budget) * Number(newAd.duration)) || 0;
@@ -29,104 +81,179 @@ const AdsManager = ({ userBrand }: any) => {
         const userId = auth.currentUser?.uid;
         if (!userId) return;
 
-        // Fetch User Balance
-        const balanceRef = ref(db, `users/${userId}/treasury/balance`);
-        onValue(balanceRef, (snapshot) => {
+        const balanceRef = dbRef(db, `users/${userId}/treasury/balance`);
+        const campaignsRef = dbRef(db, `users/${userId}/campaigns`);
+        const catalogRef = dbRef(db, `users/${userId}/catalog`);
+
+        const unsubBalance = onValue(balanceRef, (snapshot) => {
             setCurrentBalance(snapshot.val() || 0);
         });
 
-        // Fetch Ads
-        onValue(ref(db, `users/${userId}/campaigns`), (snapshot) => {
+        const unsubCampaigns = onValue(campaignsRef, (snapshot) => {
             const data = snapshot.val();
             setCampaigns(data ? Object.keys(data).map(k => ({ id: k, ...data[k] })) : []);
             setLoading(false);
         });
 
-        // Fetch Products
-        onValue(ref(db, `users/${userId}/catalog`), (snapshot) => {
+        const unsubCatalog = onValue(catalogRef, (snapshot) => {
             const data = snapshot.val();
             setProducts(data ? Object.keys(data).map(k => ({ id: k, ...data[k] })) : []);
         });
-    }, []);
 
+        return () => {
+            unsubBalance();
+            unsubCampaigns();
+            unsubCatalog();
+        };
+    }, []);
+   
     const deployCampaign = async () => {
         const userId = auth.currentUser?.uid;
         const userEmail = auth.currentUser?.email;
-        if (!userId || !newAd.title || !newAd.budget) return;
 
-        // --- 2. CHECK INSUFFICIENT BALANCE ---
-        if (grandTotal > currentBalance) {
-            alert(`⚠️ INSUFFICIENT_BALANCE: Your treasury has €${currentBalance.toLocaleString()}, but this campaign requires €${grandTotal.toLocaleString()}. Please fund your account.`);
-            return;
-        }
+        if (!userId) return;
+        if (!newAd.title) return alert("Title required");
+        if (!newAd.budget) return alert("Budget required");
+
+        setDeploying(true);
 
         try {
-            // --- 3. DEDUCT BALANCE AND SAVE CAMPAIGN ---
-            // We use runTransaction for the balance to prevent double-spending
-            const balanceRef = ref(db, `users/${userId}/treasury/balance`);
-            await runTransaction(balanceRef, (current) => {
-                return (current || 0) - grandTotal;
-            });
+            const allowedTypes = [
+            'image/png',
+            'image/jpeg',
+            'image/webp',
+            'video/mp4'
+            ];
 
-            // Add campaign to DB
-            const adRef = ref(db, `users/${userId}/campaigns`);
+            if (!newAd.website.startsWith('http')) {
+            alert("Please enter a valid URL");
+            return;
+            }
+
+            if (newAd.description.trim().length < 20) {
+            alert("Description must be at least 20 characters");
+            return;
+            }
+
+            if (!creativeFile) {
+            alert("Please upload a campaign creative");
+            return;
+            }
+
+            if (Number(newAd.budget) < 10) {
+            alert("Minimum campaign budget is €10/day");
+            return;
+            }
+
+            if (!allowedTypes.includes(creativeFile.type)) {
+            alert("Unsupported file type");
+            return;
+            }
+
+            if (creativeFile.size > 15 * 1024 * 1024) {
+            alert("File exceeds 15MB limit");
+            return;
+            }
+
+            if (grandTotal > currentBalance) {
+            alert("⚠️ INSUFFICIENT_BALANCE");
+            return;
+            }
+
+            
+
+            // upload file
+            let uploadedUrl = "";
+
+            if (creativeFile) {
+            const filePath = `ads/${userId}/${Date.now()}_${creativeFile.name}`;
+            const fileRef = storageRef(storage, filePath);
+
+            await uploadBytes(fileRef, creativeFile);
+            uploadedUrl = await getDownloadURL(fileRef);
+            }
+
+            const adRef = dbRef(db, `users/${userId}/campaigns`);
             const campaignId = push(adRef).key;
 
             const updates: any = {};
+
             updates[`users/${userId}/campaigns/${campaignId}`] = {
-                ...newAd,
-                totalInvestment,
-                neuralFee,
-                grandTotal,
-                timestamp: Date.now(),
-                reach: 0,
-                status: 'Pending_Admin_Review' // Set to pending initially
+            ...newAd,
+            creativeUrl: uploadedUrl,
+            totalInvestment,
+            neuralFee,
+            grandTotal,
+            reach: 0,
+            status: 'Pending_Admin_Review',
+            reviewStatus: 'Pending',
+            paymentStatus: 'Pending_Charge',
+            agreementsAccepted: true,
+            rejectionReason: '',
+            adminNotes: '',
+            submittedAt: Date.now(),
+            timestamp: Date.now()
             };
 
+            const adminAdRef = push(child(dbRef(db), `admin/ad_queue`)).key;
 
-            // 3. PUSH TO ADMIN QUEUE (New code here)
-            const adminAdRef = push(child(ref(db), `admin/ad_queue`)).key;
             updates[`admin/ad_queue/${adminAdRef}`] = {
-                campaignId: campaignId,
-                userId: userId,
-                userEmail: userEmail,
-                title: newAd.title,
-                budget: grandTotal,
-                platform: newAd.platform,
-                timestamp: Date.now()
+            campaignId,
+            userId,
+            userEmail,
+            title: newAd.title,
+            budget: grandTotal,
+            platform: newAd.platform,
+            description: newAd.description,
+            website: newAd.website,
+            cta: newAd.cta,
+            creativeType: newAd.creativeType,
+            timestamp: Date.now(),
+            creativeUrl: uploadedUrl
             };
 
-            // Add a record to the ledger so the user sees where the money went
-            const ledgerKey = push(child(ref(db), `users/${userId}/treasury/ledger`)).key;
+            const ledgerKey = push(child(dbRef(db), `users/${userId}/treasury/ledger`)).key;
+
             updates[`users/${userId}/treasury/ledger/${ledgerKey}`] = {
-                type: 'Outflow',
-                amount: grandTotal,
-                label: `Ad_Campaign: ${newAd.title}`,
-                date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }).toUpperCase(),
-                status: 'Completed',
-                timestamp: Date.now()
+            type: 'Reserved',
+            amount: grandTotal,
+            label: `Ad Campaign: ${newAd.title}`,
+            date: new Date().toLocaleDateString('en-GB', {
+                day: '2-digit',
+                month: 'short'
+            }).toUpperCase(),
+            status: 'Pending Approval',
+            timestamp: Date.now()
             };
 
-            await update(ref(db), updates);
+            await update(dbRefRoot(db), updates);
+
             setShowModal(false);
-            alert("🚀 SENT_FOR_APPROVAL: Admin is reviewing your deployment.");
-            
-            // Reset form
+
             setNewAd({
-                title: '',
-                linkedProduct: '',
-                budget: '',
-                duration: '7',
-                targeting: 'Global_Tech',
-                platform: 'Neural_Feed',
-                status: 'Active'
+            title: '',
+            linkedProduct: '',
+            budget: '',
+            duration: '7',
+            targeting: 'Global_Tech',
+            platform: 'Meta_Ads',
+            website: '',
+            description: '',
+            cta: 'Learn More',
+            creativeType: 'Image',
+            status: 'Active'
             });
+
+            alert("🚀 SENT_FOR_APPROVAL");
 
         } catch (error) {
             console.error("Deployment Error:", error);
             alert("Deployment Failed. Please check connection.");
+        } finally {
+            setDeploying(false);
         }
     };
+    
 
     return (
         <div style={{ padding: '20px', color: 'white' }}>
@@ -136,7 +263,8 @@ const AdsManager = ({ userBrand }: any) => {
                     <p style={{ opacity: 0.5 }}>Amplify {userBrand?.name} | Balance: <span style={{color: '#C5FF41'}}>€{currentBalance.toLocaleString()}</span></p>
                 </div>
                 <button onClick={() => setShowModal(true)} style={deployBtnStyle}>Launch New Campaign</button>
-            </div>
+            
+            </div>    
 
             {/* --- ANALYTICS OVERVIEW --- */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginBottom: '40px' }}>
@@ -168,13 +296,41 @@ const AdsManager = ({ userBrand }: any) => {
                     </thead>
                     <tbody>
                         {campaigns.map(ad => (
-                            <tr key={ad.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.02)' }}>
+                            <tr key={ad.id}>
                                 <td style={tdStyle}>{ad.title}</td>
+
                                 <td style={tdStyle}>
-                                    <span style={{ color: '#C5FF41', fontSize: '10px', border: '1px solid #C5FF41', padding: '2px 8px', borderRadius: '10px' }}>{ad.status}</span>
+                                    <span
+                                        style={{
+                                            color: getStatusColor(ad.status),
+                                            border: `1px solid ${getStatusColor(ad.status)}`,
+                                            padding: '2px 8px',
+                                            borderRadius: '10px',
+                                            fontSize: '10px'
+                                        }}
+                                    >
+                                        {ad.status}
+                                    </span>
+
+                                    {ad.status === 'Rejected' && ad.rejectionReason && (
+                                        <div
+                                            style={{
+                                                color: '#ff4d4d',
+                                                fontSize: '11px',
+                                                marginTop: '6px'
+                                            }}
+                                        >
+                                            {ad.rejectionReason}
+                                        </div>
+                                    )}
                                 </td>
-                                <td style={tdStyle}>${ad.budget}</td>
-                                <td style={tdStyle}>{ad.reach?.toLocaleString()}</td>
+
+                                <td style={tdStyle}>€{ad.grandTotal}</td>
+
+                                <td style={tdStyle}>
+                                    {ad.reach?.toLocaleString()}
+                                </td>
+
                                 <td style={tdStyle}>{ad.platform}</td>
                             </tr>
                         ))}
@@ -203,6 +359,24 @@ const AdsManager = ({ userBrand }: any) => {
                                     <option value="Creative_Arts">Creative_Arts</option>
                                     <option value="Gen_Alpha_Core">Gen_Alpha_Core</option>
                                 </select>
+                                <label style={labelStyle}>Advertising Platform</label>
+
+                                <select
+                                    style={inputStyle}
+                                    value={newAd.platform}
+                                    onChange={(e) =>
+                                        setNewAd({
+                                        ...newAd,
+                                        platform: e.target.value
+                                        })
+                                    }
+                                    >
+                                    <option value="Meta_Ads">Meta Ads</option>
+                                    <option value="Google_Ads">Google Ads</option>
+                                    <option value="TikTok_Ads">TikTok Ads</option>
+                                    <option value="YouTube_Ads">YouTube Ads</option>
+                                    <option value="Instagram_Ads">Instagram Ads</option>
+                                </select>
                             </div>
                             <div style={{ flex: 1 }}>
                                 <label style={labelStyle}>Duration (Days)</label>
@@ -212,6 +386,52 @@ const AdsManager = ({ userBrand }: any) => {
 
                         <label style={labelStyle}>Daily Budget (€)</label>
                         <input style={inputStyle} type="number" placeholder="min. 10.00" value={newAd.budget} onChange={e => setNewAd({...newAd, budget: e.target.value})} />
+                        <label style={labelStyle}>Website URL</label>
+                        <input
+                        style={inputStyle}
+                        placeholder="(paste your ad link from your dashboard https://yourchat.com)"
+                        value={newAd.website}
+                        onChange={(e) =>
+                            setNewAd({
+                            ...newAd,
+                            website: e.target.value
+                            })
+                        }
+                        />
+                        <label style={labelStyle}>Campaign Creative</label>
+
+                        <input
+                            type="file"
+                            style={{
+                                marginBottom: '20px',
+                                color: 'white',
+                                width: '100%'
+                            }}
+                            accept="image/*,video/*"
+                            onChange={(e: any) => {
+                                if (e.target.files?.[0]) {
+                                    setCreativeFile(e.target.files[0]);
+                                }
+                            }}
+                        />
+                        
+                        <label style={labelStyle}>Ad Description</label>
+                        <textarea
+                        style={{
+                            ...inputStyle,
+                            minHeight: '120px',
+                            resize: 'none'
+                        }}
+                        placeholder="Describe your product/service..."
+                        value={newAd.description}
+                        onChange={(e) =>
+                            setNewAd({
+                            ...newAd,
+                            description: e.target.value
+                            })
+                        }
+                        />
+                        
 
                         {/* --- PRICE BREAKDOWN --- */}
                         <div style={{ 
@@ -237,16 +457,81 @@ const AdsManager = ({ userBrand }: any) => {
                                 </div>
                             )}
                         </div>
+                        <div style={policyBox}>
+                            <label style={checkboxLabel}>
+                                <input
+                                type="checkbox"
+                                checked={agreements.terms}
+                                onChange={(e) =>
+                                    setAgreements({
+                                    ...agreements,
+                                    terms: e.target.checked
+                                    })
+                                }
+                                />
+                                I agree to the Terms of Service
+                            </label>
 
+                            <label style={checkboxLabel}>
+                                <input
+                                type="checkbox"
+                                checked={agreements.refund}
+                                onChange={(e) =>
+                                    setAgreements({
+                                    ...agreements,
+                                    refund: e.target.checked
+                                    })
+                                }
+                                />
+                                I understand the Refund Policy
+                            </label>
+
+                            <label style={checkboxLabel}>
+                                <input
+                                type="checkbox"
+                                checked={agreements.policy}
+                                onChange={(e) =>
+                                    setAgreements({
+                                    ...agreements,
+                                    policy: e.target.checked
+                                    })
+                                }
+                                />
+                                My campaign complies with advertising policies
+                            </label>
+                        </div>
+                        <div style={warningBox}>
+                        <strong>Restricted Content Notice</strong>
+
+                        <p style={{ opacity: 0.7 }}>
+                            Campaigns involving scams, crypto guarantees,
+                            adult content, illegal products, misleading
+                            claims, or prohibited financial promotions
+                            will be rejected and may result in account
+                            suspension.
+                        </p>
+                        </div>
+                        
                         <div style={{ display: 'flex', gap: '15px' }}>
                             <button 
                                 onClick={deployCampaign} 
                                 style={{...primaryBtn, opacity: grandTotal > currentBalance ? 0.3 : 1, cursor: grandTotal > currentBalance ? 'not-allowed' : 'pointer'}}
-                                disabled={grandTotal > currentBalance}
+                                disabled={deploying || grandTotal > currentBalance || !agreementsAccepted}
                             >
-                                DEPLOY_CAMPAIGN
+                                {deploying ? "DEPLOYING..." : "DEPLOY_CAMPAIGN"}
                             </button>
                             <button onClick={() => setShowModal(false)} style={secondaryBtn}>Abort</button>
+                        </div>
+                        <div style={{
+                            display: 'flex',
+                            gap: '20px',
+                            marginTop: '20px',
+                            fontSize: '11px',
+                            opacity: 0.5
+                            }}>
+                            <span>Terms of Service</span>
+                            <span>Refund Policy</span>
+                            <span>Advertising Policies</span>
                         </div>
                     </div>
                 </div>
@@ -256,6 +541,31 @@ const AdsManager = ({ userBrand }: any) => {
 };
 
 // --- STYLES ---
+const policyBox = {
+  padding: '16px',
+  background: 'rgba(255,255,255,0.03)',
+  borderRadius: '16px',
+  border: '1px solid rgba(255,255,255,0.08)',
+  marginBottom: '20px'
+};
+
+const checkboxLabel = {
+  display: 'flex',
+  gap: '10px',
+  alignItems: 'center',
+  marginBottom: '12px',
+  fontSize: '12px',
+  opacity: 0.8
+};
+
+const warningBox = {
+  background: 'rgba(255,170,0,0.08)',
+  border: '1px solid rgba(255,170,0,0.25)',
+  padding: '16px',
+  borderRadius: '16px',
+  marginBottom: '20px',
+  fontSize: '12px'
+};
 const statBox = { background: 'rgba(255,255,255,0.03)', padding: '24px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.08)' };
 const statLabel = { fontSize: '12px', opacity: 0.4, textTransform: 'uppercase' as 'uppercase', letterSpacing: '1px' };
 const statValue = { fontSize: '28px', fontWeight: 700, marginTop: '8px', color: '#C5FF41' };

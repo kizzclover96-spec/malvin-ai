@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { auth, db } from '../firebase';
 import { signOut } from 'firebase/auth';
 // Rename them using 'as' so they don't clash or get left undefined
-import { ref, onValue, update, push, serverTimestamp as rtdbTimestamp, DataSnapshot } from "firebase/database";
+import { ref, onValue, update, push, serverTimestamp, DataSnapshot } from "firebase/database";
 import { doc, collection, query, orderBy, onSnapshot, addDoc, setDoc, serverTimestamp as firestoreTimestamp } from "firebase/firestore";
 import { firestore } from "../firebase"; // Your firestore initialization file
 
@@ -16,12 +16,17 @@ const AdsManager = () => {
     const [auditLogs, setAuditLogs] = useState<any[]>([]);
     const [verificationRequests, setVerificationRequests] = useState<any[]>([]);
     const [processingId, setProcessingId] = useState<string | null>(null);
+    const [filter, setFilter] = useState("Pending_Admin_Review");
     
     // --- NEW MESSAGING STATES ---
     const [chatMessage, setChatMessage] = useState(''); // Keep this if you use it elsewhere
     const [adminMessage, setAdminMessage] = useState('');
     const [sendingMsg, setSendingMsg] = useState(false);
     const [conversationMessages, setConversationMessages] = useState<any[]>([]); // 🌟 ADD THIS
+    
+    const filteredAds = adRequests.filter(ad =>
+        filter === "ALL" ? true : ad.status === filter
+    );
     useEffect(() => {
         const verificationRef = ref(db, 'admin/verification_requests');
 
@@ -206,6 +211,23 @@ const AdsManager = () => {
                 <h1 style={{ fontSize: '20px', letterSpacing: '3px' }}>MALVIN_ADMIN_V2</h1>
                 <button onClick={() => signOut(auth)} style={logoutBtn}>LOGOUT</button>
             </header>
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
+                {["ALL", "Pending_Admin_Review", "Approved", "Rejected"].map(f => (
+                    <button
+                        key={f}
+                        onClick={() => setFilter(f)}
+                        style={{
+                            padding: '6px 10px',
+                            fontSize: '10px',
+                            border: '1px solid #333',
+                            background: filter === f ? '#C5FF41' : 'transparent',
+                            color: filter === f ? '#000' : '#fff'
+                        }}
+                    >
+                        {f}
+                    </button>
+                ))}
+            </div>
             
             <div style={{ display: 'grid', gridTemplateColumns: '380px 1fr 350px', gap: '24px' }}>
 
@@ -551,6 +573,182 @@ const AdsManager = () => {
                                     >
                                         {processingId === req.id ? "PROCESSING..." : "REJECT"}
                                     </button>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </section>
+                {/* --- AD APPROVAL QUEUE --- */}
+                <section style={panelStyle}>
+                    <h3 style={sectionTitle}>AD_APPROVAL_QUEUE</h3>
+
+                    <div style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+                        {adRequests.length === 0 ? (
+                            <div style={{ opacity: 0.3, fontSize: '12px' }}>
+                                NO_PENDING_ADS
+                            </div>
+                        ) : (
+                            filteredAds.map((ad) => (
+                                <div
+                                    key={ad.id}
+                                    style={{
+                                        padding: '14px',
+                                        borderBottom: '1px solid #111',
+                                        background: 'rgba(255,255,255,0.02)',
+                                        marginBottom: '10px',
+                                        borderRadius: '10px'
+                                    }}
+                                >
+                                    {/* TITLE */}
+                                    <div style={{ color: '#C5FF41', fontWeight: 700 }}>
+                                        {ad.title}
+                                    </div>
+
+                                    {/* META */}
+                                    <div style={{ fontSize: '10px', opacity: 0.6, marginTop: '6px' }}>
+                                        USER: {ad.userEmail}
+                                    </div>
+
+                                    <div style={{ fontSize: '10px', opacity: 0.6 }}>
+                                        PLATFORM: {ad.platform}
+                                    </div>
+
+                                    <div style={{ fontSize: '10px', opacity: 0.6 }}>
+                                        BUDGET: €{ad.budget}
+                                    </div>
+
+                                    <div style={{ fontSize: '10px', opacity: 0.6 }}>
+                                        CTA: {ad.cta}
+                                    </div>
+
+                                    {/* DESCRIPTION */}
+                                    <div style={{ fontSize: '11px', marginTop: '8px', opacity: 0.8 }}>
+                                        {ad.description}
+                                    </div>
+
+                                    {/* CREATIVE PREVIEW */}
+                                    {ad.creativeUrl && (
+                                        <div style={{ marginTop: '10px' }}>
+                                            {ad.creativeUrl.includes('.mp4') ? (
+                                                <video
+                                                    src={ad.creativeUrl}
+                                                    controls
+                                                    style={{ width: '100%', borderRadius: '8px' }}
+                                                />
+                                            ) : (
+                                                <img
+                                                    src={ad.creativeUrl}
+                                                    style={{ width: '100%', borderRadius: '8px' }}
+                                                />
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* ACTIONS */}
+                                    <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
+
+                                        {/* APPROVE */}
+                                        <button
+                                            style={{
+                                                ...approveBtn,
+                                                flex: 1,
+                                                background: '#C5FF41'
+                                            }}
+                                            onClick={async () => {
+                                                try {
+                                                    const user = users.find(u => u.uid === ad.userId);
+                                                    const budget = Number(ad.budget || 0);
+                                                    const currentBalance = Number(user?.treasury?.balance || 0);
+                                                    const newBalance = currentBalance - budget;
+
+                                                    const ledgerKey = push(ref(db, `users/${ad.userId}/treasury/ledger`)).key;
+
+                                                    const updates: any = {};
+
+                                                    // 1. Campaign update
+                                                    updates[`users/${ad.userId}/campaigns/${ad.campaignId}/status`] = "Approved";
+                                                    updates[`users/${ad.userId}/campaigns/${ad.campaignId}/reviewStatus`] = "Approved";
+
+                                                    // 2. Deduct balance
+                                                    updates[`users/${ad.userId}/treasury/balance`] = newBalance;
+
+                                                    // 3. Ledger entry
+                                                    updates[`users/${ad.userId}/treasury/ledger/${ledgerKey}`] = {
+                                                        type: "Charged",
+                                                        amount: ad.budget,
+                                                        label: `Approved Ad: ${ad.title}`,
+                                                        status: "Completed",
+                                                        timestamp: Date.now()
+                                                    };
+
+                                                    // 4. Queue update
+                                                    updates[`admin/ad_queue/${ad.id}/status`] = "Approved";
+
+                                                    await update(ref(db), updates);
+
+                                                    await push(ref(db, 'admin/audit_log'), {
+                                                        adminEmail: auth.currentUser?.email,
+                                                        action: 'APPROVE_AD',
+                                                        targetUid: ad.userId,
+                                                        details: `Approved campaign: ${ad.title}`,
+                                                        timestamp: serverTimestamp(),
+                                                    });
+
+                                                    alert("AD_APPROVED");
+                                                } catch (err) {
+                                                    console.error(err);
+                                                    alert("APPROVAL_FAILED");
+                                                }
+                                            }}
+                                        >
+                                            APPROVE
+                                        </button>
+
+                                        {/* REJECT */}
+                                        <button
+                                            style={{
+                                                ...statusBtn,
+                                                flex: 1,
+                                                color: '#ff4d4d',
+                                                border: '1px solid #ff4d4d'
+                                            }}
+                                            onClick={async () => {
+                                                const reason = prompt("Enter rejection reason:");
+                                                if (!reason) return;
+
+                                                try {
+                                                    const updates: any = {};
+
+                                                    // 1. Update user campaign
+                                                    updates[`users/${ad.userId}/campaigns/${ad.campaignId}/status`] = "Rejected";
+                                                    updates[`users/${ad.userId}/campaigns/${ad.campaignId}/rejectionReason`] = reason;
+
+                                                    // 2. Update ad queue
+                                                    updates[`admin/ad_queue/${ad.id}/status`] = "Rejected";
+                                                    updates[`admin/ad_queue/${ad.id}/archived`] = true;
+                                                    updates[`admin/ad_queue/${ad.id}/rejectionReason`] = reason;
+
+                                                    await update(ref(db), updates);
+
+                                                    // 3. audit log
+                                                    await push(ref(db, 'admin/audit_log'), {
+                                                        adminEmail: auth.currentUser?.email,
+                                                        action: 'REJECT_AD',
+                                                        targetUid: ad.userId,
+                                                        details: `Rejected campaign: ${ad.title} (${reason})`,
+                                                        timestamp: serverTimestamp(),
+                                                    });
+
+                                                    alert("AD_REJECTED");
+                                                } catch (err) {
+                                                    console.error(err);
+                                                    alert("REJECTION_FAILED");
+                                                }
+                                            }}
+                                        >
+                                            REJECT
+                                        </button>
+                                    </div>
                                 </div>
                             ))
                         )}
