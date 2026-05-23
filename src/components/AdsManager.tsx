@@ -572,7 +572,18 @@ const statValue = { fontSize: '28px', fontWeight: 700, marginTop: '8px', color: 
 const thStyle = { padding: '20px', opacity: 0.4, fontSize: '12px', textTransform: 'uppercase' as 'uppercase' };
 const tdStyle = { padding: '20px', fontSize: '14px' };
 const overlayStyle = { position: 'fixed' as 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 };
-const glassModal = { background: 'rgba(20,20,20,0.95)', border: '1px solid rgba(255,255,255,0.1)', padding: '40px', borderRadius: '32px', width: '500px' };
+
+// --- MODIFIED JUST HERE TO ALLOW CONTROLLED VERTICAL SCROLLING ---
+const glassModal = { 
+    background: 'rgba(20,20,20,0.95)', 
+    border: '1px solid rgba(255,255,255,0.1)', 
+    padding: '40px', 
+    borderRadius: '32px', 
+    width: '500px',
+    maxHeight: '85vh',
+    overflowY: 'auto' as 'auto'
+};
+
 const inputStyle = { width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', padding: '12px', borderRadius: '12px', color: 'white', marginBottom: '20px', outline: 'none' };
 const labelStyle = { fontSize: '10px', opacity: 0.4, textTransform: 'uppercase' as 'uppercase', marginBottom: '8px', display: 'block' };
 const deployBtnStyle = { background: '#C5FF41', color: 'black', border: 'none', padding: '12px 24px', borderRadius: '12px', fontWeight: 700, cursor: 'pointer' };
