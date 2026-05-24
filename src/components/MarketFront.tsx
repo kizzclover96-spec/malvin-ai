@@ -151,6 +151,10 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
 
     const handleConfirmOrder = () => {
         if (!orderModal) return;
+        const finalOrderPayload = {
+            ...orderModal,
+            orderedQuantity: quantity
+        };
         setOrderModal(null);
         setView('chat');
     };
@@ -194,12 +198,20 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
         return (
             <div style={{ position: 'relative', height: '100dvh', backgroundColor: '#000' }}>
                 <button 
-                    onClick={() => setView('market')} 
+                    onClick={() => {
+                        setOrderModal(null); // Clean up active order state when returning
+                        setView('market');
+                    }} 
                     style={backToMarketBtn}
                 >
                     ← Back to Shop
                 </button>
-                <CustomerChat />
+                
+                {/* Forwarding props here allows CustomerChat to read it instantly */}
+                <CustomerChat 
+                    pendingOrder={orderModal} 
+                    quantity={quantity} 
+                />
             </div>
         );
     }

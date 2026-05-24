@@ -99,8 +99,6 @@ const LeftPanel: React.FC<Props> = ({
     <div>
       <GlobalStyles />
 
-      
-
       {/* HEADER */}
       <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
         <div
@@ -136,7 +134,6 @@ const LeftPanel: React.FC<Props> = ({
         </span>
       </div>
 
-      
       {/* SIDEBAR BUTTONS */}
       <div
         style={{
@@ -145,14 +142,13 @@ const LeftPanel: React.FC<Props> = ({
           gap: "12px",
           marginTop: "10px",
           width: "92%",
-          minHeight: "420px",
+          minHeight: "auto", // Dynamically adapts without clamping empty layouts
         }}
       >
         {[
           { label: "🛠 Tools", tab: "ToolModal" },
           { label: "⚙️ Settings", tab: "Settings" },
           { label: "📝 Notes", tab: "Notes" },
-          
         ].map((item) => (
           <button
             key={item.tab}
@@ -226,66 +222,71 @@ const LeftPanel: React.FC<Props> = ({
           </button>
         ))}
         {/* PREMIUM BUTTON */}
-      <div
-        style={{
-          position: "relative",
-          marginTop: "4px",
-          width: "100%",
-        }}
-      >
         <div
           style={{
-            position: "absolute",
-            top: "-6px",
-            left: "-6px",
-            zIndex: 10,
-            animation: "twinkle 2s infinite",
-          }}
-        >
-          <StarIcon size={12} />
-        </div>
-
-        <button
-          onClick={() => setActiveTab("Premium")}
-          style={{
-            ...btnReset,
-            display: "flex",
-            alignItems: "center",
+            position: "relative",
+            marginTop: "8px", // Added slightly more breathing room at the top
             width: "100%",
-            padding: "10px 14px",
-            borderRadius: "12px",
-            cursor: "pointer",
-            background: "rgba(255, 215, 0, 0.08)",
-            border: "1px solid #FFD700",
-            color: "#FFD700",
-            fontSize: "10px",
-            fontWeight: "900",
-            letterSpacing: "1.2px",
-            textTransform: "uppercase",
-            animation: "goldGlow 3s infinite",
-            gap: "12px",
+            paddingLeft: "6px", // Gives the absolute star room to breathe on the left
+            paddingTop: "6px",  // Gives the absolute star room to breathe at the top
+            boxSizing: "border-box"
           }}
         >
-          <StarIcon size={14} />
-          <span>Go Premium</span>
-        </button>
+          <div
+            style={{
+              position: "absolute",
+              top: "0px", // Adjusted so it doesn't bleed past the safe padding zone
+              left: "0px",
+              zIndex: 10,
+              animation: "twinkle 2s infinite",
+            }}
+          >
+            <StarIcon size={12} />
+          </div>
+
+          <button
+            onClick={() => setActiveTab("Premium")}
+            style={{
+              ...btnReset,
+              display: "flex",
+              alignItems: "center",
+              width: "100%",
+              padding: "10px 14px",
+              borderRadius: "12px",
+              cursor: "pointer",
+              background: "rgba(255, 215, 0, 0.08)",
+              border: "1px solid #FFD700",
+              color: "#FFD700",
+              fontSize: "10px",
+              fontWeight: "900",
+              letterSpacing: "1.2px",
+              textTransform: "uppercase",
+              animation: "goldGlow 3s infinite",
+              gap: "12px",
+            }}
+          >
+            <StarIcon size={14} />
+            <span>Go Premium</span>
+          </button>
+        </div>
       </div>
-      </div>
-      
-      
+
+      {/* FOOTER CONTAINER PANELS */}
       <div
         style={{
           display: "flex",
           flexDirection: "column",
-          gap: "20px",
+          gap: "10px", // Reduced from 20px to bring components closer
           height: "100%",
+          marginTop: "16px", // Adds a solid fluid gap below your tabs block
         }}
       >
+        {/* MALVIN CARD */}
         <div
-          className="left buttom-panel"
+          className="left-bottom-panel"
           style={{
             borderRight: "1px solid rgba(255, 255, 255, 0.1)",
-            padding: "20px",
+            padding: "12px", // Tightened from 20px to scale nicely
             flexDirection: "column",
             display: "flex",
             backgroundColor: "rgba(255, 255, 255, 0.03)",
@@ -297,8 +298,8 @@ const LeftPanel: React.FC<Props> = ({
         >
           <div
             style={{
-              width: "45px",
-              height: "45px",
+              width: "36px", // scaled subtly to match tighter footprint
+              height: "36px",
               borderRadius: "50%",
               overflow: "hidden",
               border: "1.5px solid #bf00ff",
@@ -307,6 +308,7 @@ const LeftPanel: React.FC<Props> = ({
               alignItems: "center",
               justifyContent: "center",
               backgroundColor: "rgba(255, 255, 255, 0.05)",
+              marginBottom: "6px",
             }}
           >
             <img
@@ -325,6 +327,7 @@ const LeftPanel: React.FC<Props> = ({
               color: "white",
               margin: 0,
               fontWeight: "600",
+              fontSize: "13px",
             }}
           >
             Malvin AI
@@ -333,8 +336,8 @@ const LeftPanel: React.FC<Props> = ({
           <p
             style={{
               color: "rgba(255,255,255,0.5)",
-              fontSize: "12px",
-              margin: "5px 0 0 0",
+              fontSize: "11px",
+              margin: "2px 0 0 0",
             }}
           >
             Your intelligent collaborator partner
@@ -393,7 +396,7 @@ const LeftPanel: React.FC<Props> = ({
             className="left-user-panel"
             onClick={() => setShowUserMenu(!showUserMenu)}
             style={{
-              padding: "15px 20px",
+              padding: "12px 16px", // Optimized sizing layout padding
               flexDirection: "column",
               display: "flex",
               backgroundColor: "rgba(255, 255, 255, 0.03)",
@@ -409,7 +412,7 @@ const LeftPanel: React.FC<Props> = ({
             <div
               style={{
                 color: "white",
-                fontSize: "14px",
+                fontSize: "13px",
                 fontWeight: "600",
               }}
             >
@@ -421,7 +424,10 @@ const LeftPanel: React.FC<Props> = ({
                 color: "white",
                 fontSize: "11px",
                 opacity: 0.4,
-                marginTop: "4px",
+                marginTop: "2px",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
               }}
             >
               {userEmail}
@@ -429,7 +435,6 @@ const LeftPanel: React.FC<Props> = ({
           </div>
         </div>
       </div>
-      
     </div>
   );
 };

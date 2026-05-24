@@ -22,6 +22,7 @@ import Runway from "./Runway";
 import MarginCalculator from "./MarginCalculator";
 import MarketTrends from "./MarketTrends";
 import Memories from "./memories"
+import Achievements from './achievements';
 
 // Exporting this so you can import it and use it anywhere else (Chats, MarketFront, etc.)
 export const VerifiedBadge = () => (
@@ -685,7 +686,14 @@ const Dashboard = (props: any) => {
                     )}
 
                     {/* Header */}
-                    <div style={headerWrapper}>
+                    <div style={{
+                        ...headerWrapper, 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center', 
+                        width: '100%',
+                        gap: '16px'
+                    }}>
                         <BackButton
                             activeTab={activeTab}
                             setActiveTab={setActiveTab}
@@ -699,6 +707,7 @@ const Dashboard = (props: any) => {
                             handleLogout={handleLogout}
                             userEmail={userEmail}
                         />
+                        
                         <div style={navPillStyle}>
                             {['Ads', 'Dashboard', 'Payments', 'Chats', 'Catalog'].map(item => (
                                 <div key={item} onClick={() => setActiveTab(item)} style={{
@@ -710,6 +719,11 @@ const Dashboard = (props: any) => {
                                     {item === 'Chats' && hasUnread && <div style={unreadDotStyle} />}
                                 </div>
                             ))}
+                        </div>
+                        
+                        {/* Pushed right with clear safety clearance from the screen boundary */}
+                        <div style={{ marginLeft: 'auto', marginRight: '40px' }}>
+                            <Achievements />
                         </div>
                     </div>
                     {/* Comment out your real components and use this test block */}

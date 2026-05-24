@@ -9,7 +9,12 @@ import { ref as dbRef, onValue } from "firebase/database";
 import { db, firestore } from "../firebase"; 
 import { ProductCard } from './ProductView';
 
-const CustomerChat = () => {
+interface CustomerChatProps {
+    pendingOrder?: any;
+    quantity?: number;
+}
+
+const CustomerChat = ({ pendingOrder: propOrder, quantity: propQuantity }: CustomerChatProps) => {
     const { brandId } = useParams<{ brandId: string }>();
     
     const [chatId, setChatId] = useState<string>('');
@@ -22,6 +27,34 @@ const CustomerChat = () => {
     const [quantity, setQuantity] = useState(1);
     const [loading, setLoading] = useState(true);
     const location = useLocation();
+
+    const activePendingOrder = propOrder || location.state?.pendingOrder;
+    const activePendingQuantity = propQuantity || location.state?.pendingOrder?.quantity || 1;
+
+    // Use a ref to ensure an order is only processed and fired once per mount cycle
+    const orderProcessed = useRef(false);
+
+    useEffect(() => {
+        if (activePendingOrder && chatId && brandData && !orderProcessed.current) {
+            orderProcessed.current = true; // Block double-firing
+            
+            // Construct message text
+            const orderText = `I'd like to order ${activePendingQuantity}x ${activePendingOrder.name}`;
+            
+            // Fire the actual send function
+            handleSend(undefined, orderText, true, {
+                name: activePendingOrder.name,
+                quantity: activePendingQuantity,
+                image: activePendingOrder.image,
+                price: activePendingOrder.price
+            });
+
+            // Clear location state if routing was used
+            if (location.state?.pendingOrder) {
+                window.history.replaceState({}, document.title);
+            }
+        }
+    }, [activePendingOrder, activePendingQuantity, chatId, brandData]);
 
     useEffect(() => {
         // Only proceed if we have a pending order AND the chat is initialized
