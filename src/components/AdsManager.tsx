@@ -285,10 +285,17 @@ const AdsManager = ({ userBrand }: any) => {
                 </div>
             </div>
 
-            {/* --- CAMPAIGN LIST --- */}
-            <div style={{ background: 'rgba(255,255,255,0.02)', borderRadius: '24px', border: '1px solid rgba(255,255,255,0.05)', overflow: 'hidden' }}>
+            {/* --- CAMPAIGN LIST (MODIFIED FOR FIXED SHAPE & SCROLLABLE CONTENT) --- */}
+            <div style={{ 
+                background: 'rgba(255,255,255,0.02)', 
+                borderRadius: '24px', 
+                border: '1px solid rgba(255,255,255,0.05)', 
+                overflow: 'hidden',
+                maxHeight: '400px', 
+                overflowY: 'auto' 
+            }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead>
+                    <thead style={{ position: 'sticky', top: 0, background: 'rgba(20,20,20,1)', zIndex: 1 }}>
                         <tr style={{ textAlign: 'left', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                             <th style={thStyle}>Campaign</th>
                             <th style={thStyle}>Status</th>
@@ -576,7 +583,6 @@ const thStyle = { padding: '20px', opacity: 0.4, fontSize: '12px', textTransform
 const tdStyle = { padding: '20px', fontSize: '14px' };
 const overlayStyle = { position: 'fixed' as 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 };
 
-// --- MODIFIED JUST HERE TO ALLOW CONTROLLED VERTICAL SCROLLING ---
 const glassModal = { 
     background: 'rgba(20,20,20,0.95)', 
     border: '1px solid rgba(255,255,255,0.1)', 
