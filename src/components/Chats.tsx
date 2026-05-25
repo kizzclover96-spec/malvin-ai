@@ -292,10 +292,7 @@ const Chats = ({ brandId, userBrand }: any) => {
                 <ChatCard style={{ background: '#000000', border: 'none' }}>
                     {/* 🌟 FIX: Prioritize internal view over selected layout to avoid conditional render overlap breaks */}
                     {isInternalOpen ? (
-                        <AdminInternalSupport 
-                            adminChatId={adminChatRoomId} 
-                            onClose={() => setIsInternalOpen(false)} 
-                        />    
+                        
                     ) : selectedChatId ? (
                         <div style={{ display: 'flex', flexDirection: 'column', height: '100%', boxSizing: 'border-box' }}>
                             

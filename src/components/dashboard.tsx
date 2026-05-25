@@ -230,6 +230,7 @@ const Dashboard = (props: any) => {
     const [brandData, setBrandData] = useState<any>(null);
     const [showUserMenu, setShowUserMenu] = useState(false);
     const [history, setHistory] = useState<any[]>([]);
+    const [verificationPopup, setVerificationPopup] = useState(false);
 
     // Profile States
     const [bio, setBio] = useState('');
@@ -550,6 +551,15 @@ const Dashboard = (props: any) => {
             createdAt: serverTimestamp(),
             isPremium: userBrand?.isPremium || false
         });
+
+        // 👇 show popup only for premium users
+        if (isPremium) {
+            setVerificationPopup(true);
+
+            setTimeout(() => {
+                setVerificationPopup(false);
+            }, 6000);
+        }
     };
     const handleLogout = async () => {
         await signOut(auth);
@@ -924,7 +934,55 @@ const Dashboard = (props: any) => {
                             </div>
                         </div>
                     )}
-                    
+                    {verificationPopup && (
+                        <div style={{
+                            position: "fixed",
+                            top: "20px",
+                            left: "50%",
+                            transform: "translateX(-50%)",
+                            background: "#111",
+                            border: "1px solid #C5FF41",
+                            padding: "16px 20px",
+                            borderRadius: "16px",
+                            zIndex: 99999,
+                            width: "420px",
+                            boxShadow: "0 10px 40px rgba(0,0,0,0.5)"
+                        }}>
+                            <div style={{ fontSize: "12px", fontWeight: 800, color: "#C5FF41", marginBottom: "6px" }}>
+                                VERIFICATION REQUEST RECEIVED
+                            </div>
+
+                            <div style={{ fontSize: "13px", color: "#fff", lineHeight: "1.4" }}>
+                                Your verification has been received.  
+                                Send <b>"requesting verification"</b> to the email below and follow the steps.
+                            </div>
+
+                            <div
+                                onClick={() => {
+                                    navigator.clipboard.writeText("verify.malvin@gmail.com");
+                                }}
+                                style={{
+                                    marginTop: "12px",
+                                    padding: "10px",
+                                    background: "#0A0A0A",
+                                    border: "1px solid #222",
+                                    borderRadius: "10px",
+                                    fontSize: "13px",
+                                    color: "#C5FF41",
+                                    cursor: "pointer",
+                                    textAlign: "center",
+                                    userSelect: "none"
+                                }}
+                                title="Click to copy email"
+                            >
+                                verify.malvin@gmail.com
+                            </div>
+
+                            <div style={{ fontSize: "10px", color: "#666", marginTop: "8px" }}>
+                                Click to copy email
+                            </div>
+                        </div>
+                    )}
                     <ToolModal onBack={() => setActiveTab('Dashboard')} 
                         showTools={showTools}
                         setShowTools={setShowTools}
