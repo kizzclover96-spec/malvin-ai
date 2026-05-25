@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { collection, query, where, onSnapshot, orderBy, addDoc, serverTimestamp, doc, setDoc, updateDoc, getDocs } from "firebase/firestore";
 import { firestore, auth } from "../firebase";
-import AdminInternalSupport from './AdminInternalSupport';
 
 const ChatCard = ({ children, style }: any) => (
     <div style={{
@@ -120,16 +119,7 @@ const Chats = ({ brandId, userBrand }: any) => {
     }, []);
 
     // 6. Clear notification status when explicitly clicking the Internal Desk panel
-    const handleOpenInternalSupport = async () => {
-        setIsInternalOpen(true);
-        setSelectedChatId(null); // Clear selected client space focus 
-        try {
-            const adminDocRef = doc(firestore, "admin_support", adminChatRoomId);
-            await updateDoc(adminDocRef, { unread: false });
-        } catch (e) {
-            console.error("Error clearing admin notification status:", e);
-        }
-    };
+    
 
     const handleSelectChat = async (chatId: string) => {
         setSelectedChatId(chatId);
@@ -265,27 +255,7 @@ const Chats = ({ brandId, userBrand }: any) => {
                     </div>
                     
                     {/* BOTTOM SIDEBAR ANCHOR: ADMIN BUTTON */}
-                    <div style={{ padding: '16px', borderTop: '1px solid #1c1c1e', background: '#000' }}>
-                        <button
-                            onClick={handleOpenInternalSupport}
-                            style={{
-                                width: '100%',
-                                padding: '14px',
-                                borderRadius: '8px',
-                                fontWeight: 'bold',
-                                fontSize: '13px',
-                                letterSpacing: '0.5px',
-                                cursor: 'pointer',
-                                border: 'none',
-                                transition: 'all 0.3s ease',
-                                background: hasNewInternalMsg ? 'linear-gradient(45deg, #ffd700, #ffae00)' : '#1a1a1a',
-                                color: hasNewInternalMsg ? '#000000' : '#737373', // 🌟 Tweak: Cleaner pale text color when inactive
-                                boxShadow: hasNewInternalMsg ? '0 0 15px rgba(255, 215, 0, 0.4)' : 'none'
-                            }}
-                        >
-                            {hasNewInternalMsg ? '⚠️ INTERNAL ADMIN DESK (NEW)' : 'INTERNAL ADMIN DESK'}
-                        </button>
-                    </div>
+                    
                 </ChatCard>
 
                 {/* RIGHT: MESSAGE FEED (Main View) */}
