@@ -22,7 +22,7 @@ const checkoutUrl = variantId
 
 const premiumPlan = {
   name: "Premium",
-  price: "€15.99/mo",
+  price: "€5.99/mo",
   variantId
 };
 
@@ -94,7 +94,7 @@ const Premium: React.FC<PremiumProps> = ({ onBack }) => {
         {/* Pricing Card */}
         <div style={glassCardStyle}>
           <div style={priceHeader}>
-            <span style={priceStyle}>$15.99</span>
+            <span style={priceStyle}>$5.99</span>
             <span style={perMonthStyle}>/month</span>
           </div>
           
