@@ -19,7 +19,7 @@ const AdminInternalSupport = ({ adminChatId, onClose }: AdminInternalSupportProp
         if (!adminChatId) return;
 
         const q = query(
-            collection(firestore, "admin_support", adminChatId, "messages"),
+            collection(firestore, "conversations", adminChatId, "messages"),
             orderBy("timestamp", "asc")
         );
 
@@ -42,7 +42,7 @@ const AdminInternalSupport = ({ adminChatId, onClose }: AdminInternalSupportProp
         });
 
         // Mark as read when opened
-        setDoc(doc(firestore, "admin_support", adminChatId), { unread: false }, { merge: true })
+        setDoc(doc(firestore, "conversations", adminChatId), { unread: false }, { merge: true })
             .catch(err => console.error("Could not update read status:", err));
 
         return () => unsubscribe();
@@ -60,20 +60,16 @@ const AdminInternalSupport = ({ adminChatId, onClose }: AdminInternalSupportProp
         if (!text.trim()) return;
         try {
             await addDoc(
-                collection(firestore, "admin_support", adminChatId, "messages"),
+                collection(firestore, "conversations", adminChatId, "messages"),
                 {
                     text,
-                    type: 'text',
-
-                    senderId: auth.currentUser?.uid,
-                    senderEmail: auth.currentUser?.email,
-                    senderName:
-                    auth.currentUser?.displayName || 'Admin',
-
+                    senderRole: "admin",
+                    senderId: auth.currentUser?.uid || "admin",
+                    senderName: auth.currentUser?.displayName || "Admin",
                     timestamp: serverTimestamp()
                 }
             );
-            await setDoc(doc(firestore, "admin_support", adminChatId), {
+            await setDoc(doc(firestore, "conversations", adminChatId), {
                 lastMessage: text,
                 updatedAt: serverTimestamp(),
                 unread: true // Alerts other admins
@@ -96,18 +92,18 @@ const AdminInternalSupport = ({ adminChatId, onClose }: AdminInternalSupportProp
             const snapshot = await uploadBytes(storageRef, file);
             const downloadUrl = await getDownloadURL(snapshot.ref);
 
-            await addDoc(collection(firestore, "admin_support", adminChatId, "messages"), {
+            await addDoc(collection(firestore, "conversations", adminChatId, "messages"), {
                 text: `Sent a file: ${file.name}`,
                 fileUrl: downloadUrl,
                 fileName: file.name,
                 type: 'file',
-                senderId: auth.currentUser?.uid,
-                senderEmail: auth.currentUser?.email,
-                senderName: auth.currentUser?.displayName || 'Admin',
+                senderRole: "admin",
+                senderId: auth.currentUser?.uid || "admin",
+                senderName: auth.currentUser?.displayName || "Admin",
                 timestamp: serverTimestamp()
             });
 
-            await setDoc(doc(firestore, "admin_support", adminChatId), {
+            await setDoc(doc(firestore, "conversations", adminChatId), {
                 lastMessage: `📎 Attached File: ${file.name}`,
                 updatedAt: serverTimestamp(),
                 unread: true

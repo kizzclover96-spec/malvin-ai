@@ -32,7 +32,7 @@ const Impressum = () => {
 
       <p>
         <strong>Verantwortlich für den Inhalt nach § 55 Abs. 2 RStV:</strong><br />
-        Praise Imasuen<br />
+        Praise Eloghosarumwen Imasuen<br />
         Adresse wie oben
       </p>
 
