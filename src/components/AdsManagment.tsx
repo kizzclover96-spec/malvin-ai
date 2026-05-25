@@ -24,6 +24,7 @@ const AdsManager = () => {
     const [adminMessage, setAdminMessage] = useState('');
     const [sendingMsg, setSendingMsg] = useState(false);
     const [conversationMessages, setConversationMessages] = useState<any[]>([]); // 🌟 ADD THIS
+    const chatId = selectedUser ? `support_${selectedUser.uid}` : null;
     
     const filteredAds = adRequests.filter(ad =>
         filter === "ALL" ? true : ad.status === filter
@@ -336,7 +337,12 @@ const AdsManager = () => {
 
                             <hr style={{ border: 'none', borderTop: '1px solid #222', margin: '5px 0' }} />
 
-                            <AdminMessenger selectedUser={selectedUser} />
+                            {chatId && (
+                                <AdminMessenger
+                                    adminChatId={chatId}
+                                    brandName={selectedUser?.brandData?.name}
+                                />
+                            )}
                         </div>
                     ) : (
                         <div style={{ textAlign: 'center', opacity: 0.3, padding: '50px' }}>SELECT_MERCHANT_TO_MODERATE</div>
