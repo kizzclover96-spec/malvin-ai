@@ -5,6 +5,7 @@ import { signOut } from 'firebase/auth';
 import { ref, onValue, update, push, serverTimestamp, DataSnapshot } from "firebase/database";
 import { doc, collection, query, orderBy, onSnapshot, addDoc, setDoc, serverTimestamp as firestoreTimestamp } from "firebase/firestore";
 import { firestore } from "../firebase"; // Your firestore initialization file
+import AdminMessenger from "./AdminMessenger";
 
 const AdsManager = () => {
     const [users, setUsers] = useState<any[]>([]);
@@ -162,62 +163,8 @@ const AdsManager = () => {
         }
     };
 
-    // --- NEW: INTERCOM BRAND DISPATCHER ---
-
-   
-    const sendAdminMessageToFirestore = async (selectedUser, messageText) => {
-        if (!messageText?.trim()) return;
-
-        // The chat UI uses the conversation ID (selectedChatId) to read subcollections.
-        // Assuming the conversation ID is the user's UID or a shared ID:
-        const chatId = selectedUser.uid; 
-
-        try {
-            // 1. Add the new message to the subcollection path: conversations/$chatId/messages
-            await addDoc(collection(firestore, "conversations", chatId, "messages"), {
-            text: messageText,
-            sender: 'manager', 
-            timestamp: firestoreTimestamp() // 🌟 Updated here
-        });
-
-            // 2. Update the parent conversation document so it bubbles up in their sidebar
-            await setDoc(doc(firestore, "conversations", chatId), {
-                lastMessage: messageText,
-                updatedAt: firestoreTimestamp(), // 🌟 Updated here
-                viewedByManager: true 
-            }, { merge: true });
-
-            console.log("📨 Message synced to Firestore successfully!");
-        } catch (error) {
-            console.error("Error writing to Firestore:", error);
-        }
-    };
-    useEffect(() => {
-        if (!selectedUser?.uid) {
-            setConversationMessages([]);
-            return;
-        }
-
-        // Point to the messages subcollection for the selected user
-        const messagesQuery = query(
-            collection(firestore, "conversations", selectedUser.uid, "messages"),
-            orderBy("timestamp", "asc")
-        );
-
-        // Listen for real-time updates
-        const unsubscribeChat = onSnapshot(messagesQuery, (snapshot) => {
-            const msgs = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-            setConversationMessages(msgs);
-        }, (error) => {
-            console.error("Error listening to chat history:", error);
-        });
-
-        // Clean up the listener when the user changes or component unmounts
-        return () => unsubscribeChat();
-    }, [selectedUser?.uid]);
+    
+    
 
     return (
         <div style={adminLayout}>
@@ -389,99 +336,7 @@ const AdsManager = () => {
 
                             <hr style={{ border: 'none', borderTop: '1px solid #222', margin: '5px 0' }} />
 
-                            {/* --- BRAND LIVE MESSENGER MODULE --- */}
-                            <div style={messengerContainer}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '12px' }}>
-                                    <label style={labelStyle}>SECURE_INTERCOM_DISPATCH</label>
-                                    <span style={{ fontSize: '10px', color: '#007fff', fontWeight: 'bold' }}>
-                                        (Chatting with: {selectedUser.brandData?.name || selectedUser.brandName || "User"})
-                                    </span>
-                                </div>
-
-                                {/* 🌟 NEW: Live Message History Feed Box */}
-                                <div style={{
-                                    height: '200px',
-                                    overflowY: 'auto',
-                                    background: '#000',
-                                    border: '1px solid #222',
-                                    borderRadius: '8px',
-                                    padding: '12px',
-                                    marginBottom: '12px',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    gap: '8px'
-                                }}>
-                                    {conversationMessages.length === 0 ? (
-                                        <div style={{ textAlign: 'center', opacity: 0.3, fontSize: '11px', marginTop: '80px' }}>
-                                            NO_CONVERSATION_HISTORY
-                                        </div>
-                                    ) : (
-                                        conversationMessages.map((msg) => {
-                                            const isAdmin = msg.sender === 'manager';
-                                            return (
-                                                <div 
-                                                    key={msg.id} 
-                                                    style={{
-                                                        alignSelf: isAdmin ? 'flex-end' : 'flex-start',
-                                                        background: isAdmin ? 'rgba(0, 127, 255, 0.15)' : 'rgba(255, 255, 255, 0.05)',
-                                                        border: isAdmin ? '1px solid #007fff' : '1px solid #333',
-                                                        color: '#fff',
-                                                        padding: '8px 12px',
-                                                        borderRadius: '12px',
-                                                        maxWidth: '80%',
-                                                        fontSize: '12px',
-                                                        wordBreak: 'break-word'
-                                                    }}
-                                                >
-                                                    <div style={{ fontSize: '9px', opacity: 0.5, marginBottom: '2px', fontWeight: 'bold' }}>
-                                                        {isAdmin ? 'MALVIN_ADMIN' : 'MERCHANT'}
-                                                    </div>
-                                                    {msg.text}
-                                                </div>
-                                            );
-                                        })
-                                    )}
-                                </div>
-
-                                {/* Input Control Block */}
-                                <div style={{ display: 'flex', gap: '8px' }}>
-                                    <input 
-                                        type="text"
-                                        placeholder="Type a message secure payload..."
-                                        value={adminMessage} 
-                                        onChange={(e) => setAdminMessage(e.target.value)}
-                                        style={{ ...inputStyle, flex: 1 }}
-                                        onKeyDown={async (e) => { 
-                                            if (e.key === 'Enter' && !sendingMsg && adminMessage?.trim()) {
-                                                setSendingMsg(true);
-                                                await sendAdminMessageToFirestore(selectedUser, adminMessage);
-                                                setAdminMessage('');
-                                                setSendingMsg(false);
-                                            } 
-                                        }}
-                                    />
-                                    <button 
-                                        onClick={async () => {
-                                            if (!adminMessage.trim() || sendingMsg) return;
-                                            setSendingMsg(true);
-                                            await sendAdminMessageToFirestore(selectedUser, adminMessage);
-                                            setAdminMessage('');
-                                            setSendingMsg(false);
-                                        }}
-                                        disabled={sendingMsg || !adminMessage?.trim()}
-                                        style={{
-                                            ...approveBtn,
-                                            background: '#007fff',
-                                            color: '#fff',
-                                            padding: '0 16px',
-                                            opacity: (sendingMsg || !adminMessage?.trim()) ? 0.4 : 1,
-                                            cursor: (sendingMsg || !adminMessage?.trim()) ? 'not-allowed' : 'pointer'
-                                        }}
-                                    >
-                                        {sendingMsg ? '...' : 'SEND'}
-                                    </button>
-                                </div>
-                            </div>
+                            <AdminMessenger selectedUser={selectedUser} />
                         </div>
                     ) : (
                         <div style={{ textAlign: 'center', opacity: 0.3, padding: '50px' }}>SELECT_MERCHANT_TO_MODERATE</div>
