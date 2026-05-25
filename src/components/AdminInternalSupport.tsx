@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { collection, query, onSnapshot, orderBy, addDoc, serverTimestamp, doc, setDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { firestore, storage } from "../firebase"; 
+import { firestore, storage, auth } from "../firebase"; 
 
 interface AdminInternalSupportProps {
     adminChatId: string; // A unique document ID dedicated to this specific admin channel
@@ -59,13 +59,20 @@ const AdminInternalSupport = ({ adminChatId, onClose }: AdminInternalSupportProp
     const handleSendText = async (text: string) => {
         if (!text.trim()) return;
         try {
-            await addDoc(collection(firestore, "admin_support", adminChatId, "messages"), {
-                text: text,
-                type: 'text',
-                sender: 'current_admin',
-                timestamp: serverTimestamp()
-            });
+            await addDoc(
+                collection(firestore, "admin_support", adminChatId, "messages"),
+                {
+                    text,
+                    type: 'text',
 
+                    senderId: auth.currentUser?.uid,
+                    senderEmail: auth.currentUser?.email,
+                    senderName:
+                    auth.currentUser?.displayName || 'Admin',
+
+                    timestamp: serverTimestamp()
+                }
+            );
             await setDoc(doc(firestore, "admin_support", adminChatId), {
                 lastMessage: text,
                 updatedAt: serverTimestamp(),
@@ -94,7 +101,9 @@ const AdminInternalSupport = ({ adminChatId, onClose }: AdminInternalSupportProp
                 fileUrl: downloadUrl,
                 fileName: file.name,
                 type: 'file',
-                sender: 'current_admin',
+                senderId: auth.currentUser?.uid,
+                senderEmail: auth.currentUser?.email,
+                senderName: auth.currentUser?.displayName || 'Admin',
                 timestamp: serverTimestamp()
             });
 
@@ -126,15 +135,22 @@ const AdminInternalSupport = ({ adminChatId, onClose }: AdminInternalSupportProp
             <div ref={feedRef} style={{ flex: 1, padding: '24px 30px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {messages.map((msg) => (
                     <div key={msg.id} style={{
-                        alignSelf: msg.sender === 'current_admin' ? 'flex-end' : 'flex-start',
-                        background: msg.sender === 'current_admin' ? '#1c1c1e' : '#ffd700',
-                        color: msg.sender === 'current_admin' ? '#fff' : '#000',
+                        alignSelf: msg.senderId === auth.currentUser?.uid ? 'flex-end' : 'flex-start',
+                        background: msg.senderId === auth.currentUser?.uid ? '#1c1c1e' : '#ffd700',
+                        color: msg.senderId === auth.currentUser?.uid ? '#fff' : '#000', 
+                        border: msg.senderId === auth.currentUser?.uid ? '1px solid #262626' : 'none',
                         padding: '10px 16px',
                         borderRadius: '20px',
                         maxWidth: '65%',
-                        fontSize: '14px',
-                        border: msg.sender === 'current_admin' ? '1px solid #262626' : 'none'
+                        fontSize: '14px'
                     }}>
+                        <div style={{
+                            fontSize: '10px',
+                            opacity: 0.6,
+                            marginBottom: '4px'
+                        }}>
+                            {msg.senderName || msg.senderEmail}
+                        </div>
                         {msg.type === 'file' ? (
                             <a href={msg.fileUrl} target="_blank" rel="noopener noreferrer" style={{ color: msg.sender === 'current_admin' ? '#38d777' : '#000', fontWeight: 'bold', textDecoration: 'underline' }}>
                                 📎 {msg.fileName} (Click to View File)
