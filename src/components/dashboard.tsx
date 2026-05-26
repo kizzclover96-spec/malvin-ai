@@ -859,7 +859,7 @@ const Dashboard = (props: any) => {
                                 <div style={lowerGridStyle}>
                                     <DashboardCard style={{ overflowY: 'auto' }}>
                                         <div style={{ background: '#000', padding: '15px', borderRadius: '12px', border: '1px solid #222', marginBottom: '20px' }}>
-                                            <p style={{ fontSize: '10px', color: '#666', marginBottom: '8px' }}>AD LINK</p>
+                                            <p style={{ fontSize: '10px', color: '#666', marginBottom: '8px' }}>Vin LINK</p>
                                             <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                                                 <code style={codeStyle}>{shareUrl}</code>
                                             </div>
