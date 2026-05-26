@@ -18,6 +18,7 @@ const LegalDocs = () => {
       <nav style={{ padding: '20px', borderBottom: '1px solid #333', display: 'flex', gap: '20px', justifyContent: 'center' }}>
         <button onClick={() => setTab('terms')} style={{ background: 'none', border: 'none', color: tab === 'terms' ? '#00d4ff' : '#fff', cursor: 'pointer' }}>Terms</button>
         <button onClick={() => setTab('privacy')} style={{ background: 'none', border: 'none', color: tab === 'privacy' ? '#00d4ff' : '#fff', cursor: 'pointer' }}>Privacy</button>
+        <button onClick={() => setTab('RefundPolicy')} style={{ background: 'none', border: 'none', color: tab === 'refund-policy' ? '#00d4ff' : '#fff', cursor: 'pointer' }}>RefundPolicy</button>
         <button onClick={() => setTab('impressum')} style={{ background: 'none', border: 'none', color: tab === 'impressum' ? '#00d4ff' : '#fff', cursor: 'pointer' }}>Impressum</button>
         <button onClick={() => navigate(-1)} style={{ background: '#333', border: 'none', color: '#fff', padding: '5px 15px', borderRadius: '5px', cursor: 'pointer' }}>Back</button>
       </nav>
@@ -37,6 +38,16 @@ const LegalDocs = () => {
           <div>
             <h1>Privacy Policy – Malvin AI</h1>
             <p>Last updated: May 2026</p>
+            <h3>1. Information We Collect</h3>
+            <p>We may collect account information, usage data, and technical data to provide and improve Malvin AI services.</p>
+            {/* ... Add other sections here ... */}
+          </div>
+        )}
+
+        {tab === 'RefundPolicy' && (
+          <div>
+            <h1>RefundPolicy – Malvin AI</h1>
+            <p>Last updated: may 2026</p>
             <h3>1. Information We Collect</h3>
             <p>We may collect account information, usage data, and technical data to provide and improve Malvin AI services.</p>
             {/* ... Add other sections here ... */}

@@ -28,54 +28,53 @@ const CustomerChat = ({ pendingOrder: propOrder, quantity: propQuantity }: Custo
     const [loading, setLoading] = useState(true);
     const location = useLocation();
 
-    const activePendingOrder = propOrder || location.state?.pendingOrder;
-    const activePendingQuantity = propQuantity || location.state?.pendingOrder?.quantity || 1;
+    const activePendingOrder = propOrder;
+    const activePendingQuantity = propQuantity || 1;
+    const pendingOrderRef = useRef<any>(null);
 
     // Use a ref to ensure an order is only processed and fired once per mount cycle
     const orderProcessed = useRef(false);
+    useEffect(() => {
+        const saved = localStorage.getItem('pendingOrder');
+        if (!saved) return;
+        localStorage.removeItem('pendingOrder');
+        pendingOrderRef.current = JSON.parse(saved);
+
+        // Fresh chat ID for every new order so it doesn't
+        // mix with old conversation history
+        if (brandId) {
+            const freshId = uuidv4();
+            localStorage.setItem(`malvin_chat_${brandId}`, freshId);
+            setChatId(freshId);
+        }
+    }, []);
 
     useEffect(() => {
-        if (activePendingOrder && chatId && brandData && !orderProcessed.current) {
-            orderProcessed.current = true; // Block double-firing
-            
-            // Construct message text
-            const orderText = `I'd like to order ${activePendingQuantity}x ${activePendingOrder.name}`;
-            
-            // Fire the actual send function
-            handleSend(undefined, orderText, true, {
-                name: activePendingOrder.name,
-                quantity: activePendingQuantity,
-                image: activePendingOrder.image,
-                price: activePendingOrder.price
-            });
+        if (!pendingOrderRef.current) return;
+        if (!chatId || !brandData) return;
+        if (orderProcessed.current) return;
 
-            // Clear location state if routing was used
-            if (location.state?.pendingOrder) {
-                window.history.replaceState({}, document.title);
-            }
-        }
-    }, [activePendingOrder, activePendingQuantity, chatId, brandData]);
+        orderProcessed.current = true;
 
-    useEffect(() => {
-        // Only proceed if we have a pending order AND the chat is initialized
-        if (location.state?.pendingOrder && chatId && brandData) {
-            const order = location.state.pendingOrder;
-            
-            // Construct the text
-            const orderText = `I'd like to order ${order.quantity}x ${order.name}`;
-            
-            // Fire the actual send function
-            handleSend(undefined, orderText, true, {
-                name: order.name,
-                quantity: order.quantity,
-                image: order.image,
-                price: order.price
-            });
+        const order = pendingOrderRef.current;
 
-            // CLEAR the state so it doesn't resend if they refresh the page
-            window.history.replaceState({}, document.title);
-        }
-    }, [location.state, chatId, brandData]); // Triggers when chat is ready
+        // Small delay ensures the Firestore onSnapshot listener
+        // is attached before we write — so the message appears live
+        setTimeout(() => {
+            handleSend(
+                undefined,
+                `I'd like to order ${order.quantity || 1}x ${order.name}`,
+                true,
+                {
+                    name: order.name,
+                    quantity: order.quantity || 1,
+                    image: order.image,
+                    price: order.price
+                }
+            );
+        }, 500);
+    }, [chatId, brandData]);
+    
     
     const scrollRef = useRef<HTMLDivElement>(null);
 

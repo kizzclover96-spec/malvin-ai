@@ -9,6 +9,7 @@ import LandingPage from "./pages/LandingPage";
 import CookieBanner from "./components/CookieBanner";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
+import RefundPolicy from "./pages/RefundPolicy";
 import Impressum from "./pages/Impressum";
 import MarketFront from "./components/MarketFront";
 import Dashboard from "./components/dashboard";
@@ -54,6 +55,7 @@ function App() {
             <Route path="/chat/:brandId" element={<MarketFront />} />
             <Route path="/terms" element={<Terms />} />
             <Route path="/privacy" element={<Privacy />} />
+            <Route path="/refund-policy" element={<RefundPolicy />} />
             <Route path="/impressum" element={<Impressum />} />
 
             <Route path="/" element={

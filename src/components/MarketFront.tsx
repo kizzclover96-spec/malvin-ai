@@ -31,9 +31,11 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
     const [brand, setBrand] = useState<any>(userBrand || null);
     const [catalog, setCatalog] = useState<any[]>([]);
     const [orderModal, setOrderModal] = useState<any>(null);
+    const [pendingOrder, setPendingOrder] = useState<any>(null);
     const [quantity, setQuantity] = useState(1);
     const [isLocked, setIsLocked] = useState(false);
     const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+    
 
     // Dynamic Profile States (Bio & Meta Verification)
     const [bio, setBio] = useState('');
@@ -151,10 +153,12 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
 
     const handleConfirmOrder = () => {
         if (!orderModal) return;
-        const finalOrderPayload = {
+        
+        localStorage.setItem('pendingOrder', JSON.stringify({
             ...orderModal,
-            orderedQuantity: quantity
-        };
+            quantity: quantity
+        }));
+        
         setOrderModal(null);
         setView('chat');
     };
@@ -208,10 +212,7 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
                 </button>
                 
                 {/* Forwarding props here allows CustomerChat to read it instantly */}
-                <CustomerChat 
-                    pendingOrder={orderModal} 
-                    quantity={quantity} 
-                />
+                <CustomerChat />
             </div>
         );
     }
