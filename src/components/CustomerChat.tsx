@@ -40,13 +40,7 @@ const CustomerChat = ({ pendingOrder: propOrder, quantity: propQuantity }: Custo
         localStorage.removeItem('pendingOrder');
         pendingOrderRef.current = JSON.parse(saved);
 
-        // Fresh chat ID for every new order so it doesn't
-        // mix with old conversation history
-        if (brandId) {
-            const freshId = uuidv4();
-            localStorage.setItem(`malvin_chat_${brandId}`, freshId);
-            setChatId(freshId);
-        }
+        
     }, []);
 
     useEffect(() => {
