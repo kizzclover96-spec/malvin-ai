@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react'; // Added missing useState import
+import Explore from './Explore';
 
 const LandingPage = ({ onLoginClick }) => {
   const productMockupUrl = "/mockup.png"; // Your cool picture here
   const yourLogoUrl = "/logo.png"; // Your brand logo for the circle
+  const [activeTab, setActiveTab] = useState('home');
 
-  // Using professional grayscale icons for a "Big Firm" aesthetic
+  // Professional grayscale icons for a "Big Firm" aesthetic
   const partners = [
     { name: "google", icon: "https://www.vectorlogo.zone/logos/google/google-icon.svg" },
     { name: "firebase", icon: "https://www.vectorlogo.zone/logos/firebase/firebase-icon.svg" },
@@ -109,76 +111,97 @@ const LandingPage = ({ onLoginClick }) => {
 
         {/* Middle Navigation */}
         <div style={{ display: 'flex', gap: '35px', alignItems: 'center' }}>
-          <span className="nav-link active" style={{ color: 'rgba(255,255,255,0.6)' }}>Home</span>
-          <span className="nav-link" style={{ color: 'rgba(255,255,255,0.6)' }}>Explore</span>
-          <span className="nav-link" style={{ color: 'rgba(255,255,255,0.6)' }}>News</span>
+          <span onClick={() => setActiveTab('home')} className={`nav-link ${activeTab === 'home' ? 'active' : ''}`}>Home</span>
+          <span onClick={() => setActiveTab('explore')} className={`nav-link ${activeTab === 'explore' ? 'active' : ''}`}>Explore</span>
+          <span onClick={() => setActiveTab('news')} className={`nav-link ${activeTab === 'news' ? 'active' : ''}`}>News</span>
         </div>
 
         <button onClick={onLoginClick} className="btn-register">Register</button>
       </nav>
 
-      {/* --- MIDDLE SECTION --- */}
-      <main style={{
-        display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', alignItems: 'center', gap: '60px',
-        maxWidth: '1600px', width: '100%', margin: '0 auto', padding: '0 60px', boxSizing: 'border-box',
-        zIndex: 10, flex: 1, minHeight: 0
-      }}>
+      {/* --- INTERCHANGEABLE PANEL CONTAINER --- */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, zIndex: 10 }}>
         
-        {/* Left Column */}
-        <div className="animate delay-1" style={{ textAlign: 'left' }}>
-          <h1 style={{ fontSize: '4rem', fontWeight: '800', lineHeight: '1.1', letterSpacing: '-1.5px', marginBottom: '20px', color: '#ffffff' }}>
-            Automate, Manage <br />
-            and Control Your <br />
-            <span style={{
-              background: 'linear-gradient(90deg, #ffffff 30%, #a855f7 70%, #00d4ff 100%)',
-              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-            }}>Entire Workspace.</span>
-          </h1>
+        {/* Render Explore Panel */}
+        {activeTab === 'explore' && <Explore />}
 
-          <p style={{ fontSize: '1.05rem', color: 'rgba(255,255,255,0.5)', lineHeight: '1.5', maxWidth: '500px', marginBottom: '30px', fontWeight: '400' }}>
-            Malvin is the unified intelligent node for automated workflow optimization. 
-            Connect your favorite tools and witness your production execute itself flawlessly.
-          </p>
-
-          <div style={{ display: 'flex', gap: '16px', alignItems: 'center', marginBottom: '35px' }}>
-            <button onClick={onLoginClick} className="btn-register" style={{ padding: '15px 32px', fontSize: '0.95rem' }}>
-              Create a Vin account to get started
-            </button>
-            <button className="btn-outline" style={{ padding: '15px 28px', fontSize: '0.95rem' }}>Explore Features</button>
-          </div>
-
-          <div className="animate delay-2" style={{ display: 'inline-flex', alignItems: 'center', backgroundColor: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '16px', padding: '16px 36px', gap: '40px' }}>
-            <div>
-              <div style={{ fontSize: '1.4rem', fontWeight: '800', color: '#fff' }}>99.9%</div>
-              <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>Uptime</div>
-            </div>
-            <div style={{ width: '1px', height: '24px', backgroundColor: 'rgba(255,255,255,0.1)' }} />
-            <div>
-              <div style={{ fontSize: '1.4rem', fontWeight: '800', color: '#fff' }}>20k+</div>
-              <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>Automation</div>
-            </div>
-            <div style={{ width: '1px', height: '24px', backgroundColor: 'rgba(255,255,255,0.1)' }} />
-            <div>
-              <div style={{ fontSize: '1.4rem', fontWeight: '800', color: '#fff' }}>24/7</div>
-              <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>AI Monitor</div>
+        {/* Render News Panel */}
+        {activeTab === 'news' && (
+          <div className="animate delay-1" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flex: 1, padding: '0 60px' }}>
+            <div style={{ textAlign: 'center', maxWidth: '600px' }}>
+              <h2 style={{ fontSize: '2.5rem', fontWeight: '800', marginBottom: '16px' }}>News & System Matrices</h2>
+              <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '1.1rem', lineHeight: '1.6' }}>
+                Stay informed with core infrastructure log entries, version patch updates, and feature rollout tracking announcements directly from the Malvin ecosystem hub.
+              </p>
             </div>
           </div>
-        </div>
+        )}
 
-        {/* Right Column */}
-        <div className="animate delay-3" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative', height: '100%', maxHeight: '500px' }}>
-          <div style={{ position: 'absolute', width: '80%', height: '80%', background: 'radial-gradient(circle, rgba(6, 182, 212, 0.1) 0%, transparent 70%)', filter: 'blur(40px)', zIndex: 1 }} />
-          <div style={{
-            width: '100%', height: '100%', maxWidth: '440px', maxHeight: '520px', borderRadius: '24px',
-            border: '1px solid rgba(255, 255, 255, 0.12)', overflow: 'hidden', backgroundColor: 'rgba(10, 8, 20, 0.4)',
-            backdropFilter: 'blur(30px)', boxShadow: '0 30px 60px rgba(0,0,0,0.8)', zIndex: 2
+        {/* Render Home Workspace Content */}
+        {activeTab === 'home' && (
+          <main style={{
+            display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', alignItems: 'center', gap: '60px',
+            maxWidth: '1600px', width: '100%', margin: '0 auto', padding: '0 60px', boxSizing: 'border-box',
+            flex: 1, minHeight: 0
           }}>
-            <img src={productMockupUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          </div>
-        </div>
-      </main>
+            {/* Left Column */}
+            <div className="animate delay-1" style={{ textAlign: 'left' }}>
+              <h1 style={{ fontSize: '4rem', fontWeight: '800', lineHeight: '1.1', letterSpacing: '-1.5px', marginBottom: '20px', color: '#ffffff' }}>
+                Automate, Manage <br />
+                and Control Your <br />
+                <span style={{
+                  background: 'linear-gradient(90deg, #ffffff 30%, #a855f7 70%, #00d4ff 100%)',
+                  WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+                }}>Entire Workspace.</span>
+              </h1>
 
-      {/* --- BOTTOM SECTION: INTEGRATION STRIPE --- */}
+              <p style={{ fontSize: '1.05rem', color: 'rgba(255,255,255,0.5)', lineHeight: '1.5', maxWidth: '500px', marginBottom: '30px', fontWeight: '400' }}>
+                Malvin is the unified intelligent node for automated workflow optimization. 
+                Connect your favorite tools and witness your production execute itself flawlessly.
+              </p>
+
+              <div style={{ display: 'flex', gap: '16px', alignItems: 'center', marginBottom: '35px' }}>
+                <button onClick={onLoginClick} className="btn-register" style={{ padding: '15px 32px', fontSize: '0.95rem' }}>
+                  Create a Vin account to get started
+                </button>
+                <button className="btn-outline" style={{ padding: '15px 28px', fontSize: '0.95rem' }}>Explore Features</button>
+              </div>
+
+              <div className="animate delay-2" style={{ display: 'inline-flex', alignItems: 'center', backgroundColor: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '16px', padding: '16px 36px', gap: '40px' }}>
+                <div>
+                  <div style={{ fontSize: '1.4rem', fontWeight: '800', color: '#fff' }}>99.9%</div>
+                  <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>Uptime</div>
+                </div>
+                <div style={{ width: '1px', height: '24px', backgroundColor: 'rgba(255,255,255,0.1)' }} />
+                <div>
+                  <div style={{ fontSize: '1.4rem', fontWeight: '800', color: '#fff' }}>20k+</div>
+                  <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>Automation</div>
+                </div>
+                <div style={{ width: '1px', height: '24px', backgroundColor: 'rgba(255,255,255,0.1)' }} />
+                <div>
+                  <div style={{ fontSize: '1.4rem', fontWeight: '800', color: '#fff' }}>24/7</div>
+                  <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>AI Monitor</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column */}
+            <div className="animate delay-3" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative', height: '100%', maxHeight: '500px' }}>
+              <div style={{ position: 'absolute', width: '80%', height: '80%', background: 'radial-gradient(circle, rgba(6, 182, 212, 0.1) 0%, transparent 70%)', filter: 'blur(40px)', zIndex: 1 }} />
+              <div style={{
+                width: '100%', height: '100%', maxWidth: '440px', maxHeight: '520px', borderRadius: '24px',
+                border: '1px solid rgba(255, 255, 255, 0.12)', overflow: 'hidden', backgroundColor: 'rgba(10, 8, 20, 0.4)',
+                backdropFilter: 'blur(30px)', boxShadow: '0 30px 60px rgba(0,0,0,0.8)', zIndex: 2
+              }}>
+                <img src={productMockupUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              </div>
+            </div>
+          </main>
+        )}
+
+      </div>
+
+      {/* --- BOTTOM SECTION: INTEGRATION STRIPE (Stays present on all tabs) --- */}
       <section className="animate delay-4" style={{
         background: 'linear-gradient(90deg, rgba(4, 2, 11, 1) 0%, rgba(15, 10, 35, 0.8) 50%, rgba(4, 2, 11, 1) 100%)',
         borderTop: '1px solid rgba(255, 255, 255, 0.06)', padding: '24px 0', zIndex: 10, width: '100%',
@@ -190,7 +213,7 @@ const LandingPage = ({ onLoginClick }) => {
           
           <div style={{ display: 'flex', alignItems: 'center', gap: '40px' }}>
             {partners.map((p, i) => (
-              <div key={p.name} className={`animate delay-${i+1}`} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div key={p.name} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <img className="partner-logo" src={p.icon} alt={p.name} style={{ width: '20px', height: '20px', objectFit: 'contain' }} />
                 <span style={{ color: 'rgba(255, 255, 255, 0.3)', fontWeight: '700', fontSize: '1.1rem', letterSpacing: '-0.5px' }}>
                   {p.name.toLowerCase()}
