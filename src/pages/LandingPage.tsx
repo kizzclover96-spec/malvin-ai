@@ -1,189 +1,308 @@
 import React from 'react';
 
 const LandingPage = ({ onLoginClick }) => {
-  const backgroundImageUrl = "/wall.png"; 
-  const logoUrl = "/logo.png";
+  // Replace these with your actual asset paths
+  const productMockupUrl = "/mockup.png"; 
+  
+  // Clean, high-quality SVGs or official logo images should be used here
+  const partnerLogos = [
+    { name: "Google", url: "/logos/google.svg" },
+    { name: "Firebase", url: "/logos/firebase.svg" },
+    { name: "OpenAI", url: "/logos/openai.svg" },
+    { name: "Gemini", url: "/logos/gemini.svg" },
+    { name: "LemonSqueezy", url: "/logos/lemonsqueezy.svg" },
+  ];
 
   return (
     <div style={{
+      backgroundColor: '#0a0a0c',
       color: '#fff',
       minHeight: '100vh',
-      fontFamily: "'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+      fontFamily: "Inter, 'SF Pro Display', -apple-system, BlinkMacSystemFont, Open Sans, sans-serif",
       position: 'relative',
-      overflow: 'hidden', // Keeps the moving background contained
+      overflowX: 'hidden',
       display: 'flex',
       flexDirection: 'column',
       justifyContent: 'space-between',
     }}>
-      {/* --- ANIMATED BACKGROUND LAYER --- */}
+      
+      {/* --- PREMIUM BLUR BACKGROUND GRADIENTS --- */}
       <div style={{
         position: 'absolute',
-        top: 0,
-        left: 0,
-        width: '100%',
-        height: '100%',
-        zIndex: -1,
-        backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.8)), url(${backgroundImageUrl})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        animation: 'slowPan 45s ease-in-out infinite alternate',
+        top: '-10%',
+        left: '-10%',
+        width: '50vw',
+        height: '50vw',
+        background: 'radial-gradient(circle, rgba(147, 51, 234, 0.15) 0%, rgba(59, 130, 246, 0.05) 50%, transparent 100%)',
+        filter: 'blur(80px)',
+        pointerEvents: 'none',
+        zIndex: 1,
+      }} />
+      <div style={{
+        position: 'absolute',
+        bottom: '-10%',
+        right: '-10%',
+        width: '50vw',
+        height: '50vw',
+        background: 'radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, rgba(147, 51, 234, 0.05) 50%, transparent 100%)',
+        filter: 'blur(80px)',
+        pointerEvents: 'none',
+        zIndex: 1,
       }} />
 
-      {/* CSS Animations */}
+      {/* --- GLOBAL HOVER STYLES --- */}
       <style>
         {`
-          @keyframes slowPan {
-            0% { transform: scale(1); background-position: center; }
-            100% { transform: scale(1.1); background-position: top right; }
-          }
-          .pill-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0, 212, 255, 0.4);
-          }
+          .nav-link { transition: color 0.2s ease; cursor: pointer; }
+          .nav-link:hover { color: #fff !important; }
+          .btn-primary { transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+          .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(147, 51, 234, 0.3); background: #fff !important; color: #000 !important; }
+          .btn-secondary { transition: all 0.2s ease; }
+          .btn-secondary:hover { border-color: rgba(255,255,255,0.6) !important; color: #fff !important; }
         `}
       </style>
-      
-      {/* --- NAVBAR --- */}
-      <nav style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        padding: '30px 50px',
-        position: 'relative',
-        zIndex: 10
+
+      {/* --- TOP SECTION: HEADER NAVBAR --- */}
+      <nav style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: '30px 80px',
+        maxWidth: '1400px',
+        width: '100%',
+        margin: '0 auto',
+        boxSizing: 'border-box',
+        zIndex: 10,
       }}>
-        {/* Top Left: Logo Only (No visible container) */}
+        {/* 1st Header: Logo/Name */}
         <div style={{
-          width: '60px',
-          height: '60px',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-        }}>
-          <img 
-            src={logoUrl} 
-            alt="Malvin Logo" 
-            style={{ 
-              width: '100%', 
-              height: '100%', 
-              objectFit: 'cover', // Ensures the square fills the area before clipping
-              borderRadius: '50%', // This makes the square image a circle
-              boxShadow: '0 0 15px rgba(0, 212, 255, 0.3)' // Subtle glow on the logo itself
-            }} 
-          />
-        </div>
-        {/* Top Middle: Cyberpunk Title */}
-        <div style={{
-          position: 'absolute',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          fontSize: '2.2rem',
+          fontSize: '1.6rem',
           fontWeight: '900',
-          letterSpacing: '10px',
-          textTransform: 'uppercase',
+          letterSpacing: '3px',
           color: '#fff',
-          textShadow: '2px 2px 0px #00d4ff, -1px -1px 0px #ff007a',
         }}>
           MALVIN
         </div>
 
-        {/* Top Right: Login Pill Button */}
+        {/* 2nd, 3rd, 4th Headers: Navigation Links */}
+        <div style={{
+          display: 'flex',
+          gap: '40px',
+          alignItems: 'center',
+        }}>
+          <span className="nav-link" style={{ color: 'rgba(255,255,255,0.6)', fontWeight: '500', fontSize: '0.95rem' }}>Home</span>
+          <span className="nav-link" style={{ color: 'rgba(255,255,255,0.6)', fontWeight: '500', fontSize: '0.95rem' }}>Explore</span>
+          <span className="nav-link" style={{ color: 'rgba(255,255,255,0.6)', fontWeight: '500', fontSize: '0.95rem' }}>News</span>
+        </div>
+
+        {/* 5th Header: Sign In Action */}
         <button 
           onClick={onLoginClick}
-          className="pill-button"
-          style={{ 
-            padding: '10px 30px', 
-            borderRadius: '50px', // Pill shape
-            border: '1px solid #00d4ff', 
-            backgroundColor: 'rgba(0, 212, 255, 0.1)',
-            color: '#00d4ff',
-            cursor: 'pointer', 
+          className="btn-secondary"
+          style={{
+            padding: '10px 24px',
+            borderRadius: '8px',
+            border: '1px solid rgba(255, 255, 255, 0.15)',
+            backgroundColor: 'transparent',
+            color: 'rgba(255,255,255,0.8)',
             fontWeight: '600',
-            textTransform: 'uppercase',
-            transition: 'all 0.3s ease',
+            fontSize: '0.9rem',
+            cursor: 'pointer',
           }}
         >
-          Login / Sign Up
+          Sign In
         </button>
       </nav>
 
-      {/* --- CENTER HERO CONTENT --- */}
-      <main style={{ textAlign: 'center', padding: '0 20px', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', zIndex: 10 }}>
-        <h2 style={{ 
-          fontSize: '1rem', 
-          letterSpacing: '5px', 
-          color: '#00d4ff', 
-          marginBottom: '15px',
-          textTransform: 'uppercase' 
-        }}>
-          Smart. Fast. <span style={{ color: '#fff' }}>Seamless.</span>
-        </h2>
-        
-        <h1 style={{ 
-          fontSize: '3.8rem', 
-          marginBottom: '20px', 
-          fontWeight: '800',
-          lineHeight: '1.1' 
-        }}>
-          The next generation of <br/> 
-          <span style={{ 
-            background: 'linear-gradient(90deg, #00d4ff, #0082ff)', 
-            WebkitBackgroundClip: 'text', 
-            WebkitTextFillColor: 'transparent',
-            filter: 'drop-shadow(0 0 10px rgba(0, 212, 255, 0.3))'
+      {/* --- MIDDLE SECTION: TWO-COLUMN HERO --- */}
+      <main style={{
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr',
+        alignItems: 'center',
+        gap: '60px',
+        maxWidth: '1400px',
+        width: '100%',
+        margin: '0 auto',
+        padding: '40px 80px 100px 80px',
+        boxSizing: 'border-box',
+        zIndex: 10,
+        flex: 1,
+      }}>
+        {/* Left-Centered Content */}
+        <div style={{ textAlign: 'left' }}>
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '6px 14px',
+            borderRadius: '100px',
+            backgroundColor: 'rgba(147, 51, 234, 0.1)',
+            border: '1px solid rgba(147, 51, 234, 0.3)',
+            color: '#a855f7',
+            fontSize: '0.85rem',
+            fontWeight: '600',
+            marginBottom: '24px',
+            letterSpacing: '0.5px'
           }}>
-            Interface Management.
-          </span>
-        </h1>
-        
-        <p style={{ 
-          fontSize: '1.15rem', 
-          color: '#e0e0e0', 
-          maxWidth: '600px', 
-          margin: '0 auto 40px',
-          lineHeight: '1.6',
-          fontWeight: '300'
-        }}>
-          Malvin is the next generation of interface management. Experience a fluid workflow designed for the modern creator.
-        </p>
+            <span>✨</span> Next-Gen AI Business Assistant
+          </div>
 
-        <div>
-          <button 
-            onClick={onLoginClick}
-            className="pill-button"
-            style={{ 
-              padding: '18px 60px', 
-              fontSize: '1rem', 
-              backgroundColor: '#00d4ff', 
-              color: '#000', 
-              border: 'none', 
-              borderRadius: '50px', // Pill shape
-              fontWeight: '800',
-              cursor: 'pointer',
-              transition: 'all 0.3s ease',
-              letterSpacing: '1px'
-            }}
-          >
-            GET STARTED
-          </button>
+          {/* Bold, instantly readable catchphrase */}
+          <h1 style={{
+            fontSize: '3.5rem',
+            fontWeight: '800',
+            lineHeight: '1.15',
+            letterSpacing: '-1px',
+            marginBottom: '24px',
+          }}>
+            Automate your workspace. <br />
+            <span style={{
+              background: 'linear-gradient(90deg, #3b82f6, #a855f7)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+            }}>
+              Command your day.
+            </span>
+          </h1>
+
+          <p style={{
+            fontSize: '1.2rem',
+            color: 'rgba(255,255,255,0.6)',
+            lineHeight: '1.6',
+            maxWidth: '520px',
+            marginBottom: '40px',
+            fontWeight: '400',
+          }}>
+            Malvin integrates seamlessly with your tools to manage interfaces, automate tasks, and supercharge production. One read is all it takes to realize what you've been missing.
+          </p>
+
+          <div>
+            <button
+              onClick={onLoginClick}
+              className="btn-primary"
+              style={{
+                padding: '16px 36px',
+                fontSize: '1rem',
+                backgroundColor: '#fff',
+                color: '#000',
+                border: 'none',
+                borderRadius: '8px',
+                fontWeight: '700',
+                cursor: 'pointer',
+                letterSpacing: '-0.2px',
+                boxShadow: '0 4px 12px rgba(255,255,255,0.1)'
+              }}
+            >
+              Create a Vin account to get started
+            </button>
+          </div>
+        </div>
+
+        {/* Right-Centered Picture/Mockup */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          position: 'relative',
+        }}>
+          {/* Subtle glow behind the image container */}
+          <div style={{
+            position: 'absolute',
+            width: '80%',
+            height: '80%',
+            background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(147, 51, 234, 0.2))',
+            filter: 'blur(50px)',
+            zIndex: 1,
+          }} />
+          
+          <div style={{
+            width: '100%',
+            maxWidth: '580px',
+            borderRadius: '16px',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            overflow: 'hidden',
+            backgroundColor: 'rgba(255,255,255,0.02)',
+            backdropFilter: 'blur(20px)',
+            boxShadow: '0 24px 50px rgba(0,0,0,0.5)',
+            zIndex: 2,
+          }}>
+            <img 
+              src={productMockupUrl} 
+              alt="Malvin Workspace Interface Dashboard" 
+              style={{
+                width: '100%',
+                height: 'auto',
+                display: 'block',
+              }}
+              onError={(e) => {
+                // Fallback elegant placeholder layout if image fails to load
+                e.target.style.display = 'none';
+                e.target.parentNode.innerHTML = `
+                  <div style="padding: 60px 40px; text-align: center; color: rgba(255,255,255,0.4)">
+                    <div style="font-size: 3rem; margin-bottom: 10px">📊</div>
+                    <p style="font-size: 0.9rem; font-weight: 500">[ Visual Interface Dashboard Preview ]</p>
+                  </div>
+                `;
+              }}
+            />
+          </div>
         </div>
       </main>
 
-      {/* --- FOOTER: SOCIALS --- */}
-      <footer style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        gap: '40px', 
-        padding: '50px', 
-        fontSize: '0.8rem',
-        letterSpacing: '2px',
-        color: '#aaa',
-        zIndex: 10
+      {/* --- BOTTOM SECTION: TRUST STRIPE (PARTNERS & 3RD PARTIES) --- */}
+      <section style={{
+        background: 'linear-gradient(90deg, rgba(59, 130, 246, 0.08) 0%, rgba(147, 51, 234, 0.08) 100%)',
+        borderTop: '1px solid rgba(147, 51, 234, 0.15)',
+        borderBottom: '1px solid rgba(59, 130, 246, 0.15)',
+        padding: '24px 0',
+        zIndex: 10,
+        width: '100%',
       }}>
-        <a href="https://instagram.com/malvin.ai_business_assistant" target="_blank" rel="noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>INSTAGRAM</a>
-        <a href="https://facebook.com/MalvinAI" target="_blank" rel="noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>FACEBOOK</a>
-        <a href="mailto:malvinsupportteam@gmail.com" style={{ color: 'inherit', textDecoration: 'none' }}>EMAIL</a>
-      </footer>
+        <div style={{
+          maxWidth: '1200px',
+          margin: '0 auto',
+          padding: '0 40px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '30px'
+        }}>
+          <span style={{
+            fontSize: '0.8rem',
+            textTransform: 'uppercase',
+            letterSpacing: '2px',
+            color: 'rgba(255, 255, 255, 0.4)',
+            fontWeight: '600'
+          }}>
+            Powered & Secured By
+          </span>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '50px',
+            flexWrap: 'wrap',
+          }}>
+            {partnerLogos.map((logo) => (
+              <div 
+                key={logo.name} 
+                style={{ 
+                  color: 'rgba(255, 255, 255, 0.5)', 
+                  fontWeight: '700', 
+                  fontSize: '1.1rem',
+                  letterSpacing: '-0.5px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                {/* Once you have standard SVGs, swap this text label out for a real <img src={logo.url} /> */}
+                <span style={{ opacity: 0.7 }}>⚡</span> {logo.name}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
     </div>
   );
 };
