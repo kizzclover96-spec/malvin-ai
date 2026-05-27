@@ -39,10 +39,10 @@ const Explore = () => {
   return (
     <div style={{
       display: 'grid',
-      gridTemplateColumns: '1.2fr 0.8fr', // Split screen layout
+      gridTemplateColumns: '1.10fr 0.90fr', // Balanced split to give the artwork more breathing room
       width: '100%',
       height: '100%',
-      gap: '40px',
+      gap: '50px',
       position: 'relative'
     }}>
       
@@ -68,7 +68,7 @@ const Explore = () => {
         </div>
 
         {/* Feature List (Alternating Layouts) */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '60px', paddingBottom: '100px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '50px', paddingBottom: '100px' }}>
           {features.map((item, index) => {
             const isEven = index % 2 === 0;
             return (
@@ -79,16 +79,16 @@ const Explore = () => {
                   display: 'flex',
                   flexDirection: isEven ? 'row' : 'row-reverse',
                   alignItems: 'center',
-                  gap: '40px',
+                  gap: '35px',
                   background: 'rgba(255, 255, 255, 0.01)',
                   border: '1px solid rgba(255, 255, 255, 0.04)',
                   borderRadius: '24px',
-                  padding: '32px',
+                  padding: '28px',
                   backdropFilter: 'blur(15px)',
                   boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.05)'
                 }}
               >
-                {/* App Screenshot Box - Rendered to display real image assets */}
+                {/* App Screenshot Box */}
                 <div style={{
                   flex: 1.2,
                   borderRadius: '14px',
@@ -108,7 +108,6 @@ const Explore = () => {
                       display: 'block'
                     }}
                     onError={(e) => {
-                      // Fallback mechanism in case path breaks during build testing
                       e.target.style.display = 'none';
                       e.target.parentNode.innerHTML = `
                         <div style="height: 100%; width: 100%; background: linear-gradient(135deg, #1e1b4b, #090514); display: flex; align-items: center; justify-content: center;">
@@ -121,7 +120,7 @@ const Explore = () => {
 
                 {/* Catchy Description Block */}
                 <div style={{ flex: 1, textAlign: 'left' }}>
-                  <h3 style={{ fontSize: '1.6rem', fontWeight: '800', marginBottom: '14px', color: '#fff', letterSpacing: '-0.5px' }}>
+                  <h3 style={{ fontSize: '1.5rem', fontWeight: '800', marginBottom: '12px', color: '#fff', letterSpacing: '-0.5px' }}>
                     {item.title}
                   </h3>
                   <p style={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.45)', lineHeight: '1.6', fontWeight: '400' }}>
@@ -134,28 +133,40 @@ const Explore = () => {
         </div>
       </div>
 
-      {/* --- RIGHT-SIDE AI IMAGE OVERLAY CONTAINER --- */}
+      {/* --- RIGHT-SIDE AI IMAGE OVERLAY CONTAINER (Centered & Expanded) --- */}
       <div style={{
         position: 'relative',
         height: '100%',
         width: '100%',
         display: 'flex',
-        alignItems: 'flex-end',
-        justifyContent: 'flex-end',
-        pointerEvents: 'none'
+        alignItems: 'center',       // Vertically centers the image in the right column
+        justifyContent: 'center',    // Horizontally centers the image in the right column
+        pointerEvents: 'none',
+        paddingBottom: '20px'        // Keeps a clean gap right above the bottom footer strip
       }}>
+        {/* Glow backdrop tailored to match the matrix color space */}
+        <div style={{ 
+          position: 'absolute', 
+          width: '70%', 
+          height: '70%', 
+          background: 'radial-gradient(circle, rgba(0, 212, 255, 0.08) 0%, transparent 65%)', 
+          filter: 'blur(50px)',
+          zIndex: 1 
+        }} />
+
         <img 
           src={aiWomanUrl} 
           alt="" 
+          className="animate" // Triggers your top-level layout fadeSlide-in animation system
           style={{
-            height: '105%', 
+            maxHeight: '90%', // Prevents clipping out of bounds top or bottom
+            maxWidth: '100%',
             width: 'auto',
+            height: 'auto',
             objectFit: 'contain',
-            position: 'absolute',
-            bottom: '-10px',
-            right: '-60px', 
-            opacity: 0.9,
-            zIndex: 5
+            zIndex: 5,
+            position: 'relative',
+            filter: 'drop-shadow(0 0 30px rgba(0, 212, 255, 0.15))' // Ambient neon voxel depth highlight
           }} 
         />
       </div>
