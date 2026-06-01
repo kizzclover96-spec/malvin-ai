@@ -29,11 +29,10 @@ if (!admin.apps.length) {
       clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
       privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
     }),
-    databaseURL: `https://${process.env.FIREBASE_PROJECT_ID}-default-rtdb.firebaseio.com`, // Required for RTDB admin access
+    databaseURL: `https://${process.env.FIREBASE_PROJECT_ID}-default-rtdb.firebaseio.com`,
   });
 }
 
-// SWITCHED BACK TO REALTIME DATABASE
 const rtdb = admin.database();
 
 // -------------------------
@@ -87,6 +86,7 @@ export default async function handler(req: any, res: any) {
 
     const eventName = body.meta?.event_name;
     const userId = body.meta?.custom_data?.user_id || body.meta?.custom_data?.userId;
+    const planFromWebhook = body.meta?.custom_data?.plan || "premium"; 
 
     if (!userId) {
       console.log("Missing userId in payload meta data.");
@@ -145,14 +145,14 @@ export default async function handler(req: any, res: any) {
     ];
 
     if (activePremiumEvents.includes(eventName)) {
-      // Updates premium boolean and sets tier string to premium
       await rtdb.ref(`users/${userId}`).update({
         premium: true,
-        tier: "premium",
+        tier: planFromWebhook, 
+        premiumPlan: planFromWebhook,
+        premiumSince: Date.now(),
         updatedAt: admin.database.ServerValue.TIMESTAMP
       });
-      
-      console.log(`Set premium flag to true in RTDB for user: ${userId}`);
+      console.log(`Successfully upgraded user ${userId} to plan: ${planFromWebhook}`);
     }
 
     if (eventName === "subscription_cancelled" || eventName === "subscription_expired") {
@@ -161,7 +161,6 @@ export default async function handler(req: any, res: any) {
         tier: "free",
         updatedAt: admin.database.ServerValue.TIMESTAMP
       });
-
       console.log(`Downgraded user in RTDB: ${userId}`);
     }
 
