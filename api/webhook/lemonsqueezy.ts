@@ -115,9 +115,10 @@ export default async function handler(req: any, res: any) {
     // -------------------------
     // 1. CREDITS (ONE-TIME PAYMENT)
     // -------------------------
-    if (eventName === "order_completed") {
+    // UPDATED: Now triggers on both 'order_completed' and 'order_created'
+    if (eventName === "order_completed" || eventName === "order_created") {
       const totalCents = body.data?.attributes?.total || 0;
-      const amount = totalCents / 100;
+      const amount = totalCents / 100; // 10000 cents becomes €100.00
 
       const balanceRef = rtdb.ref(`users/${userId}/treasury/balance`);
       const ledgerRef = rtdb.ref(`users/${userId}/treasury/ledger`);
