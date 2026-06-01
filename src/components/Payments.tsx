@@ -53,11 +53,13 @@ const Payments = ({ userBrand }: { userBrand: any }) => {
         if (!userId) return;
         if (!pointsVariantId) return;
 
-        const checkoutUrl =
-            `https://checkout.lemonsqueezy.com/checkout/buy/${pointsVariantId}?checkout[custom][user_id]=${userId}`;
-
+        const checkoutUrl = {
+            href:
+            `https://malvin.lemonsqueezy.com/checkout/buy/${pointsVariantId}?` +
+            `?embed=1&checkout[custom][user_id]=${userId}`
+        };
         // ✅ IMPORTANT FIX: use redirect instead of window.open
-        window.location.href = checkoutUrl;
+        window.location.href = checkoutUrl.href;
     };
 
     if (!userId) {

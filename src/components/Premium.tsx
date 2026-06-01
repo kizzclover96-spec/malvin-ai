@@ -1,25 +1,20 @@
 import React from 'react';
 import { auth } from "../firebase";
 
-const userId = auth.currentUser?.uid;
+
 
 interface PremiumProps {
   onBack: () => void;
 }
 
-const variantIdg = import.meta.env.VITE_LEMONSQUEEZY_VARIANT_ID;
-const variantId='18aebaa6-b876-4a42-8fd3-b797c543a5c3'; // For testing, hardcoded to a known working variant
+const variantId = import.meta.env.VITE_LEMONSQUEEZY_VARIANT_ID; // For testing, hardcoded to a known working variant
 
 // Debugging: This will show up in your browser console (F12)
 if (!variantId) {
   console.error("CRITICAL: VITE_LEMONSQUEEZY_VARIANT_ID is missing from environment variables!");
 }
 
-const checkoutUrl = {
-  href:
-    `https://malvin.lemonsqueezy.com/checkout/buy/${variantId}` +
-    `?embed=1&checkout[custom][user_id]=${userId}`
-};
+
 
 const premiumPlan = {
   name: "Premium",
@@ -28,12 +23,20 @@ const premiumPlan = {
 };
 
 const Premium: React.FC<PremiumProps> = ({ onBack }) => {
+  
   const features = [
     { title: "Neural Analytics", desc: "Predictive traffic mapping for ad placements." },
     { title: "Priority Queue", desc: "Instant campaign approval by Malvin Admin." },
     { title: "Catalog Expansion", desc: "Unlimited asset deployment in your inventory." },
     { title: "Verified Pulse", desc: "A glowing gold badge on your customer chat." }
   ];
+
+  const userId = auth.currentUser?.uid;
+  const checkoutUrl = {
+    href:
+      `https://malvin.lemonsqueezy.com/checkout/buy/${variantId}` +
+      `?embed=1&checkout[custom][user_id]=${userId}`
+  };
 
   // Helper to create 20 random falling stars
   const stars = Array.from({ length: 20 }).map((_, i) => ({
