@@ -1,6 +1,24 @@
 import admin from "firebase-admin";
 import crypto from "crypto";
 
+// -------------------------------------------------------------
+// 🚨 Vercel Config: Disable automatic parsing to keep body raw
+// -------------------------------------------------------------
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
+// Helper function to read the raw body buffer from the request stream
+async function getRawBody(readable: any): Promise<Buffer> {
+  const chunks = [];
+  for await (const chunk of readable) {
+    chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
+  }
+  return Buffer.concat(chunks);
+}
+
 // -------------------------
 // Firebase Init
 // -------------------------
@@ -17,7 +35,7 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 
 // -------------------------
-// Renamed to completely bypass TypeScript collision cache
+// Signature Verification
 // -------------------------
 const executeSignatureCheck = (rawBody: string, signature: string, secret: string): boolean => {
   try {
@@ -49,13 +67,15 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
-    const body = req.body;
+    // 1. Read the unmutated raw text directly from the inbound pipeline
+    const rawBodyBuffer = await getRawBody(req);
+    const rawBodyString = rawBodyBuffer.toString("utf8");
+
+    // 2. Fetch the signature and secret headers
     const signature = (req.headers["x-signature"] as string) || "";
     const secret = process.env.LEMON_SQUEEZY_WEBHOOK_SECRET || "";
 
-    const rawBodyString = typeof body === "string" ? body : JSON.stringify(body);
-
-    // Call the newly named arrow function
+    // 3. Execute signature validation against the clean raw body string
     const isSignatureValid: boolean = executeSignatureCheck(rawBodyString, signature, secret);
 
     if (!isSignatureValid) {
@@ -63,7 +83,9 @@ export default async function handler(req: any, res: any) {
       return res.status(401).json({ error: "Invalid signature" });
     }
 
-    console.log("Webhook received safely:", body);
+    // 4. Manually parse the validated string into a JSON object now that it's safe
+    const body = JSON.parse(rawBodyString);
+    console.log("Webhook received safely & verified:", body);
 
     const eventName = body.meta?.event_name;
     const userId = body.meta?.custom_data?.user_id || body.meta?.custom_data?.userId;
@@ -76,16 +98,12 @@ export default async function handler(req: any, res: any) {
     // -------------------------
     // IDEMPOTENCY (Using Firestore)
     // -------------------------
-    // -------------------------
-    // IDEMPOTENCY (Using Firestore)
-    // -------------------------
     const eventId = body.meta?.event_id;
     if (eventId) {
       const eventDocRef = db.collection("processed_events").doc(eventId);
       const eventSnap = await eventDocRef.get();
 
-      // FIXED: Removed parentheses because .exists is a property in admin SDK
-      if (eventSnap.exists) { 
+      if (eventSnap.exists) {
         console.log(`Event ${eventId} already handled.`);
         return res.status(200).json({ skipped: true });
       }
