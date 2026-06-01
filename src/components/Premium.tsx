@@ -32,11 +32,12 @@ const Premium: React.FC<PremiumProps> = ({ onBack }) => {
   ];
 
   const userId = auth.currentUser?.uid;
+  const planName = "premium";
   
   const checkoutUrl = {
     href:
       `https://malvin.lemonsqueezy.com/checkout/buy/${variantId}` +
-      `?embed=1&checkout[custom][user_id]=${userId}` 
+      `?embed=1&checkout[custom][user_id]=${userId}&checkout[custom][plan]=${planName}` 
       // (Ensure this updates in your deployed client version)
   };
   console.log("Current UID:", userId);
