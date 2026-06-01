@@ -2,7 +2,7 @@ import admin from "firebase-admin";
 import crypto from "crypto";
 
 // -------------------------------------------------------------
-// 🚨 Vercel Config: Disable automatic parsing to keep body raw
+// Vercel Config: Disable automatic parsing to keep body raw
 // -------------------------------------------------------------
 export const config = {
   api: {
@@ -29,10 +29,12 @@ if (!admin.apps.length) {
       clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
       privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
     }),
+    databaseURL: `https://${process.env.FIREBASE_PROJECT_ID}-default-rtdb.firebaseio.com`, // Required for RTDB admin access
   });
 }
 
-const db = admin.firestore();
+// SWITCHED BACK TO REALTIME DATABASE
+const rtdb = admin.database();
 
 // -------------------------
 // Signature Verification
@@ -67,15 +69,12 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
-    // 1. Read the unmutated raw text directly from the inbound pipeline
     const rawBodyBuffer = await getRawBody(req);
     const rawBodyString = rawBodyBuffer.toString("utf8");
 
-    // 2. Fetch the signature and secret headers
     const signature = (req.headers["x-signature"] as string) || "";
     const secret = process.env.LEMON_SQUEEZY_WEBHOOK_SECRET || "";
 
-    // 3. Execute signature validation against the clean raw body string
     const isSignatureValid: boolean = executeSignatureCheck(rawBodyString, signature, secret);
 
     if (!isSignatureValid) {
@@ -83,7 +82,6 @@ export default async function handler(req: any, res: any) {
       return res.status(401).json({ error: "Invalid signature" });
     }
 
-    // 4. Manually parse the validated string into a JSON object now that it's safe
     const body = JSON.parse(rawBodyString);
     console.log("Webhook received safely & verified:", body);
 
@@ -96,21 +94,21 @@ export default async function handler(req: any, res: any) {
     }
 
     // -------------------------
-    // IDEMPOTENCY (Using Firestore)
+    // IDEMPOTENCY (Using RTDB)
     // -------------------------
     const eventId = body.meta?.event_id;
     if (eventId) {
-      const eventDocRef = db.collection("processed_events").doc(eventId);
-      const eventSnap = await eventDocRef.get();
+      const eventRef = rtdb.ref(`processed_events/${eventId}`);
+      const snap = await eventRef.get();
 
-      if (eventSnap.exists) {
+      if (snap.exists()) {
         console.log(`Event ${eventId} already handled.`);
         return res.status(200).json({ skipped: true });
       }
 
-      await eventDocRef.set({ 
-        processed: true, 
-        timestamp: admin.firestore.FieldValue.serverTimestamp() 
+      await eventRef.set({
+        processed: true,
+        timestamp: admin.database.ServerValue.TIMESTAMP
       });
     }
 
@@ -121,23 +119,20 @@ export default async function handler(req: any, res: any) {
       const totalCents = body.data?.attributes?.total || 0;
       const amount = totalCents / 100;
 
-      const userDocRef = db.collection("users").doc(userId);
-      
-      await userDocRef.set({
-        treasury: {
-          balance: admin.firestore.FieldValue.increment(amount)
-        }
-      }, { merge: true });
+      const balanceRef = rtdb.ref(`users/${userId}/treasury/balance`);
+      const ledgerRef = rtdb.ref(`users/${userId}/treasury/ledger`);
 
-      await userDocRef.collection("ledger").add({
+      await balanceRef.transaction((current) => (current || 0) + amount);
+
+      await ledgerRef.push({
         type: "Inflow",
         amount,
         label: "Credit_TopUp",
         status: "Settled",
-        timestamp: Date.now(),
+        timestamp: admin.database.ServerValue.TIMESTAMP,
       });
 
-      console.log(`Credited €${amount} to Firestore user ${userId}`);
+      console.log(`Credited €${amount} to RTDB user ${userId}`);
     }
 
     // -------------------------
@@ -150,23 +145,24 @@ export default async function handler(req: any, res: any) {
     ];
 
     if (activePremiumEvents.includes(eventName)) {
-      await db.collection("users").doc(userId).set({
+      // Updates premium boolean and sets tier string to premium
+      await rtdb.ref(`users/${userId}`).update({
         premium: true,
-        tier: "premium", 
-        updatedAt: admin.firestore.FieldValue.serverTimestamp()
-      }, { merge: true });
+        tier: "premium",
+        updatedAt: admin.database.ServerValue.TIMESTAMP
+      });
       
-      console.log(`Set premium flag to true for user: ${userId}`);
+      console.log(`Set premium flag to true in RTDB for user: ${userId}`);
     }
 
     if (eventName === "subscription_cancelled" || eventName === "subscription_expired") {
-      await db.collection("users").doc(userId).set({
+      await rtdb.ref(`users/${userId}`).update({
         premium: false,
         tier: "free",
-        updatedAt: admin.firestore.FieldValue.serverTimestamp()
-      }, { merge: true });
+        updatedAt: admin.database.ServerValue.TIMESTAMP
+      });
 
-      console.log(`Downgraded user: ${userId}`);
+      console.log(`Downgraded user in RTDB: ${userId}`);
     }
 
     return res.status(200).json({ success: true });
