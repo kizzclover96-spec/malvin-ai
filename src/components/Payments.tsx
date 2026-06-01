@@ -55,16 +55,16 @@ const Payments = ({ userBrand }: { userBrand: any }) => {
     const handleDirectFunding = () => {
         if (!userId) return;
         if (!pointsVariantId) {
-            console.error("Missing VITE_LEMONSQUEEZY_POINTS_VARIANT_ID string environment configuration.");
+            console.error("Missing VITE_LEMONSQUEEZY_POINTS_VARIANT_ID config.");
             return;
         }
 
-        // Fixed: Stripped duplicate query operators to guarantee clean custom metadata ingestion
-        const checkoutUrl = `https://malvin.lemonsqueezy.com/checkout/buy/${pointsVariantId}?embed=1&checkout[custom][user_id]=${userId}`;
+        // Dynamic metadata parsing configuration
+        const checkoutUrl = `https://malvin.lemonsqueezy.com/checkout/buy/${pointsVariantId}?embed=0&checkout[custom][user_id]=${userId}`;
         
-        window.location.href = checkoutUrl;
+        // Using isolated target routing instead of window.location.href
+        window.open(checkoutUrl, "_blank", "noopener,noreferrer");
     };
-
     if (!userId) {
         return (
             <div style={{ padding: '20px', color: 'white', opacity: 0.5, fontFamily: 'monospace' }}>
