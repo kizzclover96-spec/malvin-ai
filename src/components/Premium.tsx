@@ -15,7 +15,7 @@ const Premium: React.FC<any> = ({ onBack }) => {
   }, []);
 
   const checkoutUrl = userId && variantId
-    ? `https://checkout.lemonsqueezy.com/checkout/buy/${variantId}?checkout[custom][user_id]=${userId}`
+    ? `https://malvin.lemonsqueezy.com/checkout[custom][user_id]=${userId}/buy/${variantId}?`
     : null;
 
   const handleUpgrade = () => {
