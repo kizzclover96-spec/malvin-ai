@@ -118,22 +118,29 @@ export default async function handler(req: any, res: any) {
     // UPDATED: Now triggers on both 'order_completed' and 'order_created'
     if (eventName === "order_completed" || eventName === "order_created") {
       const totalCents = body.data?.attributes?.total || 0;
-      const amount = totalCents / 100; // 10000 cents becomes €100.00
+      const amount = totalCents / 100; // e.g., 100.00
 
       const balanceRef = rtdb.ref(`users/${userId}/treasury/balance`);
       const ledgerRef = rtdb.ref(`users/${userId}/treasury/ledger`);
 
-      await balanceRef.transaction((current) => (current || 0) + amount);
+      // 1. Safe floating-point addition rounding
+      await balanceRef.transaction((current) => {
+        return Math.round(((current || 0) + amount) * 100) / 100;
+      });
 
+      // 2. This pushes a unique transaction block instead of rewriting the folder
       await ledgerRef.push({
         type: "Inflow",
-        amount,
+        amount: amount,
         label: "Credit_TopUp",
         status: "Settled",
         timestamp: admin.database.ServerValue.TIMESTAMP,
       });
 
-      console.log(`Credited €${amount} to RTDB user ${userId}`);
+      // 3. Keep tracking timestamps cleanly outside of your list rows
+      await rtdb.ref(`users/${userId}/treasury/updatedAt`).set(admin.database.ServerValue.TIMESTAMP);
+
+      console.log(`Successfully logged transaction entry for user: ${userId}`);
     }
 
     // -------------------------

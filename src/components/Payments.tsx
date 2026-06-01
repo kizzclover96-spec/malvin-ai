@@ -32,11 +32,13 @@ const Payments = ({ userBrand }: { userBrand: any }) => {
         const unsubLedger = onValue(ledgerRef, (snapshot) => {
             const data = snapshot.val();
             if (data) {
-                const list = Object.keys(data).map(k => ({
-                    id: k,
-                    ...data[k]
-                }));
-                // Sort by backend timestamp field
+                const list = Object.keys(data)
+                    // SAFELY FILTER OUT RAW ROOT STRINGS OR TIMESTAMPS
+                    .filter(key => typeof data[key] === 'object' && data[key] !== null)
+                    .map(k => ({
+                        id: k,
+                        ...data[k]
+                    }));
                 setTransactions(list.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)));
             } else {
                 setTransactions([]);
