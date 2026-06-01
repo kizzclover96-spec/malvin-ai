@@ -14,19 +14,31 @@ if (!admin.apps.length) {
   });
 }
 
-const rtdb = admin.database();
+const db = admin.firestore();
 
 // -------------------------
-// Signature Verification
+// Renamed to completely bypass TypeScript collision cache
 // -------------------------
-function verifySignature(rawBody: string, signature: string, secret: string) {
-  const hmac = crypto
-    .createHmac("sha256", secret)
-    .update(rawBody, "utf8")
-    .digest("hex");
+const executeSignatureCheck = (rawBody: string, signature: string, secret: string): boolean => {
+  try {
+    const hmac = crypto
+      .createHmac("sha256", secret)
+      .update(rawBody, "utf8")
+      .digest("hex");
 
-  return hmac === signature;
-}
+    const hmacBuffer = Buffer.from(hmac, "hex");
+    const signatureBuffer = Buffer.from(signature, "hex");
+
+    if (hmacBuffer.length !== signatureBuffer.length) {
+      return false;
+    }
+  
+    return crypto.timingSafeEqual(hmacBuffer, signatureBuffer);
+  } catch (error) {
+    console.error("Error computing signature validation:", error);
+    return false;
+  }
+};
 
 // -------------------------
 // Webhook Handler
@@ -38,46 +50,50 @@ export default async function handler(req: any, res: any) {
 
   try {
     const body = req.body;
+    const signature = (req.headers["x-signature"] as string) || "";
+    const secret = process.env.LEMON_SQUEEZY_WEBHOOK_SECRET || "";
 
-    const signature = req.headers["x-signature"] as string;
+    const rawBodyString = typeof body === "string" ? body : JSON.stringify(body);
 
-    // IMPORTANT: raw body should ideally be used here in production
-    const isValid = verifySignature(
-      JSON.stringify(body),
-      signature,
-      process.env.LEMON_SQUEEZY_WEBHOOK_SECRET!
-    );
+    // Call the newly named arrow function
+    const isSignatureValid: boolean = executeSignatureCheck(rawBodyString, signature, secret);
 
-    if (!isValid) {
+    if (!isSignatureValid) {
+      console.error("Signature verification failed.");
       return res.status(401).json({ error: "Invalid signature" });
     }
 
-    console.log("Webhook received:", body);
+    console.log("Webhook received safely:", body);
 
     const eventName = body.meta?.event_name;
-
-    const userId =
-      body.meta?.custom_data?.user_id ||
-      body.meta?.custom_data?.userId;
+    const userId = body.meta?.custom_data?.user_id || body.meta?.custom_data?.userId;
 
     if (!userId) {
+      console.log("Missing userId in payload meta data.");
       return res.status(200).json({ ignored: "missing userId" });
     }
 
     // -------------------------
-    // IDEMPOTENCY (prevent double processing)
+    // IDEMPOTENCY (Using Firestore)
+    // -------------------------
+    // -------------------------
+    // IDEMPOTENCY (Using Firestore)
     // -------------------------
     const eventId = body.meta?.event_id;
-
     if (eventId) {
-      const eventRef = rtdb.ref(`processed_events/${eventId}`);
-      const snap = await eventRef.get();
+      const eventDocRef = db.collection("processed_events").doc(eventId);
+      const eventSnap = await eventDocRef.get();
 
-      if (snap.exists()) {
+      // FIXED: Removed parentheses because .exists is a property in admin SDK
+      if (eventSnap.exists) { 
+        console.log(`Event ${eventId} already handled.`);
         return res.status(200).json({ skipped: true });
       }
 
-      await eventRef.set(true);
+      await eventDocRef.set({ 
+        processed: true, 
+        timestamp: admin.firestore.FieldValue.serverTimestamp() 
+      });
     }
 
     // -------------------------
@@ -87,12 +103,15 @@ export default async function handler(req: any, res: any) {
       const totalCents = body.data?.attributes?.total || 0;
       const amount = totalCents / 100;
 
-      const balanceRef = rtdb.ref(`users/${userId}/treasury/balance`);
-      const ledgerRef = rtdb.ref(`users/${userId}/treasury/ledger`);
+      const userDocRef = db.collection("users").doc(userId);
+      
+      await userDocRef.set({
+        treasury: {
+          balance: admin.firestore.FieldValue.increment(amount)
+        }
+      }, { merge: true });
 
-      await balanceRef.transaction((current) => (current || 0) + amount);
-
-      await ledgerRef.push({
+      await userDocRef.collection("ledger").add({
         type: "Inflow",
         amount,
         label: "Credit_TopUp",
@@ -100,27 +119,41 @@ export default async function handler(req: any, res: any) {
         timestamp: Date.now(),
       });
 
-      console.log(`Credited €${amount} to ${userId}`);
+      console.log(`Credited €${amount} to Firestore user ${userId}`);
     }
 
     // -------------------------
     // 2. SUBSCRIPTION (PREMIUM SYSTEM)
     // -------------------------
-    if (eventName === "subscription_created") {
-      await rtdb.ref(`users/${userId}/premium`).set(true);
+    const activePremiumEvents = [
+      "subscription_created",
+      "subscription_updated",
+      "subscription_payment_success"
+    ];
+
+    if (activePremiumEvents.includes(eventName)) {
+      await db.collection("users").doc(userId).set({
+        premium: true,
+        tier: "premium", 
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+      
+      console.log(`Set premium flag to true for user: ${userId}`);
     }
 
-    if (eventName === "subscription_updated") {
-      await rtdb.ref(`users/${userId}/premium`).set(true);
-    }
+    if (eventName === "subscription_cancelled" || eventName === "subscription_expired") {
+      await db.collection("users").doc(userId).set({
+        premium: false,
+        tier: "free",
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
 
-    if (eventName === "subscription_cancelled") {
-      await rtdb.ref(`users/${userId}/premium`).set(false);
+      console.log(`Downgraded user: ${userId}`);
     }
 
     return res.status(200).json({ success: true });
   } catch (err: any) {
-    console.error("Webhook error:", err);
+    console.error("Webhook execution crash:", err);
     return res.status(500).json({ error: "Server error" });
   }
 }

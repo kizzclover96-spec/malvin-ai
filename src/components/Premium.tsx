@@ -36,7 +36,8 @@ const Premium: React.FC<PremiumProps> = ({ onBack }) => {
   const checkoutUrl = {
     href:
       `https://malvin.lemonsqueezy.com/checkout/buy/${variantId}` +
-      `?embed=1&checkout[custom][user_id]=${userId}`
+      `?embed=1&checkout[custom][user_id]=${userId}` 
+      // (Ensure this updates in your deployed client version)
   };
   console.log("Current UID:", userId);
   console.log("Checkout URL:", checkoutUrl.href);
