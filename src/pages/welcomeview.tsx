@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useRef } from "react";
-import { doc, onSnapshot } from "firebase/firestore"; // Changed getDoc to onSnapshot
-import { firestore, auth } from "../firebase";
+// 🛠️ SWITCHED FROM FIRESTORE TO REALTIME DATABASE
+import { ref, onValue, off } from "firebase/database"; 
+// Changed 'database' to 'rtdb'
+import { db, auth } from "../firebase";// Assuming "database" is your RTDB instance in your config
 
 interface WelcomeProps {
   onWakeClick: (token: string) => void;
@@ -52,20 +54,20 @@ function Welcomeview({ onWakeClick }: WelcomeProps) {
     animate();
   }, []);
 
-  // 2. REAL-TIME SECURITY RECORD LISTENER (Fixed for redirected checkouts)
+  // 2. REAL-TIME SECURITY RECORD LISTENER (Updated for Realtime Database)
   useEffect(() => {
     const currentUser = auth.currentUser;
     if (!currentUser) return;
 
-    const userRef = doc(firestore, "users", currentUser.uid); 
+    // Point exactly to the RTDB node path: users/${userId}
+    const userDbRef = ref(db, `users/${currentUser.uid}`);
     
-    // Using onSnapshot listens in real-time. If the webhook finishes 
-    // mid-animation, this automatically intercepts the premium status!
-    const unsubscribe = onSnapshot(userRef, (snapshot) => {
+    // onValue acts exactly like onSnapshot, listening for immediate data state updates
+    const unsubscribe = onValue(userDbRef, (snapshot) => {
       if (snapshot.exists()) {
-        const userData = snapshot.data();
-        if (userData?.premium === true) {
-          console.log("Malvin Core: Premium signature validated.");
+        const userData = snapshot.val();
+        if (userData?.premium === true || userData?.tier === "premium") {
+          console.log("Malvin Core: Premium signature validated via RTDB.");
           setPremiumToken("MVN_PRM_VALID_2026_A9X7");
         }
       }
@@ -73,7 +75,10 @@ function Welcomeview({ onWakeClick }: WelcomeProps) {
       console.error("Premium authorization module error:", err);
     });
 
-    return () => unsubscribe();
+    // Clean up listener when unmounting
+    return () => {
+      off(userDbRef);
+    };
   }, []);
 
   // 3. TIMEOUT FOR INITIAL ANIMATION LOOP
@@ -85,7 +90,6 @@ function Welcomeview({ onWakeClick }: WelcomeProps) {
   }, []);
 
   // 4. PIPELINE PASS-THROUGH
-  // Once the 4-second loading is done, wake Malvin up using the freshest available token
   useEffect(() => {
     if (loadingComplete) {
       onWakeClick(premiumToken);
@@ -101,7 +105,7 @@ function Welcomeview({ onWakeClick }: WelcomeProps) {
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
-      justifyContent: 'center', // Fixed typo: 'justify' to 'justifyContent'
+      justifyContent: 'center',
       backgroundColor: '#000000',
       zIndex: 1000,
       overflow: 'hidden'
@@ -166,7 +170,7 @@ function Welcomeview({ onWakeClick }: WelcomeProps) {
 
       <p style={{
         marginTop: '30px',
-        color: premiumToken === "MVN_PRM_VALID_2026_A9X7" ? "#FFD700" : "#00f2ff", // Dynamically color texts if gold access clears early
+        color: premiumToken === "MVN_PRM_VALID_2026_A9X7" ? "#FFD700" : "#00f2ff", 
         fontSize: '0.8rem',
         letterSpacing: '0.2rem',
         textTransform: 'uppercase',
