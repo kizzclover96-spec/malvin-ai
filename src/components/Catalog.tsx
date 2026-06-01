@@ -91,7 +91,10 @@ const Catalog = ({ onBack, userBrand }: any) => {
                 </button>
             )}
 
-            <div style={gridStyle}>
+            {/* SCROLL BAR OPTIMIZATION HOOK */}
+            <style>{scrollbarStyleOverrides}</style>
+
+            <div className="horizontal-scroll-track" style={gridStyle}>
                 {!loading && products.length === 0 && (
                     <div style={emptyStateStyle}>
                         <div style={{ fontSize: '50px' }}>📦</div>
@@ -188,7 +191,8 @@ const Catalog = ({ onBack, userBrand }: any) => {
     );
 };
 
-// --- UPDATED STYLES ---
+// --- STYLING UTILITIES ---
+
 const fabStyle = {
     position: 'fixed' as 'fixed', bottom: '20px', right: '40px',
     background: 'none', color: '#C5FF41', border: 'none',
@@ -197,16 +201,45 @@ const fabStyle = {
     lineHeight: '1',
     transition: 'transform 0.2s ease, opacity 0.2s ease',
     outline: 'none',
-    // Slight glow effect to make the raw + pop against the black
     textShadow: '0 0 20px rgba(197, 255, 65, 0.4)'
 };
 
+// FIXED: Flex shrink set to 0 ensures cards maintain their horizontal widths inside the track
 const cardStyle = { 
     background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.08)', 
     borderRadius: '24px', padding: '16px', backdropFilter: 'blur(10px)', 
     width: '260px', height: '340px', cursor: 'pointer', position: 'relative' as 'relative',
-    transition: 'transform 0.2s ease'
+    transition: 'transform 0.2s ease',
+    flexShrink: 0 
 };
+
+// FIXED: Converted from a wrapping layout to a non-wrapping horizontal overflow container
+const gridStyle = { 
+    display: 'flex', 
+    flexWrap: 'nowrap' as 'nowrap', 
+    gap: '24px', 
+    marginTop: '40px', 
+    justifyContent: 'flex-start',
+    overflowX: 'auto' as 'auto',
+    paddingBottom: '20px' // Provides layout clearance for the scrollbar element
+};
+
+const scrollbarStyleOverrides = `
+  .horizontal-scroll-track::-webkit-scrollbar {
+    height: 6px;
+  }
+  .horizontal-scroll-track::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.01);
+    border-radius: 10px;
+  }
+  .horizontal-scroll-track::-webkit-scrollbar-thumb {
+    background: rgba(197, 255, 65, 0.3);
+    border-radius: 10px;
+  }
+  .horizontal-scroll-track::-webkit-scrollbar-thumb:hover {
+    background: rgba(197, 255, 65, 0.6);
+  }
+`;
 
 const truncatedTextStyle = { 
     fontSize: '11px', opacity: 0.5, marginTop: '10px', 
@@ -228,7 +261,6 @@ const detailModalStyle = {
     boxShadow: '0 50px 100px rgba(0,0,0,0.8)'
 };
 
-const gridStyle = { display: 'flex', flexWrap: 'wrap' as 'wrap', gap: '24px', marginTop: '40px', justifyContent: 'flex-start' };
 const modalOverlay = { position: 'fixed' as 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(12px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 };
 const glassModal = { background: 'rgba(25, 25, 25, 0.95)', border: '1px solid rgba(255,255,255,0.1)', padding: '40px', borderRadius: '32px', width: '420px' };
 const inputStyle = { width: '100%', backgroundColor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '12px', color: 'white', marginBottom: '20px', outline: 'none', boxSizing: 'border-box' as 'border-box' };
