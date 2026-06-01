@@ -1,43 +1,23 @@
 {
+  "functions": {
+    "source": "functions"
+  },
   "emulators": {
-    "apphosting": {
-      "port": 5002,
-      "rootDirectory": "./",
-      "startCommand": "npm run dev"
-    },
     "auth": {
-      "port": 5173
+      "port": 9099
     },
     "functions": {
-      "port": 5173
+      "port": 5001
     },
     "firestore": {
-      "port": 5173
-    },
-    "database": {
-      "port": 5173
+      "port": 8080
     },
     "hosting": {
-      "port": 5173
-    },
-    "pubsub": {
-      "port": 5173
-    },
-    "storage": {
-      "port": 5173
-    },
-    "eventarc": {
-      "port": 9299
-    },
-    "dataconnect": {
-      "port": 9399,
-      "dataDir": "dataconnect/.dataconnect/pgliteData"
-    },
-    "tasks": {
-      "port": 5173
+      "port": 5000
     },
     "ui": {
-      "enabled": true
+      "enabled": true,
+      "port": 4000
     },
     "singleProjectMode": true
   }

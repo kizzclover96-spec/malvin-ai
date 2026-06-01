@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, onSnapshot } from "firebase/firestore"; // Changed getDoc to onSnapshot
 import { firestore, auth } from "../firebase";
 
 interface WelcomeProps {
@@ -10,6 +10,7 @@ interface WelcomeProps {
 function Welcomeview({ onWakeClick }: WelcomeProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [premiumToken, setPremiumToken] = useState<string>("MVN_BSC_DEFAULT_0000");
+  const [loadingComplete, setLoadingComplete] = useState<boolean>(false);
 
   // 1. NEON DOTS ENGINE
   useEffect(() => {
@@ -51,38 +52,45 @@ function Welcomeview({ onWakeClick }: WelcomeProps) {
     animate();
   }, []);
 
-  // 2. CONCURRENT SECURITY RECORD FETCH
+  // 2. REAL-TIME SECURITY RECORD LISTENER (Fixed for redirected checkouts)
   useEffect(() => {
-    const checkPremiumStatus = async () => {
-      const currentUser = auth.currentUser;
-      if (!currentUser) return;
+    const currentUser = auth.currentUser;
+    if (!currentUser) return;
 
-      try {
-        const userRef = doc(firestore, "users", currentUser.uid); 
-        const userSnap = await getDoc(userRef);
-
-        if (userSnap.exists()) {
-          const userData = userSnap.data();
-          if (userData?.premium === true) {
-            // Unique signature generated for authenticated session
-            setPremiumToken("MVN_PRM_VALID_2026_A9X7");
-          }
+    const userRef = doc(firestore, "users", currentUser.uid); 
+    
+    // Using onSnapshot listens in real-time. If the webhook finishes 
+    // mid-animation, this automatically intercepts the premium status!
+    const unsubscribe = onSnapshot(userRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const userData = snapshot.data();
+        if (userData?.premium === true) {
+          console.log("Malvin Core: Premium signature validated.");
+          setPremiumToken("MVN_PRM_VALID_2026_A9X7");
         }
-      } catch (err) {
-        console.error("Premium authorization module error:", err);
       }
-    };
+    }, (err) => {
+      console.error("Premium authorization module error:", err);
+    });
 
-    checkPremiumStatus();
+    return () => unsubscribe();
   }, []);
 
-  // 3. TIMEOUT TO OPEN SESSION AND PASS DATA POINTER
+  // 3. TIMEOUT FOR INITIAL ANIMATION LOOP
   useEffect(() => {
     const timer = setTimeout(() => {
-      onWakeClick(premiumToken);
+      setLoadingComplete(true);
     }, 4000); 
     return () => clearTimeout(timer);
-  }, [onWakeClick, premiumToken]);
+  }, []);
+
+  // 4. PIPELINE PASS-THROUGH
+  // Once the 4-second loading is done, wake Malvin up using the freshest available token
+  useEffect(() => {
+    if (loadingComplete) {
+      onWakeClick(premiumToken);
+    }
+  }, [loadingComplete, premiumToken, onWakeClick]);
 
   return (
     <div style={{
@@ -93,7 +101,7 @@ function Welcomeview({ onWakeClick }: WelcomeProps) {
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
-      justify: 'center',
+      justifyContent: 'center', // Fixed typo: 'justify' to 'justifyContent'
       backgroundColor: '#000000',
       zIndex: 1000,
       overflow: 'hidden'
@@ -144,7 +152,7 @@ function Welcomeview({ onWakeClick }: WelcomeProps) {
           border: '1px solid rgba(0, 242, 255, 0.3)',
           display: 'flex',
           alignItems: 'center',
-          justify: 'center',
+          justifyContent: 'center',
           backdropFilter: 'blur(5px)'
         }}>
           <svg width="40" height="15" viewBox="0 0 60 20">
@@ -158,14 +166,16 @@ function Welcomeview({ onWakeClick }: WelcomeProps) {
 
       <p style={{
         marginTop: '30px',
-        color: '#00f2ff',
+        color: premiumToken === "MVN_PRM_VALID_2026_A9X7" ? "#FFD700" : "#00f2ff", // Dynamically color texts if gold access clears early
         fontSize: '0.8rem',
         letterSpacing: '0.2rem',
         textTransform: 'uppercase',
         fontFamily: 'monospace',
         animation: 'pulseText 1.5s infinite ease-in-out'
       }}>
-        Malvin is checking clearance parameters...
+        {premiumToken === "MVN_PRM_VALID_2026_A9X7" 
+          ? "GOLD ACCESS DETECTED. SYNCHRONIZING SYSTEM..." 
+          : "Malvin is checking clearance parameters..."}
       </p>
     </div>
   );

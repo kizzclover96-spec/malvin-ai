@@ -18,6 +18,7 @@
     "@livekit/components-styles": "^1.2.0",
     "firebase": "^12.10.0",
     "firebase-admin": "^10.3.0",
+    "firebase-functions": "^7.2.5",
     "framer-motion": "^12.38.0",
     "html2canvas": "^1.4.1",
     "jspdf": "^4.2.1",

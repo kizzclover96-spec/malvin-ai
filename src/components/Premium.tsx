@@ -32,11 +32,14 @@ const Premium: React.FC<PremiumProps> = ({ onBack }) => {
   ];
 
   const userId = auth.currentUser?.uid;
+  
   const checkoutUrl = {
     href:
       `https://malvin.lemonsqueezy.com/checkout/buy/${variantId}` +
       `?embed=1&checkout[custom][user_id]=${userId}`
   };
+  console.log("Current UID:", userId);
+  console.log("Checkout URL:", checkoutUrl.href);
 
   // Helper to create 20 random falling stars
   const stars = Array.from({ length: 20 }).map((_, i) => ({
