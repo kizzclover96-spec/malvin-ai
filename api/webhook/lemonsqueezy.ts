@@ -73,7 +73,7 @@ export default async function handler(req: any, res: any) {
     const rawBodyString = rawBodyBuffer.toString("utf8");
 
     const signature = (req.headers["x-signature"] as string) || "";
-    const secret = process.env.LEMON_SQUEEZY_WEBHOOK_SECRET || "";
+    const secret = process.env.LEMONSQUEEZY_WEBHOOK_SECRET || "";
 
     const isSignatureValid: boolean = executeSignatureCheck(rawBodyString, signature, secret);
 
