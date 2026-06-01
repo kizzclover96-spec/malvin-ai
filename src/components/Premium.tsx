@@ -1,109 +1,142 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { auth } from "../firebase";
 
-const variantId = import.meta.env.VITE_LEMONSQUEEZY_VARIANT_ID;
+const userId = auth.currentUser?.uid;
 
-const Premium: React.FC<any> = ({ onBack }) => {
-  const [userId, setUserId] = useState<string | null>(null);
+interface PremiumProps {
+  onBack: () => void;
+}
 
-  useEffect(() => {
-    const unsub = auth.onAuthStateChanged((user) => {
-      setUserId(user ? user.uid : null);
-    });
+const variantIdg = import.meta.env.VITE_LEMONSQUEEZY_VARIANT_ID;
+const variantId='18aebaa6-b876-4a42-8fd3-b797c543a5c3'; // For testing, hardcoded to a known working variant
 
-    return () => unsub();
-  }, []);
+// Debugging: This will show up in your browser console (F12)
+if (!variantId) {
+  console.error("CRITICAL: VITE_LEMONSQUEEZY_VARIANT_ID is missing from environment variables!");
+}
 
-  const checkoutUrl = userId && variantId
-    ? `https://malvin.lemonsqueezy.com/checkout[custom][user_id]=${userId}/buy/${variantId}?`
-    : null;
+const checkoutUrl = {
+  href:
+    `https://malvin.lemonsqueezy.com/checkout/buy/${variantId}` +
+    `?embed=1&checkout[custom][user_id]=${userId}`
+};
 
-  const handleUpgrade = () => {
-    if (!checkoutUrl) {
-      alert("Payment not configured");
-      return;
-    }
+const premiumPlan = {
+  name: "Premium",
+  price: "€5.99/mo",
+  variantId
+};
 
-    // ✅ SAFE REDIRECT
-    window.location.href = checkoutUrl;
-  };
+const Premium: React.FC<PremiumProps> = ({ onBack }) => {
+  const features = [
+    { title: "Neural Analytics", desc: "Predictive traffic mapping for ad placements." },
+    { title: "Priority Queue", desc: "Instant campaign approval by Malvin Admin." },
+    { title: "Catalog Expansion", desc: "Unlimited asset deployment in your inventory." },
+    { title: "Verified Pulse", desc: "A glowing gold badge on your customer chat." }
+  ];
+
+  // Helper to create 20 random falling stars
+  const stars = Array.from({ length: 20 }).map((_, i) => ({
+    id: i,
+    left: `${Math.random() * 100}%`,
+    delay: `${Math.random() * 5}s`,
+    duration: `${3 + Math.random() * 4}s`,
+    size: `${2 + Math.random() * 3}px`
+  }));
 
   return (
     <div style={containerStyle}>
-      
-      {/* BACK BUTTON */}
-      <button onClick={onBack} style={backButtonStyle}>
+      {/* Global CSS for falling stars */}
+      <style>{`
+        @keyframes fall {
+          0% { transform: translateY(-10vh) rotate(0deg); opacity: 0; }
+          20% { opacity: 1; }
+          80% { opacity: 1; }
+          100% { transform: translateY(110vh) rotate(360deg); opacity: 0; }
+        }
+      `}</style>
+      {/* --- BACK BUTTON --- */}
+      <button 
+        onClick={onBack} 
+        style={backButtonStyle}
+        onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
+        onMouseLeave={(e) => e.currentTarget.style.opacity = '0.5'}
+      >
         ← BACK
       </button>
 
+      {/* Falling Stars Layer */}
+      {stars.map(star => (
+        <div 
+          key={star.id} 
+          style={{
+            position: 'absolute',
+            top: '-5vh',
+            left: star.left,
+            width: star.size,
+            height: star.size,
+            background: 'gold',
+            borderRadius: '50%',
+            boxShadow: '0 0 10px gold',
+            animation: `fall ${star.duration} linear infinite`,
+            animationDelay: star.delay,
+            zIndex: 0
+          }} 
+        />
+      ))}
+
+      <div style={glowStyle} />
+
       <div style={contentStyle}>
         <h2 style={kickerStyle}>UPGRADE_CORE</h2>
+        <h1 style={titleStyle}>Malvin <span style={{color: '#FFD700', textShadow: '0 0 20px rgba(255,215,0,0.5)'}}>Gold</span></h1>
+        <p style={subtitleStyle}>Experience the highest tier of neural asset management.</p>
 
-        <h1 style={titleStyle}>
-          Malvin <span style={goldText}>Gold</span>
-        </h1>
-
-        <p style={subtitleStyle}>
-          Experience the highest tier of neural asset management.
-        </p>
-
-        {/* CARD */}
+        {/* Pricing Card */}
         <div style={glassCardStyle}>
-          
           <div style={priceHeader}>
-            <span style={priceStyle}>€5.99</span>
+            <span style={priceStyle}>$5.99</span>
             <span style={perMonthStyle}>/month</span>
           </div>
-
+          
           <div style={featureList}>
-            <div style={featureItem}>
-              <span style={checkStyle}>★</span>
-              <div>
-                <div style={fTitle}>Neural Analytics</div>
-                <div style={fDesc}>Predictive traffic mapping for ads</div>
+            {features.map((f, i) => (
+              <div key={i} style={featureItem}>
+                <span style={checkStyle}>★</span>
+                <div>
+                  <div style={fTitle}>{f.title}</div>
+                  <div style={fDesc}>{f.desc}</div>
+                </div>
               </div>
-            </div>
-
-            <div style={featureItem}>
-              <span style={checkStyle}>★</span>
-              <div>
-                <div style={fTitle}>Priority Queue</div>
-                <div style={fDesc}>Instant approval processing</div>
-              </div>
-            </div>
-
-            <div style={featureItem}>
-              <span style={checkStyle}>★</span>
-              <div>
-                <div style={fTitle}>Catalog Expansion</div>
-                <div style={fDesc}>Unlimited asset deployment</div>
-              </div>
-            </div>
-
-            <div style={featureItem}>
-              <span style={checkStyle}>★</span>
-              <div>
-                <div style={fTitle}>Verified Pulse</div>
-                <div style={fDesc}>Gold badge on profile</div>
-              </div>
-            </div>
+            ))}
           </div>
 
-          <button onClick={handleUpgrade} style={upgradeBtn}>
+          <button 
+            style={upgradeBtn} 
+            onClick={() => {
+              if (!checkoutUrl) {
+                alert("Payment not configured");
+                return;
+              }
+              window.open(checkoutUrl.href, "_blank",);
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'scale(1.02)';
+              e.currentTarget.style.boxShadow = '0 15px 30px rgba(255, 215, 0, 0.4)';
+            }} 
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+              e.currentTarget.style.boxShadow = '0 10px 20px rgba(255, 215, 0, 0.2)';
+            }}
+          >
             UPGRADE GOLD_ACCESS
           </button>
-
-          <p style={finePrint}>
-            Cancel anytime. Instant activation after payment.
-          </p>
-
+          <p style={finePrint}>Cancel anytime. Neural sync takes &lt; 1 min.</p>
         </div>
       </div>
     </div>
   );
 };
-
-export default Premium;
 
 // --- UPDATED GOLD STYLES ---
 
@@ -118,6 +151,17 @@ const containerStyle: React.CSSProperties = {
   overflow: 'hidden',
   color: 'white',
   fontFamily: 'sans-serif'
+};
+
+const glowStyle: React.CSSProperties = {
+  position: 'absolute',
+  width: '700px',
+  height: '700px',
+  background: 'radial-gradient(circle, rgba(255, 215, 0, 0.08) 0%, rgba(0,0,0,0) 70%)',
+  top: '50%',
+  left: '50%',
+  transform: 'translate(-50%, -50%)',
+  zIndex: 0
 };
 
 const contentStyle: React.CSSProperties = {
@@ -138,11 +182,6 @@ const titleStyle: React.CSSProperties = {
   fontSize: '48px',
   fontWeight: 900,
   margin: '0 0 10px 0'
-};
-
-const goldText: React.CSSProperties = {
-  color: '#FFD700',
-  textShadow: '0 0 20px rgba(255,215,0,0.5)'
 };
 
 const subtitleStyle: React.CSSProperties = {
@@ -218,6 +257,7 @@ const upgradeBtn: React.CSSProperties = {
   fontWeight: 800,
   fontSize: '14px',
   cursor: 'pointer',
+  transition: 'all 0.3s ease',
   boxShadow: '0 10px 20px rgba(255, 215, 0, 0.2)'
 };
 
@@ -240,5 +280,9 @@ const backButtonStyle: React.CSSProperties = {
   cursor: 'pointer',
   fontSize: '11px',
   letterSpacing: '2px',
-  opacity: 0.5
+  zIndex: 10,
+  opacity: 0.5,
+  transition: 'all 0.3s ease'
 };
+
+export default Premium;
