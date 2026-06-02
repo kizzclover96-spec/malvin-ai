@@ -53,30 +53,39 @@ function Welcomeview({ onWakeClick }: WelcomeProps) {
     animate();
   }, []);
 
-  // 2. REAL-TIME SECURITY RECORD LISTENER (Updated for Realtime Database)
+  // 2. REAL-TIME SECURITY RECORD LISTENER (Fixed initialization race condition)
   useEffect(() => {
-    const currentUser = auth.currentUser;
-    if (!currentUser) return;
+    let userDbRef: any = null;
 
-    // Point exactly to the RTDB node path: users/${userId}
-    const userDbRef = ref(db, `users/${currentUser.uid}`); 
-    
-    // onValue acts exactly like onSnapshot, listening for immediate data state updates
-    const unsubscribe = onValue(userDbRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const userData = snapshot.val();
-        if (userData?.premium === true || userData?.tier === "premium") {
-          console.log("Malvin Core: Premium signature validated via RTDB.");
-          setPremiumToken("MVN_PRM_VALID_2026_A9X7");
+    // Use onAuthStateChanged to catch the session immediately when it populates
+    const unsubscribeAuth = auth.onAuthStateChanged((user) => {
+      if (!user) return;
+
+      // Point exactly to the RTDB node path: users/${userId}
+      userDbRef = ref(db, `users/${user.uid}`); 
+      
+      // Listen for immediate data state updates
+      onValue(userDbRef, (snapshot) => {
+        if (snapshot.exists()) {
+          const userData = snapshot.val();
+          if (userData?.premium === true || userData?.tier === "premium") {
+            console.log("Malvin Core: Premium signature validated via RTDB.");
+            setPremiumToken("MVN_PRM_VALID_2026_A9X7");
+          } else {
+            setPremiumToken("MVN_BSC_DEFAULT_0000");
+          }
         }
-      }
-    }, (err) => {
-      console.error("Premium authorization module error:", err);
+      }, (err) => {
+        console.error("Premium authorization module error:", err);
+      });
     });
 
-    // Clean up listener when unmounting
+    // Clean up both listeners cleanly when unmounting
     return () => {
-      off(userDbRef);
+      unsubscribeAuth();
+      if (userDbRef) {
+        off(userDbRef);
+      }
     };
   }, []);
 
