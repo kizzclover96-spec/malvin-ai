@@ -53,38 +53,54 @@ function Welcomeview({ onWakeClick }: WelcomeProps) {
     animate();
   }, []);
 
-  // 2. REAL-TIME SECURITY RECORD LISTENER (Fixed initialization race condition)
+  // 2. REAL-TIME SECURITY RECORD LISTENER (Fixed via Leaf Node Targeting)
   useEffect(() => {
-    let userDbRef: any = null;
+    let tierDbRef: any = null;
 
-    // Use onAuthStateChanged to catch the session immediately when it populates
+    // Monitor Auth status cleanly
     const unsubscribeAuth = auth.onAuthStateChanged((user) => {
-      if (!user) return;
+      if (!user) {
+        console.log("Malvin Core: No authenticated user detected yet.");
+        return;
+      }
 
-      // Point exactly to the RTDB node path: users/${userId}
-      userDbRef = ref(db, `users/${user.uid}`); 
+      console.log(`Malvin Core: User session confirmed [${user.uid}]. Attaching leaf node listener...`);
       
-      // Listen for immediate data state updates
-      onValue(userDbRef, (snapshot) => {
+      // 🌟 FIXED: Target the exact child node property allowed by rules
+      tierDbRef = ref(db, `users/${user.uid}/tier`); 
+      
+      // Listen for immediate data state updates on the tier string directly
+      onValue(tierDbRef, (snapshot) => {
         if (snapshot.exists()) {
-          const userData = snapshot.val();
-          if (userData?.premium === true || userData?.tier === "premium") {
-            console.log("Malvin Core: Premium signature validated via RTDB.");
+          const tierValue = snapshot.val();
+          
+          if (tierValue === "premium") {
+            console.log("Malvin Core: Premium signature validated via targeted child path.");
             setPremiumToken("MVN_PRM_VALID_2026_A9X7");
           } else {
             setPremiumToken("MVN_BSC_DEFAULT_0000");
           }
+        } else {
+          // If the 'tier' node doesn't exist, check a fallback 'premium' boolean node
+          const premiumDbRef = ref(db, `users/${user.uid}/premium`);
+          onValue(premiumDbRef, (fallbackSnapshot) => {
+            if (fallbackSnapshot.exists() && fallbackSnapshot.val() === true) {
+              setPremiumToken("MVN_PRM_VALID_2026_A9X7");
+            } else {
+              setPremiumToken("MVN_BSC_DEFAULT_0000");
+            }
+          }, { onlyOnce: true });
         }
       }, (err) => {
         console.error("Premium authorization module error:", err);
       });
     });
 
-    // Clean up both listeners cleanly when unmounting
+    // Clean up tracking scopes when unmounting
     return () => {
       unsubscribeAuth();
-      if (userDbRef) {
-        off(userDbRef);
+      if (tierDbRef) {
+        off(tierDbRef);
       }
     };
   }, []);
