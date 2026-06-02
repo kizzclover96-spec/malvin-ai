@@ -70,15 +70,24 @@ const Catalog = ({ onBack, userBrand }: any) => {
     };
 
     return (
-        <div style={{ width: '100vw', minHeight: '100vh', backgroundColor: '#050505', color: 'white', padding: '60px 100px', boxSizing: 'border-box', position: 'relative' }}>
+        <div style={{ 
+            width: '100vw', 
+            height: '100vh', // 🌟 FIXED: Lock master container height
+            backgroundColor: '#050505', 
+            color: 'white', 
+            padding: '60px 100px 20px 100px', 
+            boxSizing: 'border-box', 
+            position: 'relative',
+            overflow: 'hidden' // 🌟 FIXED: Prevent document window breaks
+        }}>
             
             {/* Header Area */}
-            <div style={{ marginBottom: '40px' }}>
+            <div style={{ marginBottom: '20px' }}>
                 <h1 style={{ fontSize: '40px', fontWeight: 700, margin: 0 }}>Inventory_Management</h1>
-                <p style={{ opacity: 0.5 }}>Core assets for {userBrand?.name}.</p>
+                <p style={{ opacity: 0.5, margin: '5px 0 0 0' }}>Core assets for {userBrand?.name}.</p>
             </div>
 
-            {/* Floating Right Corner Add Button (Shrunk) */}
+            {/* Floating Right Corner Add Button */}
             {products.length > 0 && (
                 <button 
                     onClick={() => setShowModal(true)} 
@@ -91,6 +100,7 @@ const Catalog = ({ onBack, userBrand }: any) => {
                 </button>
             )}
 
+            {/* Scrollable Container Wrapper */}
             <div style={gridStyle}>
                 {!loading && products.length === 0 && (
                     <div style={emptyStateStyle}>
@@ -188,7 +198,7 @@ const Catalog = ({ onBack, userBrand }: any) => {
     );
 };
 
-// --- UPDATED STYLES ---
+// --- UPDATED STYLES CONFIGURATION ---
 const fabStyle = {
     position: 'fixed' as 'fixed', bottom: '20px', right: '40px',
     background: 'none', color: '#C5FF41', border: 'none',
@@ -197,7 +207,6 @@ const fabStyle = {
     lineHeight: '1',
     transition: 'transform 0.2s ease, opacity 0.2s ease',
     outline: 'none',
-    // Slight glow effect to make the raw + pop against the black
     textShadow: '0 0 20px rgba(197, 255, 65, 0.4)'
 };
 
@@ -228,7 +237,19 @@ const detailModalStyle = {
     boxShadow: '0 50px 100px rgba(0,0,0,0.8)'
 };
 
-const gridStyle = { display: 'flex', flexWrap: 'wrap' as 'wrap', gap: '24px', marginTop: '40px', justifyContent: 'flex-start' };
+// 🌟 FIXED: Handled explicit height tracking boundary and set overflow properties
+const gridStyle = { 
+    display: 'flex', 
+    flexWrap: 'wrap' as 'wrap', 
+    gap: '24px', 
+    marginTop: '20px', 
+    justifyContent: 'flex-start',
+    height: 'calc(100vh - 200px)', // Takes up exactly remaining room under the headers
+    overflowY: 'auto' as 'auto',   // Triggers clean independent list scrolling
+    paddingBottom: '60px',         // Safe padding space for the cards on scroll floor
+    boxSizing: 'border-box' as 'border-box'
+};
+
 const modalOverlay = { position: 'fixed' as 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(12px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 };
 const glassModal = { background: 'rgba(25, 25, 25, 0.95)', border: '1px solid rgba(255,255,255,0.1)', padding: '40px', borderRadius: '32px', width: '420px' };
 const inputStyle = { width: '100%', backgroundColor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '12px', color: 'white', marginBottom: '20px', outline: 'none', boxSizing: 'border-box' as 'border-box' };
