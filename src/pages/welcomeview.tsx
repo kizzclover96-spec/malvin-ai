@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
+// 🛠️ SWITCHED FROM FIRESTORE TO REALTIME DATABASE
 import { ref, onValue, off } from "firebase/database"; 
-import { onAuthStateChanged } from "firebase/auth"; // 🌟 FIXED: Standard synchronous import
 import { db, auth } from "../firebase";
 
 interface WelcomeProps {
@@ -38,7 +38,7 @@ function Welcomeview({ onWakeClick }: WelcomeProps) {
       ctx.fillStyle = "#000000";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       
-      ctx.fillStyle = "#00f2ff"; 
+      ctx.fillStyle = "#00f2ff"; // Neon Blue
       particles.forEach((p) => {
         p.x += p.vx;
         p.y += p.vy;
@@ -53,42 +53,30 @@ function Welcomeview({ onWakeClick }: WelcomeProps) {
     animate();
   }, []);
 
-  // 2. REAL-TIME SECURITY RECORD LISTENER (Fixed Race Condition & Cleanup Leak)
+  // 2. REAL-TIME SECURITY RECORD LISTENER (Updated for Realtime Database)
   useEffect(() => {
-    let userDbRef: any = null;
+    const currentUser = auth.currentUser;
+    if (!currentUser) return;
 
-    // Monitor Auth status cleanly
-    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
-      if (!user) {
-        console.log("Malvin Core: No authenticated user detected yet.");
-        return;
-      }
-
-      console.log(`Malvin Core: User session confirmed [${user.uid}]. Attaching RTDB listener...`);
-      userDbRef = ref(db, `users/${user.uid}`);
-      
-      // Read profile properties dynamically
-      onValue(userDbRef, (snapshot) => {
-        if (snapshot.exists()) {
-          const userData = snapshot.val();
-          if (userData?.premium === true || userData?.tier === "premium") {
-            console.log("Malvin Core: Premium signature validated via RTDB.");
-            setPremiumToken("MVN_PRM_VALID_2026_A9X7");
-          } else {
-            setPremiumToken("MVN_BSC_DEFAULT_0000");
-          }
+    // Point exactly to the RTDB node path: users/${userId}
+    const userDbRef = ref(db, `users/${currentUser.uid}`); 
+    
+    // onValue acts exactly like onSnapshot, listening for immediate data state updates
+    const unsubscribe = onValue(userDbRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const userData = snapshot.val();
+        if (userData?.premium === true || userData?.tier === "premium") {
+          console.log("Malvin Core: Premium signature validated via RTDB.");
+          setPremiumToken("MVN_PRM_VALID_2026_A9X7");
         }
-      }, (err) => {
-        console.error("Premium authorization module error:", err);
-      });
+      }
+    }, (err) => {
+      console.error("Premium authorization module error:", err);
     });
 
-    // 🌟 React now receives this function instantly and uses it on unmount
+    // Clean up listener when unmounting
     return () => {
-      unsubscribeAuth();
-      if (userDbRef) {
-        off(userDbRef);
-      }
+      off(userDbRef);
     };
   }, []);
 
@@ -109,9 +97,17 @@ function Welcomeview({ onWakeClick }: WelcomeProps) {
 
   return (
     <div style={{
-      width: '100%', height: '100%', position: 'fixed', inset: 0,
-      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-      backgroundColor: '#000000', zIndex: 1000, overflow: 'hidden'
+      width: '100%',
+      height: '100%',
+      position: 'fixed',
+      inset: 0,
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: '#000000',
+      zIndex: 1000,
+      overflow: 'hidden'
     }}>
       <style>{`
         @keyframes blinkEye {
@@ -132,20 +128,35 @@ function Welcomeview({ onWakeClick }: WelcomeProps) {
 
       <div style={{ position: 'relative', width: '150px', height: '150px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{
-          position: 'absolute', width: '100%', height: '100%',
-          border: '2px solid rgba(0, 242, 255, 0.1)', borderRadius: '50%',
+          position: 'absolute',
+          width: '100%',
+          height: '100%',
+          border: '2px solid rgba(0, 242, 255, 0.1)',
+          borderRadius: '50%',
           animation: 'orbit 2s linear infinite'
         }}>
           <div style={{
-            position: 'absolute', top: '-5px', left: '50%', width: '10px', height: '10px',
-            backgroundColor: '#00f2ff', borderRadius: '50%', boxShadow: '0 0 15px #00f2ff'
+            position: 'absolute',
+            top: '-5px',
+            left: '50%',
+            width: '10px',
+            height: '10px',
+            backgroundColor: '#00f2ff',
+            borderRadius: '50%',
+            boxShadow: '0 0 15px #00f2ff'
           }} />
         </div>
 
         <div style={{
-          width: '80px', height: '80px', backgroundColor: 'rgba(255, 255, 255, 0.05)',
-          borderRadius: '50%', border: '1px solid rgba(0, 242, 255, 0.3)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(5px)'
+          width: '80px',
+          height: '80px',
+          backgroundColor: 'rgba(255, 255, 255, 0.05)',
+          borderRadius: '50%',
+          border: '1px solid rgba(0, 242, 255, 0.3)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backdropFilter: 'blur(5px)'
         }}>
           <svg width="40" height="15" viewBox="0 0 60 20">
             <rect x="5" y="5" width="15" height="12" rx="3" fill="#00f2ff"
@@ -159,8 +170,11 @@ function Welcomeview({ onWakeClick }: WelcomeProps) {
       <p style={{
         marginTop: '30px',
         color: premiumToken === "MVN_PRM_VALID_2026_A9X7" ? "#FFD700" : "#00f2ff", 
-        fontSize: '0.8rem', letterSpacing: '0.2rem', textTransform: 'uppercase',
-        fontFamily: 'monospace', animation: 'pulseText 1.5s infinite ease-in-out'
+        fontSize: '0.8rem',
+        letterSpacing: '0.2rem',
+        textTransform: 'uppercase',
+        fontFamily: 'monospace',
+        animation: 'pulseText 1.5s infinite ease-in-out'
       }}>
         {premiumToken === "MVN_PRM_VALID_2026_A9X7" 
           ? "GOLD ACCESS DETECTED. SYNCHRONIZING SYSTEM..." 
