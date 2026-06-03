@@ -1,4 +1,3 @@
-
 import { db, auth, firestore } from "../firebase";
 import { ref as dbRef, onValue, update, push, ref, serverTimestamp } from "firebase/database";
 import { collection, query, where, onSnapshot, doc, getDoc } from "firebase/firestore";
@@ -24,9 +23,6 @@ import MarginCalculator from "./MarginCalculator";
 import MarketTrends from "./MarketTrends";
 import Memories from "./memories"
 import Achievements from './achievements';
-// Line 27 change to:
-import Joyride, { STATUS } from "react-joyride";
-import type { CallBackProps } from "react-joyride";
 
 // Exporting this so you can import it and use it anywhere else (Chats, MarketFront, etc.)
 export const VerifiedBadge = () => (
@@ -41,8 +37,8 @@ export const VerifiedBadge = () => (
   </svg>
 );
 
-const DashboardCard = ({ children, style, className }: any) => (
-  <div className={className} style={{
+const DashboardCard = ({ children, style }: any) => (
+  <div style={{
     position: "relative",
     background: '#111111',
     borderRadius: '32px',
@@ -235,7 +231,6 @@ const Dashboard = (props: any) => {
     const [showUserMenu, setShowUserMenu] = useState(false);
     const [history, setHistory] = useState<any[]>([]);
     const [verificationPopup, setVerificationPopup] = useState(false);
-    const [runTour, setRunTour] = useState(false);
 
     // Profile States
     const [bio, setBio] = useState('');
@@ -569,37 +564,6 @@ const Dashboard = (props: any) => {
     const handleLogout = async () => {
         await signOut(auth);
     };
-    const tourSteps = [
-        {
-            target: ".tour-menu",
-            content: "Open the Malvin dashboard menu from here."
-        },
-        {
-            target: ".tour-nav",
-            content: "Switch between Ads, Dashboard, Payments, Chats and Catalog."
-        },
-        {
-            target: ".tour-customers",
-            content: "View active customers and manage customer growth."
-        },
-        {
-            target: ".tour-store",
-            content: "This is your online store and storefront preview."
-        },
-        {
-            target: ".tour-assistant",
-            content: "Chat with Malvin AI directly from your dashboard."
-        }
-    ];
-    useEffect(() => {
-        const seenTour = localStorage.getItem("malvinTourSeen");
-
-        if (!seenTour) {
-            setTimeout(() => {
-            setRunTour(true);
-            }, 1000);
-        }
-    }, []);
     useEffect(() => {
         return () => {
             if (visionInterval.current) {
@@ -671,7 +635,6 @@ const Dashboard = (props: any) => {
                             setBrandData(updatedBrand);
                             setActiveTab('Dashboard');
                         }}
-                        startTour={() => setRunTour(true)}
                     />
                 );
 
@@ -711,26 +674,6 @@ const Dashboard = (props: any) => {
             <>
                 
                 <div style={mainContainerStyle}>
-                    <Joyride
-                        steps={tourSteps}
-                        run={runTour}
-                        continuous
-                        showSkipButton
-                        showProgress
-                        disableScrolling={false}
-                        callback={(data) => {
-                            if (
-                            data.status === "finished" ||
-                            data.status === "skipped"
-                            ) {
-                            localStorage.setItem(
-                                "malvinTourSeen",
-                                "true"
-                            );
-                            setRunTour(false);
-                            }
-                        }}
-                    />
                     <style>{`
                         @keyframes slideIn {
                             0% { transform: translateY(-100%) translateX(-50%); opacity: 0; }
@@ -761,22 +704,21 @@ const Dashboard = (props: any) => {
                         width: '100%',
                         gap: '16px'
                     }}>
-                        <div className="tour-menu">
-                            <BackButton
-                                activeTab={activeTab}
-                                setActiveTab={setActiveTab}
-                                setShowTools={setShowTools}
-                                userBrand={userBrand}
-                                setUserBrand={setUserBrand}
-                                setBrandData={setBrandData}
-                                history={history}
-                                handleSaveSimulation={handleSaveSimulation}
-                                handleUpdateBrand={handleUpdateBrand}
-                                handleLogout={handleLogout}
-                                userEmail={userEmail}
-                            />
-                        </div>
-                        <div className="tour-nav" style={navPillStyle}>
+                        <BackButton
+                            activeTab={activeTab}
+                            setActiveTab={setActiveTab}
+                            setShowTools={setShowTools}
+                            userBrand={userBrand}
+                            setUserBrand={setUserBrand}
+                            setBrandData={setBrandData}
+                            history={history}
+                            handleSaveSimulation={handleSaveSimulation}
+                            handleUpdateBrand={handleUpdateBrand}
+                            handleLogout={handleLogout}
+                            userEmail={userEmail}
+                        />
+                        
+                        <div style={navPillStyle}>
                             {['Ads', 'Dashboard', 'Payments', 'Chats', 'Catalog'].map(item => (
                                 <div key={item} onClick={() => setActiveTab(item)} style={{
                                     ...navItemStyle,
@@ -901,7 +843,7 @@ const Dashboard = (props: any) => {
                                         </div>
                                     </DashboardCard>
 
-                                    <DashboardCard  className="tour-customers" style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <DashboardCard style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                                         <VerificationButton state={getVerificationState()} onClick={() => { if (getVerificationState() === "premium") { requestVerification(); }}} />
                                         <div>
                                             <div style={{ fontSize: '12px', color: '#666' }}>
@@ -915,7 +857,7 @@ const Dashboard = (props: any) => {
 
                                 {/* Lower Grid */} 
                                 <div style={lowerGridStyle}>
-                                    <DashboardCard className="tour-store" style={{ overflowY: 'auto' }}>
+                                    <DashboardCard style={{ overflowY: 'auto' }}>
                                         <div style={{ background: '#000', padding: '15px', borderRadius: '12px', border: '1px solid #222', marginBottom: '20px' }}>
                                             <p style={{ fontSize: '10px', color: '#666', marginBottom: '8px' }}>Vin LINK</p>
                                             <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
@@ -936,7 +878,7 @@ const Dashboard = (props: any) => {
                                     </DashboardCard>
 
                                     {/* Malvin AI */} 
-                                    <DashboardCard className="tour-assistant" style={{ flex: 1, overflow: 'hidden' }}>
+                                    <DashboardCard style={{ flex: 1, overflow: 'hidden' }}>
                                         <video ref={videoRef} autoPlay style={{ display: 'none' }} />
                                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
                                             <div style={{ fontSize: '18px', fontWeight: 700 }}>Malvin Assistant</div>
