@@ -13,10 +13,6 @@ export default defineConfig({
       'firebase/auth': path.resolve(__dirname, 'node_modules/firebase/auth/dist/index.mjs'),
     },
   },
-  // 🌟 ADDED: Forces Vite to pre-bundle react-joyride to resolve CommonJS/ESM tracing issues
-  optimizeDeps: {
-    include: ['react-joyride'],
-  },
   build: {
     commonjsOptions: {
       include: [/node_modules/],
