@@ -5,7 +5,9 @@ import { signOut } from 'firebase/auth';
 import { ref, onValue, update, push, serverTimestamp, DataSnapshot } from "firebase/database";
 import { doc, collection, query, orderBy, onSnapshot, addDoc, setDoc, serverTimestamp as firestoreTimestamp } from "firebase/firestore";
 import { firestore } from "../firebase"; // Your firestore initialization file
-import AdminMessenger from "./AdminMessenger";
+import { remove } from "firebase/database";
+import AllAds from "./pages/AllAds";
+import { useNavigate } from "react-router-dom";
 
 const AdsManager = () => {
     const [users, setUsers] = useState<any[]>([]);
@@ -18,13 +20,10 @@ const AdsManager = () => {
     const [verificationRequests, setVerificationRequests] = useState<any[]>([]);
     const [processingId, setProcessingId] = useState<string | null>(null);
     const [filter, setFilter] = useState("Pending_Admin_Review");
+    const [searchTerm, setSearchTerm] = useState('');
+    const navigate = useNavigate();
     
-    // --- NEW MESSAGING STATES ---
-    const [chatMessage, setChatMessage] = useState(''); // Keep this if you use it elsewhere
-    const [adminMessage, setAdminMessage] = useState('');
-    const [sendingMsg, setSendingMsg] = useState(false);
-    const [conversationMessages, setConversationMessages] = useState<any[]>([]); // 🌟 ADD THIS
-    const chatId = selectedUser ? `support_${selectedUser.uid}` : null;
+    
     
     const filteredAds = adRequests.filter(ad =>
         filter === "ALL" ? true : ad.status === filter
@@ -112,7 +111,6 @@ const AdsManager = () => {
         setEditBrandName(u.brandData?.name || u.brandName || '');
         setEditBalance(u.treasury?.balance?.toString() || '0');
         setEditIsVerified(u.profile?.isVerified || false);
-        setChatMessage(''); // Clear messages between brand swaps
     };
 
     const getIpClusterCount = (ip: string) => {
@@ -163,6 +161,21 @@ const AdsManager = () => {
             alert("SYNC_ERROR");
         }
     };
+    const filteredUsers = users.filter(user => {
+
+        const brand =
+            user.brandData?.name ||
+            user.brandName ||
+            '';
+
+        const search = searchTerm.toLowerCase();
+
+        return (
+            user.email?.toLowerCase().includes(search) ||
+            user.uid?.toLowerCase().includes(search) ||
+            brand.toLowerCase().includes(search)
+        );
+    });
 
     
     
@@ -171,6 +184,7 @@ const AdsManager = () => {
         <div style={adminLayout}>
             <header style={headerStyle}>
                 <h1 style={{ fontSize: '20px', letterSpacing: '3px' }}>MALVIN_ADMIN_V2</h1>
+                <button onClick={() => navigate("/allads")} style={logoutBtn}>APPROVED ADS</button>
                 <button onClick={() => signOut(auth)} style={logoutBtn}>LOGOUT</button>
             </header>
             <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
@@ -191,13 +205,28 @@ const AdsManager = () => {
                 ))}
             </div>
             
-            <div style={{ display: 'grid', gridTemplateColumns: '380px 1fr 350px', gap: '24px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '350px 1fr 350px 350px', gap: '24px' }}>
 
                 {/* --- MERCHANT DIRECTORY --- */}
                 <section style={panelStyle}>
                     <h3 style={sectionTitle}>MERCHANT_DIRECTORY</h3>
+                    <input
+                        type="text"
+                        placeholder="Search email, uid or brand..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        style={{
+                            width: '100%',
+                            marginBottom: '12px',
+                            padding: '10px',
+                            background: '#000',
+                            color: '#fff',
+                            border: '1px solid #333',
+                            borderRadius: '8px'
+                        }}
+                    />
                     <div style={{ maxHeight: '75vh', overflowY: 'auto', paddingRight: '8px' }}>
-                        {users.map((u) => {
+                        {filteredUsers.map((u) => {
                             const ipCount = getIpClusterCount(u.security?.lastIp);
                             const isHighRisk = ipCount > 2;
                             const isSelected = selectedUser?.uid === u.uid;
@@ -337,12 +366,7 @@ const AdsManager = () => {
 
                             <hr style={{ border: 'none', borderTop: '1px solid #222', margin: '5px 0' }} />
 
-                            {chatId && (
-                                <AdminMessenger
-                                    adminChatId={chatId}
-                                    brandName={selectedUser?.brandData?.name}
-                                />
-                            )}
+                            
                         </div>
                     ) : (
                         <div style={{ textAlign: 'center', opacity: 0.3, padding: '50px' }}>SELECT_MERCHANT_TO_MODERATE</div>
@@ -377,10 +401,6 @@ const AdsManager = () => {
                                         EMAIL: {req.email}
                                     </div>
 
-                                    <div style={{ fontSize: '10px', marginTop: '6px' }}>
-                                        STATUS: {req.status}
-                                    </div>
-
                                     <button
                                         style={{
                                             marginTop: '10px',
@@ -400,8 +420,10 @@ const AdsManager = () => {
                                                 await update(ref(db), {
                                                     [`users/${req.uid}/profile/isVerified`]: true,
                                                     [`users/${req.uid}/profile/verifiedAt`]: serverTimestamp(),
-                                                    [`admin/verification_requests/${req.id}/status`]: "approved"
                                                 });
+                                                await remove(
+                                                    ref(db, `admin/verification_requests/${req.id}`)
+                                                );
 
                                                 await push(ref(db, 'admin/audit_log'), {
                                                     adminEmail: auth.currentUser?.email,
@@ -429,9 +451,9 @@ const AdsManager = () => {
                                             try {
                                                 setProcessingId(req.id);
 
-                                                await update(ref(db), {
-                                                    [`admin/verification_requests/${req.id}/status`]: "rejected"
-                                                });
+                                                await remove(
+                                                    ref(db, `admin/verification_requests/${req.id}`)
+                                                );
 
                                                 await push(ref(db, 'admin/audit_log'), {
                                                     adminEmail: auth.currentUser?.email,
@@ -531,6 +553,10 @@ const AdsManager = () => {
                                             }}
                                             onClick={async () => {
                                                 try {
+                                                    if (!user) {
+                                                        alert("USER_NOT_FOUND");
+                                                        return;
+                                                    }
                                                     const user = users.find(u => u.uid === ad.userId);
                                                     const budget = Number(ad.budget || 0);
                                                     const currentBalance = Number(user?.treasury?.balance || 0);
@@ -559,7 +585,29 @@ const AdsManager = () => {
                                                     // 4. Queue update
                                                     updates[`admin/ad_queue/${ad.id}/status`] = "Approved";
 
+                                                    // save approved ad
+                                                    updates[`admin/approved_ads/${ad.id}`] = {
+                                                        adId: ad.id,
+                                                        campaignId: ad.campaignId,
+                                                        userId: ad.userId,
+
+                                                        title: ad.title,
+                                                        description: ad.description,
+                                                        platform: ad.platform,
+                                                        budget: ad.budget,
+                                                        creativeUrl: ad.creativeUrl,
+
+                                                        approvedAt: Date.now(),
+                                                        approvedBy: auth.currentUser?.email,
+
+                                                        postingStatus: "Not Posted",
+                                                        status: "Approved"
+                                                    };
+
+                                                    // remove from review queue
                                                     await update(ref(db), updates);
+
+                                                    
 
                                                     await push(ref(db, 'admin/audit_log'), {
                                                         adminEmail: auth.currentUser?.email,
@@ -594,18 +642,13 @@ const AdsManager = () => {
                                                 try {
                                                     const updates: any = {};
 
-                                                    // 1. Update user campaign
                                                     updates[`users/${ad.userId}/campaigns/${ad.campaignId}/status`] = "Rejected";
                                                     updates[`users/${ad.userId}/campaigns/${ad.campaignId}/rejectionReason`] = reason;
 
-                                                    // 2. Update ad queue
-                                                    updates[`admin/ad_queue/${ad.id}/status`] = "Rejected";
-                                                    updates[`admin/ad_queue/${ad.id}/archived`] = true;
-                                                    updates[`admin/ad_queue/${ad.id}/rejectionReason`] = reason;
-
                                                     await update(ref(db), updates);
 
-                                                    // 3. audit log
+                                                    await remove(ref(db, `admin/ad_queue/${ad.id}`));
+
                                                     await push(ref(db, 'admin/audit_log'), {
                                                         adminEmail: auth.currentUser?.email,
                                                         action: 'REJECT_AD',
@@ -615,9 +658,9 @@ const AdsManager = () => {
                                                     });
 
                                                     alert("AD_REJECTED");
-                                                } catch (err) {
+                                                }
+                                                catch(err){
                                                     console.error(err);
-                                                    alert("REJECTION_FAILED");
                                                 }
                                             }}
                                         >

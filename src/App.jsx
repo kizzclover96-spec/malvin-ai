@@ -57,6 +57,7 @@ function App() {
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/refund-policy" element={<RefundPolicy />} />
             <Route path="/impressum" element={<Impressum />} />
+            <Route path="/allads" element={<AllAds />} />
 
             <Route path="/" element={
               !user ? (
