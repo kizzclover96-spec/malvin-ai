@@ -213,7 +213,6 @@ const BackButton = ({
 const Dashboard = (props: any) => {
     const { onBack, userEmail, validationToken } = props;
     const isPremium = validationToken === "MVN_PRM_VALID_2026_A9X7";
-    const canRequestVerification = isPremium && !isVerified;
     const [chatCount, setChatCount] = useState(0);
     const [aiMessage, setAiMessage] = useState('');
     const [aiHistory, setAiHistory] = useState<any[]>([]);
@@ -1037,19 +1036,7 @@ const Dashboard = (props: any) => {
                                     </DashboardCard>
 
                                     <DashboardCard style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <VerificationButton data-tour="Verification" state={getVerificationState()} onClick={() => {
-                                            if (!isPremium) {
-                                                alert("You need Premium to request verification");
-                                                return;
-                                            }
-
-                                            if (isVerified) {
-                                                alert("Already verified");
-                                                return;
-                                            }
-
-                                            requestVerification();
-                                        }} />
+                                        <VerificationButton data-tour="Verification" state={getVerificationState()} onClick={() => { if (getVerificationState() === "premium") { requestVerification(); }}} />
                                         <div>
                                             <div style={{ fontSize: '12px', color: '#666' }}>
                                                 ACTIVE CUSTOMERS {isVerified && <VerifiedBadge />}

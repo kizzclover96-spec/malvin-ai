@@ -12,7 +12,8 @@ const LandingPage = ({ onLoginClick }) => {
     { name: "firebase", icon: "https://www.vectorlogo.zone/logos/firebase/firebase-icon.svg" },
     { name: "openai", icon: "https://static.cdnlogo.com/logos/o/38/openai.svg" },
     { name: "gemini", icon: "https://www.gstatic.com/lamda/images/gemini_sparkle_v002.svg" },
-    { name: "lemonsqueezy", icon: "https://vignette.wikia.nocookie.net/logopedia/images/4/4c/Lemon_Squeezy_Icon.png" },
+    // FIXED: Pointing to a reliable source or your local asset folder to prevent the 404
+    { name: "lemonsqueezy", icon: "https://www.vectorlogo.zone/logos/lemonsqueezy/lemonsqueezy-icon.svg" },
   ];
 
   return (

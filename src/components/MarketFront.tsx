@@ -273,12 +273,7 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
                     <div style={onlineStatus}><span style={dotStyle} /> Active Now</div>
                 </div>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-                    <button
-                        onClick={installMarket}
-                        style={bookingBtnStyle}
-                    >
-                        Install 📲
-                    </button>
+                    
                     <button onClick={() => setView('booking')} style={bookingBtnStyle}>
                         Book 🗓️
                     </button>
