@@ -231,6 +231,9 @@ const Dashboard = (props: any) => {
     const [showUserMenu, setShowUserMenu] = useState(false);
     const [history, setHistory] = useState<any[]>([]);
     const [verificationPopup, setVerificationPopup] = useState(false);
+    const [tourActive, setTourActive] = useState(false);
+    const [tourStep, setTourStep] = useState(0);
+    const [tourReady, setTourReady] = useState(false);
 
     // Profile States
     const [bio, setBio] = useState('');
@@ -240,6 +243,146 @@ const Dashboard = (props: any) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const visionInterval = useRef<any>(null);
     const chatEndRef = useRef<HTMLDivElement>(null);
+
+    const TourOverlay = ({ step, onNext, onClose }: any) => {
+        const target = document.querySelector(`[data-tour="${step.target}"]`);
+
+        const [pos, setPos] = useState({ top: 0, left: 0, width: 0, height: 0 });
+
+        useEffect(() => {
+            const update = () => {
+                const target = document.querySelector(`[data-tour="${step.target}"]`);
+                if (!target) return;
+
+                const rect = target.getBoundingClientRect();
+
+                setPos({
+                top: rect.top,
+                left: rect.left,
+                width: rect.width,
+                height: rect.height
+                });
+            };
+
+            update();
+
+            window.addEventListener("scroll", update);
+            window.addEventListener("resize", update);
+
+            return () => {
+                window.removeEventListener("scroll", update);
+                window.removeEventListener("resize", update);
+            };
+        }, [step]);
+
+        return (
+            <div style={{
+                position: "fixed",
+                inset: 0,
+                background: "rgba(0,0,0,0.6)",
+                zIndex: 99999
+            }}>
+                {/* Highlight box */}
+                <div style={{
+                    position: "absolute",
+                    top: pos.top - 8,
+                    left: pos.left - 8,
+                    width: pos.width + 16,
+                    height: pos.height + 16,
+                    border: "2px solid #C5FF41",
+                    borderRadius: "16px",
+                    boxShadow: "0 0 30px rgba(197,255,65,0.3)"
+                }} />
+
+                {/* Tooltip */}
+                <div style={{
+                    position: "absolute",
+                    top: pos.top + pos.height + 20,
+                    left: pos.left,
+                    width: "260px",
+                    background: "#111",
+                    border: "1px solid #222",
+                    borderRadius: "16px",
+                    padding: "14px",
+                    color: "#fff"
+                }}>
+                    <div style={{ fontWeight: 700, marginBottom: 6 }}>
+                        {step.title}
+                    </div>
+                    <div style={{ fontSize: "12px", color: "#aaa" }}>
+                        {step.description}
+                    </div>
+
+                    <button
+                        onClick={onNext}
+                        style={{
+                            marginTop: 10,
+                            width: "100%",
+                            padding: "8px",
+                            background: "#C5FF41",
+                            border: "none",
+                            borderRadius: "10px",
+                            fontWeight: 700
+                        }}
+                    >
+                        Next
+                    </button>
+
+                    <button
+                        onClick={onClose}
+                        style={{
+                            marginTop: 6,
+                            width: "100%",
+                            padding: "6px",
+                            background: "transparent",
+                            color: "#888",
+                            border: "none"
+                        }}
+                    >
+                        Skip
+                    </button>
+                </div>
+            </div>
+        );
+    };
+    const finishTour = async () => {
+        setTourActive(false);
+
+        if (!userBrand?.id) return;
+
+        await update(dbRef(db, `users/${userBrand.id}/uiState`), {
+            tourSeen: "1.1"
+        });
+        setTimeout(() => {
+            setTourActive(true);
+        }, 800);
+    };
+    const tourSteps = [
+        {
+            id: "welcome",
+            title: "Welcome to your Dashboard",
+            description: "This is your control center for everything.",
+            target: "header"
+        },
+        {
+            id: "nav",
+            title: "Navigation",
+            description: "Switch between Chats, Ads, Catalog and more here.",
+            target: "nav"
+        },
+        {
+            id: "ai",
+            title: "Malvin AI",
+            description: "Your assistant that helps you manage everything.",
+            target: "ai"
+        },
+        {
+            id: "bio",
+            title: "Your Store Bio",
+            description: "This appears on your public storefront.",
+            target: "bio"
+        }
+    ];
     const [userBrand, setUserBrand] = useState({
         id: "",
         name: "Connecting...",
@@ -571,6 +714,25 @@ const Dashboard = (props: any) => {
             }
         };
     }, []);
+    useEffect(() => {
+        if (!userBrand?.id) return;
+
+        const tourRef = dbRef(db, `users/${userBrand.id}/uiState/tourSeen`);
+
+        const unsub = onValue(tourRef, (snap) => {
+            const seen = snap.val();
+
+            // if never seen OR version mismatch → start tour
+            if (!seen || seen !== "1.1") {
+                setTourStep(0);
+                setTourActive(true);
+            }
+
+            setTourReady(true);
+        });
+
+        return () => unsub();
+    }, [userBrand?.id]);
     const renderFullscreenTab = () => {
         switch (activeTab) {
             case "Notes":
@@ -718,7 +880,7 @@ const Dashboard = (props: any) => {
                             userEmail={userEmail}
                         />
                         
-                        <div style={navPillStyle}>
+                        <div data-tour="nav" style={navPillStyle}>
                             {['Ads', 'Dashboard', 'Payments', 'Chats', 'Catalog'].map(item => (
                                 <div key={item} onClick={() => setActiveTab(item)} style={{
                                     ...navItemStyle,
@@ -806,7 +968,7 @@ const Dashboard = (props: any) => {
                                         </div>
 
                                         {/* MANUALLY EDITABLE BIO (Upper-left card, under data fields) */} 
-                                        <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                        <div data-tour="bio" style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                             <span style={{ fontSize: '10px', color: '#666', fontWeight: 800, letterSpacing: '1px' }}>STORE_FRONT_BIO</span>
                                             <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end' }}>
                                                 <textarea 
@@ -878,7 +1040,7 @@ const Dashboard = (props: any) => {
                                     </DashboardCard>
 
                                     {/* Malvin AI */} 
-                                    <DashboardCard style={{ flex: 1, overflow: 'hidden' }}>
+                                    <DashboardCard data-tour="ai" style={{ flex: 1, overflow: 'hidden' }}>
                                         <video ref={videoRef} autoPlay style={{ display: 'none' }} />
                                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
                                             <div style={{ fontSize: '18px', fontWeight: 700 }}>Malvin Assistant</div>
@@ -908,6 +1070,19 @@ const Dashboard = (props: any) => {
                             </div>
                         )}
                     </div>
+                    {tourActive && tourReady && (
+                        <TourOverlay
+                            step={tourSteps[tourStep]}
+                            onNext={() => {
+                                if (tourStep < tourSteps.length - 1) {
+                                    setTourStep(tourStep + 1);
+                                } else {
+                                    finishTour();
+                                }
+                            }}
+                            onClose={finishTour}
+                        />
+                    )}
                     {showCalendar && (
                         <div style={modalOverlayStyle} onClick={() => setShowCalendar(false)}>
                             <div style={calendarCardStyle} onClick={e => e.stopPropagation()}>
