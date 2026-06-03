@@ -9,6 +9,7 @@ import LandingPage from "./pages/LandingPage";
 import CookieBanner from "./components/CookieBanner";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
+import AllAds from "./components/AllAds";
 import RefundPolicy from "./pages/RefundPolicy";
 import Impressum from "./pages/Impressum";
 import MarketFront from "./components/MarketFront";
