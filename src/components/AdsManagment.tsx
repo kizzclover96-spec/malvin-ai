@@ -605,7 +605,10 @@ const AdsManager = () => {
                                                     };
 
                                                     // remove from review queue
-                                                    await update(ref(db), updates);
+                                                    await update(ref(db, `admin`), {
+                                                        [`ad_queue/${ad.id}/status`]: "Approved",
+                                                        [`approved_ads/${ad.id}`]: approvedData
+                                                    });
 
                                                     
 
@@ -645,7 +648,11 @@ const AdsManager = () => {
                                                     updates[`users/${ad.userId}/campaigns/${ad.campaignId}/status`] = "Rejected";
                                                     updates[`users/${ad.userId}/campaigns/${ad.campaignId}/rejectionReason`] = reason;
 
-                                                    await update(ref(db), updates);
+                                                    await update(ref(db, `users/${ad.userId}`), {
+                                                        [`campaigns/${ad.campaignId}/status`]: "Approved",
+                                                        [`campaigns/${ad.campaignId}/reviewStatus`]: "Approved",
+                                                        [`treasury/balance`]: newBalance
+                                                    });
 
                                                     await remove(ref(db, `admin/ad_queue/${ad.id}`));
 
