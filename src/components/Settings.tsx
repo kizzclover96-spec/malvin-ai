@@ -102,7 +102,7 @@ const AuraBackground = () => {
 `}
 </style>
 
-const Settings = ({ onBack, onSave, userBrand, setUserBrand, onUpdate, auth }: any) => {
+const Settings = ({ onBack, onSave, userBrand, setUserBrand, onUpdate, auth, startTour, }: any) => {
     const [tempName, setTempName] = useState(userBrand.name);
     const [tempBrand, setTempBrand] = useState(userBrand);
     const [name, setName] = useState('');
@@ -151,6 +151,7 @@ const Settings = ({ onBack, onSave, userBrand, setUserBrand, onUpdate, auth }: a
         { id: 'Notifications', icon: '🔔' },
         { id: 'Team', icon: '👥' },
         { id: 'About us' },
+        
     ];
 
     
@@ -208,6 +209,24 @@ const Settings = ({ onBack, onSave, userBrand, setUserBrand, onUpdate, auth }: a
                                 <span>{item.icon}</span> {item.id}
                             </div>
                         ))}
+                        <button
+                            onClick={() => {
+                                onClick={startTour}
+                            }}
+                            style={{
+                                marginTop: '12px',
+                                background: 'rgba(197,255,65,0.08)',
+                                border: '1px solid #C5FF41',
+                                color: '#C5FF41',
+                                padding: '10px',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                fontSize: '13px',
+                                fontWeight: 600
+                            }}
+                        >
+                            🎓 Take Dashboard Tour
+                        </button>
 
                         <button 
                             onClick={onBack}
