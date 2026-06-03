@@ -552,11 +552,12 @@ const AdsManager = () => {
                                             }}
                                             onClick={async () => {
                                                 try {
+                                                    const user = users.find(u => u.uid === ad.userId);
+
                                                     if (!user) {
                                                         alert("USER_NOT_FOUND");
                                                         return;
                                                     }
-                                                    const user = users.find(u => u.uid === ad.userId);
                                                     const budget = Number(ad.budget || 0);
                                                     const currentBalance = Number(user?.treasury?.balance || 0);
                                                     const newBalance = currentBalance - budget;
