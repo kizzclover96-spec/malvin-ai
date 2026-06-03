@@ -234,6 +234,7 @@ const Dashboard = (props: any) => {
     const [tourActive, setTourActive] = useState(false);
     const [tourStep, setTourStep] = useState(0);
     const [tourReady, setTourReady] = useState(false);
+    const [tourFinished, setTourFinished] = useState(false);
 
     // Profile States
     const [bio, setBio] = useState('');
@@ -346,6 +347,7 @@ const Dashboard = (props: any) => {
         );
     };
     const finishTour = async () => {
+        setTourFinished(true);
         setTourActive(false);
 
         if (!userBrand?.id) return;
@@ -353,9 +355,6 @@ const Dashboard = (props: any) => {
         await update(dbRef(db, `users/${userBrand.id}/uiState`), {
             tourSeen: "1.1"
         });
-        setTimeout(() => {
-            setTourActive(true);
-        }, 800);
     };
     const tourSteps = [
         {
@@ -381,7 +380,37 @@ const Dashboard = (props: any) => {
             title: "Your Store Bio",
             description: "This appears on your public storefront.",
             target: "bio"
-        }
+        },
+        {
+            id: "vin link",
+            title: "Personal Vin",
+            description: "takes customers/potential cleints to your store front",
+            target: "vinlink"
+        },
+        {
+            id: "Malvin assistant",
+            title: "Personal AI",
+            description: "ask questions and discover the possibilities of ai automated business",
+            target: "malvinassistant"
+        },
+        {
+            id: "Verification",
+            title: "Get a blue checkmark",
+            description: "Go premuim and have access to the best of malvin capabilities",
+            target: "verification"
+        },
+        {
+            id: "Store Qr",
+            title: " QR",
+            description: "Auto update/generate qr takes customers/potential cleints to your store front",
+            target: "vinlink"
+        },
+        {
+            id: "Achievments",
+            title: " Perform tasks",
+            description: "APerform activities to always keep you on track",
+            target: "AChievments"
+        },
     ];
     const [userBrand, setUserBrand] = useState({
         id: "",
@@ -722,7 +751,8 @@ const Dashboard = (props: any) => {
         const unsub = onValue(tourRef, (snap) => {
             const seen = snap.val();
 
-            // if never seen OR version mismatch → start tour
+            if (tourFinished) return; // 🚨 important lock
+
             if (!seen || seen !== "1.1") {
                 setTourStep(0);
                 setTourActive(true);
@@ -732,7 +762,7 @@ const Dashboard = (props: any) => {
         });
 
         return () => unsub();
-    }, [userBrand?.id]);
+    }, [userBrand?.id, tourFinished]);
     const renderFullscreenTab = () => {
         switch (activeTab) {
             case "Notes":
@@ -895,7 +925,7 @@ const Dashboard = (props: any) => {
                         
                         {/* Pushed right with clear safety clearance from the screen boundary */}
                         <div style={{ marginLeft: 'auto', marginRight: '40px' }}>
-                            <Achievements />
+                            <Achievements data-tour="Achievments" />
                         </div>
                     </div>
                     {/* Comment out your real components and use this test block */}
@@ -1006,7 +1036,7 @@ const Dashboard = (props: any) => {
                                     </DashboardCard>
 
                                     <DashboardCard style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <VerificationButton state={getVerificationState()} onClick={() => { if (getVerificationState() === "premium") { requestVerification(); }}} />
+                                        <VerificationButton data-tour="Verification" state={getVerificationState()} onClick={() => { if (getVerificationState() === "premium") { requestVerification(); }}} />
                                         <div>
                                             <div style={{ fontSize: '12px', color: '#666' }}>
                                                 ACTIVE CUSTOMERS {isVerified && <VerifiedBadge />}
@@ -1021,12 +1051,12 @@ const Dashboard = (props: any) => {
                                 <div style={lowerGridStyle}>
                                     <DashboardCard style={{ overflowY: 'auto' }}>
                                         <div style={{ background: '#000', padding: '15px', borderRadius: '12px', border: '1px solid #222', marginBottom: '20px' }}>
-                                            <p style={{ fontSize: '10px', color: '#666', marginBottom: '8px' }}>Vin LINK</p>
+                                            <p data-tour="Vin link" style={{ fontSize: '10px', color: '#666', marginBottom: '8px' }}>Vin LINK</p>
                                             <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                                                 <code style={codeStyle}>{shareUrl}</code>
                                             </div>
                                         </div>
-                                        <div style={qrContainerStyle}>
+                                        <div data-tour="Store Qr" style={qrContainerStyle}>
                                             <div style={{ flex: 1 }}>
                                                 <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '10px' }}>Online Store</div>
                                                 <div style={{ display: 'flex', gap: '8px' }}>
