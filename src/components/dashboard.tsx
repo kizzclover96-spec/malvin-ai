@@ -24,7 +24,9 @@ import MarginCalculator from "./MarginCalculator";
 import MarketTrends from "./MarketTrends";
 import Memories from "./memories"
 import Achievements from './achievements';
-import Joyride, { CallBackProps, STATUS } from "react-joyride";
+// Line 27 change to:
+import Joyride, { STATUS } from "react-joyride";
+import type { CallBackProps } from "react-joyride";
 
 // Exporting this so you can import it and use it anywhere else (Chats, MarketFront, etc.)
 export const VerifiedBadge = () => (
