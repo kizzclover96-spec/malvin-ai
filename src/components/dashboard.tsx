@@ -1,4 +1,4 @@
-import Joyride from "react-joyride";
+
 import { db, auth, firestore } from "../firebase";
 import { ref as dbRef, onValue, update, push, ref, serverTimestamp } from "firebase/database";
 import { collection, query, where, onSnapshot, doc, getDoc } from "firebase/firestore";
@@ -24,6 +24,7 @@ import MarginCalculator from "./MarginCalculator";
 import MarketTrends from "./MarketTrends";
 import Memories from "./memories"
 import Achievements from './achievements';
+import Joyride, { CallBackProps, STATUS } from "react-joyride";
 
 // Exporting this so you can import it and use it anywhere else (Chats, MarketFront, etc.)
 export const VerifiedBadge = () => (
