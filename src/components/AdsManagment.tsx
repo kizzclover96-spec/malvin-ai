@@ -6,7 +6,7 @@ import { ref, onValue, update, push, serverTimestamp, DataSnapshot } from "fireb
 import { doc, collection, query, orderBy, onSnapshot, addDoc, setDoc, serverTimestamp as firestoreTimestamp } from "firebase/firestore";
 import { firestore } from "../firebase"; // Your firestore initialization file
 import { remove } from "firebase/database";
-import AllAds from "./pages/AllAds";
+import AllAds from "./AllAds";
 import { useNavigate } from "react-router-dom";
 
 const AdsManager = () => {
