@@ -21,7 +21,6 @@ const AdsManager = () => {
     const [processingId, setProcessingId] = useState<string | null>(null);
     const [filter, setFilter] = useState("Pending_Admin_Review");
     const [searchTerm, setSearchTerm] = useState('');
-    const navigate = useNavigate();
     
     
     
