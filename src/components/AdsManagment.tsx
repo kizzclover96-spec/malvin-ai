@@ -7,7 +7,7 @@ import { doc, collection, query, orderBy, onSnapshot, addDoc, setDoc, serverTime
 import { firestore } from "../firebase"; // Your firestore initialization file
 import { remove } from "firebase/database";
 import AllAds from "./AllAds";
-import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 const AdsManager = () => {
     const [users, setUsers] = useState<any[]>([]);
@@ -184,7 +184,7 @@ const AdsManager = () => {
         <div style={adminLayout}>
             <header style={headerStyle}>
                 <h1 style={{ fontSize: '20px', letterSpacing: '3px' }}>MALVIN_ADMIN_V2</h1>
-                <button onClick={() => navigate("/allads")} style={logoutBtn}>APPROVED ADS</button>
+                <Link to="/allads" style={logoutBtn}> APPROVED ADS</Link>
                 <button onClick={() => signOut(auth)} style={logoutBtn}>LOGOUT</button>
             </header>
             <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
@@ -712,7 +712,7 @@ const labelStyle: React.CSSProperties = { fontSize: '10px', opacity: 0.5 };
 const logItem: React.CSSProperties = { padding: '10px', borderBottom: '1px solid #111' };
 const botTag: React.CSSProperties = { background: '#ff4d4d', color: '#fff', fontSize: '8px', padding: '2px 6px', borderRadius: '4px', fontWeight: 900 };
 const headerStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', marginBottom: '30px' };
-const logoutBtn: React.CSSProperties = { background: 'transparent', border: '1px solid #ff4d4d', color: '#ff4d4d', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer' };
+const logoutBtn: React.CSSProperties = { background: 'transparent', border: '1px solid #ff4d4d', color: '#ff4d4d', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', textDecoration: 'none', display: 'inline-block' };
 
 // Messenger container layout
 const messengerContainer: React.CSSProperties = {
