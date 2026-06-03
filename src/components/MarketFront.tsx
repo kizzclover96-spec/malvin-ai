@@ -244,8 +244,10 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
                     from { transform: translateY(100%); }
                     to { transform: translateY(0); }
                 }
-                body { overflow-x: hidden; background-color: black; margin: 0; }
-                ::-webkit-scrollbar { width: 0px; }
+                body { overflow: hidden; background-color: black; margin: 0; }
+                /* Custom light track scrollbar for store interface layout */
+                .scrolling-grid::-webkit-scrollbar { width: 4px; }
+                .scrolling-grid::-webkit-scrollbar-thumb { background: rgba(195, 255, 65, 0.2); border-radius: 2px; }
             `}</style>
 
             <header style={headerStyle}>
@@ -286,7 +288,8 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
                 </div>
             </header>
 
-            <div style={productGrid}>
+            {/* Scroll Container Interface View */}
+            <div style={productGrid} className="scrolling-grid">
                 {catalog.length === 0 ? (
                     <div style={emptyState}>Catalog is empty.</div>
                 ) : (
@@ -356,17 +359,17 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
     );
 };
 
-// --- STYLES ---
+// --- STYLES MODIFICATIONS ---
 const marketContainer: React.CSSProperties = { 
     backgroundColor: '#000',
-    minHeight: '100dvh',
+    height: '100dvh', // 🌟 FIXED: Locked total app page boundaries
     color: 'white',
     padding: '0 12px',
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    overflowX: 'hidden',
+    overflow: 'hidden', // 🌟 FIXED: Prevents browser body shifting anomalies
     paddingTop: 'env(safe-area-inset-top)',
     paddingBottom: 'env(safe-area-inset-bottom)',
     overscrollBehavior: 'none'
@@ -378,23 +381,24 @@ const headerStyle: React.CSSProperties = {
     maxWidth: '400px', 
     justifyContent: 'space-between', 
     alignItems: 'flex-start', 
-    padding: '24px 0',
-    position: 'sticky',
-    top: 0,
+    padding: '24px 0 12px 0',
     backgroundColor: '#000',
     zIndex: 110,
-    marginBottom: '10px'
+    flexShrink: 0 // 🌟 FIXED: Insures header dimensions remain static
 };
 
 const productGrid: React.CSSProperties = { 
     display: 'grid', 
     gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
     gap: '12px',
-    paddingBottom: '40px',
     width: '100%',
     maxWidth: '400px',
     boxSizing: 'border-box',
-    overflowX: 'hidden'
+    // 🌟 FIXED: Track available calculation scope dynamically to slide up/down on device footprints
+    height: 'calc(100vh - 160px)', 
+    overflowY: 'auto', // Enables standard vertical swipe mechanics
+    paddingBottom: '60px',
+    WebkitOverflowScrolling: 'touch' // Restores iOS physical momentum bounce mechanics
 };
 
 const bookingBtnStyle: React.CSSProperties = { 
