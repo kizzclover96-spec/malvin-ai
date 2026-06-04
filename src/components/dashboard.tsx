@@ -212,7 +212,7 @@ const BackButton = ({
 
 const Dashboard = (props: any) => {
     const { onBack, userEmail, validationToken } = props;
-    const isPremium = import.meta.env.VITE_VALIDATIONTOKEN === validationToken;
+    const isPremium = !!validationToken;
     const [chatCount, setChatCount] = useState(0);
     const [aiMessage, setAiMessage] = useState('');
     const [aiHistory, setAiHistory] = useState<any[]>([]);
