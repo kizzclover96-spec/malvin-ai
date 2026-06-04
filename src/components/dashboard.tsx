@@ -429,24 +429,24 @@ const Dashboard = (props: any) => {
             if (!user) return;
             const brandId = user.uid;
 
-            const userDbRef = dbRef(db, `users/${user.uid}/brandData`);
+            const userDbRef = dbRef(db, `users/${user.uid}`);
 
             const unsubscribe = onValue(userDbRef, (snapshot) => {
                 const data = snapshot.val();
                 if (!data) return;
 
                 setUserBrand((prev) => {
-                    // If the name and ID are already identical, do nothing! Break the loop.
-                    if (prev.id === brandId && prev.name === (data?.name || "CEO / Founder") && prev.context === data?.context) {
-                        return prev; 
-                    }
-                    
+                    const status =
+                        data?.brandData?.status ||
+                        data?.status ||
+                        "Active";
+
                     return {
                         ...prev,
-                        ...data,
+                        ...data.brandData,
                         id: brandId,
-                        status: data?.status || "Active",
-                        name: data?.name || "CEO / Founder"
+                        status,
+                        suspensionEnds: data?.suspensionEnds || null
                     };
                 });
             });
@@ -858,7 +858,7 @@ const Dashboard = (props: any) => {
     
 
 
-    if (userBrand?.status?.toLowerCase?.() === "banned") {
+    if ((userBrand.status || "").toLowerCase() === "banned"){
         return (
             <div className="blocked-screen">
                 <h1>BUSINESS BANNED</h1>
@@ -878,7 +878,7 @@ const Dashboard = (props: any) => {
 
         const end = userBrand?.suspensionEnds;
 
-        const remaining = Math.max(0, end - Date.now());
+        const remaining = end ? Math.max(0, end - Date.now()) : 0;
 
         const hours = Math.floor(remaining / 3600000);
         const mins = Math.floor((remaining % 3600000) / 60000);

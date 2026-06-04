@@ -149,12 +149,12 @@ const AdsManager = () => {
         }
 
         else if (newStatus === "Suspended") {
-            updates[`users/${uid}/brandData/status`] = "Suspended";
+            updates[`users/${uid}/status`] = "Suspended";
             updates[`users/${uid}/suspensionEnds`] = Date.now() + 3600000;
         }
 
         else {
-            updates[`users/${uid}/brandData/status`] = "Active";
+            updates[`users/${uid}/status`] = "Active";
             updates[`users/${uid}/suspensionEnds`] = null;
         }
 
