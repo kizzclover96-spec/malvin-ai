@@ -1,11 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db } from '../firebase';
-import { ref as dbRef, onValue } from "firebase/database";
+import { ref as dbRef, onValue, set, push, update } from "firebase/database";
 import { ProductCard } from './ProductView';
 import CustomerChat from './CustomerChat';
-import { set } from "firebase/database";
-
 
 // Reusable Verified Badge Component
 const VerifiedBadge = () => (
@@ -35,31 +33,21 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
     const [quantity, setQuantity] = useState(1);
     const [isLocked, setIsLocked] = useState(false);
     const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-    
+
+    // Review / Comment Input States
+    const [reviews, setReviews] = useState<any[]>([]);
+    const [commentText, setCommentText] = useState('');
+    const [ratingScore, setRatingScore] = useState(5);
+    const [reviewerName, setReviewerName] = useState('');
 
     // Dynamic Profile States (Bio & Meta Verification)
     const [bio, setBio] = useState('');
     const [isVerified, setIsVerified] = useState(false);
+
     useEffect(() => {
         const link = document.querySelector("link[rel='manifest']");
         if (link) link.setAttribute("href", "/market-manifest.json");
     }, []);
-    const installMarket = async () => {
-        if (!deferredPrompt) {
-            alert("Install not available. Open in Chrome mobile.");
-            return;
-        }
-
-        deferredPrompt.prompt();
-
-        const choice = await deferredPrompt.userChoice;
-
-        if (choice.outcome === "accepted") {
-            console.log("Installed");
-        }
-
-        setDeferredPrompt(null);
-    };
 
     // Sync Panic Button/System Settings
     useEffect(() => {
@@ -74,8 +62,6 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
         });
         return () => unsubscribe();
     }, []);
-    
-    
 
     // Sync Booked Dates
     useEffect(() => {
@@ -83,7 +69,8 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
         const bookingsPath = dbRef(db, `users/${brandId}/bookings`);
         const unsubscribe = onValue(bookingsPath, (snapshot) => {
             const data = snapshot.val();
-            if (data) { setBookedDates( Object.values(data) .filter((b: any) => b?.date) .map((b: any) => b.date) );
+            if (data) { 
+                setBookedDates( Object.values(data) .filter((b: any) => b?.date) .map((b: any) => b.date) );
             } else {
                 setBookedDates([]);
             }
@@ -91,7 +78,7 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
         return () => unsubscribe();
     }, [brandId]);
 
-    // Sync Brand Profile (Bio & Verification Status)
+    // Sync Brand Profile
     useEffect(() => {
         if (!brandId) return;
         const profilePath = dbRef(db, `users/${brandId}/profile`);
@@ -125,26 +112,82 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
         };
     }, [brandId]);
 
+    // Real-time listener for reviews when a product is clicked open
+    useEffect(() => {
+        if (!brandId || !selectedProduct) {
+            setReviews([]);
+            return;
+        }
+
+        const reviewsPath = dbRef(db, `users/${brandId}/reviews/${selectedProduct.id}`);
+        const unsubscribeReviews = onValue(reviewsPath, (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                const fetchedReviews = Object.keys(data).map(key => ({
+                    id: key,
+                    ...data[key]
+                }));
+                // Sort by latest review first
+                setReviews(fetchedReviews.reverse());
+            } else {
+                setReviews([]);
+            }
+        });
+
+        return () => unsubscribeReviews();
+    }, [brandId, selectedProduct]);
+
+    // Handler to submit a review/comment
+    const handlePostReview = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!commentText.trim()) return;
+
+        const reviewsPath = dbRef(db, `users/${brandId}/reviews/${selectedProduct.id}`);
+        const newReviewRef = push(reviewsPath);
+
+        await set(newReviewRef, {
+            name: reviewerName.trim() || "Anonymous User",
+            comment: commentText.trim(),
+            rating: ratingScore,
+            likes: 0,
+            timestamp: Date.now()
+        });
+
+        // Reset inputs
+        setCommentText('');
+        setReviewerName('');
+        setRatingScore(5);
+    };
+
+    // Handler to increment likes on comments
+    const handleLikeComment = async (reviewId: string, currentLikes: number) => {
+        const commentRef = dbRef(db, `users/${brandId}/reviews/${selectedProduct.id}/${reviewId}`);
+        await update(commentRef, {
+            likes: (currentLikes || 0) + 1
+        });
+    };
+
+    // Aggregate rating statistics
+    const reviewCount = reviews.length;
+    const averageRating = reviewCount > 0 
+        ? (reviews.reduce((acc, curr) => acc + curr.rating, 0) / reviewCount).toFixed(1)
+        : null;
+
     const handleBookDate = async (date: string) => {
         if (!date) return;
-
         if (bookedDates.includes(date)) {
             alert("This date is already taken!");
             return;
         }
-
         try {
             const newBookingRef = dbRef(db, `users/${brandId}/bookings/${Date.now()}`);
-
             await set(newBookingRef, {
                 date,
                 timestamp: Date.now(),
                 status: "pending"
             });
-
             alert(`Success! Date ${date} reserved.`);
             setView("market");
-
         } catch (err) {
             console.error(err);
             alert("Booking failed. Try again.");
@@ -153,43 +196,27 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
 
     const handleConfirmOrder = () => {
         if (!orderModal) return;
-        
         localStorage.setItem('pendingOrder', JSON.stringify({
             ...orderModal,
             quantity: quantity
         }));
-        
         setOrderModal(null);
         setView('chat');
     };
-    useEffect(() => {
-        const handler = (e: any) => {
-            e.preventDefault();
-            setDeferredPrompt(e);
-        };
 
-        window.addEventListener("beforeinstallprompt", handler);
-
-        return () => {
-            window.removeEventListener("beforeinstallprompt", handler);
-        };
-    }, []);
     if (view === 'booking') {
         return (
             <div style={{ position: 'relative', height: '100dvh', backgroundColor: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
                 <button onClick={() => setView('market')} style={backToMarketBtn}>← Back</button>
-                
                 <div style={glassModal}>
                     <h2 style={{ color: '#C5FF41', marginBottom: '10px', fontSize: '20px' }}>RESERVE SESSION</h2>
                     <p style={{ fontSize: '11px', opacity: 0.5, marginBottom: '25px', letterSpacing: '1px' }}>SELECT AN AVAILABLE DATE</p>
-                    
                     <input 
                         type="date" 
                         style={{...quantityInput, fontSize: '18px'}} 
                         min={new Date().toISOString().split('T')[0]} 
                         onChange={(e) => handleBookDate(e.target.value)}
                     />
-                    
                     <div style={{ fontSize: '11px', color: bookedDates.length > 0 ? '#C5FF41' : '#444', marginTop: '10px' }}>
                         {bookedDates.length} DATES ALREADY RESERVED
                     </div>
@@ -201,17 +228,7 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
     if (view === 'chat') {
         return (
             <div style={{ position: 'relative', height: '100dvh', backgroundColor: '#000' }}>
-                <button 
-                    onClick={() => {
-                        setOrderModal(null); // Clean up active order state when returning
-                        setView('market');
-                    }} 
-                    style={backToMarketBtn}
-                >
-                    ← Back to Shop
-                </button>
-                
-                {/* Forwarding props here allows CustomerChat to read it instantly */}
+                <button onClick={() => { setOrderModal(null); setView('market'); }} style={backToMarketBtn}>← Back to Shop</button>
                 <CustomerChat />
             </div>
         );
@@ -229,25 +246,22 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
                         The Malvin Market is currently undergoing security maintenance.<br/>
                         Please check back shortly.
                     </p>
-                    <div style={pulseScanner} />
                 </div>
             </div>
         );
     }
+
     return (
         <div style={marketContainer}>
             <style>{`
-                * {
-                    box-sizing: border-box;
-                }
+                * { box-sizing: border-box; }
                 @keyframes slideUp {
                     from { transform: translateY(100%); }
                     to { transform: translateY(0); }
                 }
                 body { overflow: hidden; background-color: black; margin: 0; }
-                /* Custom light track scrollbar for store interface layout */
-                .scrolling-grid::-webkit-scrollbar { width: 4px; }
-                .scrolling-grid::-webkit-scrollbar-thumb { background: rgba(195, 255, 65, 0.2); border-radius: 2px; }
+                .scrolling-grid::-webkit-scrollbar, .modal-scroll-area::-webkit-scrollbar { width: 4px; }
+                .scrolling-grid::-webkit-scrollbar-thumb, .modal-scroll-area::-webkit-scrollbar-thumb { background: rgba(195, 255, 65, 0.2); border-radius: 2px; }
             `}</style>
 
             <header style={headerStyle}>
@@ -256,76 +270,120 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
                         <h1 style={brandTitle}>{brand.name?.toUpperCase()}</h1>
                         {isVerified && <VerifiedBadge />}
                     </div>
-                    
-                    {/* Dynamic User Bio Display */}
-                    {bio && (
-                        <p style={{ 
-                            margin: '6px 0 0 0', 
-                            fontSize: '12px', 
-                            color: '#aaa', 
-                            lineHeight: '1.4',
-                            fontWeight: 400 
-                        }}>
-                            {bio}
-                        </p>
-                    )}
-                    
+                    {bio && <p style={{ margin: '6px 0 0 0', fontSize: '12px', color: '#aaa', lineHeight: '1.4', fontWeight: 400 }}>{bio}</p>}
                     <div style={onlineStatus}><span style={dotStyle} /> Active Now</div>
                 </div>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-                    
-                    <button onClick={() => setView('booking')} style={bookingBtnStyle}>
-                        Book 🗓️
-                    </button>
-                    <button onClick={() => setView('chat')} style={dmButton}>
-                        💬
-                    </button>
+                    <button onClick={() => setView('booking')} style={bookingBtnStyle}>Book 🗓️</button>
+                    <button onClick={() => setView('chat')} style={dmButton}>💬</button>
                 </div>
             </header>
 
-            {/* Scroll Container Interface View */}
             <div style={productGrid} className="scrolling-grid">
                 {catalog.length === 0 ? (
                     <div style={emptyState}>Catalog is empty.</div>
                 ) : (
                     catalog.map((item: any) => (
-                        <div 
-                            key={item.id} 
-                            style={cardWrapper} 
-                            onClick={() => setSelectedProduct(item)}
-                        >
-                            <ProductCard 
-                                item={item} 
-                                onAddToCart={(it) => {
-                                    setOrderModal(it);
-                                }} 
-                            />
+                        <div key={item.id} style={cardWrapper} onClick={() => setSelectedProduct(item)}>
+                            <ProductCard item={item} onAddToCart={(it) => setOrderModal(it)} />
                         </div>
                     ))
                 )}
             </div>
 
+            {/* EXPANDED INTERACTIVE DISPLAY INTERFACE */}
             {selectedProduct && (
                 <div style={modalOverlay} onClick={() => setSelectedProduct(null)}>
                     <div style={bigDisplayCard} onClick={e => e.stopPropagation()}>
                         <div style={dragHandle} />
                         <button style={closeBtn} onClick={() => setSelectedProduct(null)}>✕</button>
-                        <img src={selectedProduct.image} style={bigImage} alt="" />
-                        <div style={{ padding: '24px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-                                <h2 style={bigTitle}>{selectedProduct.name}</h2>
-                                <div style={bigPrice}>{selectedProduct.currency || '€'}{selectedProduct.price}</div>
+                        
+                        <div style={modalScrollArea} className="modal-scroll-area">
+                            <img src={selectedProduct.image} style={bigImage} alt="" />
+                            
+                            <div style={{ padding: '24px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                                    <h2 style={bigTitle}>{selectedProduct.name}</h2>
+                                    <div style={bigPrice}>{selectedProduct.currency || '€'}{selectedProduct.price}</div>
+                                </div>
+
+                                {/* Global review meta counter summary metrics */}
+                                <div style={ratingSummaryBar}>
+                                    <span style={{ color: '#C5FF41', fontWeight: 700 }}>
+                                        ★ {averageRating ? `${averageRating} / 5` : 'No reviews yet'}
+                                    </span>
+                                    <span style={{ color: '#666', fontSize: '12px' }}>
+                                        {reviewCount > 0 ? `${reviewCount} ${reviewCount === 1 ? 'person' : 'people'} reviewed this product` : 'Be the first to review'}
+                                    </span>
+                                </div>
+
+                                <p style={bigDescription}>{selectedProduct.description || "Premium quality product."}</p>
+                                
+                                <button style={bigActionBtn} onClick={() => { setOrderModal(selectedProduct); setSelectedProduct(null); }}>
+                                    ORDER THIS ITEM
+                                </button>
+
+                                <div style={divider} />
+
+                                {/* Interactive Feed and Comments list block */}
+                                <h3 style={sectionSubHeading}>REVIEWS & COMMENTS ({reviewCount})</h3>
+                                
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px' }}>
+                                    {reviews.map((rev) => (
+                                        <div key={rev.id} style={commentCard}>
+                                            <div style={commentHeader}>
+                                                <span style={{ fontWeight: 'bold' }}>{rev.name}</span>
+                                                <span style={{ color: '#C5FF41' }}>{'★'.repeat(rev.rating)}</span>
+                                            </div>
+                                            <p style={commentTextBody}>{rev.comment}</p>
+                                            <button 
+                                                style={likeBtn} 
+                                                onClick={() => handleLikeComment(rev.id, rev.likes)}
+                                            >
+                                                ❤️ {rev.likes || 0}
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* Write a Review Input Panel */}
+                                <form onSubmit={handlePostReview} style={reviewForm}>
+                                    <h4 style={{ margin: '0 0 12px 0', fontSize: '13px', color: '#C5FF41' }}>LEAVE A REVIEW</h4>
+                                    
+                                    <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                                        <input 
+                                            type="text" 
+                                            placeholder="Your name" 
+                                            value={reviewerName}
+                                            onChange={(e) => setReviewerName(e.target.value)}
+                                            style={reviewInput}
+                                        />
+                                        <select 
+                                            value={ratingScore} 
+                                            onChange={(e) => setRatingScore(Number(e.target.value))}
+                                            style={ratingSelector}
+                                        >
+                                            <option value={5}>5 Stars ★★★★★</option>
+                                            <option value={4}>4 Stars ★★★★</option>
+                                            <option value={3}>3 Stars ★★★</option>
+                                            <option value={2}>2 Stars ★★</option>
+                                            <option value={1}>1 Star ★</option>
+                                        </select>
+                                    </div>
+
+                                    <textarea 
+                                        placeholder="Add your review comment here..." 
+                                        rows={2}
+                                        value={commentText}
+                                        onChange={(e) => setCommentText(e.target.value)}
+                                        style={reviewTextArea}
+                                    />
+                                    
+                                    <button type="submit" style={submitReviewBtn}>
+                                        POST COMMENT
+                                    </button>
+                                </form>
                             </div>
-                            <p style={bigDescription}>{selectedProduct.description || "Premium quality product."}</p>
-                            <button 
-                                style={bigActionBtn}
-                                onClick={() => {
-                                    setOrderModal(selectedProduct);
-                                    setSelectedProduct(null);
-                                }}
-                            >
-                                ORDER THIS ITEM
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -354,111 +412,140 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
     );
 };
 
-// --- STYLES MODIFICATIONS ---
-const marketContainer: React.CSSProperties = { 
-    backgroundColor: '#000',
-    height: '100dvh', // 🌟 FIXED: Locked total app page boundaries
-    color: 'white',
-    padding: '0 12px',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+// --- NEW STRUCTURAL AND COMPONENT INTERACTION STYLES ---
+const modalScrollArea: React.CSSProperties = {
+    height: '100%',
+    maxHeight: '75vh',
+    overflowY: 'auto',
+    WebkitOverflowScrolling: 'touch'
+};
+
+const ratingSummaryBar: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    fontSize: '13px',
+    marginBottom: '14px'
+};
+
+const divider: React.CSSProperties = {
+    height: '1px',
+    backgroundColor: '#222',
+    margin: '20px 0'
+};
+
+const sectionSubHeading: React.CSSProperties = {
+    fontSize: '12px',
+    letterSpacing: '1px',
+    color: '#888',
+    marginBottom: '14px'
+};
+
+const commentCard: React.CSSProperties = {
+    backgroundColor: '#161616',
+    border: '1px solid #252525',
+    borderRadius: '14px',
+    padding: '12px',
     display: 'flex',
     flexDirection: 'column',
-    alignItems: 'center',
-    overflow: 'hidden', // 🌟 FIXED: Prevents browser body shifting anomalies
-    paddingTop: 'env(safe-area-inset-top)',
-    paddingBottom: 'env(safe-area-inset-bottom)',
-    overscrollBehavior: 'none'
+    gap: '4px'
 };
 
-const headerStyle: React.CSSProperties = { 
-    display: 'flex', 
-    width: '100%',
-    maxWidth: '400px', 
-    justifyContent: 'space-between', 
-    alignItems: 'flex-start', 
-    padding: '24px 0 12px 0',
-    backgroundColor: '#000',
-    zIndex: 110,
-    flexShrink: 0 // 🌟 FIXED: Insures header dimensions remain static
+const commentHeader: React.CSSProperties = {
+    display: 'flex',
+    justifyContent: 'space-between',
+    fontSize: '12px'
 };
 
-const productGrid: React.CSSProperties = { 
-    display: 'grid', 
-    gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-    gap: '12px',
-    width: '100%',
-    maxWidth: '400px',
-    boxSizing: 'border-box',
-    // 🌟 FIXED: Track available calculation scope dynamically to slide up/down on device footprints
-    height: 'calc(100vh - 160px)', 
-    overflowY: 'auto', // Enables standard vertical swipe mechanics
-    paddingBottom: '60px',
-    WebkitOverflowScrolling: 'touch' // Restores iOS physical momentum bounce mechanics
+const commentTextBody: React.CSSProperties = {
+    margin: '4px 0',
+    fontSize: '13px',
+    color: '#ccc',
+    lineHeight: '1.4'
 };
 
-const bookingBtnStyle: React.CSSProperties = { 
-    background: 'rgba(255,255,255,0.1)', 
-    color: 'white', 
-    border: '1px solid #333', 
-    padding: '10px 15px', 
-    borderRadius: '24px', 
-    fontSize: '13px', 
-    fontWeight: 800, 
-    cursor: 'pointer',
-    whiteSpace: 'nowrap'
-};
-
-const backToMarketBtn: React.CSSProperties = {
-    position: 'absolute',
-    top: '15px',
-    left: '15px',
-    zIndex: 999,
-    background: '#C5FF41',
-    color: 'black',
+const likeBtn: React.CSSProperties = {
+    alignSelf: 'flex-start',
+    background: '#222',
+    color: '#fff',
     border: 'none',
-    padding: '8px 14px',
-    borderRadius: '12px',
-    fontSize: '12px',
+    borderRadius: '8px',
+    padding: '4px 8px',
+    fontSize: '11px',
+    cursor: 'pointer',
+    marginTop: '4px'
+};
+
+const reviewForm: React.CSSProperties = {
+    display: 'flex',
+    flexDirection: 'column',
+    backgroundColor: '#111',
+    border: '1px solid #222',
+    padding: '14px',
+    borderRadius: '16px'
+};
+
+const reviewInput: React.CSSProperties = {
+    flex: 1,
+    backgroundColor: '#000',
+    border: '1px solid #333',
+    borderRadius: '10px',
+    padding: '10px',
+    color: '#fff',
+    fontSize: '13px'
+};
+
+const ratingSelector: React.CSSProperties = {
+    backgroundColor: '#000',
+    border: '1px solid #333',
+    borderRadius: '10px',
+    padding: '10px',
+    color: '#fff',
+    fontSize: '13px'
+};
+
+const reviewTextArea: React.CSSProperties = {
+    backgroundColor: '#000',
+    border: '1px solid #333',
+    borderRadius: '10px',
+    padding: '10px',
+    color: '#fff',
+    fontSize: '13px',
+    fontFamily: 'inherit',
+    resize: 'none'
+};
+
+const submitReviewBtn: React.CSSProperties = {
+    marginTop: '10px',
+    backgroundColor: '#C5FF41',
+    color: '#000',
+    border: 'none',
+    padding: '12px',
+    borderRadius: '10px',
     fontWeight: 'bold',
+    fontSize: '12px',
     cursor: 'pointer'
 };
 
-const maintenanceContainer: React.CSSProperties = {
-    height: '100dvh',
-    backgroundColor: '#000',
-    color: '#fff',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontFamily: 'monospace'
-};
-
-const pulseScanner: React.CSSProperties = {
-    width: '100%',
-    height: '2px',
-    background: 'linear-gradient(90deg, transparent, #ff4d4d, transparent)',
-    marginTop: '30px',
-    animation: 'scan 2s linear infinite'
-};
-
-const cardWrapper: React.CSSProperties = { 
-    cursor: 'pointer',
-    width: '100%',
-    minWidth: 0
-};
-
+// --- BASE STYLES REMAINING IN SCOPE ---
+const marketContainer: React.CSSProperties = { backgroundColor: '#000', height: '100dvh', color: 'white', padding: '0 12px', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', display: 'flex', flexDirection: 'column', alignItems: 'center', overflow: 'hidden', paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)', overscrollBehavior: 'none' };
+const headerStyle: React.CSSProperties = { display: 'flex', width: '100%', maxWidth: '400px', justifyContent: 'space-between', alignItems: 'flex-start', padding: '24px 0 12px 0', backgroundColor: '#000', zIndex: 110, flexShrink: 0 };
+const productGrid: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '12px', width: '100%', maxWidth: '400px', boxSizing: 'border-box', height: 'calc(100vh - 160px)', overflowY: 'auto', paddingBottom: '60px', WebkitOverflowScrolling: 'touch' };
+const bookingBtnStyle: React.CSSProperties = { background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid #333', padding: '10px 15px', borderRadius: '24px', fontSize: '13px', fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' };
+const backToMarketBtn: React.CSSProperties = { position: 'absolute', top: '15px', left: '15px', zIndex: 999, background: '#C5FF41', color: 'black', border: 'none', padding: '8px 14px', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' };
+const maintenanceContainer: React.CSSProperties = { height: '100dvh', backgroundColor: '#000', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'monospace' };
+const cardWrapper: React.CSSProperties = { cursor: 'pointer', width: '100%', minWidth: 0 };
 const brandTitle: React.CSSProperties = { fontSize: '20px', fontWeight: 900, margin: 0, letterSpacing: '-0.5px', display: 'inline-block' };
 const onlineStatus: React.CSSProperties = { fontSize: '11px', color: '#888', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px' };
 const dotStyle: React.CSSProperties = { width: '7px', height: '7px', background: '#C5FF41', borderRadius: '50%', boxShadow: '0 0 8px #C5FF41' };
 const dmButton: React.CSSProperties = { background: '#C5FF41', color: 'black', border: 'none', padding: '10px 20px', borderRadius: '24px', fontSize: '13px', fontWeight: 800, cursor: 'pointer' };
-
 const dragHandle: React.CSSProperties = { width: '40px', height: '4px', background: '#333', borderRadius: '2px', margin: '12px auto' };
 const bigDisplayCard: React.CSSProperties = { background: '#111', width: '100%', maxWidth: '500px', borderTopLeftRadius: '32px', borderTopRightRadius: '32px', overflow: 'hidden', position: 'absolute', bottom: 0, border: '1px solid #222', animation: 'slideUp 0.3s ease-out', boxShadow: '0 -10px 40px rgba(0,0,0,0.5)' };
-const bigImage: React.CSSProperties = { width: '100%', height: '45vh', objectFit: 'cover' };
+const bigImage: React.CSSProperties = { width: '100%', height: '32vh', objectFit: 'cover' };
 const closeBtn: React.CSSProperties = { position: 'absolute', top: '15px', right: '15px', background: 'rgba(0,0,0,0.5)', color: 'white', border: 'none', width: '32px', height: '32px', borderRadius: '50%', zIndex: 11, backdropFilter: 'blur(5px)' };
 const bigTitle: React.CSSProperties = { margin: 0, fontSize: '22px', fontWeight: 800 };
 const bigPrice: React.CSSProperties = { fontSize: '20px', fontWeight: 800, color: '#C5FF41' };
-const bigDescription: React.CSSProperties = { color: '#aaa', lineHeight: '1.6', margin: '15px 0 30px 0', fontSize: '14px' };
+const bigDescription: React.CSSProperties = { color: '#aaa', lineHeight: '1.6', margin: '15px 0 20px 0', fontSize: '14px' };
 const bigActionBtn: React.CSSProperties = { width: '100%', background: '#C5FF41', color: 'black', border: 'none', padding: '18px', borderRadius: '18px', fontWeight: 900, fontSize: '15px' };
 const modalOverlay: React.CSSProperties = { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 };
 const glassModal: React.CSSProperties = { background: '#121212', border: '1px solid #222', padding: '30px', borderRadius: '28px', width: '85%', maxWidth: '340px', textAlign: 'center' };
