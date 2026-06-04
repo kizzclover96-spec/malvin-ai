@@ -21,22 +21,7 @@ const AdsManager = () => {
     const [processingId, setProcessingId] = useState<string | null>(null);
     const [filter, setFilter] = useState("Pending_Admin_Review");
     const [searchTerm, setSearchTerm] = useState('');
-    const approvedData = {
-        adId: ad.id,
-        campaignId: ad.campaignId,
-        userId: ad.userId,
-        title: ad.title,
-        description: ad.description,
-        platform: ad.platform,
-        budget: ad.budget,
-        creativeUrl: ad.creativeUrl,
-
-        approvedAt: Date.now(),
-        approvedBy: auth.currentUser?.email,
-
-        postingStatus: "Not Posted",
-        status: "Approved"
-    };
+    
     
     
     
@@ -574,6 +559,22 @@ const AdsManager = () => {
                                                         alert("USER_NOT_FOUND");
                                                         return;
                                                     }
+                                                    const approvedData = {
+                                                        adId: ad.id,
+                                                        campaignId: ad.campaignId,
+                                                        userId: ad.userId,
+                                                        title: ad.title,
+                                                        description: ad.description,
+                                                        platform: ad.platform,
+                                                        budget: ad.budget,
+                                                        creativeUrl: ad.creativeUrl,
+
+                                                        approvedAt: Date.now(),
+                                                        approvedBy: auth.currentUser?.email,
+
+                                                        postingStatus: "Not Posted",
+                                                        status: "Approved"
+                                                    };
                                                     const budget = Number(ad.budget || 0);
                                                     const currentBalance = Number(user?.treasury?.balance || 0);
                                                     const newBalance = currentBalance - budget;
@@ -602,14 +603,26 @@ const AdsManager = () => {
                                                     updates[`admin/ad_queue/${ad.id}/status`] = "Approved";
 
                                                     // save approved ad
-                                                    updates[`admin/approved_ads/${ad.id}`] = approvedData;
+                                                    updates[`admin/approved_ads/${ad.id}`] = {
+                                                        adId: ad.id,
+                                                        campaignId: ad.campaignId,
+                                                        userId: ad.userId,
+
+                                                        title: ad.title,
+                                                        description: ad.description,
+                                                        platform: ad.platform,
+                                                        budget: ad.budget,
+                                                        creativeUrl: ad.creativeUrl,
+
+                                                        approvedAt: Date.now(),
+                                                        approvedBy: auth.currentUser?.email,
+
+                                                        postingStatus: "Not Posted",
+                                                        status: "Approved"
+                                                    };
 
                                                     // remove from review queue
-                                                    await update(ref(db, `admin`), {
-                                                        [`ad_queue/${ad.id}/status`]: "Approved",
-                                                        [`approved_ads/${ad.id}`]: approvedData
-                                                    });
-
+                                                    await update(ref(db), updates);
                                                     
 
                                                     await push(ref(db, 'admin/audit_log'), {
@@ -648,10 +661,10 @@ const AdsManager = () => {
                                                     updates[`users/${ad.userId}/campaigns/${ad.campaignId}/status`] = "Rejected";
                                                     updates[`users/${ad.userId}/campaigns/${ad.campaignId}/rejectionReason`] = reason;
 
-                                                    await update(ref(db, `users/${ad.userId}`), {
-                                                        [`campaigns/${ad.campaignId}/status`]: "Approved",
-                                                        [`campaigns/${ad.campaignId}/reviewStatus`]: "Approved",
-                                                        [`treasury/balance`]: newBalance
+                                                    await update(ref(db), {
+                                                        [`users/${ad.userId}/campaigns/${ad.campaignId}/status`]: "Rejected",
+                                                        [`users/${ad.userId}/campaigns/${ad.campaignId}/reviewStatus`]: "Rejected",
+                                                        [`users/${ad.userId}/campaigns/${ad.campaignId}/rejectionReason`]: reason
                                                     });
 
                                                     await remove(ref(db, `admin/ad_queue/${ad.id}`));
