@@ -9,19 +9,19 @@ const cardStyle: React.CSSProperties = {
     borderRadius: '24px', 
     padding: '16px', 
     backdropFilter: 'blur(10px)', 
-    width: '100%', // Changed to 100% to fill the grid layout seamlessly
+    width: '100%', 
     height: 'auto', 
     marginBottom: '10px',
-    position: 'relative', // Vital for absolute badge positioning
+    position: 'relative', 
     transition: 'transform 0.2s ease'
 };
 
 // Styling for the absolute star rating badge
 const ratingBadgeStyle: React.CSSProperties = {
     position: 'absolute',
-    top: '24px', // Standardized offset spacing relative to the card container
+    top: '24px', 
     right: '24px',
-    background: 'rgba(0, 0, 0, 0.75)',
+    background: 'rgba(0, 0, 0, 0.85)', // Darker background to pop against images
     backdropFilter: 'blur(4px)',
     border: '1px solid rgba(255, 255, 255, 0.1)',
     borderRadius: '12px',
@@ -38,40 +38,47 @@ const ratingBadgeStyle: React.CSSProperties = {
 interface ProductCardProps {
     item: any;
     onAddToCart: (item: any) => void;
+    brandId?: string; // Added explicit fallback brand context prop
 }
 
-export const ProductCard = ({ item, onAddToCart }: ProductCardProps) => {
+export const ProductCard = ({ item, onAddToCart, brandId }: ProductCardProps) => {
     const [averageRating, setAverageRating] = useState<string | null>(null);
 
-    // Dynamic real-time listening for individual item review statistics
     useEffect(() => {
-        // Safe access check for required scope params
         if (!item?.id) return;
 
-        // Use the brandId context from the parent array dataset parsing scope
-        // If the brandId property structure exists directly inside item object config
-        const targetUid = item.uid || item.brandId || window.location.pathname.split('/')[2]; 
-        if (!targetUid) return;
+        // Uses explicitly passed brandId first, then item object properties, then falls back to URL parsing
+        const targetUid = brandId || item.uid || item.brandId || window.location.pathname.split('/')[2]; 
+        if (!targetUid) {
+            console.warn("ProductCard context warning: Missing target identification token parameter.");
+            return;
+        }
 
         const itemReviewsRef = dbRef(db, `users/${targetUid}/reviews/${item.id}`);
         const unsubscribe = onValue(itemReviewsRef, (snapshot) => {
             const data = snapshot.val();
             if (data) {
                 const reviewsList = Object.values(data) as any[];
-                const total = reviewsList.reduce((acc, current) => acc + (current.rating || 0), 0);
-                const avg = total / reviewsList.length;
-                setAverageRating(avg.toFixed(1));
+                if (reviewsList.length > 0) {
+                    const total = reviewsList.reduce((acc, current) => acc + (current.rating || 0), 0);
+                    const avg = total / reviewsList.length;
+                    setAverageRating(avg.toFixed(1));
+                } else {
+                    setAverageRating(null);
+                }
             } else {
-                setAverageRating(null); // Explicit fallback context state
+                setAverageRating(null); // Keeps the star hidden if no data node exists
             }
+        }, (error) => {
+            console.error("Firebase subscription data access error: ", error);
         });
 
         return () => unsubscribe();
-    }, [item]);
+    }, [item, brandId]);
 
     return (
-        <div style={cardStyle} onClick={(e) => e.stopPropagation}>
-            {/* Conditional star metric floating element wrapper context render logic */}
+        <div style={cardStyle} onClick={(e) => e.stopPropagation()}>
+            {/* Conditional star badge: Shows only if averageRating exists */}
             {averageRating && (
                 <div style={ratingBadgeStyle}>
                     <span>★</span>
@@ -95,7 +102,7 @@ export const ProductCard = ({ item, onAddToCart }: ProductCardProps) => {
             </span>
             <button 
                 onClick={(e) => {
-                    e.stopPropagation(); // Prevents opening the overlay modal sheet accidentally when tapping order button
+                    e.stopPropagation(); 
                     onAddToCart(item);
                 }}
                 style={{

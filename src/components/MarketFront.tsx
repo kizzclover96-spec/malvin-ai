@@ -39,6 +39,7 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
     const [commentText, setCommentText] = useState('');
     const [ratingScore, setRatingScore] = useState(5);
     const [reviewerName, setReviewerName] = useState('');
+    const [showReviewForm, setShowReviewForm] = useState(false); // Controls review input element structural overlay context render visibility toggles
 
     // Dynamic Profile States (Bio & Meta Verification)
     const [bio, setBio] = useState('');
@@ -116,6 +117,7 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
     useEffect(() => {
         if (!brandId || !selectedProduct) {
             setReviews([]);
+            setShowReviewForm(false); // Reset review form visibility when layout panel is closed or switched
             return;
         }
 
@@ -153,10 +155,11 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
             timestamp: Date.now()
         });
 
-        // Reset inputs
+        // Reset inputs and close structural review panel view
         setCommentText('');
         setReviewerName('');
         setRatingScore(5);
+        setShowReviewForm(false);
     };
 
     // Handler to increment likes on comments
@@ -285,7 +288,8 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
                 ) : (
                     catalog.map((item: any) => (
                         <div key={item.id} style={cardWrapper} onClick={() => setSelectedProduct(item)}>
-                            <ProductCard item={item} onAddToCart={(it) => setOrderModal(it)} />
+                            {/* Updated loop to pass down explicitly calculated identity validation tokens */}
+                            <ProductCard item={item} brandId={brandId} onAddToCart={(it) => setOrderModal(it)} />
                         </div>
                     ))
                 )}
@@ -325,9 +329,68 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
 
                                 <div style={divider} />
 
-                                {/* Interactive Feed and Comments list block */}
-                                <h3 style={sectionSubHeading}>REVIEWS & COMMENTS ({reviewCount})</h3>
+                                {/* Interactive Feed header along with toggle button display execution */}
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                                    <h3 style={{ ...sectionSubHeading, margin: 0 }}>REVIEWS & COMMENTS ({reviewCount})</h3>
+                                    {!showReviewForm && (
+                                        <button 
+                                            style={toggleReviewBtnStyle} 
+                                            onClick={() => setShowReviewForm(true)}
+                                        >
+                                            ✍️ LEAVE A REVIEW
+                                        </button>
+                                    )}
+                                </div>
                                 
+                                {/* Conditional structural input display pane logic execution */}
+                                {showReviewForm && (
+                                    <form onSubmit={handlePostReview} style={{ ...reviewForm, marginBottom: '20px' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                                            <h4 style={{ margin: 0, fontSize: '13px', color: '#C5FF41' }}>LEAVE A REVIEW</h4>
+                                            <button 
+                                                type="button" 
+                                                style={cancelReviewBtnStyle} 
+                                                onClick={() => setShowReviewForm(false)}
+                                            >
+                                                Cancel
+                                            </button>
+                                        </div>
+                                        
+                                        <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                                            <input 
+                                                type="text" 
+                                                placeholder="Your name" 
+                                                value={reviewerName}
+                                                onChange={(e) => setReviewerName(e.target.value)}
+                                                style={reviewInput}
+                                            />
+                                            <select 
+                                                value={ratingScore} 
+                                                onChange={(e) => setRatingScore(Number(e.target.value))}
+                                                style={ratingSelector}
+                                            >
+                                                <option value={5}>5 Stars ★★★★★</option>
+                                                <option value={4}>4 Stars ★★★★</option>
+                                                <option value={3}>3 Stars ★★★</option>
+                                                <option value={2}>2 Stars ★★</option>
+                                                <option value={1}>1 Star ★</option>
+                                            </select>
+                                        </div>
+
+                                        <textarea 
+                                            placeholder="Add your review comment here..." 
+                                            rows={2}
+                                            value={commentText}
+                                            onChange={(e) => setCommentText(e.target.value)}
+                                            style={reviewTextArea}
+                                        />
+                                        
+                                        <button type="submit" style={submitReviewBtn}>
+                                            POST COMMENT
+                                        </button>
+                                    </form>
+                                )}
+
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px' }}>
                                     {reviews.map((rev) => (
                                         <div key={rev.id} style={commentCard}>
@@ -345,44 +408,6 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
                                         </div>
                                     ))}
                                 </div>
-
-                                {/* Write a Review Input Panel */}
-                                <form onSubmit={handlePostReview} style={reviewForm}>
-                                    <h4 style={{ margin: '0 0 12px 0', fontSize: '13px', color: '#C5FF41' }}>LEAVE A REVIEW</h4>
-                                    
-                                    <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-                                        <input 
-                                            type="text" 
-                                            placeholder="Your name" 
-                                            value={reviewerName}
-                                            onChange={(e) => setReviewerName(e.target.value)}
-                                            style={reviewInput}
-                                        />
-                                        <select 
-                                            value={ratingScore} 
-                                            onChange={(e) => setRatingScore(Number(e.target.value))}
-                                            style={ratingSelector}
-                                        >
-                                            <option value={5}>5 Stars ★★★★★</option>
-                                            <option value={4}>4 Stars ★★★★</option>
-                                            <option value={3}>3 Stars ★★★</option>
-                                            <option value={2}>2 Stars ★★</option>
-                                            <option value={1}>1 Star ★</option>
-                                        </select>
-                                    </div>
-
-                                    <textarea 
-                                        placeholder="Add your review comment here..." 
-                                        rows={2}
-                                        value={commentText}
-                                        onChange={(e) => setCommentText(e.target.value)}
-                                        style={reviewTextArea}
-                                    />
-                                    
-                                    <button type="submit" style={submitReviewBtn}>
-                                        POST COMMENT
-                                    </button>
-                                </form>
                             </div>
                         </div>
                     </div>
@@ -412,120 +437,40 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
     );
 };
 
-// --- NEW STRUCTURAL AND COMPONENT INTERACTION STYLES ---
-const modalScrollArea: React.CSSProperties = {
-    height: '100%',
-    maxHeight: '75vh',
-    overflowY: 'auto',
-    WebkitOverflowScrolling: 'touch'
-};
-
-const ratingSummaryBar: React.CSSProperties = {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
-    fontSize: '13px',
-    marginBottom: '14px'
-};
-
-const divider: React.CSSProperties = {
-    height: '1px',
-    backgroundColor: '#222',
-    margin: '20px 0'
-};
-
-const sectionSubHeading: React.CSSProperties = {
-    fontSize: '12px',
-    letterSpacing: '1px',
-    color: '#888',
-    marginBottom: '14px'
-};
-
-const commentCard: React.CSSProperties = {
-    backgroundColor: '#161616',
-    border: '1px solid #252525',
-    borderRadius: '14px',
-    padding: '12px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '4px'
-};
-
-const commentHeader: React.CSSProperties = {
-    display: 'flex',
-    justifyContent: 'space-between',
-    fontSize: '12px'
-};
-
-const commentTextBody: React.CSSProperties = {
-    margin: '4px 0',
-    fontSize: '13px',
-    color: '#ccc',
-    lineHeight: '1.4'
-};
-
-const likeBtn: React.CSSProperties = {
-    alignSelf: 'flex-start',
-    background: '#222',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '8px',
-    padding: '4px 8px',
+// --- NEW COMPONENT BUTTON DESIGN ACTION SPECIFIC INLINES ---
+const toggleReviewBtnStyle: React.CSSProperties = {
+    background: 'rgba(197, 255, 65, 0.1)',
+    border: '1px solid rgba(197, 255, 65, 0.3)',
+    borderRadius: '10px',
+    color: '#C5FF41',
+    padding: '6px 12px',
     fontSize: '11px',
-    cursor: 'pointer',
-    marginTop: '4px'
-};
-
-const reviewForm: React.CSSProperties = {
-    display: 'flex',
-    flexDirection: 'column',
-    backgroundColor: '#111',
-    border: '1px solid #222',
-    padding: '14px',
-    borderRadius: '16px'
-};
-
-const reviewInput: React.CSSProperties = {
-    flex: 1,
-    backgroundColor: '#000',
-    border: '1px solid #333',
-    borderRadius: '10px',
-    padding: '10px',
-    color: '#fff',
-    fontSize: '13px'
-};
-
-const ratingSelector: React.CSSProperties = {
-    backgroundColor: '#000',
-    border: '1px solid #333',
-    borderRadius: '10px',
-    padding: '10px',
-    color: '#fff',
-    fontSize: '13px'
-};
-
-const reviewTextArea: React.CSSProperties = {
-    backgroundColor: '#000',
-    border: '1px solid #333',
-    borderRadius: '10px',
-    padding: '10px',
-    color: '#fff',
-    fontSize: '13px',
-    fontFamily: 'inherit',
-    resize: 'none'
-};
-
-const submitReviewBtn: React.CSSProperties = {
-    marginTop: '10px',
-    backgroundColor: '#C5FF41',
-    color: '#000',
-    border: 'none',
-    padding: '12px',
-    borderRadius: '10px',
     fontWeight: 'bold',
-    fontSize: '12px',
     cursor: 'pointer'
 };
+
+const cancelReviewBtnStyle: React.CSSProperties = {
+    background: 'transparent',
+    border: 'none',
+    color: '#888',
+    fontSize: '11px',
+    cursor: 'pointer'
+};
+
+// --- STRUCTURAL AND COMPONENT INTERACTION STYLES ---
+const modalScrollArea: React.CSSProperties = { height: '100%', maxHeight: '75vh', overflowY: 'auto', WebkitOverflowScrolling: 'touch' };
+const ratingSummaryBar: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', marginBottom: '14px' };
+const divider: React.CSSProperties = { height: '1px', backgroundColor: '#222', margin: '20px 0' };
+const sectionSubHeading: React.CSSProperties = { fontSize: '12px', letterSpacing: '1px', color: '#888' };
+const commentCard: React.CSSProperties = { backgroundColor: '#161616', border: '1px solid #252525', borderRadius: '14px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '4px' };
+const commentHeader: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', fontSize: '12px' };
+const commentTextBody: React.CSSProperties = { margin: '4px 0', fontSize: '13px', color: '#ccc', lineHeight: '1.4' };
+const likeBtn: React.CSSProperties = { alignSelf: 'flex-start', background: '#222', color: '#fff', border: 'none', borderRadius: '8px', padding: '4px 8px', fontSize: '11px', cursor: 'pointer', marginTop: '4px' };
+const reviewForm: React.CSSProperties = { display: 'flex', flexDirection: 'column', backgroundColor: '#111', border: '1px solid #222', padding: '14px', borderRadius: '16px' };
+const reviewInput: React.CSSProperties = { flex: 1, backgroundColor: '#000', border: '1px solid #333', borderRadius: '10px', padding: '10px', color: '#fff', fontSize: '13px' };
+const ratingSelector: React.CSSProperties = { backgroundColor: '#000', border: '1px solid #333', borderRadius: '10px', padding: '10px', color: '#fff', fontSize: '13px' };
+const reviewTextArea: React.CSSProperties = { backgroundColor: '#000', border: '1px solid #333', borderRadius: '10px', padding: '10px', color: '#fff', fontSize: '13px', fontFamily: 'inherit', resize: 'none' };
+const submitReviewBtn: React.CSSProperties = { marginTop: '10px', backgroundColor: '#C5FF41', color: '#000', border: 'none', padding: '12px', borderRadius: '10px', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer' };
 
 // --- BASE STYLES REMAINING IN SCOPE ---
 const marketContainer: React.CSSProperties = { backgroundColor: '#000', height: '100dvh', color: 'white', padding: '0 12px', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', display: 'flex', flexDirection: 'column', alignItems: 'center', overflow: 'hidden', paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)', overscrollBehavior: 'none' };
