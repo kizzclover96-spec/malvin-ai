@@ -13,7 +13,8 @@ const cardStyle: React.CSSProperties = {
     height: 'auto', 
     marginBottom: '10px',
     position: 'relative', 
-    transition: 'transform 0.2s ease'
+    transition: 'transform 0.2s ease',
+    cursor: 'pointer' // Added to clearly show it's clickable now
 };
 
 // Styling for the absolute star rating badge
@@ -21,7 +22,7 @@ const ratingBadgeStyle: React.CSSProperties = {
     position: 'absolute',
     top: '24px', 
     right: '24px',
-    background: 'rgba(0, 0, 0, 0.85)', // Darker background to pop against images
+    background: 'rgba(0, 0, 0, 0.85)', 
     backdropFilter: 'blur(4px)',
     border: '1px solid rgba(255, 255, 255, 0.1)',
     borderRadius: '12px',
@@ -38,16 +39,16 @@ const ratingBadgeStyle: React.CSSProperties = {
 interface ProductCardProps {
     item: any;
     onAddToCart: (item: any) => void;
-    brandId?: string; // Added explicit fallback brand context prop
+    brandId?: string; 
+    onClick?: () => void; // Fixed: Explicitly added the onClick prop contract here
 }
 
-export const ProductCard = ({ item, onAddToCart, brandId }: ProductCardProps) => {
+export const ProductCard = ({ item, onAddToCart, brandId, onClick }: ProductCardProps) => {
     const [averageRating, setAverageRating] = useState<string | null>(null);
 
     useEffect(() => {
         if (!item?.id) return;
 
-        // Uses explicitly passed brandId first, then item object properties, then falls back to URL parsing
         const targetUid = brandId || item.uid || item.brandId || window.location.pathname.split('/')[2]; 
         if (!targetUid) {
             console.warn("ProductCard context warning: Missing target identification token parameter.");
@@ -67,7 +68,7 @@ export const ProductCard = ({ item, onAddToCart, brandId }: ProductCardProps) =>
                     setAverageRating(null);
                 }
             } else {
-                setAverageRating(null); // Keeps the star hidden if no data node exists
+                setAverageRating(null); 
             }
         }, (error) => {
             console.error("Firebase subscription data access error: ", error);
@@ -77,8 +78,13 @@ export const ProductCard = ({ item, onAddToCart, brandId }: ProductCardProps) =>
     }, [item, brandId]);
 
     return (
-        <div style={cardStyle} onClick={(e) => e.stopPropagation()}>
-            {/* Conditional star badge: Shows only if averageRating exists */}
+        <div 
+            style={cardStyle} 
+            onClick={() => {
+                if (onClick) onClick(); // Fixed: Triggers the big view sheet layout open
+            }}
+        >
+            {/* Conditional star badge */}
             {averageRating && (
                 <div style={ratingBadgeStyle}>
                     <span>★</span>
@@ -102,7 +108,7 @@ export const ProductCard = ({ item, onAddToCart, brandId }: ProductCardProps) =>
             </span>
             <button 
                 onClick={(e) => {
-                    e.stopPropagation(); 
+                    e.stopPropagation(); // Keeps this isolated so clicking buy won't open the review modal
                     onAddToCart(item);
                 }}
                 style={{
