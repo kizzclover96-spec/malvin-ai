@@ -719,28 +719,34 @@ const Dashboard = (props: any) => {
         );
     };
 
+   
     const requestVerification = async () => {
         console.log("WRITING TO FIREBASE");
         if (!userBrand?.id) return;
 
-        await push(ref(db, "admin/verification_requests"), {
-            uid: userBrand.id,
-            brandName: userBrand?.name || "UNKNOWN",
-            email: auth.currentUser?.email,
-            status: "pending",
-            createdAt: serverTimestamp(),
-            isPremium: userBrand?.isPremium || false
-        });
+        try {
+            await push(ref(db, "verification_requests"), {
+                uid: userBrand.id,
+                brandName: userBrand?.name || "UNKNOWN",
+                email: auth.currentUser?.email,
+                status: "pending",
+                createdAt: serverTimestamp(),
+                isPremium: userBrand?.isPremium || false
+            });
+            // 👇 show popup only for premium users
+            if (isPremium) {
+                setVerificationPopup(true);
 
-        // 👇 show popup only for premium users
-        if (isPremium) {
-            setVerificationPopup(true);
+                setTimeout(() => {
+                    setVerificationPopup(false);
+                }, 6000);
+            }
+            console.log("SUCCESS");
 
-            setTimeout(() => {
-                setVerificationPopup(false);
-            }, 6000);
+            console.log("SUCCESS");
+        } catch (err) {
+            console.error("VERIFICATION WRITE FAILED:", err);
         }
-        console.log("SUCCESS");
     };
     const handleLogout = async () => {
         await signOut(auth);
