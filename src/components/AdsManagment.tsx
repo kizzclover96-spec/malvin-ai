@@ -21,6 +21,22 @@ const AdsManager = () => {
     const [processingId, setProcessingId] = useState<string | null>(null);
     const [filter, setFilter] = useState("Pending_Admin_Review");
     const [searchTerm, setSearchTerm] = useState('');
+    const approvedData = {
+        adId: ad.id,
+        campaignId: ad.campaignId,
+        userId: ad.userId,
+        title: ad.title,
+        description: ad.description,
+        platform: ad.platform,
+        budget: ad.budget,
+        creativeUrl: ad.creativeUrl,
+
+        approvedAt: Date.now(),
+        approvedBy: auth.currentUser?.email,
+
+        postingStatus: "Not Posted",
+        status: "Approved"
+    };
     
     
     
@@ -586,23 +602,7 @@ const AdsManager = () => {
                                                     updates[`admin/ad_queue/${ad.id}/status`] = "Approved";
 
                                                     // save approved ad
-                                                    updates[`admin/approved_ads/${ad.id}`] = {
-                                                        adId: ad.id,
-                                                        campaignId: ad.campaignId,
-                                                        userId: ad.userId,
-
-                                                        title: ad.title,
-                                                        description: ad.description,
-                                                        platform: ad.platform,
-                                                        budget: ad.budget,
-                                                        creativeUrl: ad.creativeUrl,
-
-                                                        approvedAt: Date.now(),
-                                                        approvedBy: auth.currentUser?.email,
-
-                                                        postingStatus: "Not Posted",
-                                                        status: "Approved"
-                                                    };
+                                                    updates[`admin/approved_ads/${ad.id}`] = approvedData;
 
                                                     // remove from review queue
                                                     await update(ref(db, `admin`), {
