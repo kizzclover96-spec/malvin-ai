@@ -143,9 +143,9 @@ const AdsManager = () => {
         const updates: any = {};
 
         if (newStatus === "Banned") {
-            updates[`users/${uid}/brandData/status`] = "Banned";
+            updates[`users/${uid}/status`] = "Banned";
             updates[`users/${uid}/banReason`] =
-                "Account has been banned. Contact verify.malvin@gmail.com";
+            "Account has been banned. Contact verify.malvin@gmail.com";
         }
 
         else if (newStatus === "Suspended") {

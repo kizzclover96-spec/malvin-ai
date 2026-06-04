@@ -445,6 +445,7 @@ const Dashboard = (props: any) => {
                         ...prev,
                         ...data,
                         id: brandId,
+                        status: data?.status || "Active",
                         name: data?.name || "CEO / Founder"
                     };
                 });
@@ -769,6 +770,20 @@ const Dashboard = (props: any) => {
 
         return () => unsub();
     }, [userBrand?.id, tourFinished]);
+    useEffect(() => {
+        if (!userBrand?.id || !userBrand?.suspensionEnds) return;
+
+        const interval = setInterval(async () => {
+            if (Date.now() >= userBrand.suspensionEnds) {
+                await update(dbRef(db, `users/${userBrand.id}`), {
+                    status: "Active",
+                    suspensionEnds: null
+                });
+            }
+        }, 5000);
+
+        return () => clearInterval(interval);
+    }, [userBrand?.suspensionEnds]);
     const renderFullscreenTab = () => {
         switch (activeTab) {
             case "Notes":
@@ -843,7 +858,7 @@ const Dashboard = (props: any) => {
     
 
 
-    if (userBrand.status === "Banned") {
+    if (userBrand?.status?.toLowerCase?.() === "banned") {
         return (
             <div className="blocked-screen">
                 <h1>BUSINESS BANNED</h1>
@@ -861,7 +876,7 @@ const Dashboard = (props: any) => {
     }
     if (userBrand.status === "Suspended") {
 
-        const end = userBrand?.suspensionEnds || userBrand?.security?.suspensionEnds;
+        const end = userBrand?.suspensionEnds;
 
         const remaining = Math.max(0, end - Date.now());
 
