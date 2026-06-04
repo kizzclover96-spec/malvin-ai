@@ -423,7 +423,7 @@ const Dashboard = (props: any) => {
         tier: "Basic Free Tier",
         status: "CEO / Founder"
     });
-    const status = userBrand?.status;
+    const status = userBrand?.status || userBrand?.security?.status;
     useEffect(() => {
         const unsub = onAuthStateChanged(auth, (user) => {
             if (!user) return;
@@ -901,7 +901,7 @@ const Dashboard = (props: any) => {
     }
     if (userBrand.status === "Suspended") {
 
-        const end = userBrand?.suspensionEnds || 0;
+        const end = userBrand?.suspensionEnds || userBrand?.security?.suspensionEnds;
 
         const remaining = Math.max(0, end - Date.now());
 
