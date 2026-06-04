@@ -427,6 +427,7 @@ const Dashboard = (props: any) => {
     useEffect(() => {
         const unsub = onAuthStateChanged(auth, (user) => {
             if (!user) return;
+            const brandId = user.uid;
 
             const userDbRef = dbRef(db, `users/${user.uid}/brandData`);
 
