@@ -688,6 +688,7 @@ const Dashboard = (props: any) => {
 
         return (
             <div
+                onClick={c.clickable ? onClick : undefined}
                 style={{
                     position: "absolute",
                     top: "12px",
@@ -713,6 +714,7 @@ const Dashboard = (props: any) => {
     };
 
     const requestVerification = async () => {
+        console.log("WRITING TO FIREBASE");
         if (!userBrand?.id) return;
 
         await push(ref(db, "admin/verification_requests"), {
@@ -732,6 +734,7 @@ const Dashboard = (props: any) => {
                 setVerificationPopup(false);
             }, 6000);
         }
+        console.log("SUCCESS");
     };
     const handleLogout = async () => {
         await signOut(auth);
