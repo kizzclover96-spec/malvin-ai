@@ -864,7 +864,7 @@ const Dashboard = (props: any) => {
         return <Banned userBrand={userBrand} />;
     }
     if (status === "Suspended") {
-        return <Suspended userBrand={user} />;
+        return <Suspended userBrand={userBrand}/>;
     }
 
     if (activeTab === 'Preview') {
