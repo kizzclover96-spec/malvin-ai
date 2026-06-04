@@ -143,19 +143,20 @@ const AdsManager = () => {
         const updates: any = {};
 
         if (newStatus === "Banned") {
-            updates[`users/${uid}/status`] = "Banned";
-            updates[`users/${uid}/banReason`] =
-            "Account has been banned. Contact verify.malvin@gmail.com";
+            updates[`users/${uid}/brandData/status`] = "Banned";
+            updates[`users/${uid}/brandData/banReason`] =
+                "Account has been banned. Contact verify.malvin@gmail.com";
         }
 
         else if (newStatus === "Suspended") {
-            updates[`users/${uid}/status`] = "Suspended";
-            updates[`users/${uid}/suspensionEnds`] = Date.now() + 3600000;
+            updates[`users/${uid}/brandData/status`] = "Suspended";
+            updates[`users/${uid}/brandData/suspensionEnds`] =
+                Date.now() + 3600000;
         }
 
         else {
-            updates[`users/${uid}/status`] = "Active";
-            updates[`users/${uid}/suspensionEnds`] = null;
+            updates[`users/${uid}/brandData/status`] = "Active";
+            updates[`users/${uid}/brandData/suspensionEnds`] = null;
         }
 
         await update(ref(db), updates);
