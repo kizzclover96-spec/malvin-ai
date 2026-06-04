@@ -657,7 +657,7 @@ const Dashboard = (props: any) => {
             const data = await response.json();
 
             if (data.text) {
-                setAiHistory(prev => [...prev.slice(-30), newMessage { role: 'malvin', text: data.text }]);
+                setAiHistory(prev => [...prev.slice(-30), { role: 'malvin', text: data.text }]);
             }
 
         } catch (err) {
