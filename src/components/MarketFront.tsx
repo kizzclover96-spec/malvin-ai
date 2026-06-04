@@ -39,7 +39,7 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
     const [commentText, setCommentText] = useState('');
     const [ratingScore, setRatingScore] = useState(5);
     const [reviewerName, setReviewerName] = useState('');
-    const [showReviewForm, setShowReviewForm] = useState(false); // Controls review input element structural overlay context render visibility toggles
+    const [showReviewForm, setShowReviewForm] = useState(false); 
 
     // Dynamic Profile States (Bio & Meta Verification)
     const [bio, setBio] = useState('');
@@ -117,7 +117,7 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
     useEffect(() => {
         if (!brandId || !selectedProduct) {
             setReviews([]);
-            setShowReviewForm(false); // Reset review form visibility when layout panel is closed or switched
+            setShowReviewForm(false); 
             return;
         }
 
@@ -129,7 +129,6 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
                     id: key,
                     ...data[key]
                 }));
-                // Sort by latest review first
                 setReviews(fetchedReviews.reverse());
             } else {
                 setReviews([]);
@@ -155,7 +154,6 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
             timestamp: Date.now()
         });
 
-        // Reset inputs and close structural review panel view
         setCommentText('');
         setReviewerName('');
         setRatingScore(5);
@@ -287,10 +285,13 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
                     <div style={emptyState}>Catalog is empty.</div>
                 ) : (
                     catalog.map((item: any) => (
-                        <div key={item.id} style={cardWrapper} onClick={() => setSelectedProduct(item)}>
-                            {/* Updated loop to pass down explicitly calculated identity validation tokens */}
-                            <ProductCard item={item} brandId={brandId} onAddToCart={(it) => setOrderModal(it)} />
-                        </div>
+                        <ProductCard 
+                            key={item.id} 
+                            item={item} 
+                            brandId={brandId} 
+                            onAddToCart={(it) => setOrderModal(it)} 
+                            onClick={() => setSelectedProduct(item)}
+                        />
                     ))
                 )}
             </div>
@@ -311,7 +312,6 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
                                     <div style={bigPrice}>{selectedProduct.currency || '€'}{selectedProduct.price}</div>
                                 </div>
 
-                                {/* Global review meta counter summary metrics */}
                                 <div style={ratingSummaryBar}>
                                     <span style={{ color: '#C5FF41', fontWeight: 700 }}>
                                         ★ {averageRating ? `${averageRating} / 5` : 'No reviews yet'}
@@ -329,7 +329,6 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
 
                                 <div style={divider} />
 
-                                {/* Interactive Feed header along with toggle button display execution */}
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
                                     <h3 style={{ ...sectionSubHeading, margin: 0 }}>REVIEWS & COMMENTS ({reviewCount})</h3>
                                     {!showReviewForm && (
@@ -342,7 +341,6 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
                                     )}
                                 </div>
                                 
-                                {/* Conditional structural input display pane logic execution */}
                                 {showReviewForm && (
                                     <form onSubmit={handlePostReview} style={{ ...reviewForm, marginBottom: '20px' }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
@@ -437,27 +435,11 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
     );
 };
 
-// --- NEW COMPONENT BUTTON DESIGN ACTION SPECIFIC INLINES ---
-const toggleReviewBtnStyle: React.CSSProperties = {
-    background: 'rgba(197, 255, 65, 0.1)',
-    border: '1px solid rgba(197, 255, 65, 0.3)',
-    borderRadius: '10px',
-    color: '#C5FF41',
-    padding: '6px 12px',
-    fontSize: '11px',
-    fontWeight: 'bold',
-    cursor: 'pointer'
-};
+// --- ACTION SPECIFIC BUTTON STYLES ---
+const toggleReviewBtnStyle: React.CSSProperties = { background: 'rgba(197, 255, 65, 0.1)', border: '1px solid rgba(197, 255, 65, 0.3)', borderRadius: '10px', color: '#C5FF41', padding: '6px 12px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' };
+const cancelReviewBtnStyle: React.CSSProperties = { background: 'transparent', border: 'none', color: '#888', fontSize: '11px', cursor: 'pointer' };
 
-const cancelReviewBtnStyle: React.CSSProperties = {
-    background: 'transparent',
-    border: 'none',
-    color: '#888',
-    fontSize: '11px',
-    cursor: 'pointer'
-};
-
-// --- STRUCTURAL AND COMPONENT INTERACTION STYLES ---
+// --- STYLING METRICS ---
 const modalScrollArea: React.CSSProperties = { height: '100%', maxHeight: '75vh', overflowY: 'auto', WebkitOverflowScrolling: 'touch' };
 const ratingSummaryBar: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', marginBottom: '14px' };
 const divider: React.CSSProperties = { height: '1px', backgroundColor: '#222', margin: '20px 0' };
@@ -472,14 +454,13 @@ const ratingSelector: React.CSSProperties = { backgroundColor: '#000', border: '
 const reviewTextArea: React.CSSProperties = { backgroundColor: '#000', border: '1px solid #333', borderRadius: '10px', padding: '10px', color: '#fff', fontSize: '13px', fontFamily: 'inherit', resize: 'none' };
 const submitReviewBtn: React.CSSProperties = { marginTop: '10px', backgroundColor: '#C5FF41', color: '#000', border: 'none', padding: '12px', borderRadius: '10px', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer' };
 
-// --- BASE STYLES REMAINING IN SCOPE ---
+// --- BASE APPLICATION STYLES ---
 const marketContainer: React.CSSProperties = { backgroundColor: '#000', height: '100dvh', color: 'white', padding: '0 12px', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', display: 'flex', flexDirection: 'column', alignItems: 'center', overflow: 'hidden', paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)', overscrollBehavior: 'none' };
 const headerStyle: React.CSSProperties = { display: 'flex', width: '100%', maxWidth: '400px', justifyContent: 'space-between', alignItems: 'flex-start', padding: '24px 0 12px 0', backgroundColor: '#000', zIndex: 110, flexShrink: 0 };
 const productGrid: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '12px', width: '100%', maxWidth: '400px', boxSizing: 'border-box', height: 'calc(100vh - 160px)', overflowY: 'auto', paddingBottom: '60px', WebkitOverflowScrolling: 'touch' };
 const bookingBtnStyle: React.CSSProperties = { background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid #333', padding: '10px 15px', borderRadius: '24px', fontSize: '13px', fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' };
 const backToMarketBtn: React.CSSProperties = { position: 'absolute', top: '15px', left: '15px', zIndex: 999, background: '#C5FF41', color: 'black', border: 'none', padding: '8px 14px', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' };
 const maintenanceContainer: React.CSSProperties = { height: '100dvh', backgroundColor: '#000', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'monospace' };
-const cardWrapper: React.CSSProperties = { cursor: 'pointer', width: '100%', minWidth: 0 };
 const brandTitle: React.CSSProperties = { fontSize: '20px', fontWeight: 900, margin: 0, letterSpacing: '-0.5px', display: 'inline-block' };
 const onlineStatus: React.CSSProperties = { fontSize: '11px', color: '#888', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px' };
 const dotStyle: React.CSSProperties = { width: '7px', height: '7px', background: '#C5FF41', borderRadius: '50%', boxShadow: '0 0 8px #C5FF41' };
