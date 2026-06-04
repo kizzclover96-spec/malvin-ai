@@ -29,7 +29,7 @@ const AdsManager = () => {
         filter === "ALL" ? true : ad.status === filter
     );
     useEffect(() => {
-        const verificationRef = ref(db, 'admin/verification_requests');
+        const verificationRef = ref(db, "verification_requests");
 
         const unsubVerification = onValue(verificationRef, (snapshot) => {
             const data = snapshot.val();
