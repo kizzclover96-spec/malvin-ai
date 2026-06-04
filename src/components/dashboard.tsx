@@ -867,22 +867,20 @@ const Dashboard = (props: any) => {
     useEffect(() => {
 
         if (
-            userData?.status === "Suspended" &&
-            userData?.suspensionEnds &&
-            Date.now() > userData.suspensionEnds
+            userBrand?.status === "Suspended" &&
+            userBrand?.suspensionEnds &&
+            Date.now() > userBrand.suspensionEnds
         ) {
-
             update(
-                ref(db, `users/${auth.currentUser.uid}`),
+                dbRef(db, `users/${userBrand.id}/brandData`),
                 {
                     status: "Active",
                     suspensionEnds: null
                 }
             );
-
         }
 
-    }, [userData]);
+    }, [userBrand]);
 
 
     if (status === "Banned") {
@@ -901,37 +899,21 @@ const Dashboard = (props: any) => {
             </div>
         );
     }
-    if (status === "Suspended") {
+    if (userBrand.status === "Suspended") {
 
-        const end = userData?.suspensionEnds || 0;
+        const end = userBrand?.suspensionEnds || 0;
 
-        const remaining = Math.max(
-            0,
-            end - Date.now()
-        );
+        const remaining = Math.max(0, end - Date.now());
 
-        const hours =
-            Math.floor(remaining / 3600000);
-
-        const mins =
-            Math.floor((remaining % 3600000) / 60000);
-
-        const secs =
-            Math.floor((remaining % 60000) / 1000);
+        const hours = Math.floor(remaining / 3600000);
+        const mins = Math.floor((remaining % 3600000) / 60000);
+        const secs = Math.floor((remaining % 60000) / 1000);
 
         return (
             <div className="blocked-screen">
-
                 <h1>ACCOUNT SUSPENDED</h1>
-
-                <p>
-                    Contact verify.malvin@gmail.com
-                </p>
-
-                <h2>
-                    {hours}:{mins}:{secs}
-                </h2>
-
+                <p>Contact verify.malvin@gmail.com</p>
+                <h2>{hours}:{mins}:{secs}</h2>
             </div>
         );
     }
