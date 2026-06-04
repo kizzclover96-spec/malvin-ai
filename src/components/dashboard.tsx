@@ -24,6 +24,7 @@ import MarketTrends from "./MarketTrends";
 import Memories from "./memories"
 import Achievements from './achievements';
 import Banned from "./Banned";
+import Suspended from "./Suspended";
 
 // Exporting this so you can import it and use it anywhere else (Chats, MarketFront, etc.)
 export const VerifiedBadge = () => (
@@ -862,23 +863,8 @@ const Dashboard = (props: any) => {
     if (status === "Banned") {
         return <Banned userBrand={userBrand} />;
     }
-    if (userBrand.status === "Suspended") {
-
-        const end = userBrand?.suspensionEnds;
-
-        const remaining = end ? Math.max(0, end - Date.now()) : 0;
-
-        const hours = Math.floor(remaining / 3600000);
-        const mins = Math.floor((remaining % 3600000) / 60000);
-        const secs = Math.floor((remaining % 60000) / 1000);
-
-        return (
-            <div className="blocked-screen">
-                <h1>ACCOUNT SUSPENDED</h1>
-                <p>Contact verify.malvin@gmail.com</p>
-                <h2>{hours}:{mins}:{secs}</h2>
-            </div>
-        );
+    if (status === "Suspended") {
+        return <Suspended userBrand={user} />;
     }
 
     if (activeTab === 'Preview') {
