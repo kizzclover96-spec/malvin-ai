@@ -212,7 +212,7 @@ const BackButton = ({
 
 const Dashboard = (props: any) => {
     const { onBack, userEmail, validationToken } = props;
-    const isPremium = validationToken === "MVN_PRM_VALID_2026_A9X7";
+    const isPremium = import.meta.env.VITE_VALIDATIONTOKEN === validationToken;
     const [chatCount, setChatCount] = useState(0);
     const [aiMessage, setAiMessage] = useState('');
     const [aiHistory, setAiHistory] = useState<any[]>([]);
@@ -235,6 +235,7 @@ const Dashboard = (props: any) => {
     const [tourStep, setTourStep] = useState(0);
     const [tourReady, setTourReady] = useState(false);
     const [tourFinished, setTourFinished] = useState(false);
+    const [userData, setUserData] = useState<any>(null);
 
     // Profile States
     const [bio, setBio] = useState('');
@@ -400,7 +401,7 @@ const Dashboard = (props: any) => {
             target: "verification"
         },
         {
-            id: "Store Qr",
+            id: "store-qr",
             title: " QR",
             description: "Auto update/generate qr takes customers/potential cleints to your store front",
             target: "vinlink"
@@ -409,7 +410,7 @@ const Dashboard = (props: any) => {
             id: "Achievments",
             title: " Perform tasks",
             description: "APerform activities to always keep you on track",
-            target: "AChievments"
+            target: "Achievments"
         },
     ];
     const [userBrand, setUserBrand] = useState({
@@ -422,9 +423,25 @@ const Dashboard = (props: any) => {
         tier: "Basic Free Tier",
         status: "CEO / Founder"
     });
+    const status = userBrand?.status;
     useEffect(() => {
         const unsub = onAuthStateChanged(auth, (user) => {
             if (!user) return;
+
+            const userDbRef = dbRef(db, `users/${user.uid}/brandData`);
+
+            const unsubscribe = onValue(userDbRef, (snapshot) => {
+                const data = snapshot.val();
+                if (!data) return;
+
+                setUserBrand(prev => ({
+                    ...prev,
+                    ...data,
+                    id: data.id || user.uid,
+                }));
+            });
+
+            return () => unsubscribe();
         });
 
         return () => unsub();
@@ -478,6 +495,8 @@ const Dashboard = (props: any) => {
     
     useEffect(() => {
         const currentUser = auth.currentUser;
+        if (!auth.currentUser) return;
+        const uid = auth.currentUser.uid;
 
         if (currentUser && db) {
             const userDbRef = dbRef(db, `users/${currentUser.uid}/brandData`);
@@ -588,6 +607,13 @@ const Dashboard = (props: any) => {
     const startVision = async () => {
         try {
             const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+            stream.getVideoTracks()[0].onended = () => {
+                setIsVisionActive(false);
+
+                if (visionInterval.current) {
+                    clearInterval(visionInterval.current);
+                }
+            };
             if (videoRef.current) videoRef.current.srcObject = stream;
             setIsVisionActive(true);
             visionInterval.current = setInterval(() => captureFrame(), 30000);
@@ -624,14 +650,14 @@ const Dashboard = (props: any) => {
                 body: JSON.stringify({
                     text: messageToSend,
                     image: imageBase64,
-                    history: updatedHistory
+                    history: updatedHistory.slice(-20)
                 })
             });
 
             const data = await response.json();
 
             if (data.text) {
-                setAiHistory(prev => [...prev, { role: 'malvin', text: data.text }]);
+                setAiHistory(prev => [...prev.slice(-30), newMessage { role: 'malvin', text: data.text }]);
             }
 
         } catch (err) {
@@ -653,10 +679,10 @@ const Dashboard = (props: any) => {
         if (isPremium) return "premium";
         return "locked";
     };
-    const VerificationButton = ({ state, onClick }: { state: "premium" | "locked" | "verified", onClick?: () => void }) => {
+    const VerificationButton = ({ state, onClick, ...props }: { state: "premium" | "locked" | "verified", onClick?: () => void }) => {
         const config = {
             premium: {
-                text: "Verification Mark",
+                text: "Request verification mark",
                 bg: "rgba(255, 215, 0, 0.08)",
                 color: "#FFD700",
                 border: "1px solid rgba(255, 215, 0, 0.4)",
@@ -665,7 +691,7 @@ const Dashboard = (props: any) => {
                 clickable: true
             },
             locked: {
-                text: "Verification Mark",
+                text: "request verification mark",
                 bg: "rgba(255,255,255,0.02)",
                 color: "#444",
                 border: "1px solid #222",
@@ -688,6 +714,7 @@ const Dashboard = (props: any) => {
 
         return (
             <div
+                {...props}
                 onClick={c.clickable ? onClick : undefined}
                 style={{
                     position: "absolute",
@@ -837,10 +864,77 @@ const Dashboard = (props: any) => {
             return null;
         }
     };
+    useEffect(() => {
+
+        if (
+            userData?.status === "Suspended" &&
+            userData?.suspensionEnds &&
+            Date.now() > userData.suspensionEnds
+        ) {
+
+            update(
+                ref(db, `users/${auth.currentUser.uid}`),
+                {
+                    status: "Active",
+                    suspensionEnds: null
+                }
+            );
+
+        }
+
+    }, [userData]);
 
 
+    if (status === "Banned") {
+        return (
+            <div className="blocked-screen">
+                <h1>BUSINESS BANNED</h1>
 
+                <p>
+                    Account has been banned.
+                </p>
 
+                <p>
+                    Clear issue at:
+                    verify.malvin@gmail.com
+                </p>
+            </div>
+        );
+    }
+    if (status === "Suspended") {
+
+        const end = userData?.suspensionEnds || 0;
+
+        const remaining = Math.max(
+            0,
+            end - Date.now()
+        );
+
+        const hours =
+            Math.floor(remaining / 3600000);
+
+        const mins =
+            Math.floor((remaining % 3600000) / 60000);
+
+        const secs =
+            Math.floor((remaining % 60000) / 1000);
+
+        return (
+            <div className="blocked-screen">
+
+                <h1>ACCOUNT SUSPENDED</h1>
+
+                <p>
+                    Contact verify.malvin@gmail.com
+                </p>
+
+                <h2>
+                    {hours}:{mins}:{secs}
+                </h2>
+
+            </div>
+        );
+    }
 
     if (activeTab === 'Preview') {
         return (
@@ -1032,14 +1126,14 @@ const Dashboard = (props: any) => {
                                         <div style={{ marginTop: '12px', padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid #1A1A1A' }}>
                                             <span style={{ fontSize: '11px', color: '#888' }}>
                                                 {bookedDates.length > 0 
-                                                    ? `Next session: ${[...bookedDates] .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0]}` 
+                                                    ? `Next session: ${[...bookedDates] .sort((a, b) => new Date(a).getTime() - new Date(b).getTime())[0]}` 
                                                     : "No upcoming sessions"}
                                             </span>
                                         </div>
                                     </DashboardCard>
 
                                     <DashboardCard style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <VerificationButton data-tour="Verification" state={getVerificationState()} onClick={() => { if (getVerificationState() === "premium") { requestVerification(); }}} />
+                                        <VerificationButton data-tour="verification" state={getVerificationState()} onClick={() => { if (getVerificationState() === "premium") { requestVerification(); }}} />
                                         <div>
                                             <div style={{ fontSize: '12px', color: '#666' }}>
                                                 ACTIVE CUSTOMERS {isVerified && <VerifiedBadge />}
@@ -1054,12 +1148,12 @@ const Dashboard = (props: any) => {
                                 <div style={lowerGridStyle}>
                                     <DashboardCard style={{ overflowY: 'auto' }}>
                                         <div style={{ background: '#000', padding: '15px', borderRadius: '12px', border: '1px solid #222', marginBottom: '20px' }}>
-                                            <p data-tour="Vin link" style={{ fontSize: '10px', color: '#666', marginBottom: '8px' }}>Vin LINK</p>
+                                            <p data-tour="vinlink" style={{ fontSize: '10px', color: '#666', marginBottom: '8px' }}>Vin LINK</p>
                                             <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                                                 <code style={codeStyle}>{shareUrl}</code>
                                             </div>
                                         </div>
-                                        <div data-tour="Store Qr" style={qrContainerStyle}>
+                                        <div data-tour="store-qr" style={qrContainerStyle}>
                                             <div style={{ flex: 1 }}>
                                                 <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '10px' }}>Online Store</div>
                                                 <div style={{ display: 'flex', gap: '8px' }}>

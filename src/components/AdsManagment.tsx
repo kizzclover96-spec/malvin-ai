@@ -137,12 +137,40 @@ const AdsManager = () => {
 
     const handleUpdateStatus = async (newStatus: string) => {
         if (!selectedUser) return;
+
         const updates: any = {};
-        updates[`users/${selectedUser.uid}/status`] = newStatus;
-        
+
+        if (newStatus === "Banned") {
+            updates[`users/${selectedUser.uid}/status`] = "Banned";
+            updates[`users/${selectedUser.uid}/banReason`] =
+                "Account has been banned. Contact verify.malvin@gmail.com";
+        }
+
+        else if (newStatus === "Warned") {
+            updates[`users/${selectedUser.uid}/status`] = "Warned";
+        }
+
+        else if (newStatus === "Suspended") {
+            updates[`users/${selectedUser.uid}/status`] = "Suspended";
+
+            updates[`users/${selectedUser.uid}/suspensionEnds`] =
+                Date.now() + (24 * 60 * 60 * 1000);
+        }
+
+        else {
+            updates[`users/${selectedUser.uid}/status`] = "Active";
+            updates[`users/${selectedUser.uid}/suspensionEnds`] = null;
+        }
+
         await update(ref(db), updates);
-        logAction('STATUS_CHANGE', selectedUser.uid, `Status set to: ${newStatus}`);
-        alert(`USER_STATUS: ${newStatus}`);
+
+        await logAction(
+            "STATUS_CHANGE",
+            selectedUser.uid,
+            `Status set to ${newStatus}`
+        );
+
+        alert(`STATUS_SET_TO_${newStatus}`);
     };
 
     const handleSaveChanges = async () => {
@@ -339,7 +367,7 @@ const AdsManager = () => {
                                         style={{ ...statusBtn, border: selectedUser.status === 'Active' ? '1px solid #C5FF41' : '1px solid #333' }}
                                     >ACTIVE</button>
                                     <button 
-                                        onClick={() => handleUpdateStatus('Warned')}
+                                        onClick={() => handleUpdateStatus('Suspended')}
                                         style={{ ...statusBtn, color: '#ffcc00' }}
                                     >WARN</button>
                                     <button 
