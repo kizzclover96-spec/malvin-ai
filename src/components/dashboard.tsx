@@ -423,7 +423,7 @@ const Dashboard = (props: any) => {
         tier: "Basic Free Tier",
         status: "CEO / Founder"
     });
-    const status = userBrand?.status || userBrand?.security?.status;
+    const status = userBrand?.status;
     useEffect(() => {
         const unsub = onAuthStateChanged(auth, (user) => {
             if (!user) return;
@@ -434,11 +434,19 @@ const Dashboard = (props: any) => {
                 const data = snapshot.val();
                 if (!data) return;
 
-                setUserBrand(prev => ({
-                    ...prev,
-                    ...data,
-                    id: data.id || user.uid,
-                }));
+                setUserBrand((prev) => {
+                    // If the name and ID are already identical, do nothing! Break the loop.
+                    if (prev.id === brandId && prev.name === (data?.name || "CEO / Founder") && prev.context === data?.context) {
+                        return prev; 
+                    }
+                    
+                    return {
+                        ...prev,
+                        ...data,
+                        id: brandId,
+                        name: data?.name || "CEO / Founder"
+                    };
+                });
             });
 
             return () => unsubscribe();
@@ -493,40 +501,7 @@ const Dashboard = (props: any) => {
         }
     };
     
-    useEffect(() => {
-        const currentUser = auth.currentUser;
-        if (!auth.currentUser) return;
-        const uid = auth.currentUser.uid;
-
-        if (currentUser && db) {
-            const userDbRef = dbRef(db, `users/${currentUser.uid}/brandData`);
-
-            const unsubscribe = onValue(userDbRef, (snapshot) => {
-                const data = snapshot.val();
-                if (!data) return; // Prevent crashing if data is empty
-
-                const brandId = data?.id || data?.brandId || currentUser.uid;
-
-                // ⚡ FIX: Use functional updates to read the exact current state 
-                // and check if an update is genuinely necessary.
-                setUserBrand((prev) => {
-                    // If the name and ID are already identical, do nothing! Break the loop.
-                    if (prev.id === brandId && prev.name === (data?.name || "CEO / Founder") && prev.context === data?.context) {
-                        return prev; 
-                    }
-                    
-                    return {
-                        ...prev,
-                        ...data,
-                        id: brandId,
-                        name: data?.name || "CEO / Founder"
-                    };
-                });
-            });
-
-            return () => unsubscribe();
-        }
-    }, []);
+   
     useEffect(() => {
         const saved = localStorage.getItem("malvin_history");
 
@@ -864,26 +839,10 @@ const Dashboard = (props: any) => {
             return null;
         }
     };
-    useEffect(() => {
-
-        if (
-            userBrand?.status === "Suspended" &&
-            userBrand?.suspensionEnds &&
-            Date.now() > userBrand.suspensionEnds
-        ) {
-            update(
-                dbRef(db, `users/${userBrand.id}/brandData`),
-                {
-                    status: "Active",
-                    suspensionEnds: null
-                }
-            );
-        }
-
-    }, [userBrand]);
+    
 
 
-    if (status === "Banned") {
+    if (userBrand.status === "Banned") {
         return (
             <div className="blocked-screen">
                 <h1>BUSINESS BANNED</h1>

@@ -138,35 +138,31 @@ const AdsManager = () => {
     const handleUpdateStatus = async (newStatus: string) => {
         if (!selectedUser) return;
 
+        const uid = selectedUser.uid;
+
         const updates: any = {};
 
         if (newStatus === "Banned") {
-            updates[`users/${selectedUser.uid}/status`] = "Banned";
-            updates[`users/${selectedUser.uid}/banReason`] =
+            updates[`users/${uid}/brandData/status`] = "Banned";
+            updates[`users/${uid}/banReason`] =
                 "Account has been banned. Contact verify.malvin@gmail.com";
         }
 
-        else if (newStatus === "Warned") {
-            updates[`users/${selectedUser.uid}/status`] = "Warned";
-        }
-
         else if (newStatus === "Suspended") {
-            updates[`users/${selectedUser.uid}/status`] = "Suspended";
-
-            updates[`users/${selectedUser.uid}/suspensionEnds`] =
-                Date.now() + (24 * 60 * 60 * 1000);
+            updates[`users/${uid}/brandData/status`] = "Suspended";
+            updates[`users/${uid}/suspensionEnds`] = Date.now() + 3600000;
         }
 
         else {
-            updates[`users/${selectedUser.uid}/status`] = "Active";
-            updates[`users/${selectedUser.uid}/suspensionEnds`] = null;
+            updates[`users/${uid}/brandData/status`] = "Active";
+            updates[`users/${uid}/suspensionEnds`] = null;
         }
 
         await update(ref(db), updates);
 
         await logAction(
             "STATUS_CHANGE",
-            selectedUser.uid,
+            uid,
             `Status set to ${newStatus}`
         );
 
@@ -267,7 +263,7 @@ const AdsManager = () => {
                                     style={{
                                         ...userCard,
                                         borderLeft: isSelected ? '4px solid #C5FF41' : '4px solid transparent',
-                                        background: u.status === 'Banned' 
+                                        background: u.brandData?.status === 'Banned' 
                                             ? 'rgba(255, 77, 77, 0.1)' 
                                             : isSelected ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.03)',
                                     }}
