@@ -23,7 +23,7 @@ import MarginCalculator from "./MarginCalculator";
 import MarketTrends from "./MarketTrends";
 import Memories from "./memories"
 import Achievements from './achievements';
-import Banned from "./components/Banned";
+import Banned from "./Banned";
 
 // Exporting this so you can import it and use it anywhere else (Chats, MarketFront, etc.)
 export const VerifiedBadge = () => (
