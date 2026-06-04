@@ -23,6 +23,7 @@ import MarginCalculator from "./MarginCalculator";
 import MarketTrends from "./MarketTrends";
 import Memories from "./memories"
 import Achievements from './achievements';
+import Banned from "./components/Banned";
 
 // Exporting this so you can import it and use it anywhere else (Chats, MarketFront, etc.)
 export const VerifiedBadge = () => (
@@ -858,21 +859,8 @@ const Dashboard = (props: any) => {
     
 
 
-    if ((userBrand.status || "").toLowerCase() === "banned"){
-        return (
-            <div className="blocked-screen">
-                <h1>BUSINESS BANNED</h1>
-
-                <p>
-                    Account has been banned.
-                </p>
-
-                <p>
-                    Clear issue at:
-                    verify.malvin@gmail.com
-                </p>
-            </div>
-        );
+    if (status === "Banned") {
+        return <Banned userBrand={user} />;
     }
     if (userBrand.status === "Suspended") {
 

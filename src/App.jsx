@@ -15,6 +15,7 @@ import Impressum from "./pages/Impressum";
 import MarketFront from "./components/MarketFront";
 import Dashboard from "./components/dashboard";
 
+
 function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
