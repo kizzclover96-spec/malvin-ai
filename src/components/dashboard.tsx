@@ -719,7 +719,7 @@ const Dashboard = (props: any) => {
 
         await push(ref(db, "admin/verification_requests"), {
             uid: userBrand.id,
-            brandName: userBrand?.brandData?.name || "UNKNOWN",
+            brandName: userBrand?.name || "UNKNOWN",
             email: auth.currentUser?.email,
             status: "pending",
             createdAt: serverTimestamp(),
