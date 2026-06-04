@@ -860,7 +860,7 @@ const Dashboard = (props: any) => {
 
 
     if (status === "Banned") {
-        return <Banned userBrand={user} />;
+        return <Banned userBrand={userBrand} />;
     }
     if (userBrand.status === "Suspended") {
 
