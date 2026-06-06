@@ -31,6 +31,9 @@ function App() {
         setHasWokenUp(false);
         setShowLogin(false);
         setDashboardToken("");
+      } else {
+        // 🌟 Reset wake-up cycle for any fresh logins to re-run the verification screen
+        setHasWokenUp(false); 
       }
       setLoading(false);
     });

@@ -70,31 +70,32 @@ function Welcomeview({ onWakeClick }: WelcomeProps) {
       tierDbRef = ref(db, `users/${user.uid}/tier`); 
       
       // Listen for immediate data state updates on the tier string directly
+      // Inside Welcomeview's useEffect real-time database listener:
       onValue(tierDbRef, (snapshot) => {
         if (snapshot.exists()) {
           const tierValue = snapshot.val();
           
           if (tierValue === "premium") {
-            console.log("Malvin Core: Premium signature validated via targeted child path.");
+            console.log("Malvin Core: Premium signature validated.");
             setPremiumToken("MVN_PRM_VALID_2026_A9X7");
           } else {
-            setPremiumToken("MVN_BSC_DEFAULT_0000");
+            setPremiumToken(""); // 🌟 FIXED: Pass empty string so Dashboard knows it's NOT premium
           }
         } else {
-          // If the 'tier' node doesn't exist, check a fallback 'premium' boolean node
+          // If the 'tier' node doesn't exist, check fallback node
           const premiumDbRef = ref(db, `users/${user.uid}/premium`);
           onValue(premiumDbRef, (fallbackSnapshot) => {
             if (fallbackSnapshot.exists() && fallbackSnapshot.val() === true) {
               setPremiumToken("MVN_PRM_VALID_2026_A9X7");
             } else {
-              setPremiumToken("MVN_BSC_DEFAULT_0000");
+              setPremiumToken(""); // 🌟 FIXED: Pass empty string here too
             }
           }, { onlyOnce: true });
         }
       }, (err) => {
         console.error("Premium authorization module error:", err);
+        setPremiumToken(""); // Fallback on database access error
       });
-    });
 
     // Clean up tracking scopes when unmounting
     return () => {
