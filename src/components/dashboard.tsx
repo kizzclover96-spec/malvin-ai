@@ -563,6 +563,19 @@ const Dashboard = (props: any) => {
                 }
             });
         });
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            let totalPending = 0;
+
+            snapshot.docs.forEach(doc => {
+                const data = doc.data();
+
+                if (data.isOrderBlue === true) {
+                    totalPending += data.orderCount || 1;
+                }
+            });
+
+            setOrderCount(totalPending);
+        });
 
         return () => unsubscribe();
     }, [userBrand?.id, activeTab]);
@@ -1009,15 +1022,9 @@ const Dashboard = (props: any) => {
                                                 <div>
                                                     <span style={{ fontSize: '10px', color: '#666', fontWeight: 800, letterSpacing: '1px' }}>PENDING_ORDERS</span>
                                                     <div style={{ display: 'flex', alignItems: 'baseline' }}>
-                                                        <input 
-                                                            type="number"
-                                                            value={orderCount}
-                                                            onChange={(e) => setOrderCount(parseInt(e.target.value) || 0)}
-                                                            style={{ 
-                                                                background: 'none', border: 'none', color: 'white', 
-                                                                fontSize: '32px', fontWeight: 700, width: '60px', outline: 'none'
-                                                            }} 
-                                                        />
+                                                        <div style={{ fontSize: '32px', fontWeight: 700 }}>
+                                                            {orderCount}
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
