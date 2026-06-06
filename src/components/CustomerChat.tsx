@@ -32,6 +32,10 @@ const CustomerChat = ({ pendingOrder: propOrder, quantity: propQuantity }: Custo
     const activePendingQuantity = propQuantity || 1;
     const pendingOrderRef = useRef<any>(null);
 
+    const [orderStatus, setOrderStatus] = useState<string | null>(null);
+    const [showAcceptedPopup, setShowAcceptedPopup] = useState(false);
+    const [confetti, setConfetti] = useState<any[]>([]);
+
     // Use a ref to ensure an order is only processed and fired once per mount cycle
     const orderProcessed = useRef(false);
     useEffect(() => {
@@ -171,100 +175,182 @@ const CustomerChat = ({ pendingOrder: propOrder, quantity: propQuantity }: Custo
         setQuantity(1);
         setShowCatalog(false);
     };
+    const triggerOrderAccepted = () => {
+        launchConfetti();
+
+        setShowAcceptedPopup(true);
+
+        setTimeout(() => {
+            setShowAcceptedPopup(false);
+        }, 4000);
+    };
+    const launchConfetti = () => {
+        const particles = Array.from({ length: 35 }, (_, i) => ({
+            id: i,
+            x: Math.random() * 400 - 200,
+            y: Math.random() * 200,
+            size: Math.random() * 10 + 5
+        }));
+
+        setConfetti(particles);
+
+        setTimeout(() => setConfetti([]), 1800);
+    };
+    useEffect(() => {
+        if (!chatId) return;
+
+        const convoRef = doc(firestore, "conversations", chatId);
+
+        const unsub = onSnapshot(convoRef, (snap) => {
+            const data = snap.data();
+            if (!data) return;
+
+            const newStatus = data.orderStatus;
+
+            // detect ONLY transition to "accepted"
+            if (newStatus === "accepted" && orderStatus !== "accepted") {
+                triggerOrderAccepted();
+            }
+
+            setOrderStatus(newStatus || null);
+        });
+
+        return () => unsub();
+    }, [chatId, orderStatus]);
 
     if (loading) return <div style={{background: '#000', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666'}}>Authenticating Shop...</div>;
 
     return (
-        <div style={containerStyle}>
-             <style>{`
-                @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
-                @media (max-width: 768px) {
-                    .catalog-sidebar { position: absolute !important; right: 0; top: 0; height: 100%; width: 85% !important; z-index: 50; box-shadow: -10px 0 30px rgba(0,0,0,0.5); }
-                    .message-bubble { max-width: 85% !important; }
-                }
-            `}</style>
-
-            <div style={headerStyle}>
-                <div>
-                    <div style={{ fontWeight: 800, fontSize: '16px' }}>{brandData?.name || "Malvin Partner"}</div>
-                    <div style={{ fontSize: '11px', color: '#C5FF41' }}>● Online</div>
-                </div>
-                <button onClick={() => setShowCatalog(!showCatalog)} style={catalogToggleBtn}>
-                    {showCatalog ? '✕' : 'Catalog 📦'}
-                </button>
-            </div>
-
-            <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
-                <div ref={scrollRef} style={messageAreaStyle}>
-                    <div style={{...messageBubbleStyle, alignSelf: 'flex-start', background: '#1A1A1A', color: 'white'}}>
-                        Hello! Welcome to <b>{brandData?.name}</b>. How can I help you today?
+        <>
+            {showAcceptedPopup && (
+                <div style={{
+                    position: "fixed",
+                    top: "30px",
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    background: "rgba(0,0,0,0.85)",
+                    padding: "18px 22px",
+                    borderRadius: "16px",
+                    border: "1px solid #38d777",
+                    color: "#fff",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "12px",
+                    zIndex: 99999,
+                    animation: "slideIn 0.3s ease"
+                }}>
+                    <div style={{
+                        width: "40px",
+                        height: "40px",
+                        borderRadius: "50%",
+                        background: "#38d777",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: "20px"
+                    }}>
+                        ✔
                     </div>
 
-                    {chatHistory.map((msg) => (
-                        <div key={msg.id} className="message-bubble" style={{
-                            ...messageBubbleStyle,
-                            alignSelf: msg.sender === 'customer' ? 'flex-end' : 'flex-start',
-                            background: msg.isOrder ? 'rgba(197, 255, 65, 0.1)' : (msg.sender === 'customer' ? '#C5FF41' : '#1A1A1A'),
-                            color: msg.sender === 'customer' ? 'black' : 'white',
-                            border: msg.isOrder ? '1px solid #C5FF41' : 'none',
-                        }}>
-                            {msg.isOrder && (
-                                <div style={{ marginBottom: '8px', display: 'flex', gap: '10px' }}>
-                                    <img src={msg.orderData.image} style={{ width: '45px', height: '45px', borderRadius: '8px', objectFit: 'cover' }} alt="" />
-                                    <div style={{ fontSize: '12px' }}>
-                                        <div style={{ fontWeight: 'bold' }}>Order Request</div>
-                                        <div>{msg.orderData.quantity}x {msg.orderData.name}</div>
-                                    </div>
-                                </div>
-                            )}
-                            <div style={{ fontSize: '14px', lineHeight: '1.4' }}>{msg.text}</div>
-                        </div>
-                    ))}
-                </div>
-
-                {showCatalog && (
-                    <div className="catalog-sidebar" style={sidebarStyle}>
-                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px'}}>
-                            <h4 style={{fontSize: '10px', opacity: 0.5, letterSpacing: '1px', margin: 0}}>STORE_CATALOG</h4>
-                            <button onClick={() => setShowCatalog(false)} style={{background: 'none', border: 'none', color: '#666', fontSize: '18px'}}>✕</button>
-                        </div>
-                        {catalogItems.map(item => (
-                            <ProductCard key={item.id} item={item} onAddToCart={(it: any) => setOrderModal(it)} />
-                        ))}
-                    </div>
-                )}
-            </div>
-
-            {orderModal && (
-                <div style={modalOverlay}>
-                    <div style={glassModal}>
-                        <h3 style={{marginTop: 0, fontSize: '18px'}}>Order Quantity</h3>
-                        <p style={{opacity: 0.7, fontSize: '14px'}}>{orderModal.name}</p>
-                        <input 
-                            type="number" 
-                            min="1"
-                            value={quantity} 
-                            onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                            style={quantityInput}
-                        />
-                        <div style={{display: 'flex', gap: '10px'}}>
-                            <button onClick={confirmOrder} style={primaryBtn}>Confirm</button>
-                            <button onClick={() => setOrderModal(null)} style={secondaryBtn}>Cancel</button>
+                    <div>
+                        <div style={{ fontWeight: 700 }}>Order Accepted</div>
+                        <div style={{ fontSize: "12px", opacity: 0.7 }}>
+                            Your order has been verified by the store
                         </div>
                     </div>
                 </div>
             )}
+            <div style={containerStyle}>
+                <style>{`
+                    @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+                    @media (max-width: 768px) {
+                        .catalog-sidebar { position: absolute !important; right: 0; top: 0; height: 100%; width: 85% !important; z-index: 50; box-shadow: -10px 0 30px rgba(0,0,0,0.5); }
+                        .message-bubble { max-width: 85% !important; }
+                    }
+                `}</style>
 
-            <form onSubmit={handleSend} style={inputContainerStyle}>
-                <input 
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    placeholder="Ask us anything..."
-                    style={inputStyle}
-                />
-                <button type="submit" style={sendBtnStyle}>→</button>
-            </form>
-        </div>
+                <div style={headerStyle}>
+                    <div>
+                        <div style={{ fontWeight: 800, fontSize: '16px' }}>{brandData?.name || "Malvin Partner"}</div>
+                        <div style={{ fontSize: '11px', color: '#C5FF41' }}>● Online</div>
+                    </div>
+                    <button onClick={() => setShowCatalog(!showCatalog)} style={catalogToggleBtn}>
+                        {showCatalog ? '✕' : 'Catalog 📦'}
+                    </button>
+                </div>
+
+                <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
+                    <div ref={scrollRef} style={messageAreaStyle}>
+                        <div style={{...messageBubbleStyle, alignSelf: 'flex-start', background: '#1A1A1A', color: 'white'}}>
+                            Hello! Welcome to <b>{brandData?.name}</b>. How can I help you today?
+                        </div>
+
+                        {chatHistory.map((msg) => (
+                            <div key={msg.id} className="message-bubble" style={{
+                                ...messageBubbleStyle,
+                                alignSelf: msg.sender === 'customer' ? 'flex-end' : 'flex-start',
+                                background: msg.isOrder ? 'rgba(197, 255, 65, 0.1)' : (msg.sender === 'customer' ? '#C5FF41' : '#1A1A1A'),
+                                color: msg.sender === 'customer' ? 'black' : 'white',
+                                border: msg.isOrder ? '1px solid #C5FF41' : 'none',
+                            }}>
+                                {msg.isOrder && (
+                                    <div style={{ marginBottom: '8px', display: 'flex', gap: '10px' }}>
+                                        <img src={msg.orderData.image} style={{ width: '45px', height: '45px', borderRadius: '8px', objectFit: 'cover' }} alt="" />
+                                        <div style={{ fontSize: '12px' }}>
+                                            <div style={{ fontWeight: 'bold' }}>Order Request</div>
+                                            <div>{msg.orderData.quantity}x {msg.orderData.name}</div>
+                                        </div>
+                                    </div>
+                                )}
+                                <div style={{ fontSize: '14px', lineHeight: '1.4' }}>{msg.text}</div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {showCatalog && (
+                        <div className="catalog-sidebar" style={sidebarStyle}>
+                            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px'}}>
+                                <h4 style={{fontSize: '10px', opacity: 0.5, letterSpacing: '1px', margin: 0}}>STORE_CATALOG</h4>
+                                <button onClick={() => setShowCatalog(false)} style={{background: 'none', border: 'none', color: '#666', fontSize: '18px'}}>✕</button>
+                            </div>
+                            {catalogItems.map(item => (
+                                <ProductCard key={item.id} item={item} onAddToCart={(it: any) => setOrderModal(it)} />
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                {orderModal && (
+                    <div style={modalOverlay}>
+                        <div style={glassModal}>
+                            <h3 style={{marginTop: 0, fontSize: '18px'}}>Order Quantity</h3>
+                            <p style={{opacity: 0.7, fontSize: '14px'}}>{orderModal.name}</p>
+                            <input 
+                                type="number" 
+                                min="1"
+                                value={quantity} 
+                                onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                                style={quantityInput}
+                            />
+                            <div style={{display: 'flex', gap: '10px'}}>
+                                <button onClick={confirmOrder} style={primaryBtn}>Confirm</button>
+                                <button onClick={() => setOrderModal(null)} style={secondaryBtn}>Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                <form onSubmit={handleSend} style={inputContainerStyle}>
+                    <input 
+                        value={message}
+                        onChange={(e) => setMessage(e.target.value)}
+                        placeholder="Ask us anything..."
+                        style={inputStyle}
+                    />
+                    <button type="submit" style={sendBtnStyle}>→</button>
+                </form>
+            </div>
+        </>
     );
 };
 

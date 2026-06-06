@@ -203,7 +203,8 @@ const Chats = ({ brandId, userBrand }: any) => {
             await updateDoc(chatRef, {
                 isOrderBlue: true,
                 orderCount: newTotalCount,
-                lastOrderAt: serverTimestamp()
+                lastOrderAt: serverTimestamp(),
+                orderStatus: "accepted" | "pending" | "cancelled"
             });
 
             // Fire Celebration Mechanics
