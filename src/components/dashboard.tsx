@@ -546,33 +546,41 @@ const Dashboard = (props: any) => {
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
             setChatCount(snapshot.size);
-            const unreadExist = snapshot.docs.some(doc => doc.data().viewedByManager === false);
+
+            let totalPending = 0;
+
+            const unreadExist = snapshot.docs.some(
+                doc => doc.data().viewedByManager === false
+            );
             setHasUnread(unreadExist);
 
             snapshot.docChanges().forEach((change) => {
-                if ((change.type === "added" || change.type === "modified") && activeTab !== 'Chats') {
-                    const data = change.doc.data();
-                    if (data.viewedByManager === false) {
-                        setToast({ 
-                            show: true, 
-                            msg: data.lastMessage || "New message received", 
-                            sender: data.clientPhone || `New Client`
-                        });
-                        setTimeout(() => setToast(prev => ({ ...prev, show: false })), 5000);
-                    }
+                const data = change.doc.data();
+
+                if (
+                    (change.type === "added" || change.type === "modified") &&
+                    data.viewedByManager === false &&
+                    activeTab !== "Chats"
+                ) {
+                    setToast({
+                        show: true,
+                        msg: data.lastMessage || "New message received",
+                        sender: data.clientPhone || "New Client"
+                    });
+
+                    setTimeout(() =>
+                        setToast(prev => ({ ...prev, show: false })),
+                        5000
+                    );
                 }
             });
-        });
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            let totalPending = 0;
 
-            snapshot.docs.forEach(doc => {
+            for (const doc of snapshot.docs) {
                 const data = doc.data();
-
-                if (data.isOrderBlue === true) {
-                    totalPending += data.orderCount || 1;
+                if (data.isOrderBlue) {
+                    totalPending += data.orderCount ?? 1;
                 }
-            });
+            }
 
             setOrderCount(totalPending);
         });
