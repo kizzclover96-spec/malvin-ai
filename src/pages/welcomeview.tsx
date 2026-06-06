@@ -10,7 +10,8 @@ interface WelcomeProps {
 
 function Welcomeview({ onWakeClick }: WelcomeProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [premiumToken, setPremiumToken] = useState<string>("MVN_BSC_DEFAULT_0000");
+  // 🌟 FIX: Start with an empty string so it doesn't temporarily pass a fallback token
+  const [premiumToken, setPremiumToken] = useState<string>("");
   const [loadingComplete, setLoadingComplete] = useState<boolean>(false);
 
   // 1. NEON DOTS ENGINE
@@ -53,11 +54,10 @@ function Welcomeview({ onWakeClick }: WelcomeProps) {
     animate();
   }, []);
 
-  // 2. REAL-TIME SECURITY RECORD LISTENER (Fixed via Leaf Node Targeting)
+  // 2. REAL-TIME SECURITY RECORD LISTENER
   useEffect(() => {
     let tierDbRef: any = null;
 
-    // Monitor Auth status cleanly
     const unsubscribeAuth = auth.onAuthStateChanged((user) => {
       if (!user) {
         console.log("Malvin Core: No authenticated user detected yet.");
@@ -66,11 +66,8 @@ function Welcomeview({ onWakeClick }: WelcomeProps) {
 
       console.log(`Malvin Core: User session confirmed [${user.uid}]. Attaching leaf node listener...`);
       
-      // 🌟 FIXED: Target the exact child node property allowed by rules
       tierDbRef = ref(db, `users/${user.uid}/tier`); 
       
-      // Listen for immediate data state updates on the tier string directly
-      // Inside Welcomeview's useEffect real-time database listener:
       onValue(tierDbRef, (snapshot) => {
         if (snapshot.exists()) {
           const tierValue = snapshot.val();
@@ -79,7 +76,7 @@ function Welcomeview({ onWakeClick }: WelcomeProps) {
             console.log("Malvin Core: Premium signature validated.");
             setPremiumToken("MVN_PRM_VALID_2026_A9X7");
           } else {
-            setPremiumToken(""); // 🌟 FIXED: Pass empty string so Dashboard knows it's NOT premium
+            setPremiumToken(""); // Explicitly empty for non-premium
           }
         } else {
           // If the 'tier' node doesn't exist, check fallback node
@@ -88,16 +85,16 @@ function Welcomeview({ onWakeClick }: WelcomeProps) {
             if (fallbackSnapshot.exists() && fallbackSnapshot.val() === true) {
               setPremiumToken("MVN_PRM_VALID_2026_A9X7");
             } else {
-              setPremiumToken(""); // 🌟 FIXED: Pass empty string here too
+              setPremiumToken(""); 
             }
           }, { onlyOnce: true });
         }
       }, (err) => {
         console.error("Premium authorization module error:", err);
-        setPremiumToken(""); // Fallback on database access error
+        setPremiumToken(""); 
+      }); // 🌟 FIX: Added missing missing closing brackets here!
     });
 
-    // Clean up tracking scopes when unmounting
     return () => {
       unsubscribeAuth();
       if (tierDbRef) {
@@ -138,7 +135,7 @@ function Welcomeview({ onWakeClick }: WelcomeProps) {
       <style>{`
         @keyframes blinkEye {
           0%, 90%, 100% { transform: scaleY(1); }
-          95% { transform: scaleY(0.1); }
+          55%, 95% { transform: scaleY(0.1); }
         }
         @keyframes orbit {
           from { transform: rotate(0deg); }
