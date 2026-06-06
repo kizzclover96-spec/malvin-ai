@@ -95,7 +95,7 @@ function Welcomeview({ onWakeClick }: WelcomeProps) {
       }, (err) => {
         console.error("Premium authorization module error:", err);
         setPremiumToken(""); // Fallback on database access error
-      });
+    });
 
     // Clean up tracking scopes when unmounting
     return () => {
