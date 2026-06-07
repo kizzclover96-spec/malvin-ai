@@ -291,16 +291,7 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
                             display: "flex",
                             alignItems: "center",
                             gap: "6px"
-                        }}><ReputationScore userId={brandId} />
-                            <span style={{
-                                width: "7px",
-                                height: "7px",
-                                background: getTrustColor(trustStatus),
-                                borderRadius: "50%",
-                                boxShadow: `0 0 8px ${getTrustColor(trustStatus)}`
-                            }} />
-                            Active Now
-                        </span>
+                        }}><ReputationScore userId={brandId} /></span>
 
                         <span
                             onClick={() => setShowReport(true)}
