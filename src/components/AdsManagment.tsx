@@ -8,6 +8,7 @@ import { firestore } from "../firebase"; // Your firestore initialization file
 import { remove } from "firebase/database";
 import AllAds from "./AllAds";
 import { Link } from "react-router-dom";
+import AdminReports from "./AdminReports";
 
 const AdsManager = () => {
     const [users, setUsers] = useState<any[]>([]);
@@ -21,6 +22,7 @@ const AdsManager = () => {
     const [processingId, setProcessingId] = useState<string | null>(null);
     const [filter, setFilter] = useState("Pending_Admin_Review");
     const [searchTerm, setSearchTerm] = useState('');
+    const [activePanel, setActivePanel] = useState("ads");
     
     
     
@@ -210,6 +212,13 @@ const AdsManager = () => {
             <header style={headerStyle}>
                 <h1 style={{ fontSize: '20px', letterSpacing: '3px' }}>MALVIN_ADMIN_V2</h1>
                 <Link to="/allads" style={logoutBtn}> APPROVED ADS</Link>
+                <button onClick={() => setActivePanel("reports")} style={logoutBtn}>
+                    REPORTS
+                </button>
+
+                <button onClick={() => setActivePanel("ads")} style={logoutBtn}>
+                    ADS_PANEL
+                </button>
                 <button onClick={() => signOut(auth)} style={logoutBtn}>LOGOUT</button>
             </header>
             <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
@@ -229,506 +238,510 @@ const AdsManager = () => {
                     </button>
                 ))}
             </div>
-            
-            <div style={{ display: 'grid', gridTemplateColumns: '350px 1fr 350px 350px', gap: '24px' }}>
+            {activePanel === "ads" && (
+                <div style={{ display: 'grid', gridTemplateColumns: '350px 1fr 350px 350px', gap: '24px' }}>
 
-                {/* --- MERCHANT DIRECTORY --- */}
-                <section style={panelStyle}>
-                    <h3 style={sectionTitle}>MERCHANT_DIRECTORY</h3>
-                    <input
-                        type="text"
-                        placeholder="Search email, uid or brand..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        style={{
-                            width: '100%',
-                            marginBottom: '12px',
-                            padding: '10px',
-                            background: '#000',
-                            color: '#fff',
-                            border: '1px solid #333',
-                            borderRadius: '8px'
-                        }}
-                    />
-                    <div style={{ maxHeight: '75vh', overflowY: 'auto', paddingRight: '8px' }}>
-                        {filteredUsers.map((u) => {
-                            const ipCount = getIpClusterCount(u.security?.lastIp);
-                            const isHighRisk = ipCount > 2;
-                            const isSelected = selectedUser?.uid === u.uid;
-                            const merchantName = u.brandData?.name || u.brandName || "Ghost_User";
+                    {/* --- MERCHANT DIRECTORY --- */}
+                    <section style={panelStyle}>
+                        <h3 style={sectionTitle}>MERCHANT_DIRECTORY</h3>
+                        <input
+                            type="text"
+                            placeholder="Search email, uid or brand..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            style={{
+                                width: '100%',
+                                marginBottom: '12px',
+                                padding: '10px',
+                                background: '#000',
+                                color: '#fff',
+                                border: '1px solid #333',
+                                borderRadius: '8px'
+                            }}
+                        />
+                        <div style={{ maxHeight: '75vh', overflowY: 'auto', paddingRight: '8px' }}>
+                            {filteredUsers.map((u) => {
+                                const ipCount = getIpClusterCount(u.security?.lastIp);
+                                const isHighRisk = ipCount > 2;
+                                const isSelected = selectedUser?.uid === u.uid;
+                                const merchantName = u.brandData?.name || u.brandName || "Ghost_User";
 
-                            return (
-                                <div 
-                                    key={u.uid} 
-                                    onClick={() => handleSelectUser(u)}
-                                    style={{
-                                        ...userCard,
-                                        borderLeft: isSelected ? '4px solid #C5FF41' : '4px solid transparent',
-                                        background: u.brandData?.status === 'Banned' 
-                                            ? 'rgba(255, 77, 77, 0.1)' 
-                                            : isSelected ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.03)',
-                                    }}
-                                >
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                                        <span style={{ fontSize: '14px', fontWeight: 700, color: u.isVerified ? '#007fff' : '#fff' }}>
-                                            {u.isVerified && "✓ "}{merchantName.toUpperCase()}
-                                        </span>
-                                        {isHighRisk && <span style={botTag}>RISK_CLUSTER</span>}
-                                    </div>
-                                    
-                                    <div style={dirMetadata}>
-                                        <span style={{ opacity: 0.4 }}>EMAIL:</span> {u.email || 'N/A'}
-                                    </div>
-
-                                    <div style={dirMetadata}>
-                                        <span style={{ opacity: 0.4 }}>B_ID:</span> 
-                                        <span style={{ fontFamily: 'monospace', marginLeft: '4px' }}>{u.uid}</span>
-                                    </div>
-
-                                    <div style={{ 
-                                        display: 'flex', 
-                                        justifyContent: 'space-between', 
-                                        marginTop: '10px', 
-                                        paddingTop: '8px', 
-                                        borderTop: '1px solid rgba(255,255,255,0.05)',
-                                        fontSize: '10px' 
-                                    }}>
-                                        <span style={{ color: '#C5FF41' }}>€{u.treasury?.balance?.toLocaleString() || '0'}</span>
-                                        <span style={{ opacity: 0.4 }}>IP: {u.security?.lastIp || 'UNKNOWN'}</span>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </section>
-
-                {/* --- ACCOUNT_MODERATOR SECTION --- */}
-                <section style={panelStyle}>
-                    <h3 style={sectionTitle}>ACCOUNT_MODERATOR</h3>
-                    {selectedUser ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                            
-                            {/* BRAND & BALANCE */}
-                            <div>
-                                <label style={labelStyle}>EDIT_BRAND_NAME</label>
-                                <input 
-                                    style={inputStyle} 
-                                    value={editBrandName} 
-                                    onChange={e => setEditBrandName(e.target.value)} 
-                                />
-                            </div>
-
-                            <div>
-                                <label style={labelStyle}>ADJUST_TREASURY_BALANCE</label>
-                                <input 
-                                    style={inputStyle} 
-                                    type="number" 
-                                    value={editBalance} 
-                                    onChange={e => setEditBalance(e.target.value)} 
-                                />
-                            </div>
-
-                            {/* VERIFICATION PRESETS */}
-                            <div>
-                                <label style={labelStyle}>VERIFICATION_STATUS</label>
-                                <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
-                                    <button
-                                        onClick={() => setEditIsVerified(true)}
-                                        style={{ 
-                                            ...statusBtn, 
-                                            border: editIsVerified ? '1px solid #007fff' : '1px solid #333',
-                                            color: editIsVerified ? '#007fff' : '#fff'
-                                        }}
-                                    >
-                                        VERIFIED
-                                    </button>
-                                    <button
-                                        onClick={() => setEditIsVerified(false)}
-                                        style={{ 
-                                            ...statusBtn, 
-                                            border: !editIsVerified ? '1px solid #ff4d4d' : '1px solid #333',
-                                            color: !editIsVerified ? '#ff4d4d' : '#fff'
-                                        }}
-                                    >
-                                        UNVERIFIED
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/* STATUS MANAGEMENT */}
-                            <div>
-                                <label style={labelStyle}>ACCOUNT_STATUS</label>
-                                <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
-                                    <button 
-                                        onClick={() => handleUpdateStatus('Active')}
-                                        style={{ ...statusBtn, border: selectedUser.status === 'Active' ? '1px solid #C5FF41' : '1px solid #333' }}
-                                    >ACTIVE</button>
-                                    <button 
-                                        onClick={() => handleUpdateStatus('Suspended')}
-                                        style={{ ...statusBtn, color: '#ffcc00' }}
-                                    >WARN</button>
-                                    <button 
-                                        onClick={() => handleUpdateStatus('Banned')}
-                                        style={{ ...statusBtn, color: '#ff4d4d' }}
-                                    >BAN</button>
-                                </div>
-                            </div>
-
-                            <hr style={{ border: 'none', borderTop: '1px solid #222', margin: '5px 0' }} />
-
-                            {/* SECURITY ACTIONS */}
-                            <div>
-                                <label style={labelStyle}>SECURITY_OVERRIDE</label>
-                                <button 
-                                    onClick={handlePasswordReset}
-                                    style={{ ...inputStyle, cursor: 'pointer', textAlign: 'center', marginTop: '8px', color: '#888' }}
-                                >
-                                    SEND_PASSWORD_RESET_EMAIL
-                                </button>
-                            </div>
-
-                            <button onClick={handleSaveChanges} style={approveBtn}>PUSH_CHANGES_TO_DB</button>
-
-                            <hr style={{ border: 'none', borderTop: '1px solid #222', margin: '5px 0' }} />
-
-                            
-                        </div>
-                    ) : (
-                        <div style={{ textAlign: 'center', opacity: 0.3, padding: '50px' }}>SELECT_MERCHANT_TO_MODERATE</div>
-                    )}
-                </section>
-
-                {/* --- RIGHT: AUDIT LOGS --- */}
-                <section style={panelStyle}>
-                    <h3 style={sectionTitle}>VERIFICATION_REQUESTS</h3>
-
-                    <div style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-                        {verificationRequests.length === 0 ? (
-                            <div style={{ opacity: 0.3, fontSize: '12px' }}>
-                                NO_PENDING_REQUESTS
-                            </div>
-                        ) : (
-                            verificationRequests.map(req => (
-                                <div key={req.id} style={{
-                                    padding: '12px',
-                                    borderBottom: '1px solid #111',
-                                    fontSize: '12px'
-                                }}>
-                                    <div style={{ color: '#C5FF41', fontWeight: 700 }}>
-                                        {req.brandName}
-                                    </div>
-
-                                    <div style={{ fontSize: '10px', opacity: 0.6 }}>
-                                        UID: {req.uid}
-                                    </div>
-
-                                    <div style={{ fontSize: '10px', opacity: 0.6 }}>
-                                        EMAIL: {req.email}
-                                    </div>
-
-                                    <button
+                                return (
+                                    <div 
+                                        key={u.uid} 
+                                        onClick={() => handleSelectUser(u)}
                                         style={{
-                                            marginTop: '10px',
-                                            padding: '6px 10px',
-                                            fontSize: '10px',
-                                            border: '1px solid #C5FF41',
-                                            background: processingId === req.id ? '#333' : 'transparent',
-                                            color: '#C5FF41',
-                                            cursor: processingId === req.id ? 'not-allowed' : 'pointer',
-                                            opacity: processingId === req.id ? 0.5 : 1
-                                        }}
-                                        disabled={processingId === req.id}
-                                        onClick={async () => {
-                                            try {
-                                                setProcessingId(req.id);
-
-                                                await update(ref(db), {
-                                                    [`users/${req.uid}/profile/isVerified`]: true,
-                                                    [`users/${req.uid}/profile/verifiedAt`]: serverTimestamp(),
-                                                });
-                                                await remove(
-                                                    ref(db, `admin/verification_requests/${req.id}`)
-                                                );
-
-                                                await push(ref(db, 'admin/audit_log'), {
-                                                    adminEmail: auth.currentUser?.email,
-                                                    action: 'VERIFY_USER',
-                                                    targetUid: req.uid,
-                                                    details: `Approved verification for ${req.brandName}`,
-                                                    timestamp: serverTimestamp(),
-                                                });
-
-                                            } finally {
-                                                setProcessingId(null);
-                                            }
+                                            ...userCard,
+                                            borderLeft: isSelected ? '4px solid #C5FF41' : '4px solid transparent',
+                                            background: u.brandData?.status === 'Banned' 
+                                                ? 'rgba(255, 77, 77, 0.1)' 
+                                                : isSelected ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.03)',
                                         }}
                                     >
-                                        {processingId === req.id ? "PROCESSING..." : "APPROVE"}
-                                    </button>
-                                    <button
-                                        style={{
-                                            ...statusBtn,
-                                            opacity: processingId === req.id ? 0.5 : 1,
-                                            cursor: processingId === req.id ? 'not-allowed' : 'pointer'
-                                        }}
-                                        disabled={processingId === req.id}
-                                        onClick={async () => {
-                                            try {
-                                                setProcessingId(req.id);
-
-                                                await remove(
-                                                    ref(db, `admin/verification_requests/${req.id}`)
-                                                );
-
-                                                await push(ref(db, 'admin/audit_log'), {
-                                                    adminEmail: auth.currentUser?.email,
-                                                    action: 'REJECT_VERIFY',
-                                                    targetUid: req.uid,
-                                                    details: `Rejected verification for ${req.brandName}`,
-                                                    timestamp: serverTimestamp(),
-                                                });
-
-                                            } finally {
-                                                setProcessingId(null);
-                                            }
-                                        }}
-                                    >
-                                        {processingId === req.id ? "PROCESSING..." : "REJECT"}
-                                    </button>
-                                </div>
-                            ))
-                        )}
-                    </div>
-                </section>
-                {/* --- AD APPROVAL QUEUE --- */}
-                <section style={panelStyle}>
-                    <h3 style={sectionTitle}>AD_APPROVAL_QUEUE</h3>
-
-                    <div style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-                        {adRequests.length === 0 ? (
-                            <div style={{ opacity: 0.3, fontSize: '12px' }}>
-                                NO_PENDING_ADS
-                            </div>
-                        ) : (
-                            filteredAds.map((ad) => (
-                                <div
-                                    key={ad.id}
-                                    style={{
-                                        padding: '14px',
-                                        borderBottom: '1px solid #111',
-                                        background: 'rgba(255,255,255,0.02)',
-                                        marginBottom: '10px',
-                                        borderRadius: '10px'
-                                    }}
-                                >
-                                    {/* TITLE */}
-                                    <div style={{ color: '#C5FF41', fontWeight: 700 }}>
-                                        {ad.title}
-                                    </div>
-
-                                    {/* META */}
-                                    <div style={{ fontSize: '10px', opacity: 0.6, marginTop: '6px' }}>
-                                        USER: {ad.userEmail}
-                                    </div>
-
-                                    <div style={{ fontSize: '10px', opacity: 0.6 }}>
-                                        PLATFORM: {ad.platform}
-                                    </div>
-
-                                    <div style={{ fontSize: '10px', opacity: 0.6 }}>
-                                        BUDGET: €{ad.budget}
-                                    </div>
-
-                                    <div style={{ fontSize: '10px', opacity: 0.6 }}>
-                                        CTA: {ad.cta}
-                                    </div>
-
-                                    {/* DESCRIPTION */}
-                                    <div style={{ fontSize: '11px', marginTop: '8px', opacity: 0.8 }}>
-                                        {ad.description}
-                                    </div>
-
-                                    {/* CREATIVE PREVIEW */}
-                                    {ad.creativeUrl && (
-                                        <div style={{ marginTop: '10px' }}>
-                                            {ad.creativeUrl.includes('.mp4') ? (
-                                                <video
-                                                    src={ad.creativeUrl}
-                                                    controls
-                                                    style={{ width: '100%', borderRadius: '8px' }}
-                                                />
-                                            ) : (
-                                                <img
-                                                    src={ad.creativeUrl}
-                                                    style={{ width: '100%', borderRadius: '8px' }}
-                                                />
-                                            )}
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                            <span style={{ fontSize: '14px', fontWeight: 700, color: u.isVerified ? '#007fff' : '#fff' }}>
+                                                {u.isVerified && "✓ "}{merchantName.toUpperCase()}
+                                            </span>
+                                            {isHighRisk && <span style={botTag}>RISK_CLUSTER</span>}
                                         </div>
-                                    )}
+                                        
+                                        <div style={dirMetadata}>
+                                            <span style={{ opacity: 0.4 }}>EMAIL:</span> {u.email || 'N/A'}
+                                        </div>
 
-                                    {/* ACTIONS */}
-                                    <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
+                                        <div style={dirMetadata}>
+                                            <span style={{ opacity: 0.4 }}>B_ID:</span> 
+                                            <span style={{ fontFamily: 'monospace', marginLeft: '4px' }}>{u.uid}</span>
+                                        </div>
 
-                                        {/* APPROVE */}
+                                        <div style={{ 
+                                            display: 'flex', 
+                                            justifyContent: 'space-between', 
+                                            marginTop: '10px', 
+                                            paddingTop: '8px', 
+                                            borderTop: '1px solid rgba(255,255,255,0.05)',
+                                            fontSize: '10px' 
+                                        }}>
+                                            <span style={{ color: '#C5FF41' }}>€{u.treasury?.balance?.toLocaleString() || '0'}</span>
+                                            <span style={{ opacity: 0.4 }}>IP: {u.security?.lastIp || 'UNKNOWN'}</span>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </section>
+
+                    {/* --- ACCOUNT_MODERATOR SECTION --- */}
+                    <section style={panelStyle}>
+                        <h3 style={sectionTitle}>ACCOUNT_MODERATOR</h3>
+                        {selectedUser ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                
+                                {/* BRAND & BALANCE */}
+                                <div>
+                                    <label style={labelStyle}>EDIT_BRAND_NAME</label>
+                                    <input 
+                                        style={inputStyle} 
+                                        value={editBrandName} 
+                                        onChange={e => setEditBrandName(e.target.value)} 
+                                    />
+                                </div>
+
+                                <div>
+                                    <label style={labelStyle}>ADJUST_TREASURY_BALANCE</label>
+                                    <input 
+                                        style={inputStyle} 
+                                        type="number" 
+                                        value={editBalance} 
+                                        onChange={e => setEditBalance(e.target.value)} 
+                                    />
+                                </div>
+
+                                {/* VERIFICATION PRESETS */}
+                                <div>
+                                    <label style={labelStyle}>VERIFICATION_STATUS</label>
+                                    <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
+                                        <button
+                                            onClick={() => setEditIsVerified(true)}
+                                            style={{ 
+                                                ...statusBtn, 
+                                                border: editIsVerified ? '1px solid #007fff' : '1px solid #333',
+                                                color: editIsVerified ? '#007fff' : '#fff'
+                                            }}
+                                        >
+                                            VERIFIED
+                                        </button>
+                                        <button
+                                            onClick={() => setEditIsVerified(false)}
+                                            style={{ 
+                                                ...statusBtn, 
+                                                border: !editIsVerified ? '1px solid #ff4d4d' : '1px solid #333',
+                                                color: !editIsVerified ? '#ff4d4d' : '#fff'
+                                            }}
+                                        >
+                                            UNVERIFIED
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* STATUS MANAGEMENT */}
+                                <div>
+                                    <label style={labelStyle}>ACCOUNT_STATUS</label>
+                                    <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
+                                        <button 
+                                            onClick={() => handleUpdateStatus('Active')}
+                                            style={{ ...statusBtn, border: selectedUser.status === 'Active' ? '1px solid #C5FF41' : '1px solid #333' }}
+                                        >ACTIVE</button>
+                                        <button 
+                                            onClick={() => handleUpdateStatus('Suspended')}
+                                            style={{ ...statusBtn, color: '#ffcc00' }}
+                                        >WARN</button>
+                                        <button 
+                                            onClick={() => handleUpdateStatus('Banned')}
+                                            style={{ ...statusBtn, color: '#ff4d4d' }}
+                                        >BAN</button>
+                                    </div>
+                                </div>
+
+                                <hr style={{ border: 'none', borderTop: '1px solid #222', margin: '5px 0' }} />
+
+                                {/* SECURITY ACTIONS */}
+                                <div>
+                                    <label style={labelStyle}>SECURITY_OVERRIDE</label>
+                                    <button 
+                                        onClick={handlePasswordReset}
+                                        style={{ ...inputStyle, cursor: 'pointer', textAlign: 'center', marginTop: '8px', color: '#888' }}
+                                    >
+                                        SEND_PASSWORD_RESET_EMAIL
+                                    </button>
+                                </div>
+
+                                <button onClick={handleSaveChanges} style={approveBtn}>PUSH_CHANGES_TO_DB</button>
+
+                                <hr style={{ border: 'none', borderTop: '1px solid #222', margin: '5px 0' }} />
+
+                                
+                            </div>
+                        ) : (
+                            <div style={{ textAlign: 'center', opacity: 0.3, padding: '50px' }}>SELECT_MERCHANT_TO_MODERATE</div>
+                        )}
+                    </section>
+
+                    {/* --- RIGHT: AUDIT LOGS --- */}
+                    <section style={panelStyle}>
+                        <h3 style={sectionTitle}>VERIFICATION_REQUESTS</h3>
+
+                        <div style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+                            {verificationRequests.length === 0 ? (
+                                <div style={{ opacity: 0.3, fontSize: '12px' }}>
+                                    NO_PENDING_REQUESTS
+                                </div>
+                            ) : (
+                                verificationRequests.map(req => (
+                                    <div key={req.id} style={{
+                                        padding: '12px',
+                                        borderBottom: '1px solid #111',
+                                        fontSize: '12px'
+                                    }}>
+                                        <div style={{ color: '#C5FF41', fontWeight: 700 }}>
+                                            {req.brandName}
+                                        </div>
+
+                                        <div style={{ fontSize: '10px', opacity: 0.6 }}>
+                                            UID: {req.uid}
+                                        </div>
+
+                                        <div style={{ fontSize: '10px', opacity: 0.6 }}>
+                                            EMAIL: {req.email}
+                                        </div>
+
                                         <button
                                             style={{
-                                                ...approveBtn,
-                                                flex: 1,
-                                                background: '#C5FF41'
+                                                marginTop: '10px',
+                                                padding: '6px 10px',
+                                                fontSize: '10px',
+                                                border: '1px solid #C5FF41',
+                                                background: processingId === req.id ? '#333' : 'transparent',
+                                                color: '#C5FF41',
+                                                cursor: processingId === req.id ? 'not-allowed' : 'pointer',
+                                                opacity: processingId === req.id ? 0.5 : 1
                                             }}
+                                            disabled={processingId === req.id}
                                             onClick={async () => {
                                                 try {
-                                                    const user = users.find(u => u.uid === ad.userId);
+                                                    setProcessingId(req.id);
 
-                                                    if (!user) {
-                                                        alert("USER_NOT_FOUND");
-                                                        return;
-                                                    }
-                                                    const approvedData = {
-                                                        adId: ad.id,
-                                                        campaignId: ad.campaignId,
-                                                        userId: ad.userId,
-                                                        title: ad.title,
-                                                        description: ad.description,
-                                                        platform: ad.platform,
-                                                        budget: ad.budget,
-                                                        creativeUrl: ad.creativeUrl,
-
-                                                        approvedAt: Date.now(),
-                                                        approvedBy: auth.currentUser?.email,
-
-                                                        postingStatus: "Not Posted",
-                                                        status: "Approved"
-                                                    };
-                                                    const budget = Number(ad.budget || 0);
-                                                    const currentBalance = Number(user?.treasury?.balance || 0);
-                                                    const newBalance = currentBalance - budget;
-
-                                                    const ledgerKey = push(ref(db, `users/${ad.userId}/treasury/ledger`)).key;
-
-                                                    const updates: any = {};
-
-                                                    // 1. Campaign update
-                                                    updates[`users/${ad.userId}/campaigns/${ad.campaignId}/status`] = "Approved";
-                                                    updates[`users/${ad.userId}/campaigns/${ad.campaignId}/reviewStatus`] = "Approved";
-
-                                                    // 2. Deduct balance
-                                                    updates[`users/${ad.userId}/treasury/balance`] = newBalance;
-
-                                                    // 3. Ledger entry
-                                                    updates[`users/${ad.userId}/treasury/ledger/${ledgerKey}`] = {
-                                                        type: "Charged",
-                                                        amount: ad.budget,
-                                                        label: `Approved Ad: ${ad.title}`,
-                                                        status: "Completed",
-                                                        timestamp: Date.now()
-                                                    };
-
-                                                    // 4. Queue update
-                                                    updates[`admin/ad_queue/${ad.id}/status`] = "Approved";
-
-                                                    // save approved ad
-                                                    updates[`admin/approved_ads/${ad.id}`] = {
-                                                        adId: ad.id,
-                                                        campaignId: ad.campaignId,
-                                                        userId: ad.userId,
-
-                                                        title: ad.title,
-                                                        description: ad.description,
-                                                        platform: ad.platform,
-                                                        budget: ad.budget,
-                                                        creativeUrl: ad.creativeUrl,
-
-                                                        approvedAt: Date.now(),
-                                                        approvedBy: auth.currentUser?.email,
-
-                                                        postingStatus: "Not Posted",
-                                                        status: "Approved"
-                                                    };
-
-                                                    // remove from review queue
-                                                    await update(ref(db), updates);
-                                                    
+                                                    await update(ref(db), {
+                                                        [`users/${req.uid}/profile/isVerified`]: true,
+                                                        [`users/${req.uid}/profile/verifiedAt`]: serverTimestamp(),
+                                                    });
+                                                    await remove(
+                                                        ref(db, `admin/verification_requests/${req.id}`)
+                                                    );
 
                                                     await push(ref(db, 'admin/audit_log'), {
                                                         adminEmail: auth.currentUser?.email,
-                                                        action: 'APPROVE_AD',
-                                                        targetUid: ad.userId,
-                                                        details: `Approved campaign: ${ad.title}`,
+                                                        action: 'VERIFY_USER',
+                                                        targetUid: req.uid,
+                                                        details: `Approved verification for ${req.brandName}`,
                                                         timestamp: serverTimestamp(),
                                                     });
 
-                                                    alert("AD_APPROVED");
-                                                } catch (err) {
-                                                    console.error(err);
-                                                    alert("APPROVAL_FAILED");
+                                                } finally {
+                                                    setProcessingId(null);
                                                 }
                                             }}
                                         >
-                                            APPROVE
+                                            {processingId === req.id ? "PROCESSING..." : "APPROVE"}
                                         </button>
-
-                                        {/* REJECT */}
                                         <button
                                             style={{
                                                 ...statusBtn,
-                                                flex: 1,
-                                                color: '#ff4d4d',
-                                                border: '1px solid #ff4d4d'
+                                                opacity: processingId === req.id ? 0.5 : 1,
+                                                cursor: processingId === req.id ? 'not-allowed' : 'pointer'
                                             }}
+                                            disabled={processingId === req.id}
                                             onClick={async () => {
-                                                const reason = prompt("Enter rejection reason:");
-                                                if (!reason) return;
-
                                                 try {
-                                                    const updates: any = {};
+                                                    setProcessingId(req.id);
 
-                                                    updates[`users/${ad.userId}/campaigns/${ad.campaignId}/status`] = "Rejected";
-                                                    updates[`users/${ad.userId}/campaigns/${ad.campaignId}/rejectionReason`] = reason;
-
-                                                    await update(ref(db), {
-                                                        [`users/${ad.userId}/campaigns/${ad.campaignId}/status`]: "Rejected",
-                                                        [`users/${ad.userId}/campaigns/${ad.campaignId}/reviewStatus`]: "Rejected",
-                                                        [`users/${ad.userId}/campaigns/${ad.campaignId}/rejectionReason`]: reason
-                                                    });
-
-                                                    await remove(ref(db, `admin/ad_queue/${ad.id}`));
+                                                    await remove(
+                                                        ref(db, `admin/verification_requests/${req.id}`)
+                                                    );
 
                                                     await push(ref(db, 'admin/audit_log'), {
                                                         adminEmail: auth.currentUser?.email,
-                                                        action: 'REJECT_AD',
-                                                        targetUid: ad.userId,
-                                                        details: `Rejected campaign: ${ad.title} (${reason})`,
+                                                        action: 'REJECT_VERIFY',
+                                                        targetUid: req.uid,
+                                                        details: `Rejected verification for ${req.brandName}`,
                                                         timestamp: serverTimestamp(),
                                                     });
 
-                                                    alert("AD_REJECTED");
-                                                }
-                                                catch(err){
-                                                    console.error(err);
+                                                } finally {
+                                                    setProcessingId(null);
                                                 }
                                             }}
                                         >
-                                            REJECT
+                                            {processingId === req.id ? "PROCESSING..." : "REJECT"}
                                         </button>
                                     </div>
+                                ))
+                            )}
+                        </div>
+                    </section>
+                    {/* --- AD APPROVAL QUEUE --- */}
+                    <section style={panelStyle}>
+                        <h3 style={sectionTitle}>AD_APPROVAL_QUEUE</h3>
+
+                        <div style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+                            {adRequests.length === 0 ? (
+                                <div style={{ opacity: 0.3, fontSize: '12px' }}>
+                                    NO_PENDING_ADS
                                 </div>
-                            ))
-                        )}
-                    </div>
-                </section>
-                <section style={panelStyle}>
-                    <h3 style={sectionTitle}>SYSTEM_AUDIT_LOG</h3>
-                    <div style={{ height: '70vh', overflowY: 'auto' }}>
-                        {auditLogs.map(log => (
-                            <div key={log.id} style={logItem}>
-                                <div style={{ color: '#C5FF41', fontSize: '10px' }}>{log.action}</div>
-                                <div style={{ fontSize: '11px', opacity: 0.7 }}>{log.details}</div>
-                            </div>
-                        ))}
-                    </div>
-                </section>
-            </div>
+                            ) : (
+                                filteredAds.map((ad) => (
+                                    <div
+                                        key={ad.id}
+                                        style={{
+                                            padding: '14px',
+                                            borderBottom: '1px solid #111',
+                                            background: 'rgba(255,255,255,0.02)',
+                                            marginBottom: '10px',
+                                            borderRadius: '10px'
+                                        }}
+                                    >
+                                        {/* TITLE */}
+                                        <div style={{ color: '#C5FF41', fontWeight: 700 }}>
+                                            {ad.title}
+                                        </div>
+
+                                        {/* META */}
+                                        <div style={{ fontSize: '10px', opacity: 0.6, marginTop: '6px' }}>
+                                            USER: {ad.userEmail}
+                                        </div>
+
+                                        <div style={{ fontSize: '10px', opacity: 0.6 }}>
+                                            PLATFORM: {ad.platform}
+                                        </div>
+
+                                        <div style={{ fontSize: '10px', opacity: 0.6 }}>
+                                            BUDGET: €{ad.budget}
+                                        </div>
+
+                                        <div style={{ fontSize: '10px', opacity: 0.6 }}>
+                                            CTA: {ad.cta}
+                                        </div>
+
+                                        {/* DESCRIPTION */}
+                                        <div style={{ fontSize: '11px', marginTop: '8px', opacity: 0.8 }}>
+                                            {ad.description}
+                                        </div>
+
+                                        {/* CREATIVE PREVIEW */}
+                                        {ad.creativeUrl && (
+                                            <div style={{ marginTop: '10px' }}>
+                                                {ad.creativeUrl.includes('.mp4') ? (
+                                                    <video
+                                                        src={ad.creativeUrl}
+                                                        controls
+                                                        style={{ width: '100%', borderRadius: '8px' }}
+                                                    />
+                                                ) : (
+                                                    <img
+                                                        src={ad.creativeUrl}
+                                                        style={{ width: '100%', borderRadius: '8px' }}
+                                                    />
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {/* ACTIONS */}
+                                        <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
+
+                                            {/* APPROVE */}
+                                            <button
+                                                style={{
+                                                    ...approveBtn,
+                                                    flex: 1,
+                                                    background: '#C5FF41'
+                                                }}
+                                                onClick={async () => {
+                                                    try {
+                                                        const user = users.find(u => u.uid === ad.userId);
+
+                                                        if (!user) {
+                                                            alert("USER_NOT_FOUND");
+                                                            return;
+                                                        }
+                                                        const approvedData = {
+                                                            adId: ad.id,
+                                                            campaignId: ad.campaignId,
+                                                            userId: ad.userId,
+                                                            title: ad.title,
+                                                            description: ad.description,
+                                                            platform: ad.platform,
+                                                            budget: ad.budget,
+                                                            creativeUrl: ad.creativeUrl,
+
+                                                            approvedAt: Date.now(),
+                                                            approvedBy: auth.currentUser?.email,
+
+                                                            postingStatus: "Not Posted",
+                                                            status: "Approved"
+                                                        };
+                                                        const budget = Number(ad.budget || 0);
+                                                        const currentBalance = Number(user?.treasury?.balance || 0);
+                                                        const newBalance = currentBalance - budget;
+
+                                                        const ledgerKey = push(ref(db, `users/${ad.userId}/treasury/ledger`)).key;
+
+                                                        const updates: any = {};
+
+                                                        // 1. Campaign update
+                                                        updates[`users/${ad.userId}/campaigns/${ad.campaignId}/status`] = "Approved";
+                                                        updates[`users/${ad.userId}/campaigns/${ad.campaignId}/reviewStatus`] = "Approved";
+
+                                                        // 2. Deduct balance
+                                                        updates[`users/${ad.userId}/treasury/balance`] = newBalance;
+
+                                                        // 3. Ledger entry
+                                                        updates[`users/${ad.userId}/treasury/ledger/${ledgerKey}`] = {
+                                                            type: "Charged",
+                                                            amount: ad.budget,
+                                                            label: `Approved Ad: ${ad.title}`,
+                                                            status: "Completed",
+                                                            timestamp: Date.now()
+                                                        };
+
+                                                        // 4. Queue update
+                                                        updates[`admin/ad_queue/${ad.id}/status`] = "Approved";
+
+                                                        // save approved ad
+                                                        updates[`admin/approved_ads/${ad.id}`] = {
+                                                            adId: ad.id,
+                                                            campaignId: ad.campaignId,
+                                                            userId: ad.userId,
+
+                                                            title: ad.title,
+                                                            description: ad.description,
+                                                            platform: ad.platform,
+                                                            budget: ad.budget,
+                                                            creativeUrl: ad.creativeUrl,
+
+                                                            approvedAt: Date.now(),
+                                                            approvedBy: auth.currentUser?.email,
+
+                                                            postingStatus: "Not Posted",
+                                                            status: "Approved"
+                                                        };
+
+                                                        // remove from review queue
+                                                        await update(ref(db), updates);
+                                                        
+
+                                                        await push(ref(db, 'admin/audit_log'), {
+                                                            adminEmail: auth.currentUser?.email,
+                                                            action: 'APPROVE_AD',
+                                                            targetUid: ad.userId,
+                                                            details: `Approved campaign: ${ad.title}`,
+                                                            timestamp: serverTimestamp(),
+                                                        });
+
+                                                        alert("AD_APPROVED");
+                                                    } catch (err) {
+                                                        console.error(err);
+                                                        alert("APPROVAL_FAILED");
+                                                    }
+                                                }}
+                                            >
+                                                APPROVE
+                                            </button>
+
+                                            {/* REJECT */}
+                                            <button
+                                                style={{
+                                                    ...statusBtn,
+                                                    flex: 1,
+                                                    color: '#ff4d4d',
+                                                    border: '1px solid #ff4d4d'
+                                                }}
+                                                onClick={async () => {
+                                                    const reason = prompt("Enter rejection reason:");
+                                                    if (!reason) return;
+
+                                                    try {
+                                                        const updates: any = {};
+
+                                                        updates[`users/${ad.userId}/campaigns/${ad.campaignId}/status`] = "Rejected";
+                                                        updates[`users/${ad.userId}/campaigns/${ad.campaignId}/rejectionReason`] = reason;
+
+                                                        await update(ref(db), {
+                                                            [`users/${ad.userId}/campaigns/${ad.campaignId}/status`]: "Rejected",
+                                                            [`users/${ad.userId}/campaigns/${ad.campaignId}/reviewStatus`]: "Rejected",
+                                                            [`users/${ad.userId}/campaigns/${ad.campaignId}/rejectionReason`]: reason
+                                                        });
+
+                                                        await remove(ref(db, `admin/ad_queue/${ad.id}`));
+
+                                                        await push(ref(db, 'admin/audit_log'), {
+                                                            adminEmail: auth.currentUser?.email,
+                                                            action: 'REJECT_AD',
+                                                            targetUid: ad.userId,
+                                                            details: `Rejected campaign: ${ad.title} (${reason})`,
+                                                            timestamp: serverTimestamp(),
+                                                        });
+
+                                                        alert("AD_REJECTED");
+                                                    }
+                                                    catch(err){
+                                                        console.error(err);
+                                                    }
+                                                }}
+                                            >
+                                                REJECT
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </section>
+                    <section style={panelStyle}>
+                        <h3 style={sectionTitle}>SYSTEM_AUDIT_LOG</h3>
+                        <div style={{ height: '70vh', overflowY: 'auto' }}>
+                            {auditLogs.map(log => (
+                                <div key={log.id} style={logItem}>
+                                    <div style={{ color: '#C5FF41', fontSize: '10px' }}>{log.action}</div>
+                                    <div style={{ fontSize: '11px', opacity: 0.7 }}>{log.details}</div>
+                                </div>
+                            ))}
+                        </div>
+                    </section>
+                </div>
+            )}
+            {activePanel === "reports" && (
+                <AdminReports />
+            )}
         </div>
     );
 };

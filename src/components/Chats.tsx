@@ -298,6 +298,8 @@ const Chats = ({ brandId, userBrand }: any) => {
         }
     }, [activeMessages]);
 
+    
+
     return (
         <>
             <style>{`

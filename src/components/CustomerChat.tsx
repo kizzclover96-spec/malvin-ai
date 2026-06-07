@@ -27,6 +27,7 @@ const CustomerChat = ({ pendingOrder: propOrder, quantity: propQuantity }: Custo
     const [quantity, setQuantity] = useState(1);
     const [loading, setLoading] = useState(true);
     const location = useLocation();
+    const messageTimestamps = useRef<number[]>([]);
 
     const activePendingOrder = propOrder;
     const activePendingQuantity = propQuantity || 1;
@@ -138,6 +139,10 @@ const CustomerChat = ({ pendingOrder: propOrder, quantity: propQuantity }: Custo
         if (e) e.preventDefault();
         const textToSend = customMsg || message;
         if (!textToSend.trim() || !chatId || !brandId) return;
+        if (checkSpam()) {
+            alert("You're sending messages too fast.");
+            return;
+        }
 
         try {
             const convoRef = doc(firestore, "conversations", chatId);
@@ -198,6 +203,17 @@ const CustomerChat = ({ pendingOrder: propOrder, quantity: propQuantity }: Custo
     };
     const previousStatus = useRef<string | null>(null);
 
+    const checkSpam = () => {
+        const now = Date.now();
+        messageTimestamps.current.push(now);
+
+        const recent = messageTimestamps.current.filter(t => now - t < 10000);
+
+        messageTimestamps.current = recent;
+
+        return recent.length > 6;
+    };
+
     useEffect(() => {
         if (!chatId) return;
 
@@ -222,8 +238,12 @@ const CustomerChat = ({ pendingOrder: propOrder, quantity: propQuantity }: Custo
 
         return () => unsub();
     }, [chatId]);
-
+    if (checkSpam()) {
+        alert("You're sending messages too fast.");
+        return;
+    }
     if (loading) return <div style={{background: '#000', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666'}}>Authenticating Shop...</div>;
+
 
     return (
         <>
@@ -247,8 +267,6 @@ const CustomerChat = ({ pendingOrder: propOrder, quantity: propQuantity }: Custo
                         position: "fixed",
                         left: "50%",
                         "--x": `${particle.x}px`,
-                        position: "fixed",
-                        left: "50%",
                         top: "70px",
                         width: particle.size,
                         height: particle.size,

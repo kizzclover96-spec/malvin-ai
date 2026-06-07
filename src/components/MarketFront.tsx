@@ -4,6 +4,8 @@ import { db } from '../firebase';
 import { ref as dbRef, onValue, set, push, update } from "firebase/database";
 import { ProductCard } from './ProductView';
 import CustomerChat from './CustomerChat';
+import Report from "./report";
+import ReputationScore from "./reputationScore";
 
 // Reusable Verified Badge Component
 const VerifiedBadge = () => (
@@ -138,6 +140,12 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
         return () => unsubscribeReviews();
     }, [brandId, selectedProduct]);
 
+    const getTrustColor = (status: string) => {
+        if (status === "green") return "#C5FF41";
+        if (status === "red") return "#ff3b3b";
+        return "#ffcc00";
+    };
+
     // Handler to submit a review/comment
     const handlePostReview = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -194,6 +202,7 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
             alert("Booking failed. Try again.");
         }
     };
+    const trustStatus = "green";
 
     const handleConfirmOrder = () => {
         if (!orderModal) return;
@@ -272,7 +281,13 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
                         {isVerified && <VerifiedBadge />}
                     </div>
                     {bio && <p style={{ margin: '6px 0 0 0', fontSize: '12px', color: '#aaa', lineHeight: '1.4', fontWeight: 400 }}>{bio}</p>}
-                    <div style={onlineStatus}><span style={dotStyle} /> Active Now</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                        <div style={onlineStatus}>
+                            <span style={{  width: "7px", height: "7px", background: getTrustColor(trustStatus), borderRadius: "50%", boxShadow: `0 0 8px ${getTrustColor(trustStatus)}` }}> Active Now</span><Report reportedUserId={brandId} reporterId={"CURRENT_USER_ID"} />
+                        </div>
+
+                        <ReputationScore userId={brandId} />
+                    </div>
                 </div>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
                     <button onClick={() => setView('booking')} style={bookingBtnStyle}>Book 🗓️</button>
