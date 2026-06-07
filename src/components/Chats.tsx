@@ -236,6 +236,7 @@ const Chats = ({ brandId, userBrand }: any) => {
 
         try {
             const settledCount = currentSelectedChat?.orderCount || 0;
+            
 
             const chatRef = doc(firestore, "conversations", selectedChatId);
 
