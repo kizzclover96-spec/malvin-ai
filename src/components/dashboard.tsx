@@ -784,6 +784,7 @@ const Dashboard = (props: any) => {
         };
     }, []);
     useEffect(() => {
+        const brandId = user.uid;
         const salesRef = doc(
             firestore,
             "brands",
