@@ -234,23 +234,9 @@ const Chats = ({ brandId, userBrand }: any) => {
 
         try {
             const settledCount = currentSelectedChat?.orderCount || 0;
-            
 
             const chatRef = doc(firestore, "conversations", selectedChatId);
 
-            // Update conversation
-            await updateDoc(chatRef, {
-                orderCount: 0,
-                isOrderBlue: false,
-                orderStatus: "settled"
-            });
-            const finalCount = currentSelectedChat.orderCount;
-
-            await updateDoc(salesRef, {
-                totalSettledOrders: increment(finalCount),
-            });
-
-            // Permanent sales counter
             const salesRef = doc(
                 firestore,
                 "brands",
@@ -259,6 +245,14 @@ const Chats = ({ brandId, userBrand }: any) => {
                 "sales"
             );
 
+            // 1. Update chat FIRST (safe order)
+            await updateDoc(chatRef, {
+                orderCount: 0,
+                isOrderBlue: false,
+                orderStatus: "settled"
+            });
+
+            // 2. Update global stats ONCE
             await setDoc(
                 salesRef,
                 {
