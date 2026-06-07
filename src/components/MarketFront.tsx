@@ -284,10 +284,9 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
                     {bio && <p style={{ margin: '6px 0 0 0', fontSize: '12px', color: '#aaa', lineHeight: '1.4', fontWeight: 400 }}>{bio}</p>}
                     <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                         <div style={onlineStatus}>
-                            <span style={{  width: "7px", height: "7px", background: getTrustColor(trustStatus), borderRadius: "50%", boxShadow: `0 0 8px ${getTrustColor(trustStatus)}` }}> Active Now</span><Report reportedUserId={brandId} reporterId={"CURRENT_USER_ID"} />
+                            <span style={{  width: "7px", height: "7px", background: getTrustColor(trustStatus), borderRadius: "50%", boxShadow: `0 0 8px ${getTrustColor(trustStatus)}` }}> Active Now</span>
+                            <span onClick={() => setShowReport(true)} style={{ color: "#ff4d4d", cursor: "pointer" }} > Report </span>
                         </div>
-
-                         <span onClick={() => setShowReport(true)} style={{ color: "#ff4d4d", cursor: "pointer", fontWeight: 700 }} > Report </span>
                     </div>
                 </div>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
@@ -451,7 +450,7 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
                 <Report
                     reportedUserId={brandId}
                     reporterId={"CURRENT_USER_ID"}
-                    onClose={() => setShowReport(false)}
+                    onBack={() => setShowReport(false)}
                 />
             )}
         </div>

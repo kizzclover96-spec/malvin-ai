@@ -7,7 +7,7 @@ type Props = {
     reporterId: string;
 };
 
-const Report = ({ reportedUserId, reporterId, onClose  }: Props) => {
+const Report = ({ reportedUserId, reporterId, onBack  }: Props) => {
     const [reason, setReason] = useState("");
     const [details, setDetails] = useState("");
     const [sent, setSent] = useState(false);
@@ -35,7 +35,24 @@ const Report = ({ reportedUserId, reporterId, onClose  }: Props) => {
 
     return (
         <div style={{ padding: "10px", background: "#111", borderRadius: "12px" }}>
-            <h4 style={{ color: "white", marginBottom: "8px" }}>Report User</h4> <button onClick={onClose}>Close</button>
+            <h4 style={{ color: "white", marginBottom: "8px" }}>Report User</h4>
+            <button
+                onClick={onBack}
+                style={{
+                    position: "absolute",
+                    top: 15,
+                    left: 15,
+                    background: "#C5FF41",
+                    border: "none",
+                    padding: "8px 12px",
+                    borderRadius: "10px",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    zIndex: 1000
+                }}
+            >
+                ← Back
+            </button>
 
             <select
                 value={reason}
