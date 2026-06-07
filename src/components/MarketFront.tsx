@@ -42,6 +42,7 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
     const [ratingScore, setRatingScore] = useState(5);
     const [reviewerName, setReviewerName] = useState('');
     const [showReviewForm, setShowReviewForm] = useState(false); 
+    const [showReport, setShowReport] = useState(false);
 
     // Dynamic Profile States (Bio & Meta Verification)
     const [bio, setBio] = useState('');
@@ -281,12 +282,38 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
                         {isVerified && <VerifiedBadge />}
                     </div>
                     {bio && <p style={{ margin: '6px 0 0 0', fontSize: '12px', color: '#aaa', lineHeight: '1.4', fontWeight: 400 }}>{bio}</p>}
-                    <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                        <div style={onlineStatus}>
-                            <span style={{  width: "7px", height: "7px", background: getTrustColor(trustStatus), borderRadius: "50%", boxShadow: `0 0 8px ${getTrustColor(trustStatus)}` }}> Active Now</span><Report reportedUserId={brandId} reporterId={"CURRENT_USER_ID"} />
-                        </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+    
+                        <span style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "6px"
+                        }}>
+                            <span
+                                style={{
+                                    width: "7px",
+                                    height: "7px",
+                                    background: getTrustColor(trustStatus),
+                                    borderRadius: "50%",
+                                    boxShadow: `0 0 8px ${getTrustColor(trustStatus)}`
+                                }}
+                            />
+                            Active Now
+                        </span>
 
-                        <ReputationScore userId={brandId} />
+                        {/* REPORT BUTTON */}
+                        <span
+                            onClick={() => setShowReport(true)}
+                            style={{
+                                color: "#ff4d4d",
+                                fontSize: "11px",
+                                cursor: "pointer",
+                                fontWeight: 700
+                            }}
+                        >
+                            Report
+                        </span>
+
                     </div>
                 </div>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
@@ -445,6 +472,13 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
                         </div>
                     </div>
                 </div>
+            )}
+            {showReport && (
+                <Report
+                    reportedUserId={brandId}
+                    reporterId={"CURRENT_USER_ID"}
+                    onClose={() => setShowReport(false)}
+                />
             )}
         </div>
     );
