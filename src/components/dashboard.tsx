@@ -784,11 +784,12 @@ const Dashboard = (props: any) => {
         };
     }, []);
     useEffect(() => {
-        const brandId = userBrand?.id;
+        if (!userBrand?.id) return;
+
         const salesRef = doc(
             firestore,
             "brands",
-            String(brandId),
+            userBrand.id,
             "stats",
             "sales"
         );
@@ -800,7 +801,7 @@ const Dashboard = (props: any) => {
                 );
             }
         });
-    }, [brandId]);
+    }, [userBrand?.id]);
     useEffect(() => {
         if (!userBrand?.id) return;
 
@@ -1089,7 +1090,7 @@ const Dashboard = (props: any) => {
                                                             color: '#38d777'
                                                         }}
                                                     >
-                                                        {salesCount}
+                                                        {totalSales}
                                                     </div>
                                                 </div>
                                             </div>
