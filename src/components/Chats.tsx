@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { collection, query, where, onSnapshot, orderBy, addDoc, serverTimestamp, doc, setDoc, updateDoc, getDocs } from "firebase/firestore";
 import { firestore, auth } from "../firebase";
+import { increment } from "firebase/firestore";
 
 const ChatCard = ({ children, style }: any) => (
     <div style={{
@@ -232,15 +233,40 @@ const Chats = ({ brandId, userBrand }: any) => {
 
     const handleOrderSettled = async () => {
         if (!selectedChatId) return;
+
         try {
+            const settledCount = currentSelectedChat?.orderCount || 0;
+
             const chatRef = doc(firestore, "conversations", selectedChatId);
+
+            // Update conversation
             await updateDoc(chatRef, {
                 isOrderBlue: false,
                 orderStatus: "settled"
             });
+
+            // Permanent sales counter
+            const salesRef = doc(
+                firestore,
+                "brands",
+                String(brandId),
+                "stats",
+                "sales"
+            );
+
+            await setDoc(
+                salesRef,
+                {
+                    totalSettledOrders: increment(settledCount),
+                    lastUpdated: serverTimestamp()
+                },
+                { merge: true }
+            );
+
             setIsOrderActive(false);
+
         } catch (err) {
-            console.error("Error settling orders: ", err);
+            console.error("Error settling orders:", err);
         }
     };
 

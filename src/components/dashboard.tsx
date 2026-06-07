@@ -248,6 +248,10 @@ const Dashboard = (props: any) => {
     const visionInterval = useRef<any>(null);
     const chatEndRef = useRef<HTMLDivElement>(null);
 
+    //order
+    const [totalSales, setTotalSales] = useState(0);
+
+
     const TourOverlay = ({ step, onNext, onClose }: any) => {
         const target = document.querySelector(`[data-tour="${step.target}"]`);
 
@@ -780,6 +784,23 @@ const Dashboard = (props: any) => {
         };
     }, []);
     useEffect(() => {
+        const salesRef = doc(
+            firestore,
+            "brands",
+            String(brandId),
+            "stats",
+            "sales"
+        );
+
+        return onSnapshot(salesRef, (snap) => {
+            if (snap.exists()) {
+                setTotalSales(
+                    snap.data().totalSettledOrders || 0
+                );
+            }
+        });
+    }, [brandId]);
+    useEffect(() => {
         if (!userBrand?.id) return;
 
         const tourRef = dbRef(db, `users/${userBrand.id}/uiState/tourSeen`);
@@ -1027,12 +1048,47 @@ const Dashboard = (props: any) => {
                                                 <div style={{ width: '1px', height: '40px', background: '#1A1A1A' }} />
 
                                                 {/* ORDERS SECTION */} 
+                                                {/* ORDERS SECTION */}
                                                 <div>
-                                                    <span style={{ fontSize: '10px', color: '#666', fontWeight: 800, letterSpacing: '1px' }}>PENDING_ORDERS</span>
-                                                    <div style={{ display: 'flex', alignItems: 'baseline' }}>
-                                                        <div style={{ fontSize: '32px', fontWeight: 700 }}>
-                                                            {orderCount}
-                                                        </div>
+                                                    <span
+                                                        style={{
+                                                            fontSize: '10px',
+                                                            color: '#666',
+                                                            fontWeight: 800,
+                                                            letterSpacing: '1px'
+                                                        }}
+                                                    >
+                                                        PENDING_ORDERS
+                                                    </span>
+
+                                                    <div style={{ fontSize: '32px', fontWeight: 700 }}>
+                                                        {orderCount}
+                                                    </div>
+                                                </div>
+
+                                                <div style={{ width: '1px', height: '40px', background: '#1A1A1A' }} />
+
+                                                {/* SALES SECTION */}
+                                                <div>
+                                                    <span
+                                                        style={{
+                                                            fontSize: '10px',
+                                                            color: '#666',
+                                                            fontWeight: 800,
+                                                            letterSpacing: '1px'
+                                                        }}
+                                                    >
+                                                        SALES
+                                                    </span>
+
+                                                    <div
+                                                        style={{
+                                                            fontSize: '32px',
+                                                            fontWeight: 700,
+                                                            color: '#38d777'
+                                                        }}
+                                                    >
+                                                        {salesCount}
                                                     </div>
                                                 </div>
                                             </div>
