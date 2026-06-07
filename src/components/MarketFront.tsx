@@ -285,6 +285,8 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
                     <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                         <div style={onlineStatus}>
                             <span style={{  width: "7px", height: "7px", background: getTrustColor(trustStatus), borderRadius: "50%", boxShadow: `0 0 8px ${getTrustColor(trustStatus)}` }}> Active Now</span>
+                        </div>
+                        <div style={onlineStatus}>
                             <span onClick={() => setShowReport(true)} style={{ color: "#ff4d4d", cursor: "pointer" }} > Report </span>
                         </div>
                     </div>
