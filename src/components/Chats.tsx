@@ -204,7 +204,7 @@ const Chats = ({ brandId, userBrand }: any) => {
                 isOrderBlue: true,
                 orderCount: newTotalCount,
                 lastOrderAt: serverTimestamp(),
-                orderStatus: "accepted" | "pending" | "cancelled"
+                orderStatus: "accepted"
             });
 
             // Fire Celebration Mechanics
@@ -235,7 +235,8 @@ const Chats = ({ brandId, userBrand }: any) => {
         try {
             const chatRef = doc(firestore, "conversations", selectedChatId);
             await updateDoc(chatRef, {
-                isOrderBlue: false
+                isOrderBlue: false,
+                orderStatus: "settled"
             });
             setIsOrderActive(false);
         } catch (err) {
@@ -251,7 +252,8 @@ const Chats = ({ brandId, userBrand }: any) => {
             await updateDoc(chatRef, {
                 isOrderBlue: false,
                 orderCount: 0,
-                lastOrderAt:null
+                lastOrderAt:null,
+                orderStatus: "cancelled"
             });
             setIsOrderActive(false);
             setToastMessage("Orders cancelled successfully.");

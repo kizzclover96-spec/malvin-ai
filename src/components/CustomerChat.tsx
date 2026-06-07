@@ -196,6 +196,8 @@ const CustomerChat = ({ pendingOrder: propOrder, quantity: propQuantity }: Custo
 
         setTimeout(() => setConfetti([]), 1800);
     };
+    const previousStatus = useRef<string | null>(null);
+
     useEffect(() => {
         if (!chatId) return;
 
@@ -205,23 +207,62 @@ const CustomerChat = ({ pendingOrder: propOrder, quantity: propQuantity }: Custo
             const data = snap.data();
             if (!data) return;
 
-            const newStatus = data.orderStatus;
+            const newStatus = data.orderStatus || null;
 
-            // detect ONLY transition to "accepted"
-            if (newStatus === "accepted" && orderStatus !== "accepted") {
+            if (
+                newStatus === "accepted" &&
+                previousStatus.current !== "accepted"
+            ) {
                 triggerOrderAccepted();
             }
 
-            setOrderStatus(newStatus || null);
+            previousStatus.current = newStatus;
+            setOrderStatus(newStatus);
         });
 
         return () => unsub();
-    }, [chatId, orderStatus]);
+    }, [chatId]);
 
     if (loading) return <div style={{background: '#000', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666'}}>Authenticating Shop...</div>;
 
     return (
         <>
+            <style>{`
+                @keyframes confettiFly {
+                    0% {
+                        opacity: 1;
+                        transform: translate(0,0) scale(1);
+                    }
+
+                    100% {
+                        opacity: 0;
+                        transform: translate(var(--x), 250px) rotate(720deg);
+                    }
+                }
+            `}</style>
+            {confetti.map((particle) => (
+                <div
+                    key={particle.id}
+                    style={{
+                        position: "fixed",
+                        left: "50%",
+                        "--x": `${particle.x}px`,
+                        position: "fixed",
+                        left: "50%",
+                        top: "70px",
+                        width: particle.size,
+                        height: particle.size,
+                        background:
+                            ["#38d777", "#C5FF41", "#007aff", "#ffd60a"][
+                                particle.id % 4
+                            ],
+                        borderRadius: "50%",
+                        animation: "confettiFly 1.8s ease-out forwards",
+                        pointerEvents: "none",
+                        zIndex: 99998
+                    }}
+                />
+            ))}
             {showAcceptedPopup && (
                 <div style={{
                     position: "fixed",
