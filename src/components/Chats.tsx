@@ -196,14 +196,12 @@ const Chats = ({ brandId, userBrand }: any) => {
     const handleOrderPlaced = async () => {
         if (!selectedChatId) return;
         const countToRegister = parseInt(orderInput) || 1;
-        const currentCount = currentSelectedChat?.orderCount || 0;
-        const newTotalCount = currentCount + countToRegister;
 
         try {
             const chatRef = doc(firestore, "conversations", selectedChatId);
             await updateDoc(chatRef, {
                 isOrderBlue: true,
-                orderCount: newTotalCount,
+                orderCount: increment(countToRegister),
                 lastOrderAt: serverTimestamp(),
                 orderStatus: "accepted"
             });
@@ -242,8 +240,14 @@ const Chats = ({ brandId, userBrand }: any) => {
 
             // Update conversation
             await updateDoc(chatRef, {
+                orderCount: 0,
                 isOrderBlue: false,
                 orderStatus: "settled"
+            });
+            const finalCount = currentSelectedChat.orderCount;
+
+            await updateDoc(salesRef, {
+                totalSettledOrders: increment(finalCount),
             });
 
             // Permanent sales counter
