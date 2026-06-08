@@ -34,6 +34,17 @@ const Chats = ({ brandId, userBrand }: any) => {
     const [toastMessage, setToastMessage] = useState<string | null>(null);
     const [confettiParticles, setConfettiParticles] = useState<any[]>([]);
 
+    //shipment
+    const [showShipmentModal, setShowShipmentModal] = useState(false);
+    const [shipmentDate, setShipmentDate] = useState("");
+    const [shipmentProduct, setShipmentProduct] = useState("");
+    const [shipmentQuantity, setShipmentQuantity] = useState("1");
+
+    const [showShippingAnimation, setShowShippingAnimation] = useState(false);
+    const [shippingMessage, setShippingMessage] = useState(false);
+
+    const [showLogisticsPanel, setShowLogisticsPanel] = useState(false);
+
     // Grab selected conversation data real-time to track custom blue state backgrounds
     const currentSelectedChat = useMemo(() => {
         return chats.find(c => c.id === selectedChatId) || null;
@@ -177,6 +188,7 @@ const Chats = ({ brandId, userBrand }: any) => {
             console.error("Error sending:", e);
         }
     };
+    const shipmentProgress = shipment.shipmentCompleted ? "100%" : "65%";
     const launchConfetti = () => {
         const particles = Array.from({ length: 25 }, (_, i) => ({
             id: i,
@@ -192,6 +204,11 @@ const Chats = ({ brandId, userBrand }: any) => {
             setConfettiParticles([]);
         }, 1800);
     };
+    const activeShipments =
+        chats.filter(
+            chat =>
+                chat.shipmentStatus === "in_progress"
+        );
     // Action Handlers for Custom Order Flow
     const handleOrderPlaced = async () => {
         if (!selectedChatId) return;
@@ -227,6 +244,39 @@ const Chats = ({ brandId, userBrand }: any) => {
         } catch (err) {
             console.error("Error tracking new order inside firebase: ", err);
         }
+    };
+
+    const handleSetShipment = async () => {
+
+        if(!selectedChatId) return;
+
+        const chatRef = doc(
+            firestore,
+            "conversations",
+            selectedChatId
+        );
+
+        await updateDoc(chatRef,{
+            shipmentStatus:"in_progress",
+            shipmentDate,
+            shipmentProduct,
+            shipmentQuantity:Number(shipmentQuantity),
+            shipmentStartedAt:serverTimestamp(),
+            shipmentCompleted:false
+        });
+
+        setShowShipmentModal(false);
+
+        setShowShippingAnimation(true);
+
+        setTimeout(()=>{
+            setShowShippingAnimation(false);
+            setShippingMessage(true);
+        },3000);
+
+        setTimeout(()=>{
+            setShippingMessage(false);
+        },6000);
     };
 
     const handleOrderSettled = async () => {
@@ -269,6 +319,7 @@ const Chats = ({ brandId, userBrand }: any) => {
         }
     };
 
+
     const handleCancelOrder = async () => {
         if (!selectedChatId) return;
         try {
@@ -310,6 +361,15 @@ const Chats = ({ brandId, userBrand }: any) => {
                 100%{
                     opacity:1;
                     transform:translate(-50%,0);
+                }
+            }
+            @keyframes truckDrive {
+                0% {
+                    transform: translateX(-300px);
+                }
+
+                100% {
+                    transform: translateX(100vw);
                 }
             }
             `}</style>
@@ -523,6 +583,101 @@ const Chats = ({ brandId, userBrand }: any) => {
 
                             <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
                                 <div
+                                    onClick={() => setShowLogisticsPanel(!showLogisticsPanel)}
+                                    style={{
+                                        cursor: "pointer",
+                                        color: showLogisticsPanel ? "#4ade80" : "rgba(255, 255, 255, 0.4)",
+                                        transition: "all 0.3s ease",
+                                        filter: showLogisticsPanel ? "drop-shadow(0 0 8px rgba(74, 222, 128, 0.4))" : "none",
+                                        display: "flex",
+                                        alignItems: "center"
+                                    }}
+                                >🚚
+                                    {activeShipments.length > 0 && (
+                                        <span
+                                            style={{
+                                                marginLeft: "4px",
+                                                background: "#22c55e",
+                                                borderRadius: "999px",
+                                                padding: "2px 6px",
+                                                fontSize: "10px"
+                                            }}
+                                        >
+                                            {activeShipments.length}
+                                        </span>
+                                    )}
+                                </div>
+                                {showLogisticsPanel && (
+                                    <div
+                                        style={{
+                                            position: "absolute",
+                                            top: "40px",
+                                            right: "50px",
+                                            width: "320px",
+                                            background: "#121214",
+                                            border: "1px solid #262626",
+                                            borderRadius: "16px",
+                                            padding: "16px",
+                                            zIndex: 1000,
+                                            maxHeight: "400px",
+                                            overflowY: "auto"
+                                        }}
+                                    >
+                                        <h4 style={{ marginTop: 0 }}>
+                                            🚚 Active Shipments
+                                        </h4>
+
+                                        {activeShipments.length === 0 ? (
+                                            <div style={{ color: "#888" }}>
+                                                No active shipments
+                                            </div>
+                                        ) : (
+                                            activeShipments.map((shipment) => (
+                                                <div
+                                                    key={shipment.id}
+                                                    style={{
+                                                        marginBottom: "15px",
+                                                        paddingBottom: "15px",
+                                                        borderBottom: "1px solid #262626"
+                                                    }}
+                                                >
+                                                    <div>
+                                                        Product: {shipment.shipmentProduct}
+                                                    </div>
+
+                                                    <div>
+                                                        Qty: {shipment.shipmentQuantity}
+                                                    </div>
+
+                                                    <div>
+                                                        Arrival: {shipment.shipmentDate}
+                                                    </div>
+
+                                                    <div
+                                                        style={{
+                                                            marginTop: "12px",
+                                                            width: "100%",
+                                                            height: "10px",
+                                                            background: "#222",
+                                                            borderRadius: "999px"
+                                                        }}
+                                                    >
+                                                        <div
+                                                            style={{
+                                                                width: shipmentProgress,
+                                                                height: "100%",
+                                                                background: "#22c55e",
+                                                                borderRadius: "999px"
+                                                            }}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+                                )}
+                                
+                                <div
                                     onClick={() => setShowTrustMsg(!showTrustMsg)}
                                     style={{
                                         cursor: "pointer",
@@ -628,6 +783,11 @@ const Chats = ({ brandId, userBrand }: any) => {
                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
                                                 <div style={{ fontSize: '14px', fontWeight: (isUnread || isUnfinished || isBlueTheme) ? 700 : 400, color: '#fff' }}>
                                                     Client #{clientDisplayNum} {isBlueTheme ? '📦' : isUnfinished ? '💼' : ''}
+                                                    {chat.shipmentStatus === "in_progress" && (
+                                                        <span
+                                                            style={{ background:"#22c55e", padding:"2px 6px", borderRadius:"10px", marginLeft:"6px", fontSize:"11px" }}
+                                                        > 🚚 Shipping </span>
+                                                    )}
                                                     {chat.orderCount > 0 && (
                                                         <span style={{ fontSize: '11px', background: '#007aff', padding: '2px 6px', borderRadius: '10px', marginLeft: '6px' }}>
                                                             {chat.orderCount} orders
@@ -785,6 +945,145 @@ const Chats = ({ brandId, userBrand }: any) => {
                                                 >
                                                     ✕ Cancel
                                                 </button>
+                                            </div>
+                                        )}
+                                        {isOrderActive && (
+                                            <button
+                                                onClick={() => setShowShipmentModal(true)}
+                                                style={{
+                                                    background:'#ff9500',
+                                                    color:'#fff',
+                                                    border:'none',
+                                                    padding:'10px 18px',
+                                                    borderRadius:'12px',
+                                                    cursor:'pointer',
+                                                    fontWeight:700
+                                                }}
+                                            >
+                                                🚚 Set Shipment
+                                            </button>
+                                        )}
+                                        {showShipmentModal && (
+                                            <div
+                                                style={{
+                                                    position: "fixed",
+                                                    inset: 0,
+                                                    background: "rgba(0,0,0,.65)",
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    justifyContent: "center",
+                                                    zIndex: 999999
+                                                }}
+                                            >
+                                                <div
+                                                    style={{
+                                                        background: "#121214",
+                                                        padding: "24px",
+                                                        borderRadius: "18px",
+                                                        width: "350px",
+                                                        border: "1px solid #262626"
+                                                    }}
+                                                >
+                                                    <h3 style={{marginTop:0}}>Schedule Shipment</h3>
+
+                                                    <input
+                                                        placeholder="Product Name"
+                                                        value={shipmentProduct}
+                                                        onChange={(e)=>setShipmentProduct(e.target.value)}
+                                                        style={{
+                                                            width:"100%",
+                                                            padding:"12px",
+                                                            marginBottom:"10px"
+                                                        }}
+                                                    />
+
+                                                    <input
+                                                        type="number"
+                                                        placeholder="Quantity"
+                                                        value={shipmentQuantity}
+                                                        onChange={(e)=>setShipmentQuantity(e.target.value)}
+                                                        style={{
+                                                            width:"100%",
+                                                            padding:"12px",
+                                                            marginBottom:"10px"
+                                                        }}
+                                                    />
+
+                                                    <input
+                                                        type="date"
+                                                        value={shipmentDate}
+                                                        onChange={(e)=>setShipmentDate(e.target.value)}
+                                                        style={{
+                                                            width:"100%",
+                                                            padding:"12px",
+                                                            marginBottom:"15px"
+                                                        }}
+                                                    />
+
+                                                    <div style={{
+                                                        display:"flex",
+                                                        gap:"10px"
+                                                    }}>
+                                                        <button
+                                                            onClick={() => setShowShipmentModal(false)}
+                                                            style={{
+                                                                flex:1
+                                                            }}
+                                                        >
+                                                            Cancel
+                                                        </button>
+
+                                                        <button
+                                                            onClick={handleSetShipment}
+                                                            style={{
+                                                                flex:1
+                                                            }}
+                                                        >
+                                                            Set Shipment
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                        {showShippingAnimation && (
+                                            <div
+                                                style={{
+                                                    position:'fixed',
+                                                    inset:0,
+                                                    background:'rgba(0,0,0,.8)',
+                                                    zIndex:999999
+                                                }}
+                                            >
+
+                                                <div
+                                                    style={{
+                                                        fontSize:'70px',
+                                                        position:'absolute',
+                                                        top:'50%',
+                                                        left:'0',
+                                                        animation:'truckDrive 3s linear forwards'
+                                                    }}
+                                                >
+                                                    🚚
+                                                </div>
+
+                                            </div>
+                                        )}
+                                        {shippingMessage && (
+                                            <div
+                                                style={{
+                                                    position: "fixed",
+                                                    top: "20px",
+                                                    left: "50%",
+                                                    transform: "translateX(-50%)",
+                                                    background: "#22c55e",
+                                                    color: "#fff",
+                                                    padding: "12px 20px",
+                                                    borderRadius: "12px",
+                                                    zIndex: 999999
+                                                }}
+                                            >
+                                                🚚 Shipping In Progress
                                             </div>
                                         )}
                                     </div>
