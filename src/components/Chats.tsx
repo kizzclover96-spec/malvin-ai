@@ -675,7 +675,7 @@ const Chats = ({ brandId, userBrand }: any) => {
                                                     >
                                                         <div
                                                             style={{
-                                                                width: getShipmentProgress(shipment)
+                                                                width: getShipmentProgress(shipment),
                                                                 height: "100%",
                                                                 background: "#22c55e",
                                                                 borderRadius: "999px"
