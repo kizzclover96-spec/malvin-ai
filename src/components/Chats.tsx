@@ -44,6 +44,8 @@ const Chats = ({ brandId, userBrand }: any) => {
     const [shippingMessage, setShippingMessage] = useState(false);
 
     const [showLogisticsPanel, setShowLogisticsPanel] = useState(false);
+    const timeout1 = useRef<any>(null);
+    const timeout2 = useRef<any>(null);
 
     // Grab selected conversation data real-time to track custom blue state backgrounds
     const currentSelectedChat = useMemo(() => {
@@ -188,7 +190,6 @@ const Chats = ({ brandId, userBrand }: any) => {
             console.error("Error sending:", e);
         }
     };
-    const shipmentProgress = shipment.shipmentCompleted ? "100%" : "65%";
     const launchConfetti = () => {
         const particles = Array.from({ length: 25 }, (_, i) => ({
             id: i,
