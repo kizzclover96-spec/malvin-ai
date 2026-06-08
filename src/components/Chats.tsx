@@ -245,6 +245,8 @@ const Chats = ({ brandId, userBrand }: any) => {
             console.error("Error tracking new order inside firebase: ", err);
         }
     };
+    const getShipmentProgress = (shipment: any) =>
+     shipment.shipmentCompleted ? "100%" : "65%";
 
     const handleSetShipment = async () => {
 
@@ -266,6 +268,9 @@ const Chats = ({ brandId, userBrand }: any) => {
         });
 
         setShowShipmentModal(false);
+        setShipmentDate("");
+        setShipmentProduct("");
+        setShipmentQuantity("1");
 
         setShowShippingAnimation(true);
 
@@ -283,7 +288,7 @@ const Chats = ({ brandId, userBrand }: any) => {
         if (!selectedChatId) return;
 
         try {
-            const settledCount = currentSelectedChat?.orderCount || 0;
+            const settledCount = Number(currentSelectedChat?.orderCount || 0);
 
             const chatRef = doc(firestore, "conversations", selectedChatId);
 
@@ -338,6 +343,12 @@ const Chats = ({ brandId, userBrand }: any) => {
             console.error("Error cancelling order system wide: ", err);
         }
     };
+    useEffect(() => {
+        return () => {
+            clearTimeout(timeout1.current);
+            clearTimeout(timeout2.current);
+        };
+    }, []);
 
     // 5. Auto-scroll to bottom
     useEffect(() => {
@@ -664,7 +675,7 @@ const Chats = ({ brandId, userBrand }: any) => {
                                                     >
                                                         <div
                                                             style={{
-                                                                width: shipmentProgress,
+                                                                width: getShipmentProgress(shipment)
                                                                 height: "100%",
                                                                 background: "#22c55e",
                                                                 borderRadius: "999px"
