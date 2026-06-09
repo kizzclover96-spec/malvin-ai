@@ -46,20 +46,23 @@ const Chats = ({ brandId, userBrand }: any) => {
     const [showLogisticsPanel, setShowLogisticsPanel] = useState(false);
     const timeout1 = useRef<any>(null);
     const timeout2 = useRef<any>(null);
+    const [activeShipments, setActiveShipments] = useState<any[]>([]);
 
     const getShipmentProgress = (shipment:any) => {
 
-        if (!shipment.shipmentStartedAt) return "0%";
+        if (!shipment.createdAt) return "0%";
 
         const start =
-            shipment.shipmentStartedAt.toDate().getTime();
+            shipment.createdAt.toDate().getTime();
 
         const end =
-            new Date(shipment.shipmentDate).getTime();
+            new Date(shipment.deliveryDate).getTime();
 
         const now = Date.now();
 
         const total = end - start;
+
+        if (total <= 0) return "100%";
 
         const elapsed = now - start;
 
@@ -72,9 +75,25 @@ const Chats = ({ brandId, userBrand }: any) => {
                 )
             );
 
-        return `${percent}%`;
+        return `${Math.round(percent)}%`;
     };
+    const getDaysRemaining = (shipment:any) => {
 
+        const end =
+            new Date(shipment.deliveryDate).getTime();
+
+        const diff =
+            end - Date.now();
+
+        const days =
+            Math.ceil(
+                diff / (1000*60*60*24)
+            );
+
+        return days <= 0
+            ? "Delivered"
+            : `${days} day(s) left`;
+    };
     // Grab selected conversation data real-time to track custom blue state backgrounds
     const currentSelectedChat = useMemo(() => {
         return chats.find(c => c.id === selectedChatId) || null;
@@ -287,10 +306,6 @@ const Chats = ({ brandId, userBrand }: any) => {
 
         await updateDoc(chatRef,{
             shipmentStatus:"in_progress",
-            shipmentDate,
-            shipmentProduct,
-            shipmentQuantity:Number(shipmentQuantity),
-            shipmentStartedAt:serverTimestamp(),
             shipmentCompleted:false
         });
 
@@ -400,6 +415,41 @@ const Chats = ({ brandId, userBrand }: any) => {
             messageContainer.scrollTop = messageContainer.scrollHeight;
         }
     }, [activeMessages]);
+    useEffect(() => {
+        const unsubscribers:any[] = [];
+
+        chats.forEach(chat => {
+            const q = collection(
+                firestore,
+                "conversations",
+                chat.id,
+                "shipments"
+            );
+
+            const unsub = onSnapshot(q, snap => {
+                const shipments = snap.docs.map(doc => ({
+                    id: doc.id,
+                    chatId: chat.id,
+                    ...doc.data()
+                }));
+
+                setActiveShipments(prev => {
+                    const filtered =
+                        prev.filter(
+                            s => s.chatId !== chat.id
+                        );
+
+                    return [...filtered, ...shipments];
+                });
+            });
+
+            unsubscribers.push(unsub);
+        });
+
+        return () => {
+            unsubscribers.forEach(u => u());
+        };
+    }, [chats]);
 
     
 
@@ -768,6 +818,7 @@ const Chats = ({ brandId, userBrand }: any) => {
                                                         >
                                                             <span>Status</span>
                                                             <span>{getShipmentProgress(shipment)}</span>
+                                                            <span> {getDaysRemaining(shipment)}</span>
                                                         </div>
 
                                                         <div
