@@ -274,9 +274,7 @@ const Chats = ({ brandId, userBrand }: any) => {
             console.error("Error tracking new order inside firebase: ", err);
         }
     };
-    const getShipmentProgress = (shipment: any) =>
-     shipment.shipmentCompleted ? "100%" : "65%";
-
+    
     const handleSetShipment = async () => {
 
         if(!selectedChatId) return;
