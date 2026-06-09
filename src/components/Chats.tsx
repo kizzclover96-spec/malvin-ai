@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { collection, query, where, onSnapshot, orderBy, addDoc, serverTimestamp, doc, setDoc, updateDoc, getDocs } from "firebase/firestore";
 import { firestore, auth } from "../firebase";
-import { increment } from "firebase/firestore";
+import { increment, collectionGroup } from "firebase/firestore";
 
 const ChatCard = ({ children, style }: any) => (
     <div style={{
