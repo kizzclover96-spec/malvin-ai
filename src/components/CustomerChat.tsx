@@ -201,16 +201,7 @@ const CustomerChat = ({ pendingOrder: propOrder, quantity: propQuantity }: Custo
     };
     const previousStatus = useRef<string | null>(null);
 
-    const checkSpam = () => {
-        const now = Date.now();
-        messageTimestamps.current.push(now);
-
-        const recent = messageTimestamps.current.filter(t => now - t < 10000);
-
-        messageTimestamps.current = recent;
-
-        return recent.length > 6;
-    };
+    
 
     useEffect(() => {
         if (!chatId) return;
@@ -239,10 +230,7 @@ const CustomerChat = ({ pendingOrder: propOrder, quantity: propQuantity }: Custo
 
         return () => unsub();
     }, [chatId]);
-    if (checkSpam()) {
-        alert("You're sending messages too fast.");
-        return;
-    }
+    
     if (loading) return <div style={{background: '#000', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666'}}>Authenticating Shop...</div>;
 
 
