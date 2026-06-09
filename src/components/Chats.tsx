@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { collection, query, where, onSnapshot, orderBy, addDoc, serverTimestamp, doc, setDoc, updateDoc, getDocs } from "firebase/firestore";
 import { firestore, auth } from "../firebase";
 import { increment } from "firebase/firestore";
@@ -608,6 +608,12 @@ const Chats = ({ brandId, userBrand }: any) => {
                                     {activeShipments.length > 0 && (
                                         <span
                                             style={{
+                                                marginLeft:"6px",
+                                                display:"flex",
+                                                alignItems:"center",
+                                                justifyContent:"center",
+                                                minWidth:"18px",
+                                                height:"18px",
                                                 marginLeft: "4px",
                                                 background: "#22c55e",
                                                 borderRadius: "999px",
@@ -623,20 +629,38 @@ const Chats = ({ brandId, userBrand }: any) => {
                                     <div
                                         style={{
                                             position: "absolute",
-                                            top: "40px",
-                                            right: "50px",
-                                            width: "320px",
                                             background: "#121214",
                                             border: "1px solid #262626",
                                             borderRadius: "16px",
                                             padding: "16px",
                                             zIndex: 1000,
                                             maxHeight: "400px",
-                                            overflowY: "auto"
+                                            overflowY: "auto",
+                                            right: 0,
+                                            top: "42px",
+                                            width: "360px",
+                                            maxWidth: "90vw",
+                                            boxShadow: "0 20px 50px rgba(0,0,0,.45)",
                                         }}
                                     >
-                                        <h4 style={{ marginTop: 0 }}>
-                                            🚚 Active Shipments
+                                        <h4 style={{
+                                            display:"flex",
+                                            justifyContent:"space-between",
+                                            alignItems:"center",
+                                            marginTop:0
+                                        }}>
+                                            <span>🚚 Active Shipments</span>
+
+                                            <span
+                                                style={{
+                                                    fontSize:"11px",
+                                                    background:"#22c55e",
+                                                    padding:"4px 8px",
+                                                    borderRadius:"999px"
+                                                }}
+                                            >
+                                                {activeShipments.length}
+                                            </span>
                                         </h4>
 
                                         {activeShipments.length === 0 ? (
@@ -645,43 +669,77 @@ const Chats = ({ brandId, userBrand }: any) => {
                                             </div>
                                         ) : (
                                             activeShipments.map((shipment) => (
+                                                key={shipment.id}
                                                 <div
-                                                    key={shipment.id}
                                                     style={{
-                                                        marginBottom: "15px",
-                                                        paddingBottom: "15px",
-                                                        borderBottom: "1px solid #262626"
+                                                        background:"#18181b",
+                                                        border:"1px solid #262626",
+                                                        borderRadius:"12px",
+                                                        padding:"12px",
+                                                        marginBottom:"12px"
                                                     }}
                                                 >
-                                                    <div>
-                                                        Product: {shipment.shipmentProduct}
+                                                    <div
+                                                        style={{
+                                                            fontSize:"11px",
+                                                            color:"#6b7280",
+                                                            marginBottom:"6px"
+                                                        }}
+                                                    >
+                                                        Client #{sortedChats.findIndex(c => c.id === shipment.id) + 1}
                                                     </div>
-
-                                                    <div>
-                                                        Qty: {shipment.shipmentQuantity}
-                                                    </div>
-
-                                                    <div>
-                                                        Arrival: {shipment.shipmentDate}
+                                                    <div
+                                                        style={{
+                                                            fontWeight:600,
+                                                            color:"#fff",
+                                                            marginBottom:"8px"
+                                                        }}
+                                                    >
+                                                        📦 {shipment.shipmentProduct}
                                                     </div>
 
                                                     <div
                                                         style={{
-                                                            marginTop: "12px",
-                                                            width: "100%",
-                                                            height: "10px",
-                                                            background: "#222",
-                                                            borderRadius: "999px"
+                                                            fontSize:"13px",
+                                                            color:"#9ca3af",
+                                                            display:"flex",
+                                                            justifyContent:"space-between"
                                                         }}
                                                     >
+                                                        <span>Qty: {shipment.shipmentQuantity}</span>
+                                                        <span>ETA: {shipment.shipmentDate}</span>
+                                                    </div>
+                                                    <div style={{ marginTop:"12px" }}>
                                                         <div
                                                             style={{
-                                                                width: getShipmentProgress(shipment),
-                                                                height: "100%",
-                                                                background: "#22c55e",
-                                                                borderRadius: "999px"
+                                                                display:"flex",
+                                                                justifyContent:"space-between",
+                                                                marginBottom:"6px",
+                                                                fontSize:"11px",
+                                                                color:"#888"
                                                             }}
-                                                        />
+                                                        >
+                                                            <span>Status</span>
+                                                            <span>{getShipmentProgress(shipment)}</span>
+                                                        </div>
+
+                                                        <div
+                                                            style={{
+                                                                width:"100%",
+                                                                height:"8px",
+                                                                background:"#222",
+                                                                borderRadius:"999px",
+                                                                overflow:"hidden"
+                                                            }}
+                                                        >
+                                                            <div
+                                                                style={{
+                                                                    width:getShipmentProgress(shipment),
+                                                                    height:"100%",
+                                                                    background:"#22c55e"
+                                                                }}
+                                                            />
+                                                        </div>
                                                     </div>
                                                 </div>
                                             ))
@@ -796,9 +854,7 @@ const Chats = ({ brandId, userBrand }: any) => {
                                                 <div style={{ fontSize: '14px', fontWeight: (isUnread || isUnfinished || isBlueTheme) ? 700 : 400, color: '#fff' }}>
                                                     Client #{clientDisplayNum} {isBlueTheme ? '📦' : isUnfinished ? '💼' : ''}
                                                     {chat.shipmentStatus === "in_progress" && (
-                                                        <span
-                                                            style={{ background:"#22c55e", padding:"2px 6px", borderRadius:"10px", marginLeft:"6px", fontSize:"11px" }}
-                                                        > 🚚 Shipping </span>
+                                                        <span style={{ background:"rgba(34,197,94,.15)", color:"#22c55e", border:"1px solid rgba(34,197,94,.3)", padding:"2px 8px", borderRadius:"999px", fontSize:"10px", fontWeight:600, marginLeft:"6px"}}> 🚚 Shipping</span>
                                                     )}
                                                     {chat.orderCount > 0 && (
                                                         <span style={{ fontSize: '11px', background: '#007aff', padding: '2px 6px', borderRadius: '10px', marginLeft: '6px' }}>
@@ -885,7 +941,7 @@ const Chats = ({ brandId, userBrand }: any) => {
                                     </div>
 
                                     {/* Custom Firebase Order Flow Control Box */}
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <div style={{ display:'flex', alignItems:'center', gap:'10px', flexWrap:'wrap', justifyContent:'flex-end'}}>
                                         {!isOrderActive ? (
                                             <button
                                                 onClick={() => {
@@ -907,8 +963,10 @@ const Chats = ({ brandId, userBrand }: any) => {
                                             </button>
                                         ) : (
                                             <div style={{
-                                                display:'flex',
-                                                gap:'8px'
+                                                display:"flex",
+                                                flexWrap:"wrap",
+                                                gap:"8px",
+                                                justifyContent:"flex-end"
                                             }}>
                                                 <button
                                                     onClick={() => {
@@ -1005,7 +1063,12 @@ const Chats = ({ brandId, userBrand }: any) => {
                                                         style={{
                                                             width:"100%",
                                                             padding:"12px",
-                                                            marginBottom:"10px"
+                                                            boxSizing:"border-box",
+                                                            background:"#0a0a0a",
+                                                            marginBottom:"10px",
+                                                            border:"1px solid #262626",
+                                                            borderRadius:"10px",
+                                                            color:"#fff"
                                                         }}
                                                     />
 
@@ -1017,7 +1080,12 @@ const Chats = ({ brandId, userBrand }: any) => {
                                                         style={{
                                                             width:"100%",
                                                             padding:"12px",
-                                                            marginBottom:"10px"
+                                                            boxSizing:"border-box",
+                                                            background:"#0a0a0a",
+                                                            marginBottom:"10px",
+                                                            border:"1px solid #262626",
+                                                            borderRadius:"10px",
+                                                            color:"#fff"
                                                         }}
                                                     />
 
@@ -1028,7 +1096,12 @@ const Chats = ({ brandId, userBrand }: any) => {
                                                         style={{
                                                             width:"100%",
                                                             padding:"12px",
-                                                            marginBottom:"15px"
+                                                            marginBottom:"10px",
+                                                            boxSizing:"border-box",
+                                                            background:"#0a0a0a",
+                                                            border:"1px solid #262626",
+                                                            borderRadius:"10px",
+                                                            color:"#fff"
                                                         }}
                                                     />
 
