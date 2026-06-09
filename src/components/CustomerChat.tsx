@@ -139,10 +139,7 @@ const CustomerChat = ({ pendingOrder: propOrder, quantity: propQuantity }: Custo
         if (e) e.preventDefault();
         const textToSend = customMsg || message;
         if (!textToSend.trim() || !chatId || !brandId) return;
-        if (checkSpam()) {
-            alert("You're sending messages too fast.");
-            return;
-        }
+        
 
         try {
             const convoRef = doc(firestore, "conversations", chatId);
