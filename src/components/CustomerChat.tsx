@@ -32,6 +32,7 @@ const CustomerChat = ({ pendingOrder: propOrder, quantity: propQuantity }: Custo
     const activePendingOrder = propOrder;
     const activePendingQuantity = propQuantity || 1;
     const pendingOrderRef = useRef<any>(null);
+    const lastAcceptedOrderId = useRef<string | null>(null);
 
     const [orderStatus, setOrderStatus] = useState<string | null>(null);
     const [showAcceptedPopup, setShowAcceptedPopup] = useState(false);
@@ -220,12 +221,15 @@ const CustomerChat = ({ pendingOrder: propOrder, quantity: propQuantity }: Custo
             const data = snap.data();
             if (!data) return;
 
-            const newStatus = data.orderStatus || null;
+            const newStatus = data.orderStatus;
+            const orderId = data.orderId; // or shipment/order reference
 
             if (
                 newStatus === "accepted" &&
-                previousStatus.current !== "accepted"
+                orderId &&
+                lastAcceptedOrderId.current !== orderId
             ) {
+                lastAcceptedOrderId.current = orderId;
                 triggerOrderAccepted();
             }
 
