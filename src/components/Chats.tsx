@@ -628,19 +628,23 @@ const Chats = ({ brandId, userBrand }: any) => {
                                 {showLogisticsPanel && (
                                     <div
                                         style={{
-                                            position: "absolute",
+                                            position: "fixed",
+                                            top: "90px",
+                                            left: "370px",
+
+                                          width: "380px",
+                                            maxWidth: "calc(100vw - 420px)",
+
                                             background: "#121214",
                                             border: "1px solid #262626",
                                             borderRadius: "16px",
                                             padding: "16px",
-                                            zIndex: 1000,
+
                                             maxHeight: "400px",
                                             overflowY: "auto",
-                                            right: 0,
-                                            top: "42px",
-                                            width: "360px",
-                                            maxWidth: "90vw",
-                                            boxShadow: "0 20px 50px rgba(0,0,0,.45)",
+
+                                            zIndex: 9999,
+                                            boxShadow: "0 20px 50px rgba(0,0,0,.45)"
                                         }}
                                     >
                                         <h4 style={{
