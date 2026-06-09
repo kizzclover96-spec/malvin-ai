@@ -47,6 +47,34 @@ const Chats = ({ brandId, userBrand }: any) => {
     const timeout1 = useRef<any>(null);
     const timeout2 = useRef<any>(null);
 
+    const getShipmentProgress = (shipment:any) => {
+
+        if (!shipment.shipmentStartedAt) return "0%";
+
+        const start =
+            shipment.shipmentStartedAt.toDate().getTime();
+
+        const end =
+            new Date(shipment.shipmentDate).getTime();
+
+        const now = Date.now();
+
+        const total = end - start;
+
+        const elapsed = now - start;
+
+        const percent =
+            Math.min(
+                100,
+                Math.max(
+                    0,
+                    (elapsed / total) * 100
+                )
+            );
+
+        return `${percent}%`;
+    };
+
     // Grab selected conversation data real-time to track custom blue state backgrounds
     const currentSelectedChat = useMemo(() => {
         return chats.find(c => c.id === selectedChatId) || null;
@@ -267,6 +295,22 @@ const Chats = ({ brandId, userBrand }: any) => {
             shipmentStartedAt:serverTimestamp(),
             shipmentCompleted:false
         });
+
+        await addDoc(
+            collection(
+                firestore,
+                "conversations",
+                selectedChatId,
+                "shipments"
+            ),
+            {
+                product: shipmentProduct,
+                quantity: Number(shipmentQuantity),
+                deliveryDate: shipmentDate,
+                createdAt: serverTimestamp(),
+                completed:false
+            }
+        );
 
         setShowShipmentModal(false);
         setShipmentDate("");
