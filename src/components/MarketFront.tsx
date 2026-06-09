@@ -226,39 +226,41 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
     };
 
     useEffect(() => {
-        const conversationId =
-            localStorage.getItem("conversationId");
+        const storageKey = `activeConversation_${brandId}`;
+        const conversationId = localStorage.getItem(storageKey);
 
         if (!conversationId) return;
 
-        const shipmentRef = doc(
+        const shipmentsRef = collection(
             firestore,
             "conversations",
-            conversationId
+            conversationId,
+            "shipments"
         );
 
-        const unsubscribe = onSnapshot(
-            shipmentRef,
-            (snap) => {
-                if (!snap.exists()) return;
+        const unsubscribe = onSnapshot(shipmentsRef, (snapshot) => {
+            const shipments = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
 
-                const data = snap.data();
-
-                if (
-                    data.shipmentStatus === "in_progress" &&
-                    !data.shipmentCompleted
-                ) {
-                    setActiveShipment(data);
-                    setShowShipmentBubble(true);
-                } else {
-                    setShowShipmentBubble(false);
-                    setShipmentCardOpen(false);
-                }
+            if (shipments.length === 0) {
+                setActiveShipment(null);
+                setShowShipmentBubble(false);
+                return;
             }
-        );
+
+            const latest = shipments.sort(
+                (a: any, b: any) =>
+                    (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)
+            )[0];
+
+            setActiveShipment(latest);
+            setShowShipmentBubble(true);
+        });
 
         return () => unsubscribe();
-    }, []);
+    }, [brandId]);
 
     if (view === 'booking') {
         return (

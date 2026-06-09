@@ -415,12 +415,7 @@ const Chats = ({ brandId, userBrand }: any) => {
         const unsubscribers:any[] = [];
 
         chats.forEach(chat => {
-            const q = collection(
-                firestore,
-                "conversations",
-                chat.id,
-                "shipments"
-            );
+            const q = collectionGroup(firestore, "shipments");
 
             const unsub = onSnapshot(q, snap => {
                 const shipments = snap.docs.map(doc => ({
