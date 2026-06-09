@@ -669,8 +669,9 @@ const Chats = ({ brandId, userBrand }: any) => {
                                             </div>
                                         ) : (
                                             activeShipments.map((shipment) => (
-                                                key={shipment.id}
+                                                
                                                 <div
+                                                    key={shipment.id}
                                                     style={{
                                                         background:"#18181b",
                                                         border:"1px solid #262626",
