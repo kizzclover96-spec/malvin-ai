@@ -779,7 +779,7 @@ const Chats = ({ brandId, userBrand }: any) => {
                                                             marginBottom:"6px"
                                                         }}
                                                     >
-                                                        Client #{sortedChats.findIndex(c => c.id === shipment.id) + 1}
+                                                        Client #{sortedChats.findIndex(c => c.id === shipment.chatId) + 1}
                                                     </div>
                                                     <div
                                                         style={{
@@ -788,7 +788,7 @@ const Chats = ({ brandId, userBrand }: any) => {
                                                             marginBottom:"8px"
                                                         }}
                                                     >
-                                                        📦 {shipment.shipmentProduct}
+                                                        📦 {shipment.product}
                                                     </div>
 
                                                     <div
@@ -799,8 +799,8 @@ const Chats = ({ brandId, userBrand }: any) => {
                                                             justifyContent:"space-between"
                                                         }}
                                                     >
-                                                        <span>Qty: {shipment.shipmentQuantity}</span>
-                                                        <span>ETA: {shipment.shipmentDate}</span>
+                                                        <span>Qty: {shipment.quantity}</span>
+                                                        <span>ETA: {shipment.deliveryDate}</span>
                                                     </div>
                                                     <div style={{ marginTop:"12px" }}>
                                                         <div
