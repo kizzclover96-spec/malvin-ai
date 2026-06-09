@@ -252,11 +252,7 @@ const Chats = ({ brandId, userBrand }: any) => {
             setConfettiParticles([]);
         }, 1800);
     };
-    const activeShipments =
-        chats.filter(
-            chat =>
-                chat.shipmentStatus === "in_progress"
-        );
+    
     // Action Handlers for Custom Order Flow
     const handleOrderPlaced = async () => {
         if (!selectedChatId) return;
