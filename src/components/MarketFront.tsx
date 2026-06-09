@@ -648,7 +648,7 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
                                     marginBottom: "8px"
                                 }}
                             >
-                                📦 {activeShipment.shipmentProduct}
+                                📦 {activeShipment.product}
                             </div>
 
                             <div
@@ -660,7 +660,7 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
                             >
                                 Quantity:
                                 {" "}
-                                {activeShipment.shipmentQuantity}
+                                {activeShipment.quantity}
                             </div>
 
                             <div
@@ -672,7 +672,7 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
                             >
                                 ETA:
                                 {" "}
-                                {activeShipment.shipmentDate}
+                                {activeShipment.deliveryDate}
                             </div>
 
                             <div
