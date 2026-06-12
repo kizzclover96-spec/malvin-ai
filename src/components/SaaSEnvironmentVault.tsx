@@ -9,7 +9,7 @@ import {
 import { 
   collection, addDoc, onSnapshot, deleteDoc, doc, query, orderBy, updateDoc 
 } from 'firebase/firestore';
-import { db } from '../firebase'; // Adjust this path to your firebase config file
+import { firestore } from '../firebase';// Adjust this path to your firebase config file
 import Papa from "papaparse";
 import {
   serverTimestamp
@@ -76,7 +76,7 @@ export default function SaaSEnvironmentVault({ userEmail }: { userEmail: string 
 
     // --- FIRESTORE SUBSCRIPTION CHANNEL ---
     useEffect(() => {
-        const q = query(collection(db, 'enterprise_vault'), orderBy('createdAt', 'desc'));
+        const q = query(collection(firestore, 'enterprise_vault'), orderBy('createdAt', 'desc'));
         const unsubscribe = onSnapshot(q, (snapshot) => {
         const fetched: EnterpriseVaultItem[] = [];
         snapshot.forEach((doc) => {
@@ -190,7 +190,7 @@ export default function SaaSEnvironmentVault({ userEmail }: { userEmail: string 
         const tagsArray = rawTags.split(',').map(t => t.trim().toUpperCase()).filter(t => t.length > 0);
 
         try {
-        await addDoc(collection(db, 'enterprise_vault'), {
+        await addDoc(collection(firestore, 'enterprise_vault'), {
             storeName: storeName.trim().toUpperCase(),
             storeUrl: storeUrl.trim(),
             productName: productName.trim(),
@@ -248,7 +248,7 @@ export default function SaaSEnvironmentVault({ userEmail }: { userEmail: string 
         }
         
         try {
-        await updateDoc(doc(db, 'enterprise_vault', id), {
+        await updateDoc(doc(firestore, 'enterprise_vault', id), {
             linkIntegrity: computedStatus
         });
         } catch (err) {
@@ -259,7 +259,7 @@ export default function SaaSEnvironmentVault({ userEmail }: { userEmail: string 
     const handleDelete = async (id: string, e: React.MouseEvent) => {
         e.stopPropagation();
         if (window.confirm("Purge asset from enterprise ledger configuration storage memory?")) {
-        await deleteDoc(doc(db, 'enterprise_vault', id));
+        await deleteDoc(doc(firestore, 'enterprise_vault', id));
         }
     };
 
