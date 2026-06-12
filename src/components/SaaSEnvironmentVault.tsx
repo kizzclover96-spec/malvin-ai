@@ -826,6 +826,7 @@ export default function SaaSEnvironmentVault({ userEmail }: { userEmail: string 
                 </div>
             )}
         </AnimatePresence>
+        </div>
         
     );
 }
