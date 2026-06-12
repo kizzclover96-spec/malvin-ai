@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { auth, db } from '../firebase'; 
 import { ref, set, push, onValue, remove } from "firebase/database";
+import SaaSEnvironmentVault from './SaaSEnvironmentVault'; 
+import '../index.css';
 
 const Catalog = ({ onBack, userBrand }: any) => {
     const [products, setProducts] = useState<any[]>([]);
     const [showModal, setShowModal] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState<any>(null); // For Detail View
     const [loading, setLoading] = useState(true);
+    const [showVault, setShowVault] = useState(false);
 
     const [newItem, setNewItem] = useState({
         name: '',
@@ -82,9 +85,32 @@ const Catalog = ({ onBack, userBrand }: any) => {
         }}>
             
             {/* Header Area */}
-            <div style={{ marginBottom: '20px' }}>
+            <div style={{ marginBottom: '20px', position: 'relative' }}>
                 <h1 style={{ fontSize: '40px', fontWeight: 700, margin: 0 }}>Inventory_Management</h1>
                 <p style={{ opacity: 0.5, margin: '5px 0 0 0' }}>Core assets for {userBrand?.name}.</p>
+                {/* Top Right Vault Button */}
+                {!showVault && (
+                    <button
+                        onClick={() => setShowVault(true)}
+                        style={{
+                            position: 'absolute',
+                            top: '20px',
+                            right: '30px',
+                            padding: '10px 14px',
+                            background: '#C5FF41',
+                            color: '#000',
+                            border: 'none',
+                            borderRadius: '12px',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            fontSize: '12px',
+                            zIndex: 1000,
+                            boxShadow: '0 0 20px rgba(197,255,65,0.2)'
+                        }}
+                    >
+                        Environment Vault
+                    </button>
+                )}
             </div>
 
             {/* Floating Right Corner Add Button */}
@@ -191,6 +217,46 @@ const Catalog = ({ onBack, userBrand }: any) => {
                                 <button onClick={() => setSelectedProduct(null)} style={{...secondaryBtn, marginTop: '20px'}}>Close View</button>
                             </div>
                         </div>
+                    </div>
+                </div>
+            )}
+            {showVault && (
+                <div
+                    style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        width: '100vw',
+                        height: '100vh',
+                        zIndex: 99999,
+                        background: 'rgba(0,0,0,0.85)',
+                        inset: 0,
+                        backdropFilter: 'blur(12px)',
+                        animation: 'fadeIn 0.2s ease'
+                    }}
+                >
+                    {/* Close button */}
+                    <button
+                        onClick={() => setShowVault(false)}
+                        style={{
+                            position: 'absolute',
+                            top: 20,
+                            right: 20,
+                            zIndex: 100000,
+                            padding: '10px 14px',
+                            borderRadius: '10px',
+                            border: '1px solid #333',
+                            background: '#111',
+                            color: 'white',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        Close Vault
+                    </button>
+
+                    {/* Vault App */}
+                    <div style={{ width: '100vw', height: '100vh', overflow: 'auto' }}>
+                        <SaaSEnvironmentVault userEmail={auth.currentUser?.email || ''} />
                     </div>
                 </div>
             )}

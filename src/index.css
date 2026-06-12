@@ -60,7 +60,14 @@ button:focus,
 button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
-
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
 /* REMOVED the @media (prefers-color-scheme: light) block 
    This ensures Malvin stays black even if the user's phone is in light mode.
 */

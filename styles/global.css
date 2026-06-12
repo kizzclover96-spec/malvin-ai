@@ -52,6 +52,16 @@
         opacity: 1;
     }
 }
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 .mic-button {
   /* 1. Make it a Square first */
   width: 60px;
