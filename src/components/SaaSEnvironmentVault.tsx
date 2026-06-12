@@ -7,7 +7,7 @@ import {
   RefreshCw, Star, ShieldCheck, Heart, Download
 } from 'lucide-react';
 import { 
-  collection, addDoc, onSnapshot, deleteDoc, doc, query, orderBy, updateDoc 
+  collection, addDoc, onSnapshot, deleteDoc, doc, query, orderBy, updateDoc, where 
 } from 'firebase/firestore';
 import { firestore } from '../firebase';// Adjust this path to your firebase config file
 import Papa from "papaparse";
