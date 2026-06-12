@@ -581,252 +581,251 @@ export default function SaaSEnvironmentVault({ userEmail }: { userEmail: string 
                     )}
                 </main>
             </div>
-        </div>
-
-        {/* OVERLAY DYNAMIC MODAL CAPTURE PANEL */}
-        <AnimatePresence>
-            {isModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
-                    <motion.div
-                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                        onClick={() => !actionLoading && setIsModalOpen(false)}
-                        className="fixed inset-0 bg-black/85 backdrop-blur-md"
-                    />
-
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.96, y: 16 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.96, y: 16 }}
-                        className="bg-[#09090b] border border-white/10 w-full max-w-2xl rounded-2xl shadow-2xl relative overflow-hidden z-10 my-8"
-                    >
-                        <div className="p-6 border-b border-white/5 bg-gradient-to-b from-white/[0.04] to-white/[0.01] backdrop-blur-xl shadow-[0_0_30px_rgba(99,102,241,0.08)] flex items-center justify-between">
-                            <div>
-                                <h3 className="text-lg font-black text-slate-100 flex items-center gap-2">
-                                    <ShieldCheck className="w-5 h-5 text-indigo-400" /> Add Product
-                                </h3>
-                                <p className="text-xs text-slate-400 mt-0.5">Initialize automated multi-dimensional cost parameters directly.</p>
-                            </div>
-                            <button 
-                                type="button"
-                                onClick={handleAiGeneration}
-                                disabled={aiAnalyzing || actionLoading}
-                                className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-500/10 border border-purple-500/30 text-purple-300 rounded-lg text-xs font-bold hover:bg-purple-500/20 transition-all disabled:opacity-40"
-                            >
-                                <Sparkles className={`w-3.5 h-3.5 ${aiAnalyzing && 'animate-spin'}`} />
-                                {aiAnalyzing ? 'AI Mapping...' : 'Autofill via AI'}
-                            </button>
-                        </div>
-
-                        <form onSubmit={handleSave} className="p-6 space-y-5 max-h-[75vh] overflow-y-auto">
-                            
-                            {/* SECTION 1: ORIGIN INTEGRITY MATRICES */}
-                            <div className="space-y-4">
-                                <div className="text-[11px] font-black text-indigo-400 uppercase tracking-widest flex items-center gap-1.5">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-sm shadow-indigo-500" /> Step 1: Supply Vendor Provenance Source
-                                </div>
-
-                                <div className="bg-amber-500/5 border border-amber-500/10 rounded-xl p-4 flex items-start gap-3">
-                                    <ShieldAlert className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                                    <div className="text-[11px] text-amber-200/70 leading-relaxed">
-                                    <strong className="text-amber-400 font-bold">FRAUD REGULATORY COMPLIANCE ADVISORY:</strong> Verified records must mirror precise physical supply line metrics. Discovered non-compliant actions or intentional spoof loops trigger prompt instance validation failure and localized termination.
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="space-y-1">
-                                        <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Source Store Name</label>
-                                        <input
-                                            type="text" required placeholder="e.g. TEMU, AMAZON"
-                                            value={storeName} onChange={(e) => setStoreName(e.target.value)} disabled={actionLoading}
-                                            className="w-full bg-white/[0.02] border border-white/5 rounded-xl px-3.5 py-2 text-sm text-slate-200 outline-none focus:border-indigo-500/40 transition-all"
-                                        />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Source Store Domain URL</label>
-                                        <input
-                                            type="text" required placeholder="https://temu.com/store-id"
-                                            value={storeUrl} onChange={(e) => setStoreUrl(e.target.value)} disabled={actionLoading}
-                                            className="w-full bg-white/[0.02] border border-white/5 rounded-xl px-3.5 py-2 text-sm text-slate-200 outline-none focus:border-indigo-500/40 transition-all"
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="border-t border-white/5" />
-
-                            {/* SECTION 2: ENDPOINT SPECIFIC TARGET VARIABLE ASSIGNMENT */}
-                            <div className="space-y-4">
-                                <div className="text-[11px] font-black text-purple-400 uppercase tracking-widest flex items-center gap-1.5">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-purple-500" /> Step 2: Product Information
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="space-y-1">
-                                        <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Product Identification Label</label>
-                                        <input
-                                            type="text" required placeholder="e.g. Air Cushion Running Shoes"
-                                            value={productName} onChange={(e) => setProductName(e.target.value)} disabled={actionLoading}
-                                            className="w-full bg-white/[0.02] border border-white/5 rounded-xl px-3.5 py-2 text-sm text-slate-200 outline-none focus:border-purple-500/40 transition-all"
-                                        />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Direct Product Endpoint URL</label>
-                                        <input
-                                            type="text" required placeholder="https://item.origin-domain.com/sku-data"
-                                            value={productUrl} onChange={(e) => setProductUrl(e.target.value)} disabled={actionLoading}
-                                            className="w-full bg-white/[0.02] border border-white/5 rounded-xl px-3.5 py-2 text-sm text-slate-200 outline-none focus:border-purple-500/40 transition-all"
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="space-y-1">
-                                        <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Product Catalog Image URL (Optional)</label>
-                                        <input
-                                            type="text" placeholder="https://images.unsplash.com/photo-..."
-                                            value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} disabled={actionLoading}
-                                            className="w-full bg-white/[0.02] border border-white/5 rounded-xl px-3.5 py-2 text-sm text-slate-200 outline-none focus:border-purple-500/40 transition-all"
-                                        />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Operational Pipeline Lifecycle Status</label>
-                                        <select
-                                            value={itemStatus} onChange={(e: any) => setItemStatus(e.target.value)}
-                                            className="w-full bg-[#141416] border border-white/5 rounded-xl px-3.5 py-2 text-sm text-slate-200 outline-none focus:border-purple-500/40 transition-all"
-                                        >
-                                            <option value="Researching">Researching</option>
-                                            <option value="Approved">Approved</option>
-                                            <option value="Testing">Testing</option>
-                                            <option value="Selling">Selling</option>
-                                            <option value="Discontinued">Discontinued</option>
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="border-t border-white/5" />
-
-                                {/* SECTION 3: PROFIT ANALYTICS CALCULATION FIELD VECTOR */}
-                                <div className="space-y-4">
-                                    <div className="text-[11px] font-black text-emerald-400 uppercase tracking-widest flex items-center gap-1.5">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Step 3: Pricing & Profit
-                                    </div>
-
-                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 font-mono">
-                                        <div className="space-y-1">
-                                            <label className="text-[10px] font-sans font-semibold text-slate-400 uppercase tracking-wider">Base Cost (€)</label>
-                                            <input
-                                                type="number" step="0.01" required placeholder="0.00"
-                                                value={buyPrice} onChange={(e) => setBuyPrice(e.target.value)} disabled={actionLoading}
-                                                className="w-full bg-white/[0.02] border border-white/5 rounded-xl px-3 py-2 text-sm text-slate-200 outline-none focus:border-emerald-500/40 transition-all"
-                                            />
-                                        </div>
-                                        <div className="space-y-1">
-                                            <label className="text-[10px] font-sans font-semibold text-slate-400 uppercase tracking-wider">Target Sell (€)</label>
-                                            <input
-                                                type="number" step="0.01" required placeholder="0.00"
-                                                value={sellPrice} onChange={(e) => setSellPrice(e.target.value)} disabled={actionLoading}
-                                                className="w-full bg-white/[0.02] border border-white/5 rounded-xl px-3 py-2 text-sm text-slate-200 outline-none focus:border-emerald-500/40 transition-all"
-                                            />
-                                        </div>
-                                        <div className="space-y-1">
-                                            <label className="text-[10px] font-sans font-semibold text-slate-400 uppercase tracking-wider">Logistics Routing (€)</label>
-                                            <input
-                                                type="number" step="0.01" placeholder="0.00"
-                                                value={shippingCost} onChange={(e) => setShippingCost(e.target.value)} disabled={actionLoading}
-                                                className="w-full bg-white/[0.02] border border-white/5 rounded-xl px-3 py-2 text-sm text-slate-200 outline-none focus:border-emerald-500/40 transition-all"
-                                            />
-                                        </div>
-                                        <div className="space-y-1">
-                                            <label className="text-[10px] font-sans font-semibold text-slate-400 uppercase tracking-wider">Gateway Fees (€)</label>
-                                            <input
-                                                type="number" step="0.01" placeholder="0.00"
-                                                value={fees} onChange={(e) => setFees(e.target.value)} disabled={actionLoading}
-                                                className="w-full bg-white/[0.02] border border-white/5 rounded-xl px-3 py-2 text-sm text-slate-200 outline-none focus:border-emerald-500/40 transition-all"
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-
-                            <div className="border-t border-white/5" />
-
-                            {/* SECTION 4: SYSTEM METRIC CLASSIFICATIONS */}
-                            <div className="space-y-4">
-                                <div className="text-[11px] font-black text-pink-400 uppercase tracking-widest flex items-center gap-1.5">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-pink-500" /> Step 4: Metadata Grouping & Supplier Audit
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <div className="space-y-1">
-                                        <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Smart Separation Tags</label>
-                                        <input
-                                            type="text" placeholder="e.g. FASHION, TRENDING"
-                                            value={rawTags} onChange={(e) => setRawTags(e.target.value)} disabled={actionLoading}
-                                            className="w-full bg-white/[0.02] border border-white/5 rounded-xl px-3.5 py-2 text-sm text-slate-200 outline-none focus:border-pink-500/40 transition-all"
-                                        />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Operator Assignment</label>
-                                        <input
-                                            type="text" placeholder="Team Member ID or Name"
-                                            value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} disabled={actionLoading}
-                                            className="w-full bg-white/[0.02] border border-white/5 rounded-xl px-3.5 py-2 text-sm text-slate-200 outline-none focus:border-pink-500/40 transition-all"
-                                        />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Supplier Initial Audit Rating</label>
-                                        <select
-                                            value={supplierRating} onChange={(e) => setSupplierRating(e.target.value)}
-                                            className="w-full bg-[#141416] border border-white/5 rounded-xl px-3.5 py-2 text-sm text-slate-200 outline-none focus:border-pink-500/40 transition-all"
-                                        >
-                                            <option value="5">⭐⭐⭐⭐⭐ Excellent Compliance</option>
-                                            <option value="4">⭐⭐⭐⭐ Satisfactory</option>
-                                            <option value="3">⭐⭐⭐ Conditional Pipeline</option>
-                                            <option value="2">⭐⭐ Elevated Risk Protocol</option>
-                                            <option value="1">⭐ Critical Warning Threshold</option>
-                                        </select>
-                                    </div>
-                                </div>
-
-                                <div className="space-y-1">
-                                    <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Logistics Pipeline Observations & Notes</label>
-                                    <textarea
-                                    rows={3} placeholder="Provide unique supplier evaluation profiles, risk indices, or specific handling notes here..."
-                                    value={notes} onChange={(e) => setNotes(e.target.value)} disabled={actionLoading}
-                                    className="w-full bg-white/[0.02] border border-white/5 rounded-xl px-3.5 py-2 text-sm text-slate-200 outline-none focus:border-pink-500/40 transition-all resize-none"
-                                    />
-                                </div>
-                            </div>
-
-                            {/* MODAL BOTTOM TRIGGER ACTIONS */}
-                            <div className="flex items-center justify-end gap-3 border-t border-white/5 pt-4 mt-6">
-                                <button
-                                    type="button" onClick={() => !actionLoading && setIsModalOpen(false)} disabled={actionLoading}
-                                    className="px-4 py-2 text-sm font-medium text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-all"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit" disabled={actionLoading}
-                                    className="flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 rounded-xl shadow-xl transition-all disabled:opacity-40"
-                                >
-                                    {actionLoading ? (
-                                        <>
-                                            <Loader2 className="w-4 h-4 animate-spin" />
-                                            Writing Array Core...
-                                        </>
-                                        ) : (
-                                        'Commit Strategic Assets'
-                                    )}
-                                </button>
-                            </div>
-
-                        </form>
-                    </motion.div>
-                </div>
-            )}
-        </AnimatePresence>
-        </div>
         
+
+            {/* OVERLAY DYNAMIC MODAL CAPTURE PANEL */}
+            <AnimatePresence>
+                {isModalOpen && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+                        <motion.div
+                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            onClick={() => !actionLoading && setIsModalOpen(false)}
+                            className="fixed inset-0 bg-black/85 backdrop-blur-md"
+                        />
+
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.96, y: 16 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.96, y: 16 }}
+                            className="bg-[#09090b] border border-white/10 w-full max-w-2xl rounded-2xl shadow-2xl relative overflow-hidden z-10 my-8"
+                        >
+                            <div className="p-6 border-b border-white/5 bg-gradient-to-b from-white/[0.04] to-white/[0.01] backdrop-blur-xl shadow-[0_0_30px_rgba(99,102,241,0.08)] flex items-center justify-between">
+                                <div>
+                                    <h3 className="text-lg font-black text-slate-100 flex items-center gap-2">
+                                        <ShieldCheck className="w-5 h-5 text-indigo-400" /> Add Product
+                                    </h3>
+                                    <p className="text-xs text-slate-400 mt-0.5">Initialize automated multi-dimensional cost parameters directly.</p>
+                                </div>
+                                <button 
+                                    type="button"
+                                    onClick={handleAiGeneration}
+                                    disabled={aiAnalyzing || actionLoading}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-500/10 border border-purple-500/30 text-purple-300 rounded-lg text-xs font-bold hover:bg-purple-500/20 transition-all disabled:opacity-40"
+                                >
+                                    <Sparkles className={`w-3.5 h-3.5 ${aiAnalyzing && 'animate-spin'}`} />
+                                    {aiAnalyzing ? 'AI Mapping...' : 'Autofill via AI'}
+                                </button>
+                            </div>
+
+                            <form onSubmit={handleSave} className="p-6 space-y-5 max-h-[75vh] overflow-y-auto">
+                                
+                                {/* SECTION 1: ORIGIN INTEGRITY MATRICES */}
+                                <div className="space-y-4">
+                                    <div className="text-[11px] font-black text-indigo-400 uppercase tracking-widest flex items-center gap-1.5">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-sm shadow-indigo-500" /> Step 1: Supply Vendor Provenance Source
+                                    </div>
+
+                                    <div className="bg-amber-500/5 border border-amber-500/10 rounded-xl p-4 flex items-start gap-3">
+                                        <ShieldAlert className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                                        <div className="text-[11px] text-amber-200/70 leading-relaxed">
+                                        <strong className="text-amber-400 font-bold">FRAUD REGULATORY COMPLIANCE ADVISORY:</strong> Verified records must mirror precise physical supply line metrics. Discovered non-compliant actions or intentional spoof loops trigger prompt instance validation failure and localized termination.
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="space-y-1">
+                                            <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Source Store Name</label>
+                                            <input
+                                                type="text" required placeholder="e.g. TEMU, AMAZON"
+                                                value={storeName} onChange={(e) => setStoreName(e.target.value)} disabled={actionLoading}
+                                                className="w-full bg-white/[0.02] border border-white/5 rounded-xl px-3.5 py-2 text-sm text-slate-200 outline-none focus:border-indigo-500/40 transition-all"
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Source Store Domain URL</label>
+                                            <input
+                                                type="text" required placeholder="https://temu.com/store-id"
+                                                value={storeUrl} onChange={(e) => setStoreUrl(e.target.value)} disabled={actionLoading}
+                                                className="w-full bg-white/[0.02] border border-white/5 rounded-xl px-3.5 py-2 text-sm text-slate-200 outline-none focus:border-indigo-500/40 transition-all"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="border-t border-white/5" />
+
+                                {/* SECTION 2: ENDPOINT SPECIFIC TARGET VARIABLE ASSIGNMENT */}
+                                <div className="space-y-4">
+                                    <div className="text-[11px] font-black text-purple-400 uppercase tracking-widest flex items-center gap-1.5">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-purple-500" /> Step 2: Product Information
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="space-y-1">
+                                            <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Product Identification Label</label>
+                                            <input
+                                                type="text" required placeholder="e.g. Air Cushion Running Shoes"
+                                                value={productName} onChange={(e) => setProductName(e.target.value)} disabled={actionLoading}
+                                                className="w-full bg-white/[0.02] border border-white/5 rounded-xl px-3.5 py-2 text-sm text-slate-200 outline-none focus:border-purple-500/40 transition-all"
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Direct Product Endpoint URL</label>
+                                            <input
+                                                type="text" required placeholder="https://item.origin-domain.com/sku-data"
+                                                value={productUrl} onChange={(e) => setProductUrl(e.target.value)} disabled={actionLoading}
+                                                className="w-full bg-white/[0.02] border border-white/5 rounded-xl px-3.5 py-2 text-sm text-slate-200 outline-none focus:border-purple-500/40 transition-all"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="space-y-1">
+                                            <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Product Catalog Image URL (Optional)</label>
+                                            <input
+                                                type="text" placeholder="https://images.unsplash.com/photo-..."
+                                                value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} disabled={actionLoading}
+                                                className="w-full bg-white/[0.02] border border-white/5 rounded-xl px-3.5 py-2 text-sm text-slate-200 outline-none focus:border-purple-500/40 transition-all"
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Operational Pipeline Lifecycle Status</label>
+                                            <select
+                                                value={itemStatus} onChange={(e: any) => setItemStatus(e.target.value)}
+                                                className="w-full bg-[#141416] border border-white/5 rounded-xl px-3.5 py-2 text-sm text-slate-200 outline-none focus:border-purple-500/40 transition-all"
+                                            >
+                                                <option value="Researching">Researching</option>
+                                                <option value="Approved">Approved</option>
+                                                <option value="Testing">Testing</option>
+                                                <option value="Selling">Selling</option>
+                                                <option value="Discontinued">Discontinued</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="border-t border-white/5" />
+
+                                    {/* SECTION 3: PROFIT ANALYTICS CALCULATION FIELD VECTOR */}
+                                    <div className="space-y-4">
+                                        <div className="text-[11px] font-black text-emerald-400 uppercase tracking-widest flex items-center gap-1.5">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Step 3: Pricing & Profit
+                                        </div>
+
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 font-mono">
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-sans font-semibold text-slate-400 uppercase tracking-wider">Base Cost (€)</label>
+                                                <input
+                                                    type="number" step="0.01" required placeholder="0.00"
+                                                    value={buyPrice} onChange={(e) => setBuyPrice(e.target.value)} disabled={actionLoading}
+                                                    className="w-full bg-white/[0.02] border border-white/5 rounded-xl px-3 py-2 text-sm text-slate-200 outline-none focus:border-emerald-500/40 transition-all"
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-sans font-semibold text-slate-400 uppercase tracking-wider">Target Sell (€)</label>
+                                                <input
+                                                    type="number" step="0.01" required placeholder="0.00"
+                                                    value={sellPrice} onChange={(e) => setSellPrice(e.target.value)} disabled={actionLoading}
+                                                    className="w-full bg-white/[0.02] border border-white/5 rounded-xl px-3 py-2 text-sm text-slate-200 outline-none focus:border-emerald-500/40 transition-all"
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-sans font-semibold text-slate-400 uppercase tracking-wider">Logistics Routing (€)</label>
+                                                <input
+                                                    type="number" step="0.01" placeholder="0.00"
+                                                    value={shippingCost} onChange={(e) => setShippingCost(e.target.value)} disabled={actionLoading}
+                                                    className="w-full bg-white/[0.02] border border-white/5 rounded-xl px-3 py-2 text-sm text-slate-200 outline-none focus:border-emerald-500/40 transition-all"
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-sans font-semibold text-slate-400 uppercase tracking-wider">Gateway Fees (€)</label>
+                                                <input
+                                                    type="number" step="0.01" placeholder="0.00"
+                                                    value={fees} onChange={(e) => setFees(e.target.value)} disabled={actionLoading}
+                                                    className="w-full bg-white/[0.02] border border-white/5 rounded-xl px-3 py-2 text-sm text-slate-200 outline-none focus:border-emerald-500/40 transition-all"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                <div className="border-t border-white/5" />
+
+                                {/* SECTION 4: SYSTEM METRIC CLASSIFICATIONS */}
+                                <div className="space-y-4">
+                                    <div className="text-[11px] font-black text-pink-400 uppercase tracking-widest flex items-center gap-1.5">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-pink-500" /> Step 4: Metadata Grouping & Supplier Audit
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div className="space-y-1">
+                                            <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Smart Separation Tags</label>
+                                            <input
+                                                type="text" placeholder="e.g. FASHION, TRENDING"
+                                                value={rawTags} onChange={(e) => setRawTags(e.target.value)} disabled={actionLoading}
+                                                className="w-full bg-white/[0.02] border border-white/5 rounded-xl px-3.5 py-2 text-sm text-slate-200 outline-none focus:border-pink-500/40 transition-all"
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Operator Assignment</label>
+                                            <input
+                                                type="text" placeholder="Team Member ID or Name"
+                                                value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} disabled={actionLoading}
+                                                className="w-full bg-white/[0.02] border border-white/5 rounded-xl px-3.5 py-2 text-sm text-slate-200 outline-none focus:border-pink-500/40 transition-all"
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Supplier Initial Audit Rating</label>
+                                            <select
+                                                value={supplierRating} onChange={(e) => setSupplierRating(e.target.value)}
+                                                className="w-full bg-[#141416] border border-white/5 rounded-xl px-3.5 py-2 text-sm text-slate-200 outline-none focus:border-pink-500/40 transition-all"
+                                            >
+                                                <option value="5">⭐⭐⭐⭐⭐ Excellent Compliance</option>
+                                                <option value="4">⭐⭐⭐⭐ Satisfactory</option>
+                                                <option value="3">⭐⭐⭐ Conditional Pipeline</option>
+                                                <option value="2">⭐⭐ Elevated Risk Protocol</option>
+                                                <option value="1">⭐ Critical Warning Threshold</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-1">
+                                        <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Logistics Pipeline Observations & Notes</label>
+                                        <textarea
+                                        rows={3} placeholder="Provide unique supplier evaluation profiles, risk indices, or specific handling notes here..."
+                                        value={notes} onChange={(e) => setNotes(e.target.value)} disabled={actionLoading}
+                                        className="w-full bg-white/[0.02] border border-white/5 rounded-xl px-3.5 py-2 text-sm text-slate-200 outline-none focus:border-pink-500/40 transition-all resize-none"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* MODAL BOTTOM TRIGGER ACTIONS */}
+                                <div className="flex items-center justify-end gap-3 border-t border-white/5 pt-4 mt-6">
+                                    <button
+                                        type="button" onClick={() => !actionLoading && setIsModalOpen(false)} disabled={actionLoading}
+                                        className="px-4 py-2 text-sm font-medium text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-all"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit" disabled={actionLoading}
+                                        className="flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 rounded-xl shadow-xl transition-all disabled:opacity-40"
+                                    >
+                                        {actionLoading ? (
+                                            <>
+                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                                Writing Array Core...
+                                            </>
+                                            ) : (
+                                            'Commit Strategic Assets'
+                                        )}
+                                    </button>
+                                </div>
+
+                            </form>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+        </div>       
     );
 }
