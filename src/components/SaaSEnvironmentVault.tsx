@@ -11,7 +11,6 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase'; // Adjust this path to your firebase config file
 import Papa from "papaparse";
-import { saveAs } from "file-saver";
 import {
   serverTimestamp
 } from "firebase/firestore";
@@ -164,8 +163,21 @@ export default function SaaSEnvironmentVault({ userEmail }: { userEmail: string 
         
         const cleanRows = items.map(({ id, createdAt, ...rest }) => rest);
         const csvData = Papa.unparse(cleanRows);
-        const blob = new Blob([csvData], { type: "text/csv;charset=utf-8;" });
-        saveAs(blob, "products.csv");
+        const blob = new Blob([csvData], {
+         type: "text/csv;charset=utf-8;"
+        });
+
+        const url = URL.createObjectURL(blob);
+
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "products.csv";
+
+        document.body.appendChild(link);
+        link.click();
+
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
     };
 
     // --- ACTION EXECUTORS ---
