@@ -76,7 +76,12 @@ export default function SaaSEnvironmentVault({ userEmail }: { userEmail: string 
 
     // --- FIRESTORE SUBSCRIPTION CHANNEL ---
     useEffect(() => {
-        const q = query(collection(firestore, 'enterprise_vault'), orderBy('createdAt', 'desc'));
+        if (!userEmail) return;
+        const q = query(
+            collection(firestore, 'enterprise_vault'), 
+            where('userEmail', '==', userEmail),
+            orderBy('createdAt', 'desc')
+        );
         const unsubscribe = onSnapshot(q, (snapshot) => {
         const fetched: EnterpriseVaultItem[] = [];
         snapshot.forEach((doc) => {
@@ -89,7 +94,7 @@ export default function SaaSEnvironmentVault({ userEmail }: { userEmail: string 
         setLoading(false);
         });
         return () => unsubscribe();
-    }, []);
+    }, [userEmail]);
     const parsedBuy = parseFloat(buyPrice) || 0;
     const parsedSell = parseFloat(sellPrice) || 0;
     const shipping = parseFloat(shippingCost) || 0;
