@@ -10,6 +10,7 @@ import {
     doc,
     onSnapshot
 } from "firebase/firestore";
+import { collection } from "firebase/firestore";
 
 import { firestore } from "../firebase";
 
@@ -237,6 +238,9 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
             conversationId,
             "shipments"
         );
+        console.log("Brand ID:", brandId);
+        console.log("Storage Key:", storageKey);
+        console.log("Conversation ID:", conversationId);
 
         const unsubscribe = onSnapshot(shipmentsRef, (snapshot) => {
             const shipments = snapshot.docs.map(doc => ({
@@ -260,6 +264,7 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
         });
 
         return () => unsubscribe();
+        console.log(shipments);
     }, [brandId]);
 
     if (view === 'booking') {

@@ -187,6 +187,10 @@ const Chats = ({ brandId, userBrand }: any) => {
     }, [selectedChatId, currentSelectedChat]);
 
     const handleSelectChat = async (chatId: string) => {
+        localStorage.setItem(
+            `activeConversation_${brandId}`,
+            chatId
+        );
         setSelectedChatId(chatId);
         setIsInternalOpen(false); 
         try {
