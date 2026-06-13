@@ -339,49 +339,50 @@ export default function SaaSEnvironmentVault({ userEmail }: { userEmail: string 
                          Automated supply pipelines, variable cost analytics engine, margin tracking data configurations.
                         </p>
                     </div>
-
-                    <div style={contentWrapper}>
-                        <button
-                            onClick={handleExportCSV}
-                            style={{
-                                position: 'absolute',
-                                top: '20px',
-                                right: '30px',
-                                padding: '10px 14px',
-                                background: '#C5FF41',
-                                color: '#000',
-                                border: 'none',
-                                borderRadius: '12px',
-                                fontWeight: 700,
-                                cursor: 'pointer',
-                                fontSize: '12px',
-                                zIndex: 1000,
-                                boxShadow: '0 0 20px rgba(197,255,65,0.2)'
-                            }}
-                            
-                        >
-                            <Download className="w-4 h-4" /> Export CSV Matrix
-                        </button>
-                        <button
-                            onClick={() => setIsModalOpen(true)}
-                            style={{
-                                position: 'absolute',
-                                top: '20px',
-                                right: '30px',
-                                padding: '10px 14px',
-                                background: '#C5FF41',
-                                color: '#000',
-                                border: 'none',
-                                borderRadius: '12px',
-                                fontWeight: 700,
-                                cursor: 'pointer',
-                                fontSize: '12px',
-                                zIndex: 1000,
-                                boxShadow: '0 0 20px rgba(197,255,65,0.2)'
-                            }}
-                        >
-                         <Plus className="w-4 h-4 stroke-[3]" /> Add Environment Pipeline
-                        </button>
+                    <div style={{ marginBottom: '20px', position: 'relative' }}>
+                        <div style={contentWrapper}>
+                            <button
+                                onClick={handleExportCSV}
+                                style={{
+                                    position: 'absolute',
+                                    top: '20px',
+                                    right: '30px',
+                                    padding: '10px 14px',
+                                    background: '#C5FF41',
+                                    color: '#000',
+                                    border: 'none',
+                                    borderRadius: '12px',
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    fontSize: '12px',
+                                    zIndex: 1000,
+                                    boxShadow: '0 0 20px rgba(197,255,65,0.2)'
+                                }}
+                                
+                            >
+                                <Download className="w-4 h-4" /> Export CSV Matrix
+                            </button>
+                            <button
+                                onClick={() => setIsModalOpen(true)}
+                                style={{
+                                    position: 'absolute',
+                                    top: '20px',
+                                    right: '20px',
+                                    padding: '10px 14px',
+                                    background: '#C5FF41',
+                                    color: '#000',
+                                    border: 'none',
+                                    borderRadius: '12px',
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    fontSize: '12px',
+                                    zIndex: 1000,
+                                    boxShadow: '0 0 20px rgba(197,255,65,0.2)'
+                                }}
+                            >
+                             <Plus className="w-4 h-4 stroke-[2]" /> Add Environment Pipeline
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -433,9 +434,9 @@ export default function SaaSEnvironmentVault({ userEmail }: { userEmail: string 
                 </div>
 
                 {/* ADVANCED FILTER ARCHITECTURE BLOCK */}
-                <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between bg-gradient-to-b from-white/[0.04] to-white/[0.01] backdrop-blur-xl shadow-[0_0_30px_rgba(99,102,241,0.08)] border border-white/5 p-4 rounded-2xl">
+                <div style={{ ...glassCardStyle, padding: '15px' }}> 
                     <div className="flex items-center relative flex-1 max-w-md">
-                        <Search className="w-4 h-4 absolute left-4 text-slate-500" />
+                        <Search className="w-3 h-3 absolute left-4 text-slate-500" />
                         <input
                             type="text"
                             placeholder="Search unique system data streams..."
@@ -447,7 +448,7 @@ export default function SaaSEnvironmentVault({ userEmail }: { userEmail: string 
 
                     <div className="flex flex-wrap items-center gap-3">
                         <div className="flex items-center gap-2 bg-white/[0.02] border border-white/5 px-3 py-1.5 rounded-xl text-xs">
-                            <Filter className="w-3.5 h-3.5 text-indigo-400" />
+                            <Filter className="w-3 h-3 text-indigo-400" />
                             <select 
                                 value={selectedTag} 
                                 onChange={(e) => setSelectedTag(e.target.value)}
@@ -458,7 +459,7 @@ export default function SaaSEnvironmentVault({ userEmail }: { userEmail: string 
                         </div>
 
                         <div className="flex items-center gap-2 bg-white/[0.02] border border-white/5 px-3 py-1.5 rounded-xl text-xs">
-                            <Activity className="w-3.5 h-3.5 text-purple-400" />
+                            <Activity className="w-3 h-3 text-purple-400" />
                             <select 
                                 value={selectedStatus} 
                                 onChange={(e) => setSelectedStatus(e.target.value)}
