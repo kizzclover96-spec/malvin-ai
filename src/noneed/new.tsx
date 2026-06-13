@@ -1171,3 +1171,5 @@ const glassCardStyle: React.CSSProperties = {
     padding: '20px',
     color: 'white'
 };
+const headerWrapper: React.CSSProperties = { width: '100%', maxWidth: '1400px', margin: '0 auto', padding: '20px', display: 'flex', alignItems: 'center', position: 'relative' };
+
