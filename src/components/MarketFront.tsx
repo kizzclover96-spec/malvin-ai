@@ -7,7 +7,7 @@ import CustomerChat from './CustomerChat';
 import Report from "./report";
 import ReputationScore from "./reputationScore";
 import {
-    doc,
+    doc, collection,
     onSnapshot
 } from "firebase/firestore";
 import { collection } from "firebase/firestore";
@@ -263,8 +263,8 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
             setShowShipmentBubble(true);
         });
 
-        return () => unsubscribe();
         console.log(shipments);
+        return () => unsubscribe();
     }, [brandId]);
 
     if (view === 'booking') {
