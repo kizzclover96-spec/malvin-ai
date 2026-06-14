@@ -187,6 +187,8 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
 
     // Handler to submit a review/comment
     const handlePostReview = async (e: React.FormEvent) => {
+        if (!brandId) return;
+        await updateUserTrust(brandId);
         e.preventDefault();
         if (!commentText.trim()) return;
 
@@ -216,6 +218,8 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
 
     // Handler to increment likes on comments
     const handleLikeComment = async (reviewId: string) => {
+        if (!brandId) return;
+        await updateUserTrust(brandId);
         let visitorId = localStorage.getItem("visitorId");
 
         if (!visitorId) {
@@ -484,7 +488,7 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
                                     </span>
                                 </div>
 
-                                <p style={bigDescription}>{selectedProduct.description || "Premium quality product."}</p>
+                                <p style={bigDescription}>{selectedProduct.details  || "Premium quality product."}</p>
                                 
                                 <button style={bigActionBtn} onClick={() => { setOrderModal(selectedProduct); setSelectedProduct(null); }}>
                                     ORDER THIS ITEM
