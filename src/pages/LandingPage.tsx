@@ -1,5 +1,6 @@
 import React, { useState } from 'react'; // Added missing useState import
 import Explore from './Explore';
+import About from './About';
 
 const LandingPage = ({ onLoginClick }) => {
   const productMockupUrl = "/mockup.png"; // Your cool picture here
@@ -114,6 +115,7 @@ const LandingPage = ({ onLoginClick }) => {
         <div style={{ display: 'flex', gap: '35px', alignItems: 'center' }}>
           <span onClick={() => setActiveTab('home')} className={`nav-link ${activeTab === 'home' ? 'active' : ''}`}>Home</span>
           <span onClick={() => setActiveTab('explore')} className={`nav-link ${activeTab === 'explore' ? 'active' : ''}`}>Explore</span>
+          <span onClick={() => setActiveTab('about')} className={`nav-link ${activeTab === 'about' ? 'active' : ''}`}>About</span>
           <span onClick={() => setActiveTab('news')} className={`nav-link ${activeTab === 'news' ? 'active' : ''}`}>News</span>
         </div>
 
@@ -125,6 +127,7 @@ const LandingPage = ({ onLoginClick }) => {
         
         {/* Render Explore Panel */}
         {activeTab === 'explore' && <Explore />}
+        {activeTab === 'about' && <About />} {/* Add this line */}
 
         {/* Render News Panel */}
         {activeTab === 'news' && (
