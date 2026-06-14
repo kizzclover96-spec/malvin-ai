@@ -1,35 +1,44 @@
 import { db } from "../firebase";
 import { ref, get, set } from "firebase/database";
 
+const getCurrentMonth = () => {
+    const now = new Date();
+    return `${now.getFullYear()}-${now.getMonth() + 1}`;
+};
+
 export const updateUserTrust = async (userId: string) => {
     const trustRef = ref(db, `users/${userId}/trust`);
-    const reportsRef = ref(db, `reports`);
 
-    const trustSnap = await get(trustRef);
-    const reportsSnap = await get(reportsRef);
+    const snap = await get(trustRef);
+    const trust = snap.val() || {};
 
-    const trust = trustSnap.val() || {};
-    const reports = reportsSnap.val() || {};
+    const currentMonth = getCurrentMonth();
 
-    let reportCount = 0;
+    // ✅ RESET LOGIC
+    if (trust.lastResetMonth !== currentMonth) {
+        await set(trustRef, {
+            ...trust,
+            score: 100,
+            reports: 0,
+            lastResetMonth: currentMonth,
+            status: "green"
+        });
+        return;
+    }
 
-    Object.values(reports).forEach((r: any) => {
-        if (r.reportedUserId === userId) {
-            reportCount++;
-        }
-    });
-
+    // continue normal calculation
+    const reports = trust.reports || 0;
     const orders = trust.successfulOrders || 0;
     const accountAge = trust.accountAgeDays || 1;
 
-    // 🧠 SIMPLE TRUST FORMULA
+    let reportCount = reports;
+
     let score =
         (orders * 5) +
         (accountAge * 2) -
         (reportCount * 20);
 
-    if (score > 100) score = 100;
-    if (score < 0) score = 0;
+    score = Math.max(0, Math.min(100, score));
 
     let status: "green" | "yellow" | "red" = "yellow";
 
@@ -37,9 +46,11 @@ export const updateUserTrust = async (userId: string) => {
     else if (score < 40) status = "red";
 
     await set(trustRef, {
+        ...trust,
         score,
         reports: reportCount,
         accountAgeDays: accountAge,
-        status
+        status,
+        lastResetMonth: currentMonth
     });
 };
