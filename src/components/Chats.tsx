@@ -1194,7 +1194,8 @@ const Chats = ({ brandId, userBrand }: any) => {
                                                     display: 'flex',
                                                     flexDirection: 'column',
                                                     alignItems: isBrand ? 'flex-end' : 'flex-start',
-                                                    width: '100%'
+                                                    width: '100%',
+                                                    paddingBottom: '6px'
                                                 }}
                                             >
 
@@ -1208,7 +1209,8 @@ const Chats = ({ brandId, userBrand }: any) => {
                                                         maxWidth: '65%',
                                                         fontSize: 14,
                                                         lineHeight: 1.4,
-                                                        wordBreak: 'break-word'
+                                                        wordBreak: 'break-word',
+                                                        display: 'inline-block'
                                                     }}
                                                 >
                                                     {msg.type === "photo" ? (

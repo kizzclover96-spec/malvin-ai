@@ -1,22 +1,13 @@
 import React, { useRef, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
-import { getDownloadURL } from "firebase/storage";
-
+import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import {
-  doc,
-  setDoc,
+  addDoc,
+  collection,
   serverTimestamp
 } from "firebase/firestore";
 
-import {
-  ref,
-  uploadBytes
-} from "firebase/storage";
-
-import {
-  firestore,
-  storage
-} from "../firebase";
+import { firestore, storage } from "../firebase";
 
 interface SendPhotoProps {
   chatId: string;
@@ -24,156 +15,47 @@ interface SendPhotoProps {
   brandName?: string;
 }
 
-const SendPhoto = ({
-  chatId,
-  sender,
-  brandName = "Malvin"
-}: SendPhotoProps) => {
+const SendPhoto = ({ chatId, sender, brandName = "Malvin" }: SendPhotoProps) => {
 
-  const fileInputRef =
-    useRef<HTMLInputElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [uploading, setUploading] = useState(false);
 
-  const [uploading, setUploading] =
-    useState(false);
+    const uploadPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
 
-  const createPreview = (
-    file: File
-  ): Promise<Blob> => {
-
-    return new Promise((resolve) => {
-
-      const img = new Image();
-
-      img.onload = () => {
-
-        const canvas =
-          document.createElement("canvas");
-
-        canvas.width = img.width;
-        canvas.height = img.height;
-
-        const ctx =
-          canvas.getContext("2d");
-
-        if (!ctx) return;
-
-        ctx.drawImage(
-          img,
-          0,
-          0,
-          canvas.width,
-          canvas.height
-        );
-
-        ctx.save();
-
-        ctx.translate(
-          canvas.width / 2,
-          canvas.height / 2
-        );
-
-        ctx.rotate(-0.5);
-
-        ctx.font =
-          "bold 48px Arial";
-
-        ctx.fillStyle =
-          "rgba(255,255,255,0.15)";
-
-        ctx.textAlign = "center";
-
-        ctx.fillText(
-          `${brandName} PREVIEW`,
-          0,
-          0
-        );
-
-        ctx.restore();
-
-        canvas.toBlob(
-          (blob) => {
-            if (blob) resolve(blob);
-          },
-          "image/jpeg",
-          0.7
-        );
-      };
-
-      img.src =
-        URL.createObjectURL(file);
-    });
-  };
-
-    const uploadPhoto = async (
-        e: React.ChangeEvent<HTMLInputElement>
-    ) => {
-
-    const file =
-      e.target.files?.[0];
-
-    if (!file) return;
-
-    try {
-
+        try {
         setUploading(true);
 
-            const photoId =
-                uuidv4();
+        const photoId = uuidv4();
 
-            const previewBlob =
-                await createPreview(file);
+        const previewPath = `chatPhotos/${chatId}/${photoId}/preview.jpg`;
+        const originalPath = `chatPhotos/${chatId}/${photoId}/original.jpg`;
 
-            const previewPath =
-                `chatPhotos/${chatId}/${photoId}/preview.jpg`;
+        // upload original
+        await uploadBytes(ref(storage, originalPath), file);
 
-            const originalPath =
-                `chatPhotos/${chatId}/${photoId}/original.jpg`;
+        const imageUrl = await getDownloadURL(ref(storage, originalPath));
 
-            await uploadBytes(
-                ref(storage, previewPath),
-                previewBlob
-            );
-
-            await uploadBytes(
-                ref(storage, originalPath),
-                file
-            );
-
-                // ADD THIS 👇
-            const imageUrl = await getDownloadURL(ref(storage, originalPath));
-
-            await setDoc(
-                doc(firestore, "conversations", chatId, "messages", photoId),
-                    {
-                        id: photoId,
-                        type: "photo",
-                        sender,
-                        locked: true,
-
-                        previewPath,
-                        originalPath,
-
-                        imageUrl, // 🔥 ADD THIS
-
-                        brandName,
-                        createdAt: serverTimestamp()
-                    }
-                );
-
-            } catch (err) {
-
-            console.error(
-                "Photo Upload Error",
-                err
-            );
-
-            } finally {
-
-            setUploading(false);
-
-            if (fileInputRef.current) {
-                fileInputRef.current.value = "";
+        // SAVE MESSAGE (FIXED)
+        await addDoc(
+            collection(firestore, "conversations", chatId, "messages"),
+            {
+            id: photoId,
+            type: "photo",
+            sender,
+            imageUrl,
+            locked: true,
+            brandName,
+            timestamp: serverTimestamp()
             }
+        );
+
+        } catch (err) {
+        console.error("Photo Upload Error:", err);
+        } finally {
+        setUploading(false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
         }
     };
 
@@ -190,9 +72,7 @@ const SendPhoto = ({
             <button
                 type="button"
                 disabled={uploading}
-                onClick={() =>
-                fileInputRef.current?.click()
-                }
+                onClick={() => fileInputRef.current?.click()}
                 style={{
                 width: 45,
                 height: 45,
