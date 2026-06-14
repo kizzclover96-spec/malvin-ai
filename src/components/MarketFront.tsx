@@ -12,7 +12,7 @@ import {
 } from "firebase/firestore";
 
 import { firestore } from "../firebase";
-import { updateUserTrust } from "../trustengine";
+import { updateUserTrust } from "./trustEngine";
 
 // Reusable Verified Badge Component
 const VerifiedBadge = () => (
