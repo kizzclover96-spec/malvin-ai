@@ -14,10 +14,9 @@ const cardStyle: React.CSSProperties = {
     marginBottom: '10px',
     position: 'relative', 
     transition: 'transform 0.2s ease',
-    cursor: 'pointer' // Added to clearly show it's clickable now
+    cursor: 'pointer' 
 };
 
-// Styling for the absolute star rating badge
 const ratingBadgeStyle: React.CSSProperties = {
     position: 'absolute',
     top: '24px', 
@@ -40,7 +39,7 @@ interface ProductCardProps {
     item: any;
     onAddToCart: (item: any) => void;
     brandId?: string; 
-    onClick?: () => void; // Fixed: Explicitly added the onClick prop contract here
+    onClick?: () => void; 
 }
 
 export const ProductCard = ({ item, onAddToCart, brandId, onClick }: ProductCardProps) => {
@@ -55,7 +54,9 @@ export const ProductCard = ({ item, onAddToCart, brandId, onClick }: ProductCard
             return;
         }
 
-        const itemReviewsRef = dbRef(db, `users/${targetUid}/reviews/${item.id}`);
+        // UPDATED PATH: Swapped to root /reviews/$brandId/$productId to align with new structure
+        const itemReviewsRef = dbRef(db, `reviews/${targetUid}/${item.id}`);
+        
         const unsubscribe = onValue(itemReviewsRef, (snapshot) => {
             const data = snapshot.val();
             if (data) {
@@ -81,10 +82,9 @@ export const ProductCard = ({ item, onAddToCart, brandId, onClick }: ProductCard
         <div 
             style={cardStyle} 
             onClick={() => {
-                if (onClick) onClick(); // Fixed: Triggers the big view sheet layout open
+                if (onClick) onClick(); 
             }}
         >
-            {/* Conditional star badge */}
             {averageRating && (
                 <div style={ratingBadgeStyle}>
                     <span>★</span>
@@ -108,7 +108,7 @@ export const ProductCard = ({ item, onAddToCart, brandId, onClick }: ProductCard
             </span>
             <button 
                 onClick={(e) => {
-                    e.stopPropagation(); // Keeps this isolated so clicking buy won't open the review modal
+                    e.stopPropagation(); 
                     onAddToCart(item);
                 }}
                 style={{
