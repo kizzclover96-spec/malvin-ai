@@ -17,6 +17,35 @@ const ChatCard = ({ children, style }: any) => (
         ...style
     }}>{children}</div>
 );
+const btnGreen = {
+    background:'#38d777',
+    color:'#fff',
+    border:'none',
+    borderRadius:'10px',
+    padding:'8px 14px',
+    fontWeight:600,
+    cursor:'pointer'
+};
+
+const btnBlue = {
+    background:'#007aff',
+    color:'#fff',
+    border:'none',
+    borderRadius:'10px',
+    padding:'8px 14px',
+    fontWeight:600,
+    cursor:'pointer'
+};
+
+const btnRed = {
+    background:'#ff3b30',
+    color:'#fff',
+    border:'none',
+    borderRadius:'10px',
+    padding:'8px 14px',
+    fontWeight:600,
+    cursor:'pointer'
+};
 
 const Chats = ({ brandId, userBrand }: any) => {
     const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
@@ -979,8 +1008,9 @@ const Chats = ({ brandId, userBrand }: any) => {
 
                     {/* RIGHT: MESSAGE FEED (Main View) */}
                     <ChatCard style={{ background: '#000000', border: 'none' }}>
-                        { selectedChatId ? (
+                        {selectedChatId ? (
                             <div style={{ display: 'flex', flexDirection: 'column', height: '100%', boxSizing: 'border-box' }}>
+
                                 {/* Chat Header */}
                                 <div style={{ 
                                     padding: '0 24px', 
@@ -994,48 +1024,56 @@ const Chats = ({ brandId, userBrand }: any) => {
                                     flexShrink: 0,
                                     position: 'relative'
                                 }}>
-                                    
-                                    {/* Confetti Effect Streamers */}
+
+                                    {/* Confetti */}
                                     {confettiParticles.map((particle) => (
                                         <div
                                             key={particle.id}
-                                            
                                             style={{
                                                 ["--x" as any]: `${particle.x}px`,
                                                 ["--y" as any]: `${particle.y}px`,
-                                                position:'absolute',
-                                                right:'100px',
-                                                top:'60px',
-                                                width:particle.size,
-                                                height:particle.size,
-                                                background:[
-                                                    '#007aff',
-                                                    '#38d777',
-                                                    '#ffd60a',
-                                                    '#ff375f',
-                                                    '#bf5af2'
-                                                ][particle.id % 5],
-                                                borderRadius:'50%',
-                                                pointerEvents:'none',
-                                                animation:'confettiFly 1.5s ease-out forwards'
+                                                position: 'absolute',
+                                                right: '100px',
+                                                top: '60px',
+                                                width: particle.size,
+                                                height: particle.size,
+                                                background: ['#007aff','#38d777','#ffd60a','#ff375f','#bf5af2'][particle.id % 5],
+                                                borderRadius: '50%',
+                                                pointerEvents: 'none',
+                                                animation: 'confettiFly 1.5s ease-out forwards'
                                             }}
                                         />
                                     ))}
 
+                                    {/* LEFT HEADER */}
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                        <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#262626', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 'bold' }}>
+                                        <div style={{
+                                            width: '40px',
+                                            height: '40px',
+                                            borderRadius: '50%',
+                                            background: '#262626',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            fontSize: '14px',
+                                            fontWeight: 'bold'
+                                        }}>
                                             C
                                         </div>
+
                                         <div>
-                                            <div style={{ fontWeight: 600, color: '#fff', fontSize: '15px' }}>Client Window</div>
-                                            <div style={{ fontSize: '11px', color: currentSelectedChat?.isOrderBlue ? '#007aff' : '#a8a8a8', fontWeight: 500, letterSpacing: '0.5px', marginTop: '2px' }}>
+                                            <div style={{ fontWeight: 600, color: '#fff', fontSize: '15px' }}>
+                                                Client Window
+                                            </div>
+                                            <div style={{ fontSize: '11px', color: currentSelectedChat?.isOrderBlue ? '#007aff' : '#a8a8a8' }}>
                                                 {currentSelectedChat?.isOrderBlue ? '📦 ORDER IN PROGRESS' : '○ DISPATCH STANDBY'}
                                             </div>
                                         </div>
                                     </div>
 
-                                    {/* Custom Firebase Order Flow Control Box */}
-                                    <div style={{ display:'flex', alignItems:'center', gap:'10px', flexWrap:'wrap', justifyContent:'flex-end'}}>
+                                    {/* RIGHT ACTION GROUP (FIXED ALIGNMENT) */}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+
                                         {!isOrderActive ? (
                                             <button
                                                 onClick={() => {
@@ -1046,8 +1084,8 @@ const Chats = ({ brandId, userBrand }: any) => {
                                                     background: '#007aff',
                                                     color: '#fff',
                                                     border: 'none',
-                                                    padding: '10px 18px',
-                                                    borderRadius: '12px',
+                                                    padding: '10px 16px',
+                                                    borderRadius: '10px',
                                                     cursor: 'pointer',
                                                     fontWeight: 700,
                                                     fontSize: '13px'
@@ -1056,308 +1094,130 @@ const Chats = ({ brandId, userBrand }: any) => {
                                                 📦 Order Placed
                                             </button>
                                         ) : (
-                                            <div style={{
-                                                display:"flex",
-                                                flexWrap:"wrap",
-                                                gap:"8px",
-                                                justifyContent:"flex-end"
-                                            }}>
-                                                <button
-                                                    onClick={() => {
-                                                        setOrderInput("1");
-                                                        setShowOrderModal(true);
-                                                    }}
-                                                    style={{
-                                                        background:'#38d777',
-                                                        color:'#fff',
-                                                        border:'none',
-                                                        borderRadius:'999px',
-                                                        padding:'8px 14px',
-                                                        fontWeight:600,
-                                                        cursor:'pointer'
-                                                    }}
-                                                >
+                                            <>
+                                                <button style={btnGreen} onClick={() => {
+                                                    setOrderInput("1");
+                                                    setShowOrderModal(true);
+                                                }}>
                                                     + Add Orders
                                                 </button>
 
-                                                <button
-                                                    onClick={handleOrderSettled}
-                                                    style={{
-                                                        background:'#007aff',
-                                                        color:'#fff',
-                                                        border:'none',
-                                                        borderRadius:'999px',
-                                                        padding:'8px 14px',
-                                                        fontWeight:600,
-                                                        cursor:'pointer'
-                                                    }}
-                                                >
+                                                <button style={btnBlue} onClick={handleOrderSettled}>
                                                     ✓ Settled
                                                 </button>
 
-                                                <button
-                                                    onClick={handleCancelOrder}
-                                                    style={{
-                                                        background:'#ff3b30',
-                                                        color:'#fff',
-                                                        border:'none',
-                                                        borderRadius:'999px',
-                                                        padding:'8px 14px',
-                                                        fontWeight:600,
-                                                        cursor:'pointer'
-                                                    }}
-                                                >
+                                                <button style={btnRed} onClick={handleCancelOrder}>
                                                     ✕ Cancel
                                                 </button>
-                                            </div>
+                                            </>
                                         )}
+
                                         {isOrderActive && (
                                             <button
                                                 onClick={() => setShowShipmentModal(true)}
                                                 style={{
-                                                    background:'#ff9500',
-                                                    color:'#fff',
-                                                    border:'none',
-                                                    padding:'10px 18px',
-                                                    borderRadius:'12px',
-                                                    cursor:'pointer',
-                                                    fontWeight:700
+                                                    background: '#ff9500',
+                                                    color: '#fff',
+                                                    border: 'none',
+                                                    padding: '10px 16px',
+                                                    borderRadius: '10px',
+                                                    cursor: 'pointer',
+                                                    fontWeight: 700
                                                 }}
                                             >
                                                 🚚 Set Shipment
                                             </button>
                                         )}
-                                        {showShipmentModal && (
-                                            <div
-                                                style={{
-                                                    position: "fixed",
-                                                    inset: 0,
-                                                    background: "rgba(0,0,0,.65)",
-                                                    display: "flex",
-                                                    alignItems: "center",
-                                                    justifyContent: "center",
-                                                    zIndex: 999999
-                                                }}
-                                            >
-                                                <div
-                                                    style={{
-                                                        background: "#121214",
-                                                        padding: "24px",
-                                                        borderRadius: "18px",
-                                                        width: "350px",
-                                                        border: "1px solid #262626"
-                                                    }}
-                                                >
-                                                    <h3 style={{marginTop:0}}>Schedule Shipment</h3>
-
-                                                    <input
-                                                        placeholder="Product Name"
-                                                        value={shipmentProduct}
-                                                        onChange={(e)=>setShipmentProduct(e.target.value)}
-                                                        style={{
-                                                            width:"100%",
-                                                            padding:"12px",
-                                                            boxSizing:"border-box",
-                                                            background:"#0a0a0a",
-                                                            marginBottom:"10px",
-                                                            border:"1px solid #262626",
-                                                            borderRadius:"10px",
-                                                            color:"#fff"
-                                                        }}
-                                                    />
-
-                                                    <input
-                                                        type="number"
-                                                        placeholder="Quantity"
-                                                        value={shipmentQuantity}
-                                                        onChange={(e)=>setShipmentQuantity(e.target.value)}
-                                                        style={{
-                                                            width:"100%",
-                                                            padding:"12px",
-                                                            boxSizing:"border-box",
-                                                            background:"#0a0a0a",
-                                                            marginBottom:"10px",
-                                                            border:"1px solid #262626",
-                                                            borderRadius:"10px",
-                                                            color:"#fff"
-                                                        }}
-                                                    />
-
-                                                    <input
-                                                        type="date"
-                                                        value={shipmentDate}
-                                                        onChange={(e)=>setShipmentDate(e.target.value)}
-                                                        style={{
-                                                            width:"100%",
-                                                            padding:"12px",
-                                                            marginBottom:"10px",
-                                                            boxSizing:"border-box",
-                                                            background:"#0a0a0a",
-                                                            border:"1px solid #262626",
-                                                            borderRadius:"10px",
-                                                            color:"#fff"
-                                                        }}
-                                                    />
-
-                                                    <div style={{
-                                                        display:"flex",
-                                                        gap:"10px"
-                                                    }}>
-                                                        <button
-                                                            onClick={() => setShowShipmentModal(false)}
-                                                            style={{
-                                                                flex:1
-                                                            }}
-                                                        >
-                                                            Cancel
-                                                        </button>
-
-                                                        <button
-                                                            onClick={handleSetShipment}
-                                                            style={{
-                                                                flex:1
-                                                            }}
-                                                        >
-                                                            Set Shipment
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
-                                        {showShippingAnimation && (
-                                            <div
-                                                style={{
-                                                    position:'fixed',
-                                                    inset:0,
-                                                    background:'rgba(0,0,0,.8)',
-                                                    zIndex:999999
-                                                }}
-                                            >
-
-                                                <div
-                                                    style={{
-                                                        fontSize:'70px',
-                                                        position:'absolute',
-                                                        top:'50%',
-                                                        left:'0',
-                                                        animation:'truckDrive 3s linear forwards'
-                                                    }}
-                                                >
-                                                    🚚
-                                                </div>
-
-                                            </div>
-                                        )}
-                                        {shippingMessage && (
-                                            <div
-                                                style={{
-                                                    position: "fixed",
-                                                    top: "20px",
-                                                    left: "50%",
-                                                    transform: "translateX(-50%)",
-                                                    background: "#22c55e",
-                                                    color: "#fff",
-                                                    padding: "12px 20px",
-                                                    borderRadius: "12px",
-                                                    zIndex: 999999
-                                                }}
-                                            >
-                                                🚚 Shipping In Progress
-                                            </div>
-                                        )}
                                     </div>
                                 </div>
 
-                                {/* Message Bubble Space */}
-                                <div 
-                                    id="message-feed" 
-                                    style={{ 
-                                        flex: 1, 
-                                        padding: '24px 30px', 
-                                        overflowY: 'auto', 
-                                        display: 'flex', 
-                                        flexDirection: 'column', 
+                                {/* MESSAGE AREA (FIXED LEFT/RIGHT ALIGNMENT) */}
+                                <div
+                                    id="message-feed"
+                                    style={{
+                                        flex: 1,
+                                        padding: '24px 30px',
+                                        overflowY: 'auto',
+                                        display: 'flex',
+                                        flexDirection: 'column',
                                         gap: '12px',
                                         backgroundColor: '#000000',
-                                        maxHeight: 'calc(100% - 150px)', 
                                         boxSizing: 'border-box'
                                     }}
                                 >
                                     {activeMessages.map((msg) => {
                                         const isManager = msg.sender === 'brand';
-                                        return (
-                                            <div key={msg.id} style={{ 
-                                                alignSelf: isManager ? 'flex-end' : 'flex-start', 
-                                                background: isManager ? '#007aff' : '#262626', 
-                                                color: '#fff',
-                                                padding: '10px 16px', 
-                                                borderRadius: '20px', 
-                                                maxWidth: '60%', 
-                                                fontSize: '14px',
-                                                lineHeight: '1.4',
-                                                wordBreak: 'break-word',
-                                                boxSizing: 'border-box'
-                                            }}>
-                                                <>
-                                                    {msg.type === "photo" ? (
-                                                        <>
-                                                            <img
-                                                                src={msg.imageUrl}
-                                                                alt=""
-                                                                style={{
-                                                                    width: "260px",
-                                                                    borderRadius: "12px",
-                                                                    display: "block"
-                                                                }}
-                                                            />
-                                                                <button
-                                                                    onClick={async () => {
-                                                                        await updateDoc(
-                                                                            doc(
-                                                                                firestore,
-                                                                                "conversations",
-                                                                                selectedChatId!,
-                                                                                "messages",
-                                                                                msg.id
-                                                                            ),
-                                                                            {
-                                                                                locked: false
-                                                                            }
-                                                                        );
-                                                                    }}
-                                                                >
-                                                                    Unlock Download
-                                                                </button>
-                                                            
 
-                                                            <div
-                                                                style={{
-                                                                    marginTop: "6px",
-                                                                    fontSize: "11px",
-                                                                    opacity: 0.7
-                                                                }}
-                                                            >
-                                                                {msg.locked ? "🔒 Locked" : "🔓 Unlocked"}
-                                                            </div>
-                                                        </>
-                                                    ) : (
-                                                        msg.text
-                                                    )}
-                                                </>
+                                        return (
+                                            <div
+                                                key={msg.id}
+                                                style={{
+                                                    alignSelf: isManager ? 'flex-end' : 'flex-start',
+                                                    background: isManager ? '#007aff' : '#262626',
+                                                    color: '#fff',
+                                                    padding: '10px 14px',
+                                                    borderRadius: '18px',
+                                                    maxWidth: '60%',
+                                                    fontSize: '14px',
+                                                    lineHeight: '1.4'
+                                                }}
+                                            >
+                                                {msg.type === "photo" ? (
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                                        <img
+                                                            src={msg.imageUrl}
+                                                            style={{
+                                                                width: "260px",
+                                                                borderRadius: "12px",
+                                                                display: "block"
+                                                            }}
+                                                        />
+
+                                                        <button
+                                                            onClick={async () => {
+                                                                await updateDoc(
+                                                                    doc(
+                                                                        firestore,
+                                                                        "conversations",
+                                                                        selectedChatId!,
+                                                                        "messages",
+                                                                        msg.id
+                                                                    ),
+                                                                    { locked: false }
+                                                                );
+                                                            }}
+                                                            style={{
+                                                                padding: '6px 10px',
+                                                                borderRadius: '8px',
+                                                                border: 'none',
+                                                                cursor: 'pointer'
+                                                            }}
+                                                        >
+                                                            Unlock Download
+                                                        </button>
+
+                                                        <div style={{ fontSize: '11px', opacity: 0.7 }}>
+                                                            {msg.locked ? "🔒 Locked" : "🔓 Unlocked"}
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    msg.text
+                                                )}
                                             </div>
                                         );
                                     })}
                                 </div>
 
-                                {/* Footer Input Strip */}
-                                <div style={{ 
-                                    padding: '16px 24px', 
-                                    display: 'flex', 
-                                    background: '#000000', 
+                                {/* FOOTER (FIXED CAMERA ALIGNMENT) */}
+                                <div style={{
+                                    padding: '16px 24px',
+                                    display: 'flex',
+                                    background: '#000000',
                                     alignItems: 'center',
-                                    boxSizing: 'border-box',
-                                    flexShrink: 0
+                                    gap: '10px'
                                 }}>
+
+                                    {/* INPUT */}
                                     <div style={{
                                         display: 'flex',
                                         flex: 1,
@@ -1365,52 +1225,51 @@ const Chats = ({ brandId, userBrand }: any) => {
                                         background: '#000000',
                                         border: '1px solid #262626',
                                         borderRadius: '24px',
-                                        padding: '4px 6px 4px 18px',
-                                        boxSizing: 'border-box'
+                                        padding: '4px 10px 4px 16px'
                                     }}>
-                                        <input 
-                                            value={inputValue} 
+                                        <input
+                                            value={inputValue}
                                             onChange={(e) => setInputValue(e.target.value)}
                                             onKeyDown={(e) => {
                                                 if (e.key === 'Enter') {
                                                     e.preventDefault();
-                                                    if (inputValue.trim()) {
-                                                        handleManagerSend(inputValue);
-                                                    }
+                                                    if (inputValue.trim()) handleManagerSend(inputValue);
                                                 }
                                             }}
                                             placeholder="Message..."
-                                            style={{ 
-                                                flex: 1, 
-                                                background: 'transparent', 
-                                                border: 'none', 
-                                                color: '#fff', 
-                                                padding: '10px 0', 
+                                            style={{
+                                                flex: 1,
+                                                background: 'transparent',
+                                                border: 'none',
+                                                color: '#fff',
                                                 fontSize: '14px',
                                                 outline: 'none'
                                             }}
                                         />
-                                        <button 
-                                            onClick={() => handleManagerSend(inputValue)} 
+
+                                        <button
+                                            onClick={() => handleManagerSend(inputValue)}
                                             disabled={!inputValue.trim()}
-                                            style={{ 
-                                                background: 'transparent', 
-                                                color: inputValue.trim() ? '#007aff' : '#00264d',
-                                                padding: '0 12px', 
-                                                fontWeight: 700, 
-                                                fontSize: '14px',
-                                                border: 'none', 
+                                            style={{
+                                                background: 'transparent',
+                                                color: inputValue.trim() ? '#007aff' : '#444',
+                                                border: 'none',
+                                                fontWeight: 700,
                                                 cursor: inputValue.trim() ? 'pointer' : 'default',
-                                                transition: 'color 0.2s ease',
-                                                opacity: inputValue.trim() ? 1 : 0.4,
-                                                pointerEvents: inputValue.trim() ? "auto" : "none",
+                                                opacity: inputValue.trim() ? 1 : 0.4
                                             }}
                                         >
                                             Send
                                         </button>
                                     </div>
+
+                                    {/* CAMERA (FIXED POSITIONING) */}
                                     {selectedChatId && (
-                                        <div style={{ marginLeft: 8 }}>
+                                        <div style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center'
+                                        }}>
                                             <SendPhoto
                                                 chatId={selectedChatId}
                                                 sender="brand"
@@ -1422,8 +1281,8 @@ const Chats = ({ brandId, userBrand }: any) => {
                             </div>
                         ) : (
                             <div style={{ margin: 'auto', textAlign: 'center' }}>
-                                <div style={{ 
-                                    fontSize: '80px', 
+                                <div style={{
+                                    fontSize: '80px',
                                     marginBottom: '16px',
                                     display: 'inline-flex',
                                     alignItems: 'center',
@@ -1432,9 +1291,14 @@ const Chats = ({ brandId, userBrand }: any) => {
                                     height: '120px',
                                     borderRadius: '50%',
                                     border: '2px solid #fff'
-                                }}>✉️</div>
-                                <h3 style={{ fontWeight: 400, color: '#fff', fontSize: '22px', margin: '10px 0 5px 0' }}>Your Messages</h3>
-                                <p style={{ fontSize: '14px', color: '#737373', maxWidth: '300px', margin: '0 auto' }}>Select a conversation from the sidebar to view details and autopilot controls.</p>
+                                }}>
+                                    ✉️
+                                </div>
+
+                                <h3 style={{ color: '#fff' }}>Your Messages</h3>
+                                <p style={{ color: '#737373' }}>
+                                    Select a conversation from the sidebar to view details.
+                                </p>
                             </div>
                         )}
                     </ChatCard>
