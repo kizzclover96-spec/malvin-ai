@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { db } from '../firebase';
-import { ref as dbRef, onValue, set, push, update } from "firebase/database";
+import { auth, db } from '../firebase';
+import { ref as dbRef, onValue, set, push, update, get } from "firebase/database";
 import { ProductCard } from './ProductView';
 import CustomerChat from './CustomerChat';
 import Report from "./report";
@@ -10,7 +10,6 @@ import {
     doc, collection,
     onSnapshot
 } from "firebase/firestore";
-import { collection } from "firebase/firestore";
 
 import { firestore } from "../firebase";
 
@@ -50,6 +49,8 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
     const [reviewerName, setReviewerName] = useState('');
     const [showReviewForm, setShowReviewForm] = useState(false); 
     const [showReport, setShowReport] = useState(false);
+    const [showComments, setShowComments] = useState(false);
+    const currentUid = auth.currentUser?.uid;
 
     // Dynamic Profile States (Bio & Meta Verification)
     const [bio, setBio] = useState('');
@@ -181,11 +182,24 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
     };
 
     // Handler to increment likes on comments
-    const handleLikeComment = async (reviewId: string, currentLikes: number) => {
-        const commentRef = dbRef(db, `users/${brandId}/reviews/${selectedProduct.id}/${reviewId}`);
-        await update(commentRef, {
-            likes: (currentLikes || 0) + 1
-        });
+    const handleLikeComment = async (reviewId: string) => {
+        let visitorId = localStorage.getItem("visitorId");
+
+        if (!visitorId) {
+            visitorId = crypto.randomUUID();
+            localStorage.setItem("visitorId", visitorId);
+        }
+
+        const likeRef = dbRef(
+            db,
+            `users/${brandId}/reviews/${selectedProduct.id}/${reviewId}/likes/${visitorId}`
+        );
+
+        const snap = await get(likeRef);
+
+        if (!snap.exists()) {
+            await set(likeRef, true);
+        }
     };
 
     // Aggregate rating statistics
@@ -263,7 +277,6 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
             setShowShipmentBubble(true);
         });
 
-        console.log(shipments);
         return () => unsubscribe();
     }, [brandId]);
 
@@ -369,7 +382,7 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
                             display: "flex",
                             alignItems: "center",
                             gap: "6px"
-                        }}><ReputationScore userId={brandId} /></span>
+                        }}>{brandId && ( <ReputationScore userId={brandId} />)}</span>
 
                         <span
                             onClick={() => setShowReport(true)}
@@ -441,6 +454,11 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
 
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
                                     <h3 style={{ ...sectionSubHeading, margin: 0 }}>REVIEWS & COMMENTS ({reviewCount})</h3>
+                                    <button onClick={() => setShowComments(!showComments)} style={{ background: "transparent", border: "none", color: "#C5FF41", cursor: "pointer", fontWeight: 600, marginBottom: "16px"}}>
+                                        {showComments
+                                            ? "Hide Comments"
+                                            : `Read All Comments (${reviews.length})`}
+                                    </button>
                                     {!showReviewForm && (
                                         <button 
                                             style={toggleReviewBtnStyle} 
@@ -498,24 +516,42 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
                                         </button>
                                     </form>
                                 )}
+                                {showComments && (
 
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px' }}>
-                                    {reviews.map((rev) => (
-                                        <div key={rev.id} style={commentCard}>
-                                            <div style={commentHeader}>
-                                                <span style={{ fontWeight: 'bold' }}>{rev.name}</span>
-                                                <span style={{ color: '#C5FF41' }}>{'★'.repeat(rev.rating)}</span>
-                                            </div>
-                                            <p style={commentTextBody}>{rev.comment}</p>
-                                            <button 
-                                                style={likeBtn} 
-                                                onClick={() => handleLikeComment(rev.id, rev.likes)}
-                                            >
-                                                ❤️ {rev.likes || 0}
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px' }}>
+                                        {reviews.map((rev) => {
+                                            
+                                            const hasLiked = rev.likes && currentUid && rev.likes[currentUid];
+                                            return (
+                                                <div
+                                                    key={rev.id}
+                                                    style={{ ...commentCard, position: "relative", paddingRight: "60px" }}
+                                                >
+                                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }} >
+                                                        <div>
+                                                            <div
+                                                                style={{  fontWeight: "bold", display: "flex", alignItems: "center", gap: "8px" }}
+                                                            >   {rev.name}
+                                                                <span style={{ color: "#C5FF41", fontSize: "13px" }} > {'★'.repeat(rev.rating)} </span>
+                                                            </div>
+
+                                                            <p style={{ ...commentTextBody, marginTop: "6px" }} > {rev.comment} </p>
+                                                        </div>
+
+                                                        <button
+                                                            onClick={() => handleLikeComment(rev.id)}
+                                                            style={{ background: "transparent", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: "4px" }}>
+                                                            <svg  width="20" height="20" viewBox="0 0 24 24" fill={hasLiked ? "#ff3040" : "none"} stroke={hasLiked ? "#ff3040" : "#ffffff"} strokeWidth="2" > <path d="M12 21s-6.7-4.35-9.33-8.12C.4 9.68 2.02 5.5 6.1 5.5c2.16 0 3.4 1.27 3.9 2.15.5-.88 1.74-2.15 3.9-2.15 4.08 0 5.7 4.18 3.43 7.38C18.7 16.65 12 21 12 21z" />
+                                                            </svg>
+
+                                                            <span style={{ fontSize: "11px", color: "#aaa" }} > {rev.likes ? Object.keys(rev.likes).length : 0} </span>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
