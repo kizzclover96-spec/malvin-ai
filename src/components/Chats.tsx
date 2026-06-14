@@ -1185,82 +1185,71 @@ const Chats = ({ brandId, userBrand }: any) => {
                                     }}
                                 >
                                     {activeMessages.map((msg) => {
-                                        const isBrand = msg.sender === 'brand';
+                                        const isBrand = msg.sender === "brand";
 
                                         return (
                                             <div
-                                                key={msg.id}
-                                                style={{
-                                                    padding: '12px 16px', 
-                                                    borderRadius: '20px', 
-                                                    maxWidth: '75%', 
-                                                    wordWrap: 'break-word',
-                                                    flexDirection: 'column',
-                                                    alignSelf: msg.sender === "Brand" ? 'flex-start' : 'flex-end',
-                                                    color:
-                                                    msg.sender === "Brand"
-                                                        ? "black"
-                                                        : "white",
-
-                                                    
-                                                    width: '100%'
-                                                }}
+                                            key={msg.id}
+                                            style={{
+                                                width: "100%",
+                                                display: "flex",
+                                                justifyContent: isBrand ? "flex-start" : "flex-end",
+                                            }}
                                             >
-
                                                 {/* BUBBLE */}
                                                 <div
                                                     style={{
-                                                        background: isBrand ? '#007aff' : '#262626',
-                                                        color: '#fff',
-                                                        padding: '10px 14px',
+                                                    display: "flex",
+                                                    flexDirection: "column",
+                                                    maxWidth: "65%",
+                                                    }}
+                                                >
+                                                    <div
+                                                    style={{
+                                                        background: isBrand ? "#007aff" : "#262626",
+                                                        color: "#fff",
+                                                        padding: "10px 14px",
                                                         borderRadius: 18,
-                                                        maxWidth: '65%',
                                                         fontSize: 14,
                                                         lineHeight: 1.4,
-                                                        wordBreak: 'break-word'
+                                                        wordBreak: "break-word",
                                                     }}
-                                                >
-                                                    {msg.type === "photo" ? (
-                                                        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-
-                                                            <img
-                                                                src={msg.imageUrl}
-                                                                style={{
+                                                    >
+                                                        {msg.type === "photo" ? (
+                                                            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                                                                <img
+                                                                    src={msg.imageUrl}
+                                                                    style={{
                                                                     width: 240,
                                                                     borderRadius: 12,
-                                                                    display: "block"
-                                                                }}
-                                                            />
-
-                                                            <div style={{ fontSize: 13 }}>
-                                                                {msg.text}
+                                                                    display: "block",
+                                                                    }}
+                                                                />
+                                                                <div style={{ fontSize: 13 }}>{msg.text}</div>
                                                             </div>
+                                                        ) : (
+                                                            msg.text
+                                                        )}
+                                                    </div>
 
-                                                        </div>
-                                                    ) : (
-                                                        msg.text
-                                                    )}
+                                                    {/* TIMESTAMP */}
+                                                    <div
+                                                        style={{
+                                                            fontSize: 10,
+                                                            color: "#666",
+                                                            marginTop: 4,
+                                                            textAlign: isBrand ? "left" : "right",
+                                                        }}
+                                                        >
+                                                        {msg.timestamp?.toDate?.()?.toLocaleTimeString([], {
+                                                            hour: "2-digit",
+                                                            minute: "2-digit",
+                                                        })}
+                                                    </div>
                                                 </div>
-
-                                                {/* TIMESTAMP (FIXED LIKE CUSTOMERCHAT) */}
-                                                <div
-                                                    style={{
-                                                        fontSize: 10,
-                                                        color: "#666",
-                                                        marginTop: 4,
-                                                        paddingLeft: isBrand ? 0 : 4,
-                                                        paddingRight: isBrand ? 4 : 0
-                                                    }}
-                                                >
-                                                    {msg.timestamp?.toDate?.()?.toLocaleTimeString([], {
-                                                        hour: "2-digit",
-                                                        minute: "2-digit"
-                                                    })}
-                                                </div>
-
                                             </div>
                                         );
-                                    })}
+                                   })}
                                 </div>
 
                                 {/* FOOTER INPUT (FIXED CAMERA ALIGNMENT) */}
