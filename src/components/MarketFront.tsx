@@ -136,7 +136,7 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
             return;
         }
 
-        const reviewsPath = dbRef(db, `reviews/${selectedProduct.id}`);
+        const reviewsPath = dbRef(db, `users/${brandId}/reviews/${selectedProduct.id}`);
         const unsubscribeReviews = onValue(reviewsPath, (snapshot) => {
             const data = snapshot.val();
             if (data) {
@@ -164,7 +164,10 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
         e.preventDefault();
         if (!commentText.trim()) return;
 
-        const reviewsPath = dbRef(db, `reviews/${selectedProduct.id}`);
+        const reviewsPath = dbRef(
+            db,
+            `users/${brandId}/reviews/${selectedProduct.id}`
+        );
         const newReviewRef = push(reviewsPath);
 
         await set(newReviewRef, {
