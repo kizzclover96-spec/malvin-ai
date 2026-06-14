@@ -1152,57 +1152,62 @@ const Chats = ({ brandId, userBrand }: any) => {
                                             <div
                                                 key={msg.id}
                                                 style={{
-                                                    alignSelf: isManager ? 'flex-end' : 'flex-start',
-                                                    background: isManager ? '#007aff' : '#262626',
-                                                    color: '#fff',
-                                                    padding: '10px 14px',
-                                                    borderRadius: '18px',
-                                                    maxWidth: '60%',
-                                                    fontSize: '14px',
-                                                    lineHeight: '1.4'
+                                                    width: '100%',
+                                                    display: 'flex',
+                                                    justifyContent: isManager ? 'flex-end' : 'flex-start'
                                                 }}
                                             >
-                                                {msg.type === "photo" ? (
-                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                                        <img
-                                                            src={msg.imageUrl}
-                                                            style={{
-                                                                width: "260px",
-                                                                borderRadius: "12px",
-                                                                display: "block"
-                                                            }}
-                                                        />
+                                                <div
+                                                    style={{
+                                                        background: isManager ? '#007aff' : '#262626',
+                                                        color: '#fff',
+                                                        padding: '10px 14px',
+                                                        borderRadius: '18px',
+                                                        maxWidth: '60%',
+                                                        fontSize: '14px',
+                                                        lineHeight: '1.4',
+                                                        display: 'flex',
+                                                        flexDirection: 'column',
+                                                        gap: '6px'
+                                                    }}
+                                                >
+                                                    {msg.type === "photo" ? (
+                                                        <>
+                                                            <img
+                                                                src={msg.imageUrl}
+                                                                style={{
+                                                                    width: "260px",
+                                                                    borderRadius: "12px",
+                                                                    display: "block",
+                                                                    objectFit: "cover"
+                                                                }}
+                                                            />
 
-                                                        <button
-                                                            onClick={async () => {
-                                                                await updateDoc(
-                                                                    doc(
-                                                                        firestore,
-                                                                        "conversations",
-                                                                        selectedChatId!,
-                                                                        "messages",
-                                                                        msg.id
-                                                                    ),
-                                                                    { locked: false }
-                                                                );
-                                                            }}
-                                                            style={{
-                                                                padding: '6px 10px',
-                                                                borderRadius: '8px',
-                                                                border: 'none',
-                                                                cursor: 'pointer'
-                                                            }}
-                                                        >
-                                                            Unlock Download
-                                                        </button>
+                                                            <button
+                                                                onClick={async () => {
+                                                                    await updateDoc(
+                                                                        doc(
+                                                                            firestore,
+                                                                            "conversations",
+                                                                            selectedChatId!,
+                                                                            "messages",
+                                                                            msg.id
+                                                                        ),
+                                                                        { locked: false }
+                                                                    );
+                                                                }}
+                                                            >
+                                                                Unlock Download
+                                                            </button>
 
-                                                        <div style={{ fontSize: '11px', opacity: 0.7 }}>
-                                                            {msg.locked ? "🔒 Locked" : "🔓 Unlocked"}
-                                                        </div>
-                                                    </div>
-                                                ) : (
-                                                    msg.text
-                                                )}
+                                                            <div style={{ fontSize: '11px', opacity: 0.7 }}>
+                                                                {msg.locked ? "🔒 Locked" : "🔓 Unlocked"}
+                                                            </div>
+                                                        </>
+                                                    ) : (
+                                                        msg.text
+                                                    )}
+                                                </div>
                                             </div>
                                         );
                                     })}
@@ -1266,6 +1271,8 @@ const Chats = ({ brandId, userBrand }: any) => {
                                     {/* CAMERA (FIXED POSITIONING) */}
                                     {selectedChatId && (
                                         <div style={{
+                                            width: 44,
+                                            height: 44,
                                             display: 'flex',
                                             alignItems: 'center',
                                             justifyContent: 'center'
@@ -1274,6 +1281,7 @@ const Chats = ({ brandId, userBrand }: any) => {
                                                 chatId={selectedChatId}
                                                 sender="brand"
                                                 brandName={userBrand?.name || "Malvin"}
+                                                
                                             />
                                         </div>
                                     )}
