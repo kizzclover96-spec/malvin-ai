@@ -1185,7 +1185,8 @@ const Chats = ({ brandId, userBrand }: any) => {
                                     }}
                                 >
                                     {activeMessages.map((msg) => {
-                                        const isBrand = msg.sender === "brandId";
+                                        const sender = (msg.sender || "").toLowerCase();
+                                        const isBrand = sender === "brand" || sender === "manager";
 
                                         return (
                                             <div
@@ -1196,14 +1197,15 @@ const Chats = ({ brandId, userBrand }: any) => {
                                                 justifyContent: isBrand ? "flex-start" : "flex-end",
                                             }}
                                             >
-                                                {/* BUBBLE */}
+                                                {/* BUBBLE WRAPPER */}
                                                 <div
                                                     style={{
+                                                    maxWidth: "65%",
                                                     display: "flex",
                                                     flexDirection: "column",
-                                                    maxWidth: "65%",
                                                     }}
                                                 >
+                                                    {/* BUBBLE */}
                                                     <div
                                                     style={{
                                                         background: isBrand ? "#007aff" : "#262626",
@@ -1217,15 +1219,14 @@ const Chats = ({ brandId, userBrand }: any) => {
                                                     >
                                                         {msg.type === "photo" ? (
                                                             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                                                                <img
-                                                                    src={msg.imageUrl}
-                                                                    style={{
-                                                                    width: 240,
-                                                                    borderRadius: 12,
-                                                                    display: "block",
-                                                                    }}
-                                                                />
-                                                                <div style={{ fontSize: 13 }}>{msg.text}</div>
+                                                            <img
+                                                                src={msg.imageUrl}
+                                                                style={{
+                                                                width: 240,
+                                                                borderRadius: 12,
+                                                                }}
+                                                            />
+                                                            <div style={{ fontSize: 13 }}>{msg.text}</div>
                                                             </div>
                                                         ) : (
                                                             msg.text
@@ -1245,11 +1246,12 @@ const Chats = ({ brandId, userBrand }: any) => {
                                                             hour: "2-digit",
                                                             minute: "2-digit",
                                                         })}
+
                                                     </div>
                                                 </div>
                                             </div>
                                         );
-                                   })}
+                                    })}
                                 </div>
 
                                 {/* FOOTER INPUT (FIXED CAMERA ALIGNMENT) */}
