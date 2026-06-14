@@ -1191,26 +1191,24 @@ const Chats = ({ brandId, userBrand }: any) => {
                                             <div
                                                 key={msg.id}
                                                 style={{
-                                                    display: 'flex',
-                                                    flexDirection: 'column',
-                                                    alignItems: isBrand ? 'flex-end' : 'flex-start',
-                                                    width: '100%',
-                                                    paddingBottom: '6px'
+                                                    width: "100%",
+                                                    display: "flex",
+                                                    justifyContent: isBrand ? "flex-end" : "flex-start",
+                                                    marginBottom: "10px"
                                                 }}
                                             >
 
                                                 {/* BUBBLE */}
                                                 <div
                                                     style={{
-                                                        background: isBrand ? '#007aff' : '#262626',
-                                                        color: '#fff',
-                                                        padding: '10px 14px',
-                                                        borderRadius: 18,
-                                                        maxWidth: '65%',
-                                                        fontSize: 14,
-                                                        lineHeight: 1.4,
-                                                        wordBreak: 'break-word',
-                                                        display: 'inline-block'
+                                                        maxWidth: "65%",
+                                                        background: isBrand ? "#007aff" : "#262626",
+                                                        color: "#fff",
+                                                        padding: "10px 14px",
+                                                        borderRadius: "18px",
+                                                        fontSize: "14px",
+                                                        lineHeight: "1.4",
+                                                        wordBreak: "break-word"
                                                     }}
                                                 >
                                                     {msg.type === "photo" ? (
@@ -1225,9 +1223,7 @@ const Chats = ({ brandId, userBrand }: any) => {
                                                                 }}
                                                             />
 
-                                                            <div style={{ fontSize: 13 }}>
-                                                                {msg.text}
-                                                            </div>
+                                                            {msg.text} 
 
                                                         </div>
                                                     ) : (
