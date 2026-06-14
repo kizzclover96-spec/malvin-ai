@@ -258,7 +258,6 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
             alert("Booking failed. Try again.");
         }
     };
-    const trustStatus = "green";
 
     const handleConfirmOrder = () => {
         if (!orderModal) return;
