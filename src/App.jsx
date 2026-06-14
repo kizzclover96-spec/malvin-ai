@@ -9,6 +9,7 @@ import LandingPage from "./pages/LandingPage";
 import CookieBanner from "./components/CookieBanner";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
+import About from "./pages/About";
 import AllAds from "./components/AllAds";
 import RefundPolicy from "./pages/RefundPolicy";
 import Impressum from "./pages/Impressum";
@@ -63,6 +64,7 @@ function App() {
             <Route path="/refund-policy" element={<RefundPolicy />} />
             <Route path="/impressum" element={<Impressum />} />
             <Route path="/allads" element={<AllAds />} />
+            <Route path="/about" element={<About />} />
 
             <Route path="/" element={
               !user ? (

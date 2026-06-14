@@ -4,4 +4,8 @@
     <loc>https://malvinai.com/</loc>
     <priority>1.0</priority>
   </url>
+  <url>
+    <loc>https://malvinai.com/about</loc>
+    <priority>0.8</priority>
+  </url>
 </urlset>

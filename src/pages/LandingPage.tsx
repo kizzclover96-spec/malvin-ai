@@ -1,6 +1,7 @@
 import React, { useState } from 'react'; // Added missing useState import
 import Explore from './Explore';
 import About from './About';
+import { Link } from "react-router-dom";
 
 const LandingPage = ({ onLoginClick }) => {
   const productMockupUrl = "/mockup.png"; // Your cool picture here
@@ -115,7 +116,7 @@ const LandingPage = ({ onLoginClick }) => {
         <div style={{ display: 'flex', gap: '35px', alignItems: 'center' }}>
           <span onClick={() => setActiveTab('home')} className={`nav-link ${activeTab === 'home' ? 'active' : ''}`}>Home</span>
           <span onClick={() => setActiveTab('explore')} className={`nav-link ${activeTab === 'explore' ? 'active' : ''}`}>Explore</span>
-          <span onClick={() => setActiveTab('about')} className={`nav-link ${activeTab === 'about' ? 'active' : ''}`}>About</span>
+          <Link to="/about" className="nav-link">About</Link>
           <span onClick={() => setActiveTab('news')} className={`nav-link ${activeTab === 'news' ? 'active' : ''}`}>News</span>
         </div>
 
@@ -158,10 +159,12 @@ const LandingPage = ({ onLoginClick }) => {
                   WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
                 }}>Entire Workspace.</span>
               </h1>
-
+              <h2>AI Business Automation Platform</h2>
+              
               <p style={{ fontSize: '1.05rem', color: 'rgba(255,255,255,0.5)', lineHeight: '1.5', maxWidth: '500px', marginBottom: '30px', fontWeight: '400' }}>
-                Malvin is the unified intelligent node for automated workflow optimization. 
-                Connect your favorite tools and witness your production execute itself flawlessly.
+                Malvin is an all-in-one business operating platform designed to help businesses grow, organize, and scale more effectively. 
+                With over 95% of the tools and functions most businesses need—from online stores and digital services to physical businesses
+                Malvin provides a powerful, centralized workspace for managing operations.
               </p>
 
               <div style={{ display: 'flex', gap: '16px', alignItems: 'center', marginBottom: '35px' }}>
