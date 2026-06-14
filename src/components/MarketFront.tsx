@@ -136,7 +136,7 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
             return;
         }
 
-        const reviewsPath = dbRef(db, `users/${brandId}/reviews/${selectedProduct.id}`);
+        const reviewsPath = dbRef(db, `reviews/${brandId}/${selectedProduct.id}`);
         const unsubscribeReviews = onValue(reviewsPath, (snapshot) => {
             const data = snapshot.val();
             if (data) {
@@ -166,17 +166,19 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
 
         const reviewsPath = dbRef(
             db,
-            `users/${brandId}/reviews/${selectedProduct.id}`
+            `reviews/${brandId}/${selectedProduct.id}`
         );
+
         const newReviewRef = push(reviewsPath);
 
         await set(newReviewRef, {
             name: reviewerName.trim() || "Anonymous User",
             comment: commentText.trim(),
-            rating: ratingScore,
+            rating: Number(ratingScore),
             likes: {},
             timestamp: Date.now()
         });
+        
 
         setCommentText('');
         setReviewerName('');
@@ -195,7 +197,7 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
 
         const likeRef = dbRef(
             db,
-            `reviews/${selectedProduct.id}/${reviewId}/likes/${visitorId}`
+            `reviews/${brandId}/${selectedProduct.id}/${reviewId}/likes/${visitorId}`
         );
 
         const snap = await get(likeRef);
