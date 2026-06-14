@@ -136,7 +136,7 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
             return;
         }
 
-        const reviewsPath = dbRef(db, `users/${brandId}/reviews/${selectedProduct.id}`);
+        const reviewsPath = dbRef(db, `reviews/${selectedProduct.id}`);
         const unsubscribeReviews = onValue(reviewsPath, (snapshot) => {
             const data = snapshot.val();
             if (data) {
@@ -164,14 +164,14 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
         e.preventDefault();
         if (!commentText.trim()) return;
 
-        const reviewsPath = dbRef(db, `users/${brandId}/reviews/${selectedProduct.id}`);
+        const reviewsPath = dbRef(db, `reviews/${selectedProduct.id}`);
         const newReviewRef = push(reviewsPath);
 
         await set(newReviewRef, {
             name: reviewerName.trim() || "Anonymous User",
             comment: commentText.trim(),
             rating: ratingScore,
-            likes: 0,
+            likes: {},
             timestamp: Date.now()
         });
 
@@ -192,7 +192,7 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
 
         const likeRef = dbRef(
             db,
-            `users/${brandId}/reviews/${selectedProduct.id}/${reviewId}/likes/${visitorId}`
+            `reviews/${selectedProduct.id}/${reviewId}/likes/${visitorId}`
         );
 
         const snap = await get(likeRef);
@@ -520,8 +520,8 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
 
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px' }}>
                                         {reviews.map((rev) => {
-                                            
-                                            const hasLiked = rev.likes && currentUid && rev.likes[currentUid];
+                                            const visitorId = localStorage.getItem("visitorId") || "";
+                                            const hasLiked = rev.likes?.[visitorId];
                                             return (
                                                 <div
                                                     key={rev.id}
