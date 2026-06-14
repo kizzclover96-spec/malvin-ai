@@ -12,6 +12,7 @@ import {
 } from "firebase/firestore";
 
 import { firestore } from "../firebase";
+import { updateUserTrust } from "../trustengine";
 
 // Reusable Verified Badge Component
 const VerifiedBadge = () => (
@@ -92,8 +93,8 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
             const data = snap.val();
 
             if (!data) {
-                setTrustScore(50);
-                setTrustStatus("yellow");
+                setTrustScore(100);
+                setTrustStatus("green");
                 return;
             }
 
@@ -203,6 +204,8 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
             likes: {},
             timestamp: Date.now()
         });
+
+        await updateUserTrust(brandId);
         
 
         setCommentText('');
@@ -229,6 +232,7 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
 
         if (!snap.exists()) {
             await set(likeRef, true);
+            await updateUserTrust(brandId);
         }
     };
 

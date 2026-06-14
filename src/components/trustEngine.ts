@@ -14,29 +14,29 @@ export const updateUserTrust = async (userId: string) => {
 
     const currentMonth = getCurrentMonth();
 
-    // ✅ RESET LOGIC
-    if (trust.lastResetMonth !== currentMonth) {
-        await set(trustRef, {
-            ...trust,
-            score: 100,
-            reports: 0,
-            lastResetMonth: currentMonth,
-            status: "green"
-        });
-        return;
-    }
-
-    // continue normal calculation
     const reports = trust.reports || 0;
     const orders = trust.successfulOrders || 0;
     const accountAge = trust.accountAgeDays || 1;
 
-    let reportCount = reports;
+    // 🔥 MONTH RESET (ONLY SOURCE OF RESET)
+    if (trust.lastResetMonth !== currentMonth) {
+        const resetData = {
+            ...trust,
+            score: 100,
+            status: "green",
+            reports: 0,
+            lastResetMonth: currentMonth
+        };
 
+        await set(trustRef, resetData);
+        return;
+    }
+
+    // 🧠 TRUST CALCULATION
     let score =
         (orders * 5) +
         (accountAge * 2) -
-        (reportCount * 20);
+        (reports * 20);
 
     score = Math.max(0, Math.min(100, score));
 
@@ -48,7 +48,7 @@ export const updateUserTrust = async (userId: string) => {
     await set(trustRef, {
         ...trust,
         score,
-        reports: reportCount,
+        reports,
         accountAgeDays: accountAge,
         status,
         lastResetMonth: currentMonth
