@@ -1185,7 +1185,7 @@ const Chats = ({ brandId, userBrand }: any) => {
                                     }}
                                 >
                                     {activeMessages.map((msg) => {
-                                        const isBrand = msg.sender === "brand";
+                                        const isBrand = msg.sender === "brandId";
 
                                         return (
                                             <div
