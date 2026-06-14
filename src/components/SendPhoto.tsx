@@ -1,5 +1,6 @@
 import React, { useRef, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
+import { getDownloadURL } from "firebase/storage";
 
 import {
   doc,
@@ -103,9 +104,9 @@ const SendPhoto = ({
     });
   };
 
-  const uploadPhoto = async (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
+    const uploadPhoto = async (
+        e: React.ChangeEvent<HTMLInputElement>
+    ) => {
 
     const file =
       e.target.files?.[0];
@@ -114,105 +115,99 @@ const SendPhoto = ({
 
     try {
 
-      setUploading(true);
+        setUploading(true);
 
-      const photoId =
-        uuidv4();
+            const photoId =
+                uuidv4();
 
-      const previewBlob =
-        await createPreview(file);
+            const previewBlob =
+                await createPreview(file);
 
-      const previewPath =
-        `chatPhotos/${chatId}/${photoId}/preview.jpg`;
+            const previewPath =
+                `chatPhotos/${chatId}/${photoId}/preview.jpg`;
 
-      const originalPath =
-        `chatPhotos/${chatId}/${photoId}/original.jpg`;
+            const originalPath =
+                `chatPhotos/${chatId}/${photoId}/original.jpg`;
 
-      await uploadBytes(
-        ref(storage, previewPath),
-        previewBlob
-      );
+            await uploadBytes(
+                ref(storage, previewPath),
+                previewBlob
+            );
 
-      await uploadBytes(
-        ref(storage, originalPath),
-        file
-      );
+            await uploadBytes(
+                ref(storage, originalPath),
+                file
+            );
 
-      await setDoc(
-        doc(
-          firestore,
-          "conversations",
-          chatId,
-          "messages",
-          photoId
-        ),
-        {
-          id: photoId,
+                // ADD THIS 👇
+            const imageUrl = await getDownloadURL(ref(storage, originalPath));
 
-          type: "photo",
+            await setDoc(
+                doc(firestore, "conversations", chatId, "messages", photoId),
+                    {
+                        id: photoId,
+                        type: "photo",
+                        sender,
+                        locked: true,
 
-          sender,
+                        previewPath,
+                        originalPath,
 
-          locked: true,
+                        imageUrl, // 🔥 ADD THIS
 
-          previewPath,
-          originalPath,
+                        brandName,
+                        createdAt: serverTimestamp()
+                    }
+                );
 
-          brandName,
+            } catch (err) {
 
-          createdAt:
-            serverTimestamp()
+            console.error(
+                "Photo Upload Error",
+                err
+            );
+
+            } finally {
+
+            setUploading(false);
+
+            if (fileInputRef.current) {
+                fileInputRef.current.value = "";
+            }
         }
-      );
+    };
 
-    } catch (err) {
+    return (
+        <>
+            <input
+                hidden
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={uploadPhoto}
+            />
 
-      console.error(
-        "Photo Upload Error",
-        err
-      );
-
-    } finally {
-
-      setUploading(false);
-
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
-    }
-  };
-
-  return (
-    <>
-      <input
-        hidden
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        onChange={uploadPhoto}
-      />
-
-      <button
-        type="button"
-        disabled={uploading}
-        onClick={() =>
-          fileInputRef.current?.click()
-        }
-        style={{
-          width: 45,
-          height: 45,
-          borderRadius: "50%",
-          border: "none",
-          background: "#111",
-          color: "#fff",
-          cursor: "pointer",
-          fontSize: 18
-        }}
-      >
-        {uploading ? "..." : "📷"}
-      </button>
-    </>
-  );
+            <button
+                type="button"
+                disabled={uploading}
+                onClick={() =>
+                fileInputRef.current?.click()
+                }
+                style={{
+                width: 45,
+                height: 45,
+                borderRadius: "50%",
+                border: "none",
+                background: "#111",
+                color: "#fff",
+                cursor: "pointer",
+                fontSize: 18
+                }}
+            >
+                {uploading ? "..." : "📷"}
+            </button>
+        </>
+    );
 };
 
 export default SendPhoto;

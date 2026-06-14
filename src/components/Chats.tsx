@@ -1012,12 +1012,12 @@ const Chats = ({ brandId, userBrand }: any) => {
                             <div style={{ display: 'flex', flexDirection: 'column', height: '100%', boxSizing: 'border-box' }}>
 
                                 {/* Chat Header */}
-                                <div style={{ 
-                                    padding: '0 24px', 
-                                    borderBottom: '1px solid #1c1c1e', 
-                                    display: 'flex', 
-                                    justifyContent: 'space-between', 
-                                    alignItems: 'center', 
+                                <div style={{
+                                    padding: '0 24px',
+                                    borderBottom: '1px solid #1c1c1e',
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
                                     background: '#000000',
                                     height: '75px',
                                     boxSizing: 'border-box',
@@ -1037,7 +1037,7 @@ const Chats = ({ brandId, userBrand }: any) => {
                                                 top: '60px',
                                                 width: particle.size,
                                                 height: particle.size,
-                                                background: ['#007aff','#38d777','#ffd60a','#ff375f','#bf5af2'][particle.id % 5],
+                                                background: ['#007aff', '#38d777', '#ffd60a', '#ff375f', '#bf5af2'][particle.id % 5],
                                                 borderRadius: '50%',
                                                 pointerEvents: 'none',
                                                 animation: 'confettiFly 1.5s ease-out forwards'
@@ -1065,14 +1065,26 @@ const Chats = ({ brandId, userBrand }: any) => {
                                             <div style={{ fontWeight: 600, color: '#fff', fontSize: '15px' }}>
                                                 Client Window
                                             </div>
-                                            <div style={{ fontSize: '11px', color: currentSelectedChat?.isOrderBlue ? '#007aff' : '#a8a8a8' }}>
+                                            <div style={{
+                                                fontSize: '11px',
+                                                color: currentSelectedChat?.isOrderBlue ? '#007aff' : '#a8a8a8',
+                                                fontWeight: 500,
+                                                letterSpacing: '0.5px',
+                                                marginTop: '2px'
+                                            }}>
                                                 {currentSelectedChat?.isOrderBlue ? '📦 ORDER IN PROGRESS' : '○ DISPATCH STANDBY'}
                                             </div>
                                         </div>
                                     </div>
 
-                                    {/* RIGHT ACTION GROUP (FIXED ALIGNMENT) */}
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                                    {/* RIGHT HEADER BUTTONS (FIXED ALIGNMENT) */}
+                                    <div style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '10px',
+                                        flexWrap: 'wrap',
+                                        justifyContent: 'flex-end'
+                                    }}>
 
                                         {!isOrderActive ? (
                                             <button
@@ -1087,29 +1099,56 @@ const Chats = ({ brandId, userBrand }: any) => {
                                                     padding: '10px 16px',
                                                     borderRadius: '10px',
                                                     cursor: 'pointer',
-                                                    fontWeight: 700,
+                                                    fontWeight: 600,
                                                     fontSize: '13px'
                                                 }}
                                             >
                                                 📦 Order Placed
                                             </button>
                                         ) : (
-                                            <>
-                                                <button style={btnGreen} onClick={() => {
-                                                    setOrderInput("1");
-                                                    setShowOrderModal(true);
+                                            <div style={{
+                                                display: "flex",
+                                                gap: "8px",
+                                                alignItems: "center",
+                                                flexWrap: "wrap",
+                                                justifyContent: "flex-end"
+                                            }}>
+                                                <button style={{
+                                                    background: '#38d777',
+                                                    color: '#fff',
+                                                    border: 'none',
+                                                    borderRadius: '10px',
+                                                    padding: '8px 12px',
+                                                    fontWeight: 600,
+                                                    cursor: 'pointer'
                                                 }}>
                                                     + Add Orders
                                                 </button>
 
-                                                <button style={btnBlue} onClick={handleOrderSettled}>
+                                                <button onClick={handleOrderSettled} style={{
+                                                    background: '#007aff',
+                                                    color: '#fff',
+                                                    border: 'none',
+                                                    borderRadius: '10px',
+                                                    padding: '8px 12px',
+                                                    fontWeight: 600,
+                                                    cursor: 'pointer'
+                                                }}>
                                                     ✓ Settled
                                                 </button>
 
-                                                <button style={btnRed} onClick={handleCancelOrder}>
+                                                <button onClick={handleCancelOrder} style={{
+                                                    background: '#ff3b30',
+                                                    color: '#fff',
+                                                    border: 'none',
+                                                    borderRadius: '10px',
+                                                    padding: '8px 12px',
+                                                    fontWeight: 600,
+                                                    cursor: 'pointer'
+                                                }}>
                                                     ✕ Cancel
                                                 </button>
-                                            </>
+                                            </div>
                                         )}
 
                                         {isOrderActive && (
@@ -1122,7 +1161,7 @@ const Chats = ({ brandId, userBrand }: any) => {
                                                     padding: '10px 16px',
                                                     borderRadius: '10px',
                                                     cursor: 'pointer',
-                                                    fontWeight: 700
+                                                    fontWeight: 600
                                                 }}
                                             >
                                                 🚚 Set Shipment
@@ -1131,7 +1170,7 @@ const Chats = ({ brandId, userBrand }: any) => {
                                     </div>
                                 </div>
 
-                                {/* MESSAGE AREA (FIXED LEFT/RIGHT ALIGNMENT) */}
+                                {/* MESSAGE FEED (FIXED LEFT/RIGHT ALIGNMENT) */}
                                 <div
                                     id="message-feed"
                                     style={{
@@ -1152,77 +1191,80 @@ const Chats = ({ brandId, userBrand }: any) => {
                                             <div
                                                 key={msg.id}
                                                 style={{
-                                                    width: '100%',
-                                                    display: 'flex',
-                                                    justifyContent: isManager ? 'flex-end' : 'flex-start'
+                                                    alignSelf: isManager ? 'flex-end' : 'flex-start',
+                                                    background: isManager ? '#007aff' : '#262626',
+                                                    color: '#fff',
+                                                    padding: '10px 14px',
+                                                    borderRadius: '18px',
+                                                    maxWidth: '60%',
+                                                    fontSize: '14px',
+                                                    lineHeight: '1.4',
+                                                    wordBreak: 'break-word'
                                                 }}
                                             >
-                                                <div
-                                                    style={{
-                                                        background: isManager ? '#007aff' : '#262626',
-                                                        color: '#fff',
-                                                        padding: '10px 14px',
-                                                        borderRadius: '18px',
-                                                        maxWidth: '60%',
-                                                        fontSize: '14px',
-                                                        lineHeight: '1.4',
-                                                        display: 'flex',
-                                                        flexDirection: 'column',
-                                                        gap: '6px'
-                                                    }}
-                                                >
-                                                    {msg.type === "photo" ? (
-                                                        <>
-                                                            <img
-                                                                src={msg.imageUrl}
-                                                                style={{
-                                                                    width: "260px",
-                                                                    borderRadius: "12px",
-                                                                    display: "block",
-                                                                    objectFit: "cover"
-                                                                }}
-                                                            />
+                                                {msg.type === "photo" ? (
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
 
-                                                            <button
-                                                                onClick={async () => {
-                                                                    await updateDoc(
-                                                                        doc(
-                                                                            firestore,
-                                                                            "conversations",
-                                                                            selectedChatId!,
-                                                                            "messages",
-                                                                            msg.id
-                                                                        ),
-                                                                        { locked: false }
-                                                                    );
-                                                                }}
-                                                            >
-                                                                Unlock Download
-                                                            </button>
+                                                        <img
+                                                            src={msg.imageUrl}
+                                                            alt=""
+                                                            style={{
+                                                                width: "100%",
+                                                                maxWidth: "260px",
+                                                                borderRadius: "12px",
+                                                                display: "block"
+                                                            }}
+                                                        />
 
-                                                            <div style={{ fontSize: '11px', opacity: 0.7 }}>
-                                                                {msg.locked ? "🔒 Locked" : "🔓 Unlocked"}
-                                                            </div>
-                                                        </>
-                                                    ) : (
-                                                        msg.text
-                                                    )}
-                                                </div>
+                                                        <button
+                                                            onClick={async () => {
+                                                                await updateDoc(
+                                                                    doc(
+                                                                        firestore,
+                                                                        "conversations",
+                                                                        selectedChatId!,
+                                                                        "messages",
+                                                                        msg.id
+                                                                    ),
+                                                                    { locked: false }
+                                                                );
+                                                            }}
+                                                            style={{
+                                                                marginTop: '6px',
+                                                                background: 'rgba(255,255,255,0.1)',
+                                                                border: '1px solid rgba(255,255,255,0.2)',
+                                                                color: '#fff',
+                                                                padding: '6px 10px',
+                                                                borderRadius: '8px',
+                                                                cursor: 'pointer',
+                                                                fontSize: '12px'
+                                                            }}
+                                                        >
+                                                            Unlock Download
+                                                        </button>
+
+                                                        <div style={{ fontSize: "11px", opacity: 0.7 }}>
+                                                            {msg.locked ? "🔒 Locked" : "🔓 Unlocked"}
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    msg.text
+                                                )}
                                             </div>
                                         );
                                     })}
                                 </div>
 
-                                {/* FOOTER (FIXED CAMERA ALIGNMENT) */}
+                                {/* FOOTER INPUT (FIXED CAMERA ALIGNMENT) */}
                                 <div style={{
                                     padding: '16px 24px',
                                     display: 'flex',
                                     background: '#000000',
                                     alignItems: 'center',
-                                    gap: '10px'
+                                    gap: '10px',
+                                    boxSizing: 'border-box'
                                 }}>
 
-                                    {/* INPUT */}
                                     <div style={{
                                         display: 'flex',
                                         flex: 1,
@@ -1230,7 +1272,7 @@ const Chats = ({ brandId, userBrand }: any) => {
                                         background: '#000000',
                                         border: '1px solid #262626',
                                         borderRadius: '24px',
-                                        padding: '4px 10px 4px 16px'
+                                        padding: '6px 10px 6px 16px'
                                     }}>
                                         <input
                                             value={inputValue}
@@ -1257,22 +1299,20 @@ const Chats = ({ brandId, userBrand }: any) => {
                                             disabled={!inputValue.trim()}
                                             style={{
                                                 background: 'transparent',
-                                                color: inputValue.trim() ? '#007aff' : '#444',
                                                 border: 'none',
+                                                color: inputValue.trim() ? '#007aff' : '#444',
                                                 fontWeight: 700,
                                                 cursor: inputValue.trim() ? 'pointer' : 'default',
-                                                opacity: inputValue.trim() ? 1 : 0.4
+                                                padding: '6px 10px'
                                             }}
                                         >
                                             Send
                                         </button>
                                     </div>
 
-                                    {/* CAMERA (FIXED POSITIONING) */}
+                                    {/* CAMERA / PHOTO BUTTON FIXED */}
                                     {selectedChatId && (
                                         <div style={{
-                                            width: 44,
-                                            height: 44,
                                             display: 'flex',
                                             alignItems: 'center',
                                             justifyContent: 'center'
@@ -1281,7 +1321,6 @@ const Chats = ({ brandId, userBrand }: any) => {
                                                 chatId={selectedChatId}
                                                 sender="brand"
                                                 brandName={userBrand?.name || "Malvin"}
-                                                
                                             />
                                         </div>
                                     )}
@@ -1299,13 +1338,14 @@ const Chats = ({ brandId, userBrand }: any) => {
                                     height: '120px',
                                     borderRadius: '50%',
                                     border: '2px solid #fff'
-                                }}>
-                                    ✉️
-                                </div>
+                                }}>✉️</div>
 
-                                <h3 style={{ color: '#fff' }}>Your Messages</h3>
-                                <p style={{ color: '#737373' }}>
-                                    Select a conversation from the sidebar to view details.
+                                <h3 style={{ fontWeight: 400, color: '#fff', fontSize: '22px', margin: '10px 0 5px 0' }}>
+                                    Your Messages
+                                </h3>
+
+                                <p style={{ fontSize: '14px', color: '#737373', maxWidth: '300px', margin: '0 auto' }}>
+                                    Select a conversation from the sidebar to view details and autopilot controls.
                                 </p>
                             </div>
                         )}
