@@ -37,7 +37,6 @@ export const updateUserTrust = async (userId: string) => {
     else if (score < 40) status = "red";
 
     await set(trustRef, {
-        ...trust,
         score,
         reports: reportCount,
         accountAgeDays: accountAge,

@@ -60,6 +60,10 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
     const [showShipmentBubble, setShowShipmentBubble] = useState(false);
     const [shipmentCardOpen, setShipmentCardOpen] = useState(false);
 
+    
+    const [trustScore, setTrustScore] = useState(50);
+    const [trustStatus, setTrustStatus] = useState<"green" | "yellow" | "red">("yellow");
+
     useEffect(() => {
         const link = document.querySelector("link[rel='manifest']");
         if (link) link.setAttribute("href", "/market-manifest.json");
@@ -78,6 +82,27 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
         });
         return () => unsubscribe();
     }, []);
+
+    useEffect(() => {
+        if (!brandId) return;
+
+        const trustRef = dbRef(db, `users/${brandId}/trust`);
+
+        const unsubscribe = onValue(trustRef, (snap) => {
+            const data = snap.val();
+
+            if (!data) {
+                setTrustScore(50);
+                setTrustStatus("yellow");
+                return;
+            }
+
+            setTrustScore(data.score ?? 50);
+            setTrustStatus(data.status ?? "yellow");
+        });
+
+        return () => unsubscribe();
+    }, [brandId]);
 
     // Sync Booked Dates
     useEffect(() => {
@@ -384,10 +409,17 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
                         gap: "10px"
                     }}>
                         <span style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "6px"
-                        }}>{brandId && ( <ReputationScore userId={brandId} />)}</span>
+                            fontSize: "12px",
+                            fontWeight: 700,
+                            color:
+                                trustStatus === "green"
+                                    ? "#C5FF41"
+                                    : trustStatus === "red"
+                                    ? "#ff3b3b"
+                                    : "#ffcc00"
+                        }}>
+                            TRUST: {trustScore}/100
+                        </span>
 
                         <span
                             onClick={() => setShowReport(true)}

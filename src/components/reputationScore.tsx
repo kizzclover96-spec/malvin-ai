@@ -11,16 +11,24 @@ const ReputationScore = ({ userId }: Props) => {
     const [status, setStatus] = useState<"green" | "yellow" | "red">("yellow");
 
     useEffect(() => {
-        const trustRef = ref(db, `users/${userId}/trust`);
+        if (!userId) return;
 
-        return onValue(trustRef, (snap) => {
+        const trustRef = ref(db, `users/${userId}/profile/trust`);
+
+        const unsubscribe = onValue(trustRef, (snap) => {
             const data = snap.val();
 
-            if (!data) return;
+            if (!data) {
+                setScore(50);
+                setStatus("yellow");
+                return;
+            }
 
-            setScore(data.score || 50);
-            setStatus(data.status || "yellow");
+            setScore(data.score ?? 50);
+            setStatus(data.status ?? "yellow");
         });
+
+        return () => unsubscribe();
     }, [userId]);
 
     const color =
