@@ -8,6 +8,8 @@ import {
 import { ref as dbRef, onValue } from "firebase/database";
 import { db, firestore } from "../firebase"; 
 import { ProductCard } from './ProductView';
+import PhotoMessage from "./PhotoMessage";
+import SendPhoto from "./SendPhoto";
 
 interface CustomerChatProps {
     pendingOrder?: any;
@@ -26,11 +28,9 @@ const CustomerChat = ({ pendingOrder: propOrder, quantity: propQuantity }: Custo
     const [orderModal, setOrderModal] = useState<any>(null);
     const [quantity, setQuantity] = useState(1);
     const [loading, setLoading] = useState(true);
-    const location = useLocation();
-    const messageTimestamps = useRef<number[]>([]);
+    const [uploading, setUploading] = useState(false);
+    
 
-    const activePendingOrder = propOrder;
-    const activePendingQuantity = propQuantity || 1;
     const pendingOrderRef = useRef<any>(null);
     const lastAcceptedOrderId = useRef<string | null>(null);
 
@@ -200,6 +200,14 @@ const CustomerChat = ({ pendingOrder: propOrder, quantity: propQuantity }: Custo
         setTimeout(() => setConfetti([]), 1800);
     };
     const previousStatus = useRef<string | null>(null);
+    const scrollToBottom = () => {
+        if (scrollRef.current) {
+            scrollRef.current.scrollTo({
+                top: scrollRef.current.scrollHeight,
+                behavior: "smooth"
+            });
+        }
+    };
 
     
 
@@ -215,12 +223,15 @@ const CustomerChat = ({ pendingOrder: propOrder, quantity: propQuantity }: Custo
             const newStatus = data.orderStatus;
             const orderId = data.orderId; // or shipment/order reference
 
+            const acceptedKey =
+                `accepted_${chatId}_${orderId}`;
+
             if (
                 newStatus === "accepted" &&
                 orderId &&
-                lastAcceptedOrderId.current !== orderId
+                !localStorage.getItem(acceptedKey)
             ) {
-                lastAcceptedOrderId.current = orderId;
+                localStorage.setItem(acceptedKey, "1");
                 triggerOrderAccepted();
             }
 
@@ -230,6 +241,46 @@ const CustomerChat = ({ pendingOrder: propOrder, quantity: propQuantity }: Custo
 
         return () => unsub();
     }, [chatId]);
+
+    useEffect(() => {
+        const handleVisibility = () => {
+            document
+                .querySelectorAll(".protected-photo")
+                .forEach((img) => {
+                    (img as HTMLElement).style.filter =
+                        document.hidden ? "blur(40px)" : "none";
+                });
+        };
+
+        window.addEventListener("blur", handleVisibility);
+        window.addEventListener("focus", handleVisibility);
+        document.addEventListener("visibilitychange", handleVisibility);
+
+        return () => {
+            window.removeEventListener("blur", handleVisibility);
+            window.removeEventListener("focus", handleVisibility);
+            document.removeEventListener(
+                "visibilitychange",
+                handleVisibility
+            );
+        };
+    }, []);
+    useEffect(() => {
+        const imgs = document.querySelectorAll("img");
+
+        imgs.forEach((img) => {
+            img.addEventListener("load", scrollToBottom);
+        });
+
+        return () => {
+            imgs.forEach((img) => {
+                img.removeEventListener(
+                    "load",
+                    scrollToBottom
+                );
+            });
+        };
+    }, [chatHistory]);
     
     if (loading) return <div style={{background: '#000', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666'}}>Authenticating Shop...</div>;
 
@@ -267,7 +318,7 @@ const CustomerChat = ({ pendingOrder: propOrder, quantity: propQuantity }: Custo
                         animation: "confettiFly 1.8s ease-out forwards",
                         pointerEvents: "none",
                         zIndex: 99998
-                    }}
+                    } as React.CSSProperties}
                 />
             ))}
             {showAcceptedPopup && (
@@ -333,26 +384,121 @@ const CustomerChat = ({ pendingOrder: propOrder, quantity: propQuantity }: Custo
                             Hello! Welcome to <b>{brandData?.name}</b>. How can I help you today?
                         </div>
 
-                        {chatHistory.map((msg) => (
-                            <div key={msg.id} className="message-bubble" style={{
-                                ...messageBubbleStyle,
-                                alignSelf: msg.sender === 'customer' ? 'flex-end' : 'flex-start',
-                                background: msg.isOrder ? 'rgba(197, 255, 65, 0.1)' : (msg.sender === 'customer' ? '#C5FF41' : '#1A1A1A'),
-                                color: msg.sender === 'customer' ? 'black' : 'white',
-                                border: msg.isOrder ? '1px solid #C5FF41' : 'none',
-                            }}>
-                                {msg.isOrder && (
-                                    <div style={{ marginBottom: '8px', display: 'flex', gap: '10px' }}>
-                                        <img src={msg.orderData.image} style={{ width: '45px', height: '45px', borderRadius: '8px', objectFit: 'cover' }} alt="" />
-                                        <div style={{ fontSize: '12px' }}>
-                                            <div style={{ fontWeight: 'bold' }}>Order Request</div>
-                                            <div>{msg.orderData.quantity}x {msg.orderData.name}</div>
+                        {chatHistory.map((msg) => {
+
+                            if (msg.type === "photo") {
+
+                                return (
+                                <div
+                                    key={msg.id}
+                                    style={{
+                                    alignSelf:
+                                        msg.sender === "customer"
+                                        ? "flex-end"
+                                        : "flex-start"
+                                    }}
+                                >
+                                    <PhotoMessage msg={msg} />
+                                </div>
+                                );
+                            }
+
+                            return (
+                                <div
+                                key={msg.id}
+                                className="message-bubble"
+                                style={{
+                                    ...messageBubbleStyle,
+                                    alignSelf:
+                                    msg.sender === "customer"
+                                        ? "flex-end"
+                                        : "flex-start",
+
+                                    background: msg.isOrder
+                                    ? "rgba(197,255,65,.1)"
+                                    : (
+                                        msg.sender === "customer"
+                                            ? "#C5FF41"
+                                            : "#1A1A1A"
+                                        ),
+
+                                    color:
+                                    msg.sender === "customer"
+                                        ? "black"
+                                        : "white",
+
+                                    border: msg.isOrder
+                                    ? "1px solid #C5FF41"
+                                    : "none"
+                                }}
+                                >
+
+                                    {msg.isOrder && msg.orderData && (
+                                        <div
+                                            style={{
+                                                marginBottom: 8,
+                                                display: "flex",
+                                                gap: 10
+                                            }}
+                                        >
+                                            {msg.orderData?.image && (
+                                                <img
+                                                    src={msg.orderData.image}
+                                                    className="protected-photo"
+                                                    style={{
+                                                    width: 45,
+                                                    height: 45,
+                                                    borderRadius: 8,
+                                                    objectFit: "cover" 
+                                                }} />
+                                            )}
+
+                                            <div
+                                                style={{
+                                                fontSize: 12
+                                                }}
+                                            >
+                                                <div
+                                                    style={{
+                                                        fontWeight: "bold"
+                                                    }}
+                                                >
+                                                Order Request
+                                                </div>
+
+                                                <div>
+                                                    {msg.orderData.quantity}x{" "}
+                                                    {msg.orderData.name}
+                                                </div>
+                                            </div>
                                         </div>
+                                    )}
+
+                                    <div
+                                        style={{
+                                        fontSize: 14,
+                                        lineHeight: 1.4
+                                        }}
+                                    >
+                                        {msg.text}
                                     </div>
-                                )}
-                                <div style={{ fontSize: '14px', lineHeight: '1.4' }}>{msg.text}</div>
-                            </div>
-                        ))}
+                                    <div
+                                        style={{
+                                            fontSize: 10,
+                                            opacity: 0.5,
+                                            marginTop: 4
+                                        }}
+                                    >
+                                        {msg.timestamp?.toDate?.()
+                                            ?.toLocaleTimeString([], {
+                                                hour: "2-digit",
+                                                minute: "2-digit"
+                                            })}
+                                    </div>
+                                </div>
+
+                            );
+                        })}
                     </div>
 
                     {showCatalog && (
@@ -389,13 +535,32 @@ const CustomerChat = ({ pendingOrder: propOrder, quantity: propQuantity }: Custo
                 )}
 
                 <form onSubmit={handleSend} style={inputContainerStyle}>
-                    <input 
+
+                    {chatId && (
+                        <SendPhoto
+                            chatId={chatId}
+                            sender="customer"
+                            brandName={brandData?.name || "Malvin"}
+                        />
+                    )}
+
+                    <input
                         value={message}
-                        onChange={(e) => setMessage(e.target.value)}
+                        onChange={(e) =>
+                        setMessage(e.target.value)
+                        }
                         placeholder="Ask us anything..."
                         style={inputStyle}
                     />
-                    <button type="submit" style={sendBtnStyle}>→</button>
+
+                    <button
+                        type="submit"
+                        disabled={uploading}
+                        style={sendBtnStyle}
+                    >
+                        →
+                    </button>
+
                 </form>
             </div>
         </>

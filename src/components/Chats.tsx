@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { collection, query, where, onSnapshot, orderBy, addDoc, serverTimestamp, doc, setDoc, updateDoc, getDocs } from "firebase/firestore";
 import { firestore, auth } from "../firebase";
 import { increment, collectionGroup } from "firebase/firestore";
+import SendPhoto from "./SendPhoto";
 
 const ChatCard = ({ children, style }: any) => (
     <div style={{
@@ -240,6 +241,7 @@ const Chats = ({ brandId, userBrand }: any) => {
         } catch (e) {
             console.error("Error sending:", e);
         }
+        setInputValue('');
     };
     const launchConfetti = () => {
         const particles = Array.from({ length: 25 }, (_, i) => ({
@@ -445,6 +447,9 @@ const Chats = ({ brandId, userBrand }: any) => {
             unsubscribers.forEach(u => u());
         };
     }, [chats]);
+    useEffect(() => {
+        document.querySelector("input")?.focus();
+    }, [selectedChatId]);
 
     
 
@@ -701,7 +706,6 @@ const Chats = ({ brandId, userBrand }: any) => {
                                                 justifyContent:"center",
                                                 minWidth:"18px",
                                                 height:"18px",
-                                                marginLeft: "4px",
                                                 background: "#22c55e",
                                                 borderRadius: "999px",
                                                 padding: "2px 6px",
@@ -1297,7 +1301,52 @@ const Chats = ({ brandId, userBrand }: any) => {
                                                 wordBreak: 'break-word',
                                                 boxSizing: 'border-box'
                                             }}>
-                                                {msg.text}
+                                                <>
+                                                    {msg.type === "photo" ? (
+                                                        <>
+                                                            <img
+                                                                src={msg.imageUrl}
+                                                                alt=""
+                                                                style={{
+                                                                    width: "260px",
+                                                                    borderRadius: "12px",
+                                                                    display: "block"
+                                                                }}
+                                                            />
+                                                                <button
+                                                                    onClick={async () => {
+                                                                        await updateDoc(
+                                                                            doc(
+                                                                                firestore,
+                                                                                "conversations",
+                                                                                selectedChatId!,
+                                                                                "messages",
+                                                                                msg.id
+                                                                            ),
+                                                                            {
+                                                                                locked: false
+                                                                            }
+                                                                        );
+                                                                    }}
+                                                                >
+                                                                    Unlock Download
+                                                                </button>
+                                                            
+
+                                                            <div
+                                                                style={{
+                                                                    marginTop: "6px",
+                                                                    fontSize: "11px",
+                                                                    opacity: 0.7
+                                                                }}
+                                                            >
+                                                                {msg.locked ? "🔒 Locked" : "🔓 Unlocked"}
+                                                            </div>
+                                                        </>
+                                                    ) : (
+                                                        msg.text
+                                                    )}
+                                                </>
                                             </div>
                                         );
                                     })}
@@ -1325,7 +1374,14 @@ const Chats = ({ brandId, userBrand }: any) => {
                                         <input 
                                             value={inputValue} 
                                             onChange={(e) => setInputValue(e.target.value)}
-                                            onKeyDown={(e) => e.key === 'Enter' && handleManagerSend(inputValue)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    e.preventDefault();
+                                                    if (inputValue.trim()) {
+                                                        handleManagerSend(inputValue);
+                                                    }
+                                                }
+                                            }}
                                             placeholder="Message..."
                                             style={{ 
                                                 flex: 1, 
@@ -1348,12 +1404,23 @@ const Chats = ({ brandId, userBrand }: any) => {
                                                 fontSize: '14px',
                                                 border: 'none', 
                                                 cursor: inputValue.trim() ? 'pointer' : 'default',
-                                                transition: 'color 0.2s ease'
+                                                transition: 'color 0.2s ease',
+                                                opacity: inputValue.trim() ? 1 : 0.4,
+                                                pointerEvents: inputValue.trim() ? "auto" : "none",
                                             }}
                                         >
                                             Send
                                         </button>
                                     </div>
+                                    {selectedChatId && (
+                                        <div style={{ marginLeft: 8 }}>
+                                            <SendPhoto
+                                                chatId={selectedChatId}
+                                                sender="brand"
+                                                brandName={userBrand?.name || "Malvin"}
+                                            />
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         ) : (

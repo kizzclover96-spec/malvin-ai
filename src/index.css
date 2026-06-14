@@ -56,6 +56,10 @@ button:hover {
   border-color: #646cff;
 }
 
+.protected-photo {
+    -webkit-user-drag: none;
+    user-select: none;
+}
 button:focus,
 button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
