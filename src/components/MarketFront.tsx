@@ -457,21 +457,31 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
 
                                 <div style={divider} />
 
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                                    <h3 style={{ ...sectionSubHeading, margin: 0 }}>REVIEWS & COMMENTS ({reviewCount})</h3>
-                                    <button onClick={() => setShowComments(!showComments)} style={{ background: "transparent", border: "none", color: "#C5FF41", cursor: "pointer", fontWeight: 600, marginBottom: "16px"}}>
-                                        {showComments
-                                            ? "Hide Comments"
-                                            : `Read All Comments (${reviews.length})`}
-                                    </button>
-                                    {!showReviewForm && (
-                                        <button 
-                                            style={toggleReviewBtnStyle} 
-                                            onClick={() => setShowReviewForm(true)}
-                                        >
-                                            ✍️ LEAVE A REVIEW
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px",  gap: "10px", flexWrap: "wrap", }}>
+                                    {/* LEFT: Title + count */}
+                                    <div style={{ display: "flex", flexDirection: "column" }}>
+                                      <h3 style={{  margin: 0,  fontSize: "12px",  letterSpacing: "1.5px", color: "#888", fontWeight: 700, }}  > REVIEWS & COMMENTS </h3>
+
+                                      <span style={{ fontSize: "11px",  color: "#C5FF41", marginTop: "4px", fontWeight: 600, }}  > {reviewCount} {reviewCount === 1 ? "review" : "reviews"}</span>
+                                    </div>
+
+                                    {/* RIGHT: Actions */}
+                                    <div style={{ display: "flex", gap: "8px",  alignItems: "center", }} >
+                                        {/* Toggle comments */}
+                                        <button
+                                            onClick={() => setShowComments(!showComments)}
+                                            style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)",  color: "#aaa",  padding: "8px 10px", borderRadius: "10px", fontSize: "11px", cursor: "pointer", transition: "0.2s ease", }} >
+                                            {showComments ? "Hide" : "View"}
                                         </button>
-                                    )}
+
+                                        {/* Leave review CTA */}
+                                        {!showReviewForm && (
+                                        <button
+                                            onClick={() => setShowReviewForm(true)}
+                                            style={{ background: "linear-gradient(135deg, #C5FF41, #9BEA2E)",  border: "none", color: "#000", padding: "8px 12px", borderRadius: "10px", fontSize: "11px", fontWeight: 800, cursor: "pointer", boxShadow: "0 6px 18px rgba(197, 255, 65, 0.25)", }}  > ✍️ Review
+                                        </button>
+                                        )}
+                                    </div>
                                 </div>
                                 
                                 {showReviewForm && (
