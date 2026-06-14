@@ -1004,8 +1004,8 @@ const Chats = ({ brandId, userBrand }: any) => {
                                             key={particle.id}
                                             
                                             style={{
-                                                "--x": `${particle.x}px`,
-                                                "--y": `${particle.y}px`,
+                                                ["--x" as any]: `${particle.x}px`,
+                                                ["--y" as any]: `${particle.y}px`,
                                                 position:'absolute',
                                                 right:'100px',
                                                 top:'60px',
@@ -1021,7 +1021,7 @@ const Chats = ({ brandId, userBrand }: any) => {
                                                 borderRadius:'50%',
                                                 pointerEvents:'none',
                                                 animation:'confettiFly 1.5s ease-out forwards'
-                                            } as React.CSSProperties}
+                                            }}
                                         />
                                     ))}
 
@@ -1287,7 +1287,7 @@ const Chats = ({ brandId, userBrand }: any) => {
                                     }}
                                 >
                                     {activeMessages.map((msg) => {
-                                        const isManager = msg.sender === 'manager';
+                                        const isManager = msg.sender === 'brand';
                                         return (
                                             <div key={msg.id} style={{ 
                                                 alignSelf: isManager ? 'flex-end' : 'flex-start', 
