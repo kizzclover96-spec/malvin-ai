@@ -1171,6 +1171,7 @@ const Chats = ({ brandId, userBrand }: any) => {
                                 </div>
 
                                 {/* MESSAGE FEED (FIXED LEFT/RIGHT ALIGNMENT) */}
+                                {/* MESSAGE AREA */}
                                 <div
                                     id="message-feed"
                                     style={{
@@ -1179,77 +1180,75 @@ const Chats = ({ brandId, userBrand }: any) => {
                                         overflowY: 'auto',
                                         display: 'flex',
                                         flexDirection: 'column',
-                                        gap: '12px',
-                                        backgroundColor: '#000000',
-                                        boxSizing: 'border-box'
+                                        gap: '10px',
+                                        backgroundColor: '#000'
                                     }}
                                 >
                                     {activeMessages.map((msg) => {
-                                        const isManager = msg.sender === 'brand';
+                                        const isBrand = msg.sender === 'brand';
 
                                         return (
                                             <div
                                                 key={msg.id}
                                                 style={{
-                                                    alignSelf: isManager ? 'flex-end' : 'flex-start',
-                                                    background: isManager ? '#007aff' : '#262626',
-                                                    color: '#fff',
-                                                    padding: '10px 14px',
-                                                    borderRadius: '18px',
-                                                    maxWidth: '60%',
-                                                    fontSize: '14px',
-                                                    lineHeight: '1.4',
-                                                    wordBreak: 'break-word'
+                                                    display: 'flex',
+                                                    flexDirection: 'column',
+                                                    alignItems: isBrand ? 'flex-end' : 'flex-start',
+                                                    width: '100%'
                                                 }}
                                             >
-                                                {msg.type === "photo" ? (
-                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
 
-                                                        <img
-                                                            src={msg.imageUrl}
-                                                            alt=""
-                                                            style={{
-                                                                width: "100%",
-                                                                maxWidth: "260px",
-                                                                borderRadius: "12px",
-                                                                display: "block"
-                                                            }}
-                                                        />
+                                                {/* BUBBLE */}
+                                                <div
+                                                    style={{
+                                                        background: isBrand ? '#007aff' : '#262626',
+                                                        color: '#fff',
+                                                        padding: '10px 14px',
+                                                        borderRadius: 18,
+                                                        maxWidth: '65%',
+                                                        fontSize: 14,
+                                                        lineHeight: 1.4,
+                                                        wordBreak: 'break-word'
+                                                    }}
+                                                >
+                                                    {msg.type === "photo" ? (
+                                                        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
 
-                                                        <button
-                                                            onClick={async () => {
-                                                                await updateDoc(
-                                                                    doc(
-                                                                        firestore,
-                                                                        "conversations",
-                                                                        selectedChatId!,
-                                                                        "messages",
-                                                                        msg.id
-                                                                    ),
-                                                                    { locked: false }
-                                                                );
-                                                            }}
-                                                            style={{
-                                                                marginTop: '6px',
-                                                                background: 'rgba(255,255,255,0.1)',
-                                                                border: '1px solid rgba(255,255,255,0.2)',
-                                                                color: '#fff',
-                                                                padding: '6px 10px',
-                                                                borderRadius: '8px',
-                                                                cursor: 'pointer',
-                                                                fontSize: '12px'
-                                                            }}
-                                                        >
-                                                            Unlock Download
-                                                        </button>
+                                                            <img
+                                                                src={msg.imageUrl}
+                                                                style={{
+                                                                    width: 240,
+                                                                    borderRadius: 12,
+                                                                    display: "block"
+                                                                }}
+                                                            />
 
-                                                        <div style={{ fontSize: "11px", opacity: 0.7 }}>
-                                                            {msg.locked ? "🔒 Locked" : "🔓 Unlocked"}
+                                                            <div style={{ fontSize: 13 }}>
+                                                                {msg.text}
+                                                            </div>
+
                                                         </div>
-                                                    </div>
-                                                ) : (
-                                                    msg.text
-                                                )}
+                                                    ) : (
+                                                        msg.text
+                                                    )}
+                                                </div>
+
+                                                {/* TIMESTAMP (FIXED LIKE CUSTOMERCHAT) */}
+                                                <div
+                                                    style={{
+                                                        fontSize: 10,
+                                                        color: "#666",
+                                                        marginTop: 4,
+                                                        paddingLeft: isBrand ? 0 : 4,
+                                                        paddingRight: isBrand ? 4 : 0
+                                                    }}
+                                                >
+                                                    {msg.timestamp?.toDate?.()?.toLocaleTimeString([], {
+                                                        hour: "2-digit",
+                                                        minute: "2-digit"
+                                                    })}
+                                                </div>
+
                                             </div>
                                         );
                                     })}
