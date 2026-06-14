@@ -168,15 +168,22 @@ const Chats = ({ brandId, userBrand }: any) => {
     }, [selectedChatId]);
 
     // 4. Dynamic Real-time Listener for the Gold Admin Notification Badge
+    // 4. Dynamic Real-time Listener for the Gold Admin Notification Badge
     useEffect(() => {
+        // Crucial check: Stop the code if the user is not authenticated yet
+        if (!auth.currentUser) return;
+
         const docRef = doc(firestore, "admin_support", adminChatRoomId);
         const unsubscribe = onSnapshot(docRef, (docSnap) => {
             if (docSnap.exists()) {
                 setHasNewInternalMsg(docSnap.data().unread === true);
             }
+        }, (error) => {
+            console.warn("Admin badge listener error safely caught:", error.message);
         });
+        
         return () => unsubscribe();
-    }, []);
+    }, [auth.currentUser]); // Listen specifically to auth state changes!
 
     // Sync button layout state based on if current chat row is blue
     useEffect(() => {
@@ -417,36 +424,26 @@ const Chats = ({ brandId, userBrand }: any) => {
             messageContainer.scrollTop = messageContainer.scrollHeight;
         }
     }, [activeMessages]);
+    // Optimized Shipment Listener for the active chat
     useEffect(() => {
-        const unsubscribers:any[] = [];
+        if (!selectedChatId) return;
 
-        chats.forEach(chat => {
-            const q = collectionGroup(firestore, "shipments");
-
-            const unsub = onSnapshot(q, snap => {
-                const shipments = snap.docs.map(doc => ({
-                    id: doc.id,
-                    chatId: chat.id,
-                    ...doc.data()
-                }));
-
-                setActiveShipments(prev => {
-                    const filtered =
-                        prev.filter(
-                            s => s.chatId !== chat.id
-                        );
-
-                    return [...filtered, ...shipments];
-                });
-            });
-
-            unsubscribers.push(unsub);
+        // Target ONLY the subcollection for the active chat room
+        const shipmentsRef = collection(firestore, "conversations", selectedChatId, "shipments");
+        
+        const unsubscribe = onSnapshot(shipmentsRef, (snap) => {
+            const shipments = snap.docs.map(doc => ({
+                id: doc.id,
+                chatId: selectedChatId,
+                ...doc.data()
+            }));
+            setActiveShipments(shipments);
+        }, (error) => {
+            console.warn("Shipments listener error handled:", error.message);
         });
 
-        return () => {
-            unsubscribers.forEach(u => u());
-        };
-    }, [chats]);
+        return () => unsubscribe();
+    }, [selectedChatId]); // Only re-runs when the active conversation changes
     useEffect(() => {
         document.querySelector("input")?.focus();
     }, [selectedChatId]);
