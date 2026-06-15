@@ -411,6 +411,13 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
                         required
                     />
 
+                    {/* 🌟 INSTANT DETECTION WARNING */}
+                    {selectedDate && unavailableDates.includes(selectedDate) && (
+                        <div style={{ color: '#ff4444', fontSize: '12px', marginTop: '-10px', marginBottom: '15px', fontWeight: 600 }}>
+                            🚫 This date is unavailable. Please choose another.
+                        </div>
+                    )}
+
                     {/* Time Selection Input */}
                     <input 
                         type="time" 

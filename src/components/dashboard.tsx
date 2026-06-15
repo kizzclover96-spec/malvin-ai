@@ -255,6 +255,9 @@ const Dashboard = (props: any) => {
     const [maxBookingsPerDay, setMaxBookingsPerDay] = useState<number>(0); // 0 means unlimited
     const [unavailableDates, setUnavailableDates] = useState<string[]>([]);
     const [bookings, setBookings] = useState<any[]>([]);
+    const [showSettings, setShowSettings] = useState(false);
+    const [newBlackoutDate, setNewBlackoutDate] = useState("");
+    const [localMaxCapacity, setLocalMaxCapacity] = useState(maxBookingsPerDay);
 
     const categorizeBookings = (bookingsList: any[]) => {
         const categories: { [key: string]: any[] } = {
@@ -555,6 +558,10 @@ const Dashboard = (props: any) => {
             off(bookingsRef);
         };
     }, [userBrand?.id]);
+    // 2. Add the sync hook right below it
+    useEffect(() => {
+        setLocalMaxCapacity(maxBookingsPerDay);
+    }, [maxBookingsPerDay]);
 
     // Save manually edited Bio changes to Firebase Realtime DB
     const saveBio = async () => {
@@ -1286,57 +1293,191 @@ const Dashboard = (props: any) => {
                         />
                     )}
                     {showCalendar && (
-                        <div style={modalOverlayStyle} onClick={() => setShowCalendar(false)}>
-                            <div style={{ ...calendarCardStyle, maxWidth: '400px' }} onClick={e => e.stopPropagation()}>
-                                <h3 style={{ color: '#C5FF41', margin: '0 0 10px 0' }}>SESSION LOG</h3>
-                                <p style={{ fontSize: '11px', color: '#666', marginBottom: '20px' }}>CLIENT RESERVATIONS RECORDED VIA MARKETFRONT</p>
+                        <div style={modalOverlayStyle} onClick={() => { setShowCalendar(false); setShowSettings(false); }}>
+                            <div style={{ ...calendarCardStyle, maxWidth: '400px', position: 'relative' }} onClick={e => e.stopPropagation()}>
                                 
-                                {/* Display Blackout Rules Summary */}
-                                {(maxBookingsPerDay > 0 || unavailableDates.length > 0) && (
-                                    <div style={{ background: '#111', padding: '10px', borderRadius: '8px', marginBottom: '15px', fontSize: '11px', color: '#aaa' }}>
-                                        {maxBookingsPerDay > 0 && <div>⚠️ Max capacity rule: {maxBookingsPerDay} daily total.</div>}
-                                        {unavailableDates.length > 0 && <div>🚫 Blackout dates are configured active.</div>}
-                                    </div>
-                                )}
-
-                                <div style={{ maxHeight: '350px', overflowY: 'auto', textAlign: 'left', marginBottom: '20px', paddingRight: '5px' }}>
-                                    {bookings.length === 0 ? (
-                                        <div style={{ color: '#333', textAlign: 'center', padding: '20px' }}>NO_DATA_FOUND</div>
-                                    ) : (
-                                        Object.entries(categorizeBookings(bookings)).map(([categoryName, categoryItems]) => {
-                                            // Skip rendering empty categories
-                                            if (categoryItems.length === 0) return null;
-
-                                            return (
-                                                <div key={categoryName} style={{ marginBottom: '15px' }}>
-                                                    <div style={{ fontSize: '11px', color: '#444', fontWeight: 800, letterSpacing: '1px', marginBottom: '6px', borderBottom: '1px solid #1a1a1a', paddingBottom: '2px' }}>
-                                                        {categoryName}
-                                                    </div>
-                                                    {categoryItems.map((item, idx) => (
-                                                        <div key={item.id || idx} style={{ ...dateRowStyle, display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '4px 0', padding: '8px 4px' }}>
-                                                            <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                                                <span style={{ color: '#fff', fontWeight: 600, fontSize: '13px' }}>
-                                                                    {item.clientName || "Private Session"}
-                                                                </span>
-                                                                <span style={{ fontSize: '11px', color: '#666' }}>
-                                                                    {item.date}
-                                                                </span>
-                                                            </div>
-                                                            <div style={{ textAlign: 'right' }}>
-                                                                <span style={{ color: '#C5FF41', fontWeight: 700, fontSize: '13px', display: 'block' }}>
-                                                                    ⏰ {item.time || "No Time Set"}
-                                                                </span>
-                                                                <span style={{ fontSize: '9px', color: '#444', letterSpacing: '0.5px' }}>CONFIRMED</span>
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            );
-                                        })
-                                    )}
+                                {/* HEADER ROW WITH INTEGRATED SETTINGS TOGGLE */}
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                                    <h3 style={{ color: '#C5FF41', margin: 0 }}>
+                                        {showSettings ? "BOOKING CONFIG" : "SESSION LOG"}
+                                    </h3>
+                                    
+                                    {/* ⚙️ Gear Icon Toggle Button */}
+                                    <button 
+                                        onClick={() => setShowSettings(!showSettings)}
+                                        style={{
+                                            background: 'none',
+                                            border: 'none',
+                                            color: showSettings ? '#C5FF41' : '#666',
+                                            fontSize: '18px',
+                                            cursor: 'pointer',
+                                            padding: '4px',
+                                            transition: 'color 0.2s'
+                                        }}
+                                        title="Configure Limits & Blackout Days"
+                                    >
+                                        {showSettings ? "📋 Log View" : "⚙️ Settings"}
+                                    </button>
                                 </div>
 
-                                <button style={{ ...secondaryBtnStyle, width: '100%', padding: '15px' }} onClick={() => setShowCalendar(false)}>
+                                <p style={{ fontSize: '11px', color: '#666', marginBottom: '20px' }}>
+                                    {showSettings ? "MANAGE CLIENT RESERVATION SYSTEM RESTRICTIONS" : "CLIENT RESERVATIONS RECORDED VIA MARKETFRONT"}
+                                </p>
+
+                                {/* --- PANEL VIEW A: MANAGEMENT CONTROLS --- */}
+                                {showSettings ? (
+                                    <div style={{ minHeight: '350px', display: 'flex', flexDirection: 'column', gap: '16px', textAlign: 'left' }}>
+                                        
+                                        {/* Max Capacity Configuration Section */}
+                                        <div>
+                                            <label style={{ fontSize: '11px', color: '#aaa', fontWeight: 700, display: 'block', marginBottom: '6px' }}>
+                                                MAX DAILY SLOTS (0 for Unlimited)
+                                            </label>
+                                            <div style={{ display: 'flex', gap: '8px' }}>
+                                                <input 
+                                                    type="number"
+                                                    min="0"
+                                                    value={localMaxCapacity}
+                                                    onChange={(e) => setLocalMaxCapacity(parseInt(e.target.value) || 0)}
+                                                    style={{ flex: 1, padding: '10px', background: '#111', border: '1px solid #333', borderRadius: '6px', color: '#fff' }}
+                                                />
+                                                <button 
+                                                    onClick={async () => {
+                                                        if (!userBrand?.id) return;
+                                                        try {
+                                                            await set(dbRef(db, `users/${userBrand.id}/profile/maxBookingsPerDay`), localMaxCapacity);
+                                                            alert("Daily reservation limit updated successfully!");
+                                                        } catch (err) {
+                                                            console.error(err);
+                                                            alert("Failed to save capacity limit.");
+                                                        }
+                                                    }}
+                                                    style={{ padding: '0 15px', background: '#C5FF41', border: 'none', borderRadius: '6px', fontWeight: 700, cursor: 'pointer' }}
+                                                >
+                                                    SAVE
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {/* Blackout Dates Addition Form */}
+                                        <div style={{ borderTop: '1px solid #1a1a1a', paddingTop: '15px' }}>
+                                            <label style={{ fontSize: '11px', color: '#aaa', fontWeight: 700, display: 'block', marginBottom: '6px' }}>
+                                                ADD BLACKOUT / UNAVAILABLE DATE
+                                            </label>
+                                            <div style={{ display: 'flex', gap: '8px' }}>
+                                                <input 
+                                                    type="date"
+                                                    value={newBlackoutDate}
+                                                    onChange={(e) => setNewBlackoutDate(e.target.value)}
+                                                    style={{ flex: 1, padding: '10px', background: '#111', border: '1px solid #333', borderRadius: '6px', color: '#fff' }}
+                                                />
+                                                <button 
+                                                    onClick={async () => {
+                                                        if (!newBlackoutDate || !userBrand?.id) return;
+                                                        if (unavailableDates.includes(newBlackoutDate)) {
+                                                            alert("This date is already blocked.");
+                                                            return;
+                                                        }
+                                                        const updatedDates = [...unavailableDates, newBlackoutDate];
+                                                        try {
+                                                            await set(dbRef(db, `users/${userBrand.id}/profile/unavailableDates`), updatedDates);
+                                                            setNewBlackoutDate("");
+                                                        } catch (err) {
+                                                            console.error(err);
+                                                        }
+                                                    }}
+                                                    style={{ padding: '0 15px', background: '#fff', border: 'none', borderRadius: '6px', fontWeight: 700, cursor: 'pointer' }}
+                                                >
+                                                    BLOCK
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {/* Active Blocked Dates List */}
+                                        <div style={{ flex: 1 }}>
+                                            <label style={{ fontSize: '11px', color: '#444', fontWeight: 800, display: 'block', marginBottom: '6px', letterSpacing: '0.5px' }}>
+                                                CURRENT UNAVAILABLE DATES ({unavailableDates.length})
+                                            </label>
+                                            <div style={{ maxHeight: '140px', overflowY: 'auto', background: '#080808', borderRadius: '6px', padding: '4px' }}>
+                                                {unavailableDates.length === 0 ? (
+                                                    <div style={{ fontSize: '11px', color: '#333', padding: '10px', textAlign: 'center' }}>NO_BLACKOUT_DATES_SET</div>
+                                                ) : (
+                                                    [...unavailableDates].sort().map((date) => (
+                                                        <div key={date} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 8px', borderBottom: '1px solid #111' }}>
+                                                            <span style={{ color: '#fff', fontSize: '12px', fontFamily: 'monospace' }}>🚫 {date}</span>
+                                                            <button 
+                                                                onClick={async () => {
+                                                                    if (!userBrand?.id) return;
+                                                                    const updatedDates = unavailableDates.filter(d => d !== date);
+                                                                    try {
+                                                                        await set(dbRef(db, `users/${userBrand.id}/profile/unavailableDates`), updatedDates);
+                                                                    } catch (err) {
+                                                                        console.error(err);
+                                                                    }
+                                                                }}
+                                                                style={{ background: 'none', border: 'none', color: '#ff4444', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold' }}
+                                                            >
+                                                                REMOVE
+                                                            </button>
+                                                        </div>
+                                                    ))
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    /* --- PANEL VIEW B: STANDARD LOG TIMELINE (YOUR ORIGINAL CODE) --- */
+                                    <>
+                                        {/* Display Blackout Rules Summary */}
+                                        {(maxBookingsPerDay > 0 || unavailableDates.length > 0) && (
+                                            <div style={{ background: '#111', padding: '10px', borderRadius: '8px', marginBottom: '15px', fontSize: '11px', color: '#aaa', textAlign: 'left' }}>
+                                                {maxBookingsPerDay > 0 && <div>⚠️ Max capacity rule: {maxBookingsPerDay} daily total.</div>}
+                                                {unavailableDates.length > 0 && <div>🚫 {unavailableDates.length} Blackout dates configured active.</div>}
+                                            </div>
+                                        )}
+
+                                        <div style={{ maxHeight: '350px', overflowY: 'auto', textAlign: 'left', marginBottom: '20px', paddingRight: '5px' }}>
+                                            {bookings.length === 0 ? (
+                                                <div style={{ color: '#333', textAlign: 'center', padding: '20px' }}>NO_DATA_FOUND</div>
+                                            ) : (
+                                                Object.entries(categorizeBookings(bookings)).map(([categoryName, categoryItems]) => {
+                                                    if (categoryItems.length === 0) return null;
+                                                    return (
+                                                        <div key={categoryName} style={{ marginBottom: '15px' }}>
+                                                            <div style={{ fontSize: '11px', color: '#444', fontWeight: 800, letterSpacing: '1px', marginBottom: '6px', borderBottom: '1px solid #1a1a1a', paddingBottom: '2px' }}>
+                                                                {categoryName}
+                                                    </div>
+                                                            {categoryItems.map((item, idx) => (
+                                                                <div key={item.id || idx} style={{ ...dateRowStyle, display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '4px 0', padding: '8px 4px' }}>
+                                                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                                        <span style={{ color: '#fff', fontWeight: 600, fontSize: '13px' }}>
+                                                                            {item.clientName || "Private Session"}
+                                                                        </span>
+                                                                        <span style={{ fontSize: '11px', color: '#666' }}>
+                                                                            {item.date}
+                                                                        </span>
+                                                                    </div>
+                                                                    <div style={{ textAlign: 'right' }}>
+                                                                        <span style={{ color: '#C5FF41', fontWeight: 700, fontSize: '13px', display: 'block' }}>
+                                                                            ⏰ {item.time || "No Time Set"}
+                                                                        </span>
+                                                                        <span style={{ fontSize: '9px', color: '#444', letterSpacing: '0.5px' }}>CONFIRMED</span>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    );
+                                                })
+                                            )}
+                                        </div>
+                                    </>
+                                )}
+
+                                {/* LOWER INTERACTION ACTION ACTION BUTTON */}
+                                <button 
+                                    style={{ ...secondaryBtnStyle, width: '100%', padding: '15px', marginTop: '5px' }} 
+                                    onClick={() => { setShowCalendar(false); setShowSettings(false); }}
+                                >
                                     CLOSE_LOG
                                 </button>
                             </div>
