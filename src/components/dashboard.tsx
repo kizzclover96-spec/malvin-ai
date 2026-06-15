@@ -251,6 +251,59 @@ const Dashboard = (props: any) => {
     //order
     const [totalSales, setTotalSales] = useState(0);
 
+    //reservation
+    const [maxBookingsPerDay, setMaxBookingsPerDay] = useState<number>(0); // 0 means unlimited
+    const [unavailableDates, setUnavailableDates] = useState<string[]>([]);
+    const [bookings, setBookings] = useState<any[]>([]);
+
+    const categorizeBookings = (bookingsList: any[]) => {
+        const categories: { [key: string]: any[] } = {
+            "TODAY": [],
+            "TOMORROW": [],
+            "THIS WEEK": [],
+            "UPCOMING": [],
+            "PAST": []
+        };
+
+        // Helper to get pure date strings (YYYY-MM-DD) for baseline comparison
+        const getLocalDateString = (d: Date) => d.toISOString().split('T')[0];
+
+        const now = new Date();
+        const todayStr = getLocalDateString(now);
+        
+        const tomorrow = new Date();
+        tomorrow.setDate(now.getDate() + 1);
+        const tomorrowStr = getLocalDateString(tomorrow);
+
+        // Get end of current week (e.g., 7 days out)
+        const endOfWeek = new Date();
+        endOfWeek.setDate(now.getDate() + 7);
+
+        // Sort bookings by date and time chronological first
+        const sorted = [...bookingsList].sort((a, b) => {
+            return new Date(`${a.date}T${a.time || "00:00"}`).getTime() - new Date(`${b.date}T${b.time || "00:00"}`).getTime();
+        });
+
+        sorted.forEach(booking => {
+            const bookingDate = new Date(`${booking.date}T00:00:00`);
+            const bookingDateStr = booking.date; // assumes stored as 'YYYY-MM-DD'
+
+            if (bookingDateStr === todayStr) {
+                categories["TODAY"].push(booking);
+            } else if (bookingDateStr === tomorrowStr) {
+                categories["TOMORROW"].push(booking);
+            } else if (bookingDate > now && bookingDate <= endOfWeek) {
+                categories["THIS WEEK"].push(booking);
+            } else if (bookingDate > endOfWeek) {
+                categories["UPCOMING"].push(booking);
+            } else {
+                categories["PAST"].push(booking);
+            }
+        });
+
+        return categories;
+    };
+
 
     const TourOverlay = ({ step, onNext, onClose }: any) => {
         const target = document.querySelector(`[data-tour="${step.target}"]`);
@@ -470,23 +523,30 @@ const Dashboard = (props: any) => {
         const profileRef = dbRef(db, `users/${userBrand.id}/profile`);
         const bookingsRef = dbRef(db, `users/${userBrand.id}/bookings`);
 
+        // Listen to profile limits and configurations
         onValue(profileRef, (snapshot) => {
             const data = snapshot.val();
-
             if (data) {
                 setBio(data.bio || "");
                 setIsVerified(data.isVerified || false);
+                // 🌟 NEW CONFIG VALUES
+                setMaxBookingsPerDay(data.maxBookingsPerDay || 0);
+                setUnavailableDates(data.unavailableDates || []);
             }
         });
 
+        // Listen to full booking details
         onValue(bookingsRef, (snapshot) => {
             const data = snapshot.val();
-
             if (data) {
-                const dates = Object.values(data).map((b: any) => b.date);
-                setBookedDates(dates);
+                // Convert Firebase object map to array with IDs
+                const loadedBookings = Object.entries(data).map(([id, val]: [string, any]) => ({
+                    id,
+                    ...val
+                }));
+                setBookings(loadedBookings);
             } else {
-                setBookedDates([]);
+                setBookings([]);
             }
         });
 
@@ -1035,14 +1095,19 @@ const Dashboard = (props: any) => {
                                                 >
                                                     <div>
                                                         <span style={{ fontSize: '10px', color: '#666', fontWeight: 800, letterSpacing: '1px' }}>RESERVATIONS</span>
-                                                        <div style={{ fontSize: '32px', fontWeight: 700, color: bookedDates.length > 0 ? '#C5FF41' : '#fff' }}>
-                                                            {bookedDates.length}
+                                                        <div style={{ fontSize: '32px', fontWeight: 700, color: bookings.length > 0 ? '#C5FF41' : '#fff' }}>
+                                                            {bookings.length}
                                                         </div>
+                                                        {maxBookingsPerDay > 0 && (
+                                                            <div style={{ fontSize: '10px', color: '#888', marginTop: '-4px' }}>
+                                                                Limit: {maxBookingsPerDay}/day
+                                                            </div>
+                                                        )}
                                                     </div>
                                                     <div style={{ 
                                                         width: '12px', height: '12px', borderRadius: '50%', 
-                                                        backgroundColor: bookedDates.length > 0 ? '#C5FF41' : '#222',
-                                                        boxShadow: bookedDates.length > 0 ? '0 0 15px #C5FF41' : 'none',
+                                                        backgroundColor: bookings.length > 0 ? '#C5FF41' : '#222',
+                                                        boxShadow: bookings.length > 0 ? '0 0 15px #C5FF41' : 'none',
                                                         transition: '0.3s'
                                                     }} />
                                                 </div>
@@ -1222,21 +1287,52 @@ const Dashboard = (props: any) => {
                     )}
                     {showCalendar && (
                         <div style={modalOverlayStyle} onClick={() => setShowCalendar(false)}>
-                            <div style={calendarCardStyle} onClick={e => e.stopPropagation()}>
+                            <div style={{ ...calendarCardStyle, maxWidth: '400px' }} onClick={e => e.stopPropagation()}>
                                 <h3 style={{ color: '#C5FF41', margin: '0 0 10px 0' }}>SESSION LOG</h3>
                                 <p style={{ fontSize: '11px', color: '#666', marginBottom: '20px' }}>CLIENT RESERVATIONS RECORDED VIA MARKETFRONT</p>
                                 
-                                <div style={{ maxHeight: '300px', overflowY: 'auto', textAlign: 'left', marginBottom: '20px' }}>
-                                    {bookedDates.length === 0 ? (
+                                {/* Display Blackout Rules Summary */}
+                                {(maxBookingsPerDay > 0 || unavailableDates.length > 0) && (
+                                    <div style={{ background: '#111', padding: '10px', borderRadius: '8px', marginBottom: '15px', fontSize: '11px', color: '#aaa' }}>
+                                        {maxBookingsPerDay > 0 && <div>⚠️ Max capacity rule: {maxBookingsPerDay} daily total.</div>}
+                                        {unavailableDates.length > 0 && <div>🚫 Blackout dates are configured active.</div>}
+                                    </div>
+                                )}
+
+                                <div style={{ maxHeight: '350px', overflowY: 'auto', textAlign: 'left', marginBottom: '20px', paddingRight: '5px' }}>
+                                    {bookings.length === 0 ? (
                                         <div style={{ color: '#333', textAlign: 'center', padding: '20px' }}>NO_DATA_FOUND</div>
                                     ) : (
-                                        bookedDates.sort().map((date, idx) => (
-                                            <div key={idx} style={dateRowStyle}>
-                                                <span style={{ color: '#C5FF41' }}>[ SESSION ]</span>
-                                                <span style={{ color: '#fff', fontWeight: 600 }}>{date}</span>
-                                                <span style={{ fontSize: '10px', color: '#444' }}>CONFIRMED</span>
-                                            </div>
-                                        ))
+                                        Object.entries(categorizeBookings(bookings)).map(([categoryName, categoryItems]) => {
+                                            // Skip rendering empty categories
+                                            if (categoryItems.length === 0) return null;
+
+                                            return (
+                                                <div key={categoryName} style={{ marginBottom: '15px' }}>
+                                                    <div style={{ fontSize: '11px', color: '#444', fontWeight: 800, letterSpacing: '1px', marginBottom: '6px', borderBottom: '1px solid #1a1a1a', paddingBottom: '2px' }}>
+                                                        {categoryName}
+                                                    </div>
+                                                    {categoryItems.map((item, idx) => (
+                                                        <div key={item.id || idx} style={{ ...dateRowStyle, display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '4px 0', padding: '8px 4px' }}>
+                                                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                                <span style={{ color: '#fff', fontWeight: 600, fontSize: '13px' }}>
+                                                                    {item.clientName || "Private Session"}
+                                                                </span>
+                                                                <span style={{ fontSize: '11px', color: '#666' }}>
+                                                                    {item.date}
+                                                                </span>
+                                                            </div>
+                                                            <div style={{ textAlign: 'right' }}>
+                                                                <span style={{ color: '#C5FF41', fontWeight: 700, fontSize: '13px', display: 'block' }}>
+                                                                    ⏰ {item.time || "No Time Set"}
+                                                                </span>
+                                                                <span style={{ fontSize: '9px', color: '#444', letterSpacing: '0.5px' }}>CONFIRMED</span>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            );
+                                        })
                                     )}
                                 </div>
 
