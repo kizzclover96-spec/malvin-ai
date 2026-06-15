@@ -1235,31 +1235,46 @@ const Chats = ({ brandId, userBrand }: any) => {
                                                         wordBreak: "break-word",
                                                     }}
                                                     >
-                                                        {msg.type === "photo" && msg.locked ? (
+                                                        {msg.type === "photo" ? (
                                                             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                                                                 <img
                                                                     src={msg.imageUrl}
                                                                     style={{
-                                                                    width: 240,
-                                                                    borderRadius: 12,
+                                                                        width: 240,
+                                                                        borderRadius: 12,
                                                                     }}
                                                                 />
                                                                 <div style={{ fontSize: 13 }}>{msg.text}</div>
-                                                                <button
-                                                                    onClick={() => unlockPhoto(msg)}
-                                                                    style={{
-                                                                    marginTop: 8,
-                                                                    background: "#38d777",
-                                                                    border: "none",
-                                                                    padding: "6px 12px",
-                                                                    borderRadius: 8,
-                                                                    cursor: "pointer"
-                                                                    }}
-                                                                >
-                                                                    🔓 Unlock Photo
-                                                                </button>
+                                                                
+                                                                {/* Check if the photo is locked */}
+                                                                {msg.locked ? (
+                                                                    <button
+                                                                        onClick={() => unlockPhoto(msg)}
+                                                                        style={{
+                                                                            marginTop: 8,
+                                                                            background: "#38d777",
+                                                                            border: "none",
+                                                                            padding: "6px 12px",
+                                                                            borderRadius: 8,
+                                                                            cursor: "pointer",
+                                                                            color: "#fff",
+                                                                            fontWeight: "bold"
+                                                                        }}
+                                                                    >
+                                                                        🔓 Unlock Photo
+                                                                    </button>
+                                                                ) : (
+                                                                    /* What to show when the photo is successfully unlocked */
+                                                                    <div style={{ 
+                                                                        marginTop: 8, 
+                                                                        color: "#38d777", 
+                                                                        fontSize: 14, 
+                                                                        fontWeight: "600" 
+                                                                    }}>
+                                                                        ✅ Photo unlocked
+                                                                    </div>
+                                                                )}
                                                             </div>
-                                                            
                                                         ) : (
                                                             msg.text
                                                         )}

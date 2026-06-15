@@ -50,38 +50,44 @@ const PhotoMessage = ({ msg }: Props) => {
     ]);
 
     return (
-        <div
-        style={{
-            position: "relative",
-            maxWidth: 280
-        }}
-        >
-            <img
-                src={imageUrl}
+        <div>
+            {/* 1. Image and Overlay Container */}
+            <div
                 style={{
-                width: "100%",
-                borderRadius: 16
+                    position: "relative",
+                    maxWidth: 280
                 }}
-            />
-
-            {msg.locked && (
-                <div
+            >
+                <img
+                    src={imageUrl}
                     style={{
-                        position: "absolute",
-                        inset: 0,
-                        background: "rgba(0,0,0,.45)",
+                        width: "100%",
                         borderRadius: 16,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        color: "#fff",
-                        fontWeight: 600
+                        display: "block" // Prevents tiny layout gaps under the image
                     }}
-                    >
-                    🔒 Protected Preview
-                </div>
-            )}
+                />
 
+                {/* This disappears automatically when unlocked */}
+                {msg.locked && (
+                    <div
+                        style={{
+                            position: "absolute",
+                            inset: 0,
+                            background: "rgba(0,0,0,.45)",
+                            borderRadius: 16,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            color: "#fff",
+                            fontWeight: 600
+                        }}
+                    >
+                        🔒 Protected Preview
+                    </div>
+                )}
+            </div>
+
+            {/* 2. Download Button (Placed outside the relative div so it falls below) */}
             {!msg.locked && (
                 <a
                     href={imageUrl}
@@ -92,10 +98,12 @@ const PhotoMessage = ({ msg }: Props) => {
                         display: "inline-block",
                         marginTop: 8,
                         color: "#38d777",
-                        fontSize: 12
+                        fontSize: 14,
+                        fontWeight: "600",
+                        textDecoration: "none"
                     }}
-                    >
-                    ⬇ Download Original
+                >
+                    ⬇️ Download Original
                 </a>
             )}
         </div>
