@@ -11,43 +11,29 @@ interface Props {
 }
 
 const PhotoMessage = ({ msg }: Props) => {
-
-    const [imageUrl, setImageUrl] =
-    useState("");
+    const [imageUrl, setImageUrl] = useState("");
 
     useEffect(() => {
-
         const loadImage = async () => {
+            // Determine the target path based on status
+            const path = msg.locked ? msg.previewPath : msg.originalPath;
+
+            // 🌟 FIX: Safety Check! Prevent calling Firebase if path is empty/undefined
+            if (!path) {
+                console.warn("Skipping image fetch: Storage path is empty or undefined.");
+                return;
+            }
 
             try {
-
-                const path = msg.locked
-                    ? msg.previewPath
-                    : msg.originalPath;
-
-                const url =
-                await getDownloadURL(
-                    ref(storage, path)
-                );
-
+                const url = await getDownloadURL(ref(storage, path));
                 setImageUrl(url);
-
             } catch (err) {
-
-                console.error(
-                "Image load failed",
-                err
-                );
+                console.error("Image load failed", err);
             }
         };
 
         loadImage();
-
-    }, [
-        msg.previewPath,
-        msg.originalPath,
-        msg.locked
-    ]);
+    }, [msg.previewPath, msg.originalPath, msg.locked]);
 
     return (
         <div>
@@ -58,14 +44,18 @@ const PhotoMessage = ({ msg }: Props) => {
                     maxWidth: 280
                 }}
             >
-                <img
-                    src={imageUrl}
-                    style={{
-                        width: "100%",
-                        borderRadius: 16,
-                        display: "block" // Prevents tiny layout gaps under the image
-                    }}
-                />
+                {/* Only render the img element if we actually have a valid resolved URL */}
+                {imageUrl && (
+                    <img
+                        src={imageUrl}
+                        alt="Chat attachment"
+                        style={{
+                            width: "100%",
+                            borderRadius: 16,
+                            display: "block"
+                        }}
+                    />
+                )}
 
                 {/* This disappears automatically when unlocked */}
                 {msg.locked && (
@@ -87,8 +77,8 @@ const PhotoMessage = ({ msg }: Props) => {
                 )}
             </div>
 
-            {/* 2. Download Button (Placed outside the relative div so it falls below) */}
-            {!msg.locked && (
+            {/* 2. Download Button */}
+            {!msg.locked && imageUrl && (
                 <a
                     href={imageUrl}
                     download
