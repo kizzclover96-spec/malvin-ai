@@ -331,6 +331,24 @@ const Chats = ({ brandId, userBrand }: any) => {
             console.error("Error tracking new order inside firebase: ", err);
         }
     };
+    const unlockPhoto = async (msg: any) => {
+        try {
+            await updateDoc(
+            doc(
+                firestore,
+                "conversations",
+                selectedChatId!,
+                "messages",
+                msg.id
+            ),
+            {
+                locked: false
+            }
+            );
+        } catch (err) {
+            console.error(err);
+        }
+    };
     
     const handleSetShipment = async () => {
 
@@ -1217,17 +1235,31 @@ const Chats = ({ brandId, userBrand }: any) => {
                                                         wordBreak: "break-word",
                                                     }}
                                                     >
-                                                        {msg.type === "photo" ? (
+                                                        {msg.type === "photo" && msg.locked ? (
                                                             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                                                            <img
-                                                                src={msg.imageUrl}
-                                                                style={{
-                                                                width: 240,
-                                                                borderRadius: 12,
-                                                                }}
-                                                            />
-                                                            <div style={{ fontSize: 13 }}>{msg.text}</div>
+                                                                <img
+                                                                    src={msg.imageUrl}
+                                                                    style={{
+                                                                    width: 240,
+                                                                    borderRadius: 12,
+                                                                    }}
+                                                                />
+                                                                <div style={{ fontSize: 13 }}>{msg.text}</div>
+                                                                <button
+                                                                    onClick={() => unlockPhoto(msg)}
+                                                                    style={{
+                                                                    marginTop: 8,
+                                                                    background: "#38d777",
+                                                                    border: "none",
+                                                                    padding: "6px 12px",
+                                                                    borderRadius: 8,
+                                                                    cursor: "pointer"
+                                                                    }}
+                                                                >
+                                                                    🔓 Unlock Photo
+                                                                </button>
                                                             </div>
+                                                            
                                                         ) : (
                                                             msg.text
                                                         )}

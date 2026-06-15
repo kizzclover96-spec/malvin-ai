@@ -4,7 +4,8 @@ import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import {
   addDoc,
   collection,
-  serverTimestamp
+  serverTimestamp,
+  updateDoc
 } from "firebase/firestore";
 
 import { firestore, storage } from "../firebase";
@@ -20,6 +21,64 @@ const SendPhoto = ({ chatId, sender, brandName = "Malvin" }: SendPhotoProps) => 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [uploading, setUploading] = useState(false);
 
+    const generatePreview = (file: File): Promise<Blob> => {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+
+            img.onload = () => {
+                const canvas = document.createElement("canvas");
+                const ctx = canvas.getContext("2d");
+
+                if (!ctx) {
+                    reject("Canvas error");
+                    return;
+                }
+
+                canvas.width = img.width;
+                canvas.height = img.height;
+
+                // Draw blurred image
+                ctx.filter = "blur(8px)";
+                ctx.drawImage(img, 0, 0);
+
+                // Remove blur for text
+                ctx.filter = "none";
+
+                // Dark overlay
+                ctx.fillStyle = "rgba(0,0,0,0.35)";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // Watermark
+                ctx.fillStyle = "rgba(255,255,255,0.25)";
+                ctx.font = "bold 48px Arial";
+                ctx.textAlign = "center";
+
+                ctx.save();
+                ctx.translate(canvas.width / 2, canvas.height / 2);
+                ctx.rotate(-0.3);
+                ctx.fillText("MALVIN PREVIEW", 0, 0);
+                ctx.restore();
+
+                canvas.toBlob(
+                    (blob) => {
+                    if (!blob) {
+                        reject("Preview generation failed");
+                        return;
+                    }
+
+                    resolve(blob);
+                    },
+                    "image/jpeg",
+                    0.7
+                );
+            };
+
+            img.onerror = reject;
+            img.src = URL.createObjectURL(file);
+        });
+    };
+
+
     const uploadPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -32,22 +91,36 @@ const SendPhoto = ({ chatId, sender, brandName = "Malvin" }: SendPhotoProps) => 
         const previewPath = `chatPhotos/${chatId}/${photoId}/preview.jpg`;
         const originalPath = `chatPhotos/${chatId}/${photoId}/original.jpg`;
 
+        
         // upload original
-        await uploadBytes(ref(storage, originalPath), file);
+        const previewBlob = await generatePreview(file);
 
-        const imageUrl = await getDownloadURL(ref(storage, originalPath));
+        await uploadBytes(
+            ref(storage, originalPath),
+            file
+        );
+
+        await uploadBytes(
+            ref(storage, previewPath),
+            previewBlob
+        );
+
 
         // SAVE MESSAGE (FIXED)
         await addDoc(
             collection(firestore, "conversations", chatId, "messages"),
             {
-            id: photoId,
-            type: "photo",
-            sender,
-            imageUrl,
-            locked: true,
-            brandName,
-            timestamp: serverTimestamp()
+                
+                type: "photo",
+                sender,
+
+                previewPath,
+                originalPath,
+
+                locked: true,
+
+                brandName,
+                timestamp: serverTimestamp()
             }
         );
 

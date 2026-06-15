@@ -1124,3 +1124,108 @@ export default function SaaSEnvironmentVault({ userEmail }: { userEmail: string 
         </div>       
     );
 }
+
+
+
+
+
+
+{activeMessages.map((msg) => {
+
+  return (
+            <div
+            key={msg.id}
+            className="message-bubble"
+            style={{
+                ...messageBubbleStyle,
+                alignSelf:
+                msg.sender === "customer"
+                    ? "flex-end"
+                    : "flex-start",
+
+                background: msg.isOrder
+                ? "rgba(197,255,65,.1)"
+                : (
+                    msg.sender === "customer"
+                        ? "#C5FF41"
+                        : "#1A1A1A"
+                    ),
+
+                color:
+                msg.sender === "customer"
+                    ? "black"
+                    : "white",
+
+                border: msg.isOrder
+                ? "1px solid #C5FF41"
+                : "none"
+            }}
+            >
+
+                {msg.isOrder && msg.orderData && (
+                    <div
+                        style={{
+                            marginBottom: 8,
+                            display: "flex",
+                            gap: 10
+                        }}
+                    >
+                        {msg.orderData?.image && (
+                            <img
+                                src={msg.orderData.image}
+                                className="protected-photo"
+                                style={{
+                                width: 45,
+                                height: 45,
+                                borderRadius: 8,
+                                objectFit: "cover" 
+                            }} />
+                        )}
+
+                        <div
+                            style={{
+                            fontSize: 12
+                            }}
+                        >
+                            <div
+                                style={{
+                                    fontWeight: "bold"
+                                }}
+                            >
+                            Order Request
+                            </div>
+
+                            <div>
+                                {msg.orderData.quantity}x{" "}
+                                {msg.orderData.name}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                <div
+                    style={{
+                    fontSize: 14,
+                    lineHeight: 1.4
+                    }}
+                >
+                    {msg.text}
+                </div>
+                <div
+                    style={{
+                        fontSize: 10,
+                        opacity: 0.5,
+                        marginTop: 4
+                    }}
+                >
+                    {msg.timestamp?.toDate?.()
+                        ?.toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit"
+                        })}
+                </div>
+            </div>
+
+        );
+    })}
+</div>

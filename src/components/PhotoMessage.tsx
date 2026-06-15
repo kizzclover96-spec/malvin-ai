@@ -12,91 +12,94 @@ interface Props {
 
 const PhotoMessage = ({ msg }: Props) => {
 
-  const [imageUrl, setImageUrl] =
+    const [imageUrl, setImageUrl] =
     useState("");
 
-  useEffect(() => {
+    useEffect(() => {
 
-    const loadImage = async () => {
+        const loadImage = async () => {
 
-      try {
+            try {
 
-        const path = msg.locked
-          ? msg.previewPath
-          : msg.originalPath;
+                const path = msg.locked
+                    ? msg.previewPath
+                    : msg.originalPath;
 
-        const url =
-          await getDownloadURL(
-            ref(storage, path)
-          );
+                const url =
+                await getDownloadURL(
+                    ref(storage, path)
+                );
 
-        setImageUrl(url);
+                setImageUrl(url);
 
-      } catch (err) {
+            } catch (err) {
 
-        console.error(
-          "Image load failed",
-          err
-        );
-      }
-    };
+                console.error(
+                "Image load failed",
+                err
+                );
+            }
+        };
 
-    loadImage();
+        loadImage();
 
-  }, [
-    msg.previewPath,
-    msg.originalPath,
-    msg.locked
-  ]);
+    }, [
+        msg.previewPath,
+        msg.originalPath,
+        msg.locked
+    ]);
 
-  return (
-    <div
-      style={{
-        maxWidth: 280
-      }}
-    >
-      <img
-        src={imageUrl}
-        draggable={false}
-        onContextMenu={(e) =>
-          e.preventDefault()
-        }
-        className="protected-photo"
+    return (
+        <div
         style={{
-          width: "100%",
-          borderRadius: 16,
-          userSelect: "none",
-          pointerEvents: "auto",
-          border:
-            "1px solid rgba(255,255,255,.08)"
+            position: "relative",
+            maxWidth: 280
         }}
-      />
-
-      {msg.locked && (
-        <div
-          style={{
-            marginTop: 8,
-            fontSize: 12,
-            color: "#C5FF41"
-          }}
         >
-          🔒 Preview Protected
-        </div>
-      )}
+            <img
+                src={imageUrl}
+                style={{
+                width: "100%",
+                borderRadius: 16
+                }}
+            />
 
-      {!msg.locked && (
-        <div
-          style={{
-            marginTop: 8,
-            fontSize: 12,
-            color: "#38d777"
-          }}
-        >
-          ✓ Original Unlocked
+            {msg.locked && (
+                <div
+                    style={{
+                        position: "absolute",
+                        inset: 0,
+                        background: "rgba(0,0,0,.45)",
+                        borderRadius: 16,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "#fff",
+                        fontWeight: 600
+                    }}
+                    >
+                    🔒 Protected Preview
+                </div>
+            )}
+
+            {!msg.locked && (
+                <a
+                    href={imageUrl}
+                    download
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                        display: "inline-block",
+                        marginTop: 8,
+                        color: "#38d777",
+                        fontSize: 12
+                    }}
+                    >
+                    ⬇ Download Original
+                </a>
+            )}
         </div>
-      )}
-    </div>
-  );
+    );
 };
 
 export default PhotoMessage;
