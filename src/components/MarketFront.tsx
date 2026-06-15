@@ -31,8 +31,16 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
     const { brandId: urlBrandId } = useParams();
     const brandId = propBrandId || urlBrandId;
 
-    const [view, setView] = useState<'market' | 'chat' | 'booking'>('market');
+    const [selectedDate, setSelectedDate] = useState("");
+    const [selectedTime, setSelectedTime] = useState("");
+    const [customerName, setCustomerName] = useState(""); // Recommended for business visibility
+    
+    // Config states from brand profile
+    const [maxBookingsPerDay, setMaxBookingsPerDay] = useState<number>(0);
+    const [unavailableDates, setUnavailableDates] = useState<string[]>([]);
+    const [rawBookings, setRawBookings] = useState<any[]>([]);
     const [bookedDates, setBookedDates] = useState<string[]>([]);
+    const [view, setView] = useState<'market' | 'chat' | 'booking'>('market');
     
     const [selectedProduct, setSelectedProduct] = useState<any>(null);
     const [brand, setBrand] = useState<any>(userBrand || null);
@@ -106,18 +114,40 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
     }, [brandId]);
 
     // Sync Booked Dates
+    // 1. Sync Profile configurations & Bookings Data
     useEffect(() => {
         if (!brandId) return;
+
+        const profilePath = dbRef(db, `users/${brandId}/profile`);
         const bookingsPath = dbRef(db, `users/${brandId}/bookings`);
-        const unsubscribe = onValue(bookingsPath, (snapshot) => {
+
+        const unsubscribeProfile = onValue(profilePath, (snapshot) => {
             const data = snapshot.val();
-            if (data) { 
-                setBookedDates( Object.values(data) .filter((b: any) => b?.date) .map((b: any) => b.date) );
+            if (data) {
+                setMaxBookingsPerDay(data.maxBookingsPerDay || 0);
+                setUnavailableDates(data.unavailableDates || []);
+            }
+        });
+
+        const unsubscribeBookings = onValue(bookingsPath, (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                const bookingsList = Object.values(data);
+                setRawBookings(bookingsList);
+                
+                // Map out unique date keys for quick rendering metrics
+                const dates = bookingsList.filter((b: any) => b?.date).map((b: any) => b.date);
+                setBookedDates(dates);
             } else {
+                setRawBookings([]);
                 setBookedDates([]);
             }
         });
-        return () => unsubscribe();
+
+        return () => {
+            unsubscribeProfile();
+            unsubscribeBookings();
+        };
     }, [brandId]);
 
     // Sync Brand Profile
@@ -246,20 +276,55 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
         ? (reviews.reduce((acc, curr) => acc + curr.rating, 0) / reviewCount).toFixed(1)
         : null;
 
-    const handleBookDate = async (date: string) => {
-        if (!date) return;
-        if (bookedDates.includes(date)) {
-            alert("This date is already taken!");
+    // 2. Validate Constraints and Save Session
+    const handleBookSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        
+        if (!selectedDate || !selectedTime) {
+            alert("Please select both a date and a time.");
             return;
         }
+
+        // Rule A: Check Blackout/Unavailable Dates Configuration
+        if (unavailableDates.includes(selectedDate)) {
+            alert("This date has been marked as unavailable by the host.");
+            return;
+        }
+
+        // Rule B: Check capacity limit for this specific day
+        if (maxBookingsPerDay > 0) {
+            const totalBookingsForDay = rawBookings.filter((b) => b.date === selectedDate).length;
+            if (totalBookingsForDay >= maxBookingsPerDay) {
+                alert(`Booking full! This date has reached its maximum capacity of ${maxBookingsPerDay} sessions.`);
+                return;
+            }
+        }
+
+        // Rule C: Optional Exact duplicate time block avoidance
+        const timeSlotTaken = rawBookings.some((b) => b.date === selectedDate && b.time === selectedTime);
+        if (timeSlotTaken) {
+            alert("This specific time slot is already reserved. Please pick another hour.");
+            return;
+        }
+
         try {
-            const newBookingRef = dbRef(db, `users/${brandId}/bookings/${Date.now()}`);
+            const bookingId = Date.now();
+            const newBookingRef = dbRef(db, `users/${brandId}/bookings/${bookingId}`);
+            
             await set(newBookingRef, {
-                date,
-                timestamp: Date.now(),
+                date: selectedDate,
+                time: selectedTime,
+                clientName: customerName || "Anonymous Client",
+                timestamp: bookingId,
                 status: "pending"
             });
-            alert(`Success! Date ${date} reserved.`);
+
+            alert(`Success! Session reserved for ${selectedDate} at ${selectedTime}.`);
+            
+            // Reset local inputs
+            setSelectedDate("");
+            setSelectedTime("");
+            setCustomerName("");
             setView("market");
         } catch (err) {
             console.error(err);
@@ -321,19 +386,49 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
         return (
             <div style={{ position: 'relative', height: '100dvh', backgroundColor: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
                 <button onClick={() => setView('market')} style={backToMarketBtn}>← Back</button>
-                <div style={glassModal}>
+                
+                <form onSubmit={handleBookSubmit} style={glassModal}>
                     <h2 style={{ color: '#C5FF41', marginBottom: '10px', fontSize: '20px' }}>RESERVE SESSION</h2>
-                    <p style={{ fontSize: '11px', opacity: 0.5, marginBottom: '25px', letterSpacing: '1px' }}>SELECT AN AVAILABLE DATE</p>
+                    <p style={{ fontSize: '11px', opacity: 0.5, marginBottom: '25px', letterSpacing: '1px' }}>CHOOSE AN OPEN TIMELINE</p>
+                    
+                    {/* Client Identity Input */}
+                    <input 
+                        type="text"
+                        placeholder="Your Name / Identifier"
+                        value={customerName}
+                        onChange={(e) => setCustomerName(e.target.value)}
+                        style={{ ...quantityInput, fontSize: '14px', marginBottom: '15px', color: '#fff' }}
+                        required
+                    />
+
+                    {/* Date Selection */}
                     <input 
                         type="date" 
-                        style={{...quantityInput, fontSize: '18px'}} 
+                        value={selectedDate}
+                        style={{...quantityInput, fontSize: '16px', marginBottom: '15px', color: '#fff'}} 
                         min={new Date().toISOString().split('T')[0]} 
-                        onChange={(e) => handleBookDate(e.target.value)}
+                        onChange={(e) => setSelectedDate(e.target.value)}
+                        required
                     />
-                    <div style={{ fontSize: '11px', color: bookedDates.length > 0 ? '#C5FF41' : '#444', marginTop: '10px' }}>
-                        {bookedDates.length} DATES ALREADY RESERVED
+
+                    {/* Time Selection Input */}
+                    <input 
+                        type="time" 
+                        value={selectedTime}
+                        style={{...quantityInput, fontSize: '16px', marginBottom: '20px', color: '#fff'}} 
+                        onChange={(e) => setSelectedTime(e.target.value)}
+                        required
+                    />
+
+                    {/* Action Execution Button */}
+                    <button type="submit" style={{ ...secondaryBtnStyle, width: '100%', padding: '12px', background: '#C5FF41', color: '#000', fontWeight: 'bold', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+                        CONFIRM RESERVATION
+                    </button>
+
+                    <div style={{ fontSize: '11px', color: bookedDates.length > 0 ? '#C5FF41' : '#444', marginTop: '15px', textAlign: 'center' }}>
+                        {bookedDates.length} TOTAL SYSTEM RESERVATIONS OUTSTANDING
                     </div>
-                </div>
+                </form>
             </div>
         );
     }
@@ -866,5 +961,7 @@ const primaryBtn: React.CSSProperties = { background: '#C5FF41', color: 'black',
 const secondaryBtn: React.CSSProperties = { background: 'transparent', color: 'white', border: '1px solid #333', padding: '16px', borderRadius: '14px', flex: 1 };
 const loaderStyle: React.CSSProperties = { color: '#666', display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#000' };
 const emptyState: React.CSSProperties = { gridColumn: '1/-1', textAlign: 'center', padding: '100px 0', opacity: 0.3, fontSize: '13px' };
+const secondaryBtnStyle: React.CSSProperties = { padding: '8px 12px', borderRadius: '10px', background: 'transparent', color: 'white', border: '1px solid #333', fontWeight: 600, cursor: 'pointer', fontSize: '11px' };
+
 
 export default MarketFront;
