@@ -43,6 +43,9 @@ const Premium: React.FC<PremiumProps> = ({ onBack }) => {
     { title: "Neural Analytics", desc: "Predictive traffic mapping for ad placements." },
     { title: "Priority Queue", desc: "Instant campaign approval by Malvin Admin." },
     { title: "Catalog Expansion", desc: "Unlimited asset deployment in your inventory." },
+    { title: "More runtime", desc: "Scale Without Limits." },
+    { title: "Malvin recognition", desc: "Keep your brand visible with exclusive recognition." },
+    { title: "Knowledge Base", desc: "Access our comprehensive support resources." },
     { title: "Verified Pulse", desc: `A glowing ${isPremium ? 'blue' : 'gold'} badge on your customer chat.` }
   ];
 
