@@ -621,6 +621,12 @@ const AdsManager = () => {
                                                         updates[`users/${ad.userId}/campaigns/${ad.campaignId}/status`] = "Approved";
                                                         updates[`users/${ad.userId}/campaigns/${ad.campaignId}/reviewStatus`] = "Approved";
 
+                                                        updates[`users/${ad.userId}/campaigns/${ad.campaignId}/approvedAt`] = Date.now();
+
+                                                        updates[`users/${ad.userId}/campaigns/${ad.campaignId}/reach`] = 0;
+
+                                                        updates[`users/${ad.userId}/campaigns/${ad.campaignId}/targetReach`] = null;
+
                                                         // 2. Deduct balance
                                                         updates[`users/${ad.userId}/treasury/balance`] = newBalance;
 
@@ -630,7 +636,10 @@ const AdsManager = () => {
                                                             amount: ad.budget,
                                                             label: `Approved Ad: ${ad.title}`,
                                                             status: "Completed",
-                                                            timestamp: Date.now()
+                                                            timestamp: Date.now(),
+                                                            approvedAt: Date.now(),
+                                                            reach: 0,
+                                                            targetReach: null
                                                         };
 
                                                         // 4. Queue update
@@ -652,7 +661,9 @@ const AdsManager = () => {
                                                             approvedBy: auth.currentUser?.email,
 
                                                             postingStatus: "Not Posted",
-                                                            status: "Approved"
+                                                            status: "Approved",
+                                                            reach: 0,
+                                                            targetReach: null
                                                         };
 
                                                         // remove from review queue

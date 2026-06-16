@@ -4,6 +4,8 @@ import { auth, db, storage } from '../firebase';
 import { ref as dbRef } from "firebase/database";
 import { serverTimestamp } from "firebase/database";
 
+import AdReachEngine from "./AdReachEngine";
+
 import {
     ref as dbRefRoot,
     onValue,
@@ -259,294 +261,297 @@ const AdsManager = ({ userBrand }: any) => {
     
 
     return (
-        <div style={{ padding: '20px', color: 'white' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '40px' }}>
-                <div>
-                    <h1 style={{ fontSize: '40px', fontWeight: 700, margin: 0 }}>Ad_Deploy</h1>
-                    <p style={{ opacity: 0.5 }}>Amplify {userBrand?.name} | Balance: <span style={{color: '#C5FF41'}}>€{currentBalance.toLocaleString()}</span></p>
-                </div>
-                <button onClick={() => setShowModal(true)} style={deployBtnStyle}>Launch New Campaign</button>
-            
-            </div>    
+        <>
+            <AdReachEngine />
+            <div style={{ padding: '20px', color: 'white' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '40px' }}>
+                    <div>
+                        <h1 style={{ fontSize: '40px', fontWeight: 700, margin: 0 }}>Ad_Deploy</h1>
+                        <p style={{ opacity: 0.5 }}>Amplify {userBrand?.name} | Balance: <span style={{color: '#C5FF41'}}>€{currentBalance.toLocaleString()}</span></p>
+                    </div>
+                    <button onClick={() => setShowModal(true)} style={deployBtnStyle}>Launch New Campaign</button>
+                
+                </div>    
 
-            {/* --- ANALYTICS OVERVIEW --- */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginBottom: '40px' }}>
-                <div style={statBox}>
-                    <span style={statLabel}>Total Reach</span>
-                    <div style={statValue}>{campaigns.reduce((acc, curr) => acc + (curr.reach || 0), 0).toLocaleString()}</div>
-                </div>
-                <div style={statBox}>
-                    <span style={statLabel}>Active Campaigns</span>
-                    <div style={statValue}>{campaigns.length}</div>
-                </div>
-                <div style={statBox}>
-                    <span style={statLabel}>Avg. Engagement</span>
-                    <div style={statValue}>4.2%</div>
-                </div>
-            </div>
-
-            {/* --- CAMPAIGN LIST (MODIFIED FOR FIXED SHAPE & SCROLLABLE CONTENT) --- */}
-            <div style={{ 
-                background: 'rgba(255,255,255,0.02)', 
-                borderRadius: '24px', 
-                border: '1px solid rgba(255,255,255,0.05)', 
-                overflow: 'hidden',
-                maxHeight: '400px', 
-                overflowY: 'auto' 
-            }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead style={{ position: 'sticky', top: 0, background: 'rgba(20,20,20,1)', zIndex: 1 }}>
-                        <tr style={{ textAlign: 'left', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                            <th style={thStyle}>Campaign</th>
-                            <th style={thStyle}>Status</th>
-                            <th style={thStyle}>Budget</th>
-                            <th style={thStyle}>Reach</th>
-                            <th style={thStyle}>Platform</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {campaigns.map(ad => (
-                            <tr key={ad.id}>
-                                <td style={tdStyle}>{ad.title}</td>
-
-                                <td style={tdStyle}>
-                                    <span
-                                        style={{
-                                            color: getStatusColor(ad.status),
-                                            border: `1px solid ${getStatusColor(ad.status)}`,
-                                            padding: '2px 8px',
-                                            borderRadius: '10px',
-                                            fontSize: '10px'
-                                        }}
-                                    >
-                                        {ad.status}
-                                    </span>
-
-                                    {ad.status === 'Rejected' && ad.rejectionReason && (
-                                        <div
-                                            style={{
-                                                color: '#ff4d4d',
-                                                fontSize: '11px',
-                                                marginTop: '6px'
-                                            }}
-                                        >
-                                            {ad.rejectionReason}
-                                        </div>
-                                    )}
-                                </td>
-
-                                <td style={tdStyle}>€{ad.grandTotal}</td>
-
-                                <td style={tdStyle}>
-                                    {ad.reach?.toLocaleString()}
-                                </td>
-
-                                <td style={tdStyle}>{ad.platform}</td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-
-            {/* --- LAUNCH MODAL --- */}
-            {showModal && (
-                <div style={overlayStyle}>
-                    <div style={glassModal}>
-                        <h2 style={{ marginBottom: '5px' }}>Initiate_Deployment</h2>
-                        <p style={{ fontSize: '12px', opacity: 0.5, marginBottom: '25px' }}>
-                            Current Liquidity: €{currentBalance.toLocaleString()}
-                        </p>
-                        
-                        <label style={labelStyle}>Campaign Title</label>
-                        <input style={inputStyle} placeholder="Summer Drop 2026" value={newAd.title} onChange={e => setNewAd({...newAd, title: e.target.value})} />
-
-                        <div style={{ display: 'flex', gap: '15px' }}>
-                            <div style={{ flex: 1 }}>
-                                <label style={labelStyle}>Target Demographic</label>
-                                <select style={inputStyle} value={newAd.targeting} onChange={e => setNewAd({...newAd, targeting: e.target.value})}>
-                                    <option value="Global_Tech">Global_Tech</option>
-                                    <option value="Luxury_Fashion">Luxury_Fashion</option>
-                                    <option value="Creative_Arts">Creative_Arts</option>
-                                    <option value="Gen_Alpha_Core">Gen_Alpha_Core</option>
-                                </select>
-                                <label style={labelStyle}>Advertising Platform</label>
-
-                                <select
-                                    style={inputStyle}
-                                    value={newAd.platform}
-                                    onChange={(e) =>
-                                        setNewAd({
-                                        ...newAd,
-                                        platform: e.target.value
-                                        })
-                                    }
-                                    >
-                                    <option value="Meta_Ads">Meta Ads</option>
-                                    <option value="Google_Ads">Google Ads</option>
-                                    <option value="TikTok_Ads">TikTok Ads</option>
-                                    <option value="YouTube_Ads">YouTube Ads</option>
-                                    <option value="Instagram_Ads">Instagram Ads</option>
-                                </select>
-                            </div>
-                            <div style={{ flex: 1 }}>
-                                <label style={labelStyle}>Duration (Days)</label>
-                                <input style={inputStyle} type="number" value={newAd.duration} onChange={e => setNewAd({...newAd, duration: e.target.value})} />
-                            </div>
-                        </div>
-
-                        <label style={labelStyle}>Daily Budget (€)</label>
-                        <input style={inputStyle} type="number" placeholder="min. 10.00" value={newAd.budget} onChange={e => setNewAd({...newAd, budget: e.target.value})} />
-                        <label style={labelStyle}>Website URL</label>
-                        <input
-                        style={inputStyle}
-                        placeholder="(paste your ad link from your dashboard https://yourchat.com)"
-                        value={newAd.website}
-                        onChange={(e) =>
-                            setNewAd({
-                            ...newAd,
-                            website: e.target.value
-                            })
-                        }
-                        />
-                        <label style={labelStyle}>Campaign Creative</label>
-
-                        <input
-                            type="file"
-                            style={{
-                                marginBottom: '20px',
-                                color: 'white',
-                                width: '100%'
-                            }}
-                            accept="image/*,video/*"
-                            onChange={(e: any) => {
-                                if (e.target.files?.[0]) {
-                                    setCreativeFile(e.target.files[0]);
-                                }
-                            }}
-                        />
-                        
-                        <label style={labelStyle}>Ad Description</label>
-                        <textarea
-                        style={{
-                            ...inputStyle,
-                            minHeight: '120px',
-                            resize: 'none'
-                        }}
-                        placeholder="Describe your product/service..."
-                        value={newAd.description}
-                        onChange={(e) =>
-                            setNewAd({
-                            ...newAd,
-                            description: e.target.value
-                            })
-                        }
-                        />
-                        
-
-                        {/* --- PRICE BREAKDOWN --- */}
-                        <div style={{ 
-                            padding: '20px', background: 'rgba(197, 255, 65, 0.05)', 
-                            borderRadius: '16px', border: grandTotal > currentBalance ? '1px solid #ff4d4d' : '1px solid rgba(197, 255, 65, 0.1)',
-                            marginBottom: '25px'
-                        }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                                <span style={{ fontSize: '12px', opacity: 0.6 }}>Ad Credit:</span>
-                                <span style={{ fontSize: '12px' }}>€{totalInvestment.toFixed(2)}</span>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-                                <span style={{ fontSize: '12px', opacity: 0.6 }}>Neural Processing (10%):</span>
-                                <span style={{ fontSize: '12px' }}>€{neuralFee.toFixed(2)}</span>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid rgba(197, 255, 65, 0.2)', paddingTop: '10px' }}>
-                                <span style={{ fontWeight: 700, color: grandTotal > currentBalance ? '#ff4d4d' : '#C5FF41' }}>TOTAL REQUIRED:</span>
-                                <span style={{ fontWeight: 700, color: grandTotal > currentBalance ? '#ff4d4d' : '#C5FF41' }}>€{grandTotal.toFixed(2)}</span>
-                            </div>
-                            {grandTotal > currentBalance && (
-                                <div style={{color: '#ff4d4d', fontSize: '10px', marginTop: '10px', fontWeight: 600}}>
-                                    (!) INSUFFICIENT_TREASURY_FUNDS
-                                </div>
-                            )}
-                        </div>
-                        <div style={policyBox}>
-                            <label style={checkboxLabel}>
-                                <input
-                                type="checkbox"
-                                checked={agreements.terms}
-                                onChange={(e) =>
-                                    setAgreements({
-                                    ...agreements,
-                                    terms: e.target.checked
-                                    })
-                                }
-                                />
-                                I agree to the Terms of Service
-                            </label>
-
-                            <label style={checkboxLabel}>
-                                <input
-                                type="checkbox"
-                                checked={agreements.refund}
-                                onChange={(e) =>
-                                    setAgreements({
-                                    ...agreements,
-                                    refund: e.target.checked
-                                    })
-                                }
-                                />
-                                I understand the Refund Policy
-                            </label>
-
-                            <label style={checkboxLabel}>
-                                <input
-                                type="checkbox"
-                                checked={agreements.policy}
-                                onChange={(e) =>
-                                    setAgreements({
-                                    ...agreements,
-                                    policy: e.target.checked
-                                    })
-                                }
-                                />
-                                My campaign complies with advertising policies
-                            </label>
-                        </div>
-                        <div style={warningBox}>
-                        <strong>Restricted Content Notice</strong>
-
-                        <p style={{ opacity: 0.7 }}>
-                            Campaigns involving scams, crypto guarantees,
-                            adult content, illegal products, misleading
-                            claims, or prohibited financial promotions
-                            will be rejected and may result in account
-                            suspension.
-                        </p>
-                        </div>
-                        
-                        <div style={{ display: 'flex', gap: '15px' }}>
-                            <button 
-                                onClick={deployCampaign} 
-                                style={{...primaryBtn, opacity: grandTotal > currentBalance ? 0.3 : 1, cursor: grandTotal > currentBalance ? 'not-allowed' : 'pointer'}}
-                                disabled={deploying || grandTotal > currentBalance || !agreementsAccepted}
-                            >
-                                {deploying ? "DEPLOYING..." : "DEPLOY_CAMPAIGN"}
-                            </button>
-                            <button onClick={() => setShowModal(false)} style={secondaryBtn}>Abort</button>
-                        </div>
-                        <div style={{
-                            display: 'flex',
-                            gap: '20px',
-                            marginTop: '20px',
-                            fontSize: '11px',
-                            opacity: 0.5
-                            }}>
-                            <span>Terms of Service</span>
-                            <span>Refund Policy</span>
-                            <span>Advertising Policies</span>
-                        </div>
+                {/* --- ANALYTICS OVERVIEW --- */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginBottom: '40px' }}>
+                    <div style={statBox}>
+                        <span style={statLabel}>Total Reach</span>
+                        <div style={statValue}></div>
+                    </div>
+                    <div style={statBox}>
+                        <span style={statLabel}>Active Campaigns</span>
+                        <div style={statValue}>{campaigns.length}</div>
+                    </div>
+                    <div style={statBox}>
+                        <span style={statLabel}>Avg. Engagement</span>
+                        <div style={statValue}>4.2%</div>
                     </div>
                 </div>
-            )}
-        </div>
+
+                {/* --- CAMPAIGN LIST (MODIFIED FOR FIXED SHAPE & SCROLLABLE CONTENT) --- */}
+                <div style={{ 
+                    background: 'rgba(255,255,255,0.02)', 
+                    borderRadius: '24px', 
+                    border: '1px solid rgba(255,255,255,0.05)', 
+                    overflow: 'hidden',
+                    maxHeight: '400px', 
+                    overflowY: 'auto' 
+                }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        <thead style={{ position: 'sticky', top: 0, background: 'rgba(20,20,20,1)', zIndex: 1 }}>
+                            <tr style={{ textAlign: 'left', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                <th style={thStyle}>Campaign</th>
+                                <th style={thStyle}>Status</th>
+                                <th style={thStyle}>Budget</th>
+                                <th style={thStyle}>Reach</th>
+                                <th style={thStyle}>Platform</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {campaigns.map(ad => (
+                                <tr key={ad.id}>
+                                    <td style={tdStyle}>{ad.title}</td>
+
+                                    <td style={tdStyle}>
+                                        <span
+                                            style={{
+                                                color: getStatusColor(ad.status),
+                                                border: `1px solid ${getStatusColor(ad.status)}`,
+                                                padding: '2px 8px',
+                                                borderRadius: '10px',
+                                                fontSize: '10px'
+                                            }}
+                                        >
+                                            {ad.status}
+                                        </span>
+
+                                        {ad.status === 'Rejected' && ad.rejectionReason && (
+                                            <div
+                                                style={{
+                                                    color: '#ff4d4d',
+                                                    fontSize: '11px',
+                                                    marginTop: '6px'
+                                                }}
+                                            >
+                                                {ad.rejectionReason}
+                                            </div>
+                                        )}
+                                    </td>
+
+                                    <td style={tdStyle}>€{ad.grandTotal}</td>
+
+                                    <td style={tdStyle}>
+                                        {ad.reach?.toLocaleString()}
+                                    </td>
+
+                                    <td style={tdStyle}>{ad.platform}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+
+                {/* --- LAUNCH MODAL --- */}
+                {showModal && (
+                    <div style={overlayStyle}>
+                        <div style={glassModal}>
+                            <h2 style={{ marginBottom: '5px' }}>Initiate_Deployment</h2>
+                            <p style={{ fontSize: '12px', opacity: 0.5, marginBottom: '25px' }}>
+                                Current Liquidity: €{currentBalance.toLocaleString()}
+                            </p>
+                            
+                            <label style={labelStyle}>Campaign Title</label>
+                            <input style={inputStyle} placeholder="Summer Drop 2026" value={newAd.title} onChange={e => setNewAd({...newAd, title: e.target.value})} />
+
+                            <div style={{ display: 'flex', gap: '15px' }}>
+                                <div style={{ flex: 1 }}>
+                                    <label style={labelStyle}>Target Demographic</label>
+                                    <select style={inputStyle} value={newAd.targeting} onChange={e => setNewAd({...newAd, targeting: e.target.value})}>
+                                        <option value="Global_Tech">Global_Tech</option>
+                                        <option value="Luxury_Fashion">Luxury_Fashion</option>
+                                        <option value="Creative_Arts">Creative_Arts</option>
+                                        <option value="Gen_Alpha_Core">Gen_Alpha_Core</option>
+                                    </select>
+                                    <label style={labelStyle}>Advertising Platform</label>
+
+                                    <select
+                                        style={inputStyle}
+                                        value={newAd.platform}
+                                        onChange={(e) =>
+                                            setNewAd({
+                                            ...newAd,
+                                            platform: e.target.value
+                                            })
+                                        }
+                                        >
+                                        <option value="Meta_Ads">Meta Ads</option>
+                                        <option value="Google_Ads">Google Ads</option>
+                                        <option value="TikTok_Ads">TikTok Ads</option>
+                                        <option value="YouTube_Ads">YouTube Ads</option>
+                                        <option value="Instagram_Ads">Instagram Ads</option>
+                                    </select>
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                    <label style={labelStyle}>Duration (Days)</label>
+                                    <input style={inputStyle} type="number" value={newAd.duration} onChange={e => setNewAd({...newAd, duration: e.target.value})} />
+                                </div>
+                            </div>
+
+                            <label style={labelStyle}>Daily Budget (€)</label>
+                            <input style={inputStyle} type="number" placeholder="min. 10.00" value={newAd.budget} onChange={e => setNewAd({...newAd, budget: e.target.value})} />
+                            <label style={labelStyle}>Website URL</label>
+                            <input
+                            style={inputStyle}
+                            placeholder="(paste your ad link from your dashboard https://yourchat.com)"
+                            value={newAd.website}
+                            onChange={(e) =>
+                                setNewAd({
+                                ...newAd,
+                                website: e.target.value
+                                })
+                            }
+                            />
+                            <label style={labelStyle}>Campaign Creative</label>
+
+                            <input
+                                type="file"
+                                style={{
+                                    marginBottom: '20px',
+                                    color: 'white',
+                                    width: '100%'
+                                }}
+                                accept="image/*,video/*"
+                                onChange={(e: any) => {
+                                    if (e.target.files?.[0]) {
+                                        setCreativeFile(e.target.files[0]);
+                                    }
+                                }}
+                            />
+                            
+                            <label style={labelStyle}>Ad Description</label>
+                            <textarea
+                            style={{
+                                ...inputStyle,
+                                minHeight: '120px',
+                                resize: 'none'
+                            }}
+                            placeholder="Describe your product/service..."
+                            value={newAd.description}
+                            onChange={(e) =>
+                                setNewAd({
+                                ...newAd,
+                                description: e.target.value
+                                })
+                            }
+                            />
+                            
+
+                            {/* --- PRICE BREAKDOWN --- */}
+                            <div style={{ 
+                                padding: '20px', background: 'rgba(197, 255, 65, 0.05)', 
+                                borderRadius: '16px', border: grandTotal > currentBalance ? '1px solid #ff4d4d' : '1px solid rgba(197, 255, 65, 0.1)',
+                                marginBottom: '25px'
+                            }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                    <span style={{ fontSize: '12px', opacity: 0.6 }}>Ad Credit:</span>
+                                    <span style={{ fontSize: '12px' }}>€{totalInvestment.toFixed(2)}</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                                    <span style={{ fontSize: '12px', opacity: 0.6 }}>Neural Processing (10%):</span>
+                                    <span style={{ fontSize: '12px' }}>€{neuralFee.toFixed(2)}</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid rgba(197, 255, 65, 0.2)', paddingTop: '10px' }}>
+                                    <span style={{ fontWeight: 700, color: grandTotal > currentBalance ? '#ff4d4d' : '#C5FF41' }}>TOTAL REQUIRED:</span>
+                                    <span style={{ fontWeight: 700, color: grandTotal > currentBalance ? '#ff4d4d' : '#C5FF41' }}>€{grandTotal.toFixed(2)}</span>
+                                </div>
+                                {grandTotal > currentBalance && (
+                                    <div style={{color: '#ff4d4d', fontSize: '10px', marginTop: '10px', fontWeight: 600}}>
+                                        (!) INSUFFICIENT_TREASURY_FUNDS
+                                    </div>
+                                )}
+                            </div>
+                            <div style={policyBox}>
+                                <label style={checkboxLabel}>
+                                    <input
+                                    type="checkbox"
+                                    checked={agreements.terms}
+                                    onChange={(e) =>
+                                        setAgreements({
+                                        ...agreements,
+                                        terms: e.target.checked
+                                        })
+                                    }
+                                    />
+                                    I agree to the Terms of Service
+                                </label>
+
+                                <label style={checkboxLabel}>
+                                    <input
+                                    type="checkbox"
+                                    checked={agreements.refund}
+                                    onChange={(e) =>
+                                        setAgreements({
+                                        ...agreements,
+                                        refund: e.target.checked
+                                        })
+                                    }
+                                    />
+                                    I understand the Refund Policy
+                                </label>
+
+                                <label style={checkboxLabel}>
+                                    <input
+                                    type="checkbox"
+                                    checked={agreements.policy}
+                                    onChange={(e) =>
+                                        setAgreements({
+                                        ...agreements,
+                                        policy: e.target.checked
+                                        })
+                                    }
+                                    />
+                                    My campaign complies with advertising policies
+                                </label>
+                            </div>
+                            <div style={warningBox}>
+                            <strong>Restricted Content Notice</strong>
+
+                            <p style={{ opacity: 0.7 }}>
+                                Campaigns involving scams, crypto guarantees,
+                                adult content, illegal products, misleading
+                                claims, or prohibited financial promotions
+                                will be rejected and may result in account
+                                suspension.
+                            </p>
+                            </div>
+                            
+                            <div style={{ display: 'flex', gap: '15px' }}>
+                                <button 
+                                    onClick={deployCampaign} 
+                                    style={{...primaryBtn, opacity: grandTotal > currentBalance ? 0.3 : 1, cursor: grandTotal > currentBalance ? 'not-allowed' : 'pointer'}}
+                                    disabled={deploying || grandTotal > currentBalance || !agreementsAccepted}
+                                >
+                                    {deploying ? "DEPLOYING..." : "DEPLOY_CAMPAIGN"}
+                                </button>
+                                <button onClick={() => setShowModal(false)} style={secondaryBtn}>Abort</button>
+                            </div>
+                            <div style={{
+                                display: 'flex',
+                                gap: '20px',
+                                marginTop: '20px',
+                                fontSize: '11px',
+                                opacity: 0.5
+                                }}>
+                                <span>Terms of Service</span>
+                                <span>Refund Policy</span>
+                                <span>Advertising Policies</span>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </>
     );
 };
 
