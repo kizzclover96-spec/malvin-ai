@@ -456,7 +456,7 @@ const AdsManager = () => {
                                                         [`users/${req.uid}/profile/verifiedAt`]: serverTimestamp(),
                                                     });
                                                     await remove(
-                                                        ref(db, `admin/verification_requests/${req.id}`)
+                                                        ref(db, `verification_requests/${req.id}`)
                                                     );
 
                                                     await push(ref(db, 'admin/audit_log'), {
@@ -486,7 +486,7 @@ const AdsManager = () => {
                                                     setProcessingId(req.id);
 
                                                     await remove(
-                                                        ref(db, `admin/verification_requests/${req.id}`)
+                                                        ref(db, `verification_requests/${req.id}`)
                                                     );
 
                                                     await push(ref(db, 'admin/audit_log'), {
