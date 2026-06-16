@@ -9,26 +9,34 @@ interface Props {
 const BusinessInsightsPopup: React.FC<Props> = ({ brandName }) => {
   const [visible, setVisible] = useState(false);
   const [aiAdvice, setAiAdvice] = useState("");
+  const [loadingAI, setLoadingAI] = useState(false);
 
-  const [stats, setStats] = useState<any>({
+  const [stats, setStats] = useState({
     pendingChats: 0,
     campaignChange: 0,
     reputationScore: 0,
   });
 
-  const playSound = () => {
+  // ---------------- SOUND ----------------
+  const playSound = async () => {
     const audio = new Audio("/popup.mp3");
     audio.volume = 0.4;
-    audio.play();
+    try {
+      await audio.play();
+    } catch (e) {
+      console.log("Audio blocked until user interaction");
+    }
   };
 
+  // ---------------- GREETING ----------------
   const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return "Morning";
-    if (hour < 18) return "Afternoon";
+    const h = new Date().getHours();
+    if (h < 12) return "Morning";
+    if (h < 18) return "Afternoon";
     return "Evening";
   };
 
+  // ---------------- FIREBASE ----------------
   useEffect(() => {
     const userId = auth.currentUser?.uid;
     if (!userId) return;
@@ -37,54 +45,44 @@ const BusinessInsightsPopup: React.FC<Props> = ({ brandName }) => {
     const campaignRef = ref(db, `users/${userId}/campaigns`);
     const userRef = ref(db, `users/${userId}`);
 
-    // ---------------- CHATS ----------------
     const unsubChats = onValue(chatRef, (snap) => {
       const data = snap.val() || {};
-
-      const pendingChats = Object.values(data).filter(
+      const pending = Object.values(data).filter(
         (c: any) => c?.status === "pending"
       ).length;
 
-      setStats((prev: any) => ({
-        ...prev,
-        pendingChats,
-      }));
+      setStats((p) => ({ ...p, pendingChats: pending }));
     });
 
-    // ---------------- CAMPAIGNS ----------------
     const unsubCampaigns = onValue(campaignRef, (snap) => {
       const data = snap.val() || {};
-      const campaigns = Object.values(data) as any[];
+      const arr = Object.values(data) as any[];
 
-      if (campaigns.length < 2) return;
+      if (arr.length < 2) return;
 
-      const sorted = campaigns.sort(
-        (a: any, b: any) => (a.timestamp || 0) - (b.timestamp || 0)
+      const sorted = [...arr].sort(
+        (a, b) => (a.timestamp || 0) - (b.timestamp || 0)
       );
 
-      const last = sorted[sorted.length - 1]?.reach || 0;
-      const prev = sorted[sorted.length - 2]?.reach || 0;
+      const last = sorted.at(-1)?.reach || 0;
+      const prev = sorted.at(-2)?.reach || 0;
 
-      const change =
-        prev === 0 ? 0 : ((last - prev) / prev) * 100;
+      const change = prev === 0 ? 0 : ((last - prev) / prev) * 100;
 
-      setStats((prev: any) => ({
-        ...prev,
+      setStats((p) => ({
+        ...p,
         campaignChange: Math.round(change),
       }));
     });
 
-    // ---------------- REPUTATION ----------------
     const unsubUser = onValue(userRef, (snap) => {
       const data = snap.val() || {};
-
-      setStats((prev: any) => ({
-        ...prev,
+      setStats((p) => ({
+        ...p,
         reputationScore: data.reputationScore || 0,
       }));
     });
 
-    // ---------------- POPUP ----------------
     const shown = sessionStorage.getItem("insightShown");
 
     if (!shown) {
@@ -102,117 +100,206 @@ const BusinessInsightsPopup: React.FC<Props> = ({ brandName }) => {
     };
   }, []);
 
+  // ---------------- AI CALL ----------------
   const requestAIAdvice = async () => {
-    const res = await fetch("/api/malvin-ai-analysis", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        stats,
-        brandName,
-        mode: "insight",
-      }),
-    });
+    setLoadingAI(true);
+    setAiAdvice("");
 
-    const data = await res.json();
-    setAiAdvice(data.text || data.advice);
+    try {
+      const token = await auth.currentUser?.getIdToken();
+
+      const res = await fetch(
+        "https://malvinai.com/api/malvin-ai-analysis",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            stats,
+            brandName,
+            mode: "insight",
+          }),
+        }
+      );
+
+      const data = await res.json();
+      setAiAdvice(data.text || "No response received.");
+    } catch (err) {
+      setAiAdvice("AI temporarily unavailable.");
+    } finally {
+      setLoadingAI(false);
+    }
   };
 
   if (!visible) return null;
 
   const reputationMessage =
-    stats.reputationScore > 50
-      ? "Score is good. You still have opportunities to increase revenue."
-      : stats.reputationScore === 50
-      ? "Your reputation score is not optimal."
-      : "Critical reputation level. Action required.";
+    stats.reputationScore > 70
+      ? "Strong reputation — high trust score."
+      : stats.reputationScore > 40
+      ? "Moderate reputation — improvement recommended."
+      : "Critical reputation — action required immediately.";
 
-  return (
-    <>
-      <div style={styles.overlay} onClick={() => setVisible(false)} />
+    return (
+        <>
+            {/* BACKDROP */}
+            <div style={styles.overlay} onClick={() => setVisible(false)} />
 
-      <div style={styles.card}>
-        <h2>
-          Good {getGreeting()} {brandName}
-        </h2>
+            {/* CARD */}
+            <div style={styles.card}>
+                <div style={styles.header}>
+                    <div>
+                        <div style={styles.title}>
+                         Good {getGreeting()}, {brandName}
+                        </div>
+                        <div style={styles.subtitle}>Business Intelligence Report</div>
+                    </div>
 
-        <p style={{ opacity: 0.6 }}>Today's Analysis</p>
+                    <div style={styles.badge}>LIVE INSIGHT</div>
+                </div>
 
-        <div style={styles.list}>
-          <p>• {stats.pendingChats} pending customer chats</p>
+                {/* STATS */}
+                <div style={styles.grid}>
+                    <div style={styles.stat}>
+                        <div>Pending Chats</div>
+                        <strong>{stats.pendingChats}</strong>
+                    </div>
 
-          <p>
-            • Your ad campaign is{" "}
-            {stats.campaignChange < 0 ? "down" : "up"}{" "}
-            {Math.abs(stats.campaignChange)}%
-          </p>
+                    <div style={styles.stat}>
+                        <div>Campaign Trend</div>
+                        <strong>
+                         {stats.campaignChange > 0 ? "+" : ""}
+                         {stats.campaignChange}%
+                        </strong>
+                    </div>
 
-          <p>• Reputation Score: {stats.reputationScore}</p>
+                    <div style={styles.stat}>
+                        <div>Reputation</div>
+                        <strong>{stats.reputationScore}</strong>
+                    </div>
+                </div>
 
-          <p>• {reputationMessage}</p>
+                {/* INSIGHT BLOCK */}
+                <div style={styles.insightBox}>
+                    <p style={styles.insightText}>{reputationMessage}</p>
 
-          <p>• Suggested action: Increase ad budget by €5</p>
-        </div>
+                    <p style={styles.suggestion}>
+                        Suggested Action: Optimize ad targeting + increase budget by €5–€10
+                    </p>
+                </div>
 
-        <button style={styles.btn} onClick={requestAIAdvice}>
-          Get AI Business Strategy
-        </button>
+                {/* AI BUTTON */}
+                <button style={styles.btn} onClick={requestAIAdvice}>
+                 {loadingAI ? "Generating Insight..." : "Generate AI Strategy"}
+                </button>
 
-        {aiAdvice && (
-          <div style={styles.aiBox}>{aiAdvice}</div>
-        )}
-      </div>
-    </>
-  );
+                {/* AI OUTPUT */}
+                {aiAdvice && <div style={styles.aiBox}>{aiAdvice}</div>}
+            </div>
+        </>
+    );
 };
 
 export default BusinessInsightsPopup;
-
-// 🎨 STYLES
 const styles: any = {
-    overlay: {
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        background: "rgba(0,0,0,0.6)",
-        backdropFilter: "blur(10px)",
-        zIndex: 999,
-    },
-    card: {
-        position: "fixed",
-        top: "50%",
-        left: "50%",
-        transform: "translate(-50%, -50%)",
-        width: "420px",
-        background: "rgba(255,255,255,0.08)",
-        backdropFilter: "blur(20px)",
-        border: "1px solid rgba(255,255,255,0.1)",
-        borderRadius: "20px",
-        padding: "20px",
-        color: "white",
-        zIndex: 1000,
-    },
-    list: {
-        fontSize: "14px",
-        opacity: 0.9,
-        marginTop: "10px",
-    },
-    btn: {
-        marginTop: "15px",
-        width: "100%",
-        padding: "10px",
-        borderRadius: "10px",
-        border: "none",
-        background: "#C5FF41",
-        fontWeight: 700,
-        cursor: "pointer",
-    },
-    aiBox: {
-        marginTop: "15px",
-        fontSize: "13px",
-        background: "rgba(0,0,0,0.3)",
-        padding: "10px",
-        borderRadius: "10px",
-    },
+  overlay: {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(0,0,0,0.6)",
+    backdropFilter: "blur(12px)",
+    zIndex: 999,
+  },
+
+  card: {
+    position: "fixed",
+    top: "50%",
+    left: "50%",
+    transform: "translate(-50%, -50%)",
+    width: "460px",
+    padding: "22px",
+    borderRadius: "22px",
+    color: "white",
+    background: "rgba(20,20,20,0.75)",
+    border: "1px solid rgba(255,255,255,0.08)",
+    boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
+    backdropFilter: "blur(25px)",
+  },
+
+  header: {
+    display: "flex",
+    justifyContent: "space-between",
+    marginBottom: "16px",
+  },
+
+  title: {
+    fontSize: "18px",
+    fontWeight: 700,
+  },
+
+  subtitle: {
+    fontSize: "12px",
+    opacity: 0.6,
+  },
+
+  badge: {
+    fontSize: "10px",
+    padding: "6px 10px",
+    borderRadius: "999px",
+    background: "#C5FF41",
+    color: "#000",
+    fontWeight: 700,
+  },
+
+  grid: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr 1fr",
+    gap: "10px",
+    marginTop: "12px",
+  },
+
+  stat: {
+    padding: "12px",
+    borderRadius: "14px",
+    background: "rgba(255,255,255,0.05)",
+    fontSize: "12px",
+  },
+
+  insightBox: {
+    marginTop: "14px",
+    padding: "12px",
+    borderRadius: "14px",
+    background: "rgba(197,255,65,0.08)",
+    border: "1px solid rgba(197,255,65,0.2)",
+  },
+
+  insightText: {
+    fontSize: "13px",
+    marginBottom: "8px",
+  },
+
+  suggestion: {
+    fontSize: "12px",
+    opacity: 0.8,
+  },
+
+  btn: {
+    marginTop: "14px",
+    width: "100%",
+    padding: "10px",
+    borderRadius: "12px",
+    background: "#C5FF41",
+    border: "none",
+    fontWeight: 700,
+    cursor: "pointer",
+  },
+
+  aiBox: {
+    marginTop: "12px",
+    fontSize: "13px",
+    padding: "12px",
+    borderRadius: "12px",
+    background: "rgba(0,0,0,0.35)",
+  },
 };
