@@ -25,6 +25,7 @@ import Memories from "./memories"
 import Achievements from './achievements';
 import Banned from "./Banned";
 import Suspended from "./Suspended";
+import BusinessInsightsPopup from "./BusinessInsightsPopup";
 
 // Exporting this so you can import it and use it anywhere else (Chats, MarketFront, etc.)
 export const VerifiedBadge = () => (
@@ -81,6 +82,7 @@ const BackButton = ({
 
     return (
         <>
+            
             {/* Dropdown Trigger */}
             <div
                 onClick={() => setOpen(true)}
@@ -1009,7 +1011,7 @@ const Dashboard = (props: any) => {
     const renderDashboardShell = () => {
         return (
             <>
-                
+                {userBrand && ( <BusinessInsightsPopup brandName={userBrand.name} />)}
                 <div style={mainContainerStyle}>
                     <style>{`
                         @keyframes slideIn {
