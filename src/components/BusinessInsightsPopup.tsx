@@ -7,140 +7,140 @@ interface Props {
 }
 
 const BusinessInsightsPopup: React.FC<Props> = ({ brandName }) => {
-  const [visible, setVisible] = useState(false);
-  const [aiAdvice, setAiAdvice] = useState("");
-  const [loadingAI, setLoadingAI] = useState(false);
+    const [visible, setVisible] = useState(false);
+    const [aiAdvice, setAiAdvice] = useState("");
+    const [loadingAI, setLoadingAI] = useState(false);
 
-  const [stats, setStats] = useState({
-    pendingChats: 0,
-    campaignChange: 0,
-    reputationScore: 0,
-  });
-
-  // ---------------- SOUND ----------------
-  const playSound = async () => {
-    const audio = new Audio("/popup.mp3");
-    audio.volume = 0.4;
-    try {
-      await audio.play();
-    } catch (e) {
-      console.log("Audio blocked until user interaction");
-    }
-  };
-
-  // ---------------- GREETING ----------------
-  const getGreeting = () => {
-    const h = new Date().getHours();
-    if (h < 12) return "Morning";
-    if (h < 18) return "Afternoon";
-    return "Evening";
-  };
-
-  // ---------------- FIREBASE ----------------
-  useEffect(() => {
-    const userId = auth.currentUser?.uid;
-    if (!userId) return;
-
-    const chatRef = ref(db, `users/${userId}/chats`);
-    const campaignRef = ref(db, `users/${userId}/campaigns`);
-    const userRef = ref(db, `users/${userId}`);
-
-    const unsubChats = onValue(chatRef, (snap) => {
-      const data = snap.val() || {};
-      const pending = Object.values(data).filter(
-        (c: any) => c?.status === "pending"
-      ).length;
-
-      setStats((p) => ({ ...p, pendingChats: pending }));
+    const [stats, setStats] = useState({
+        pendingChats: 0,
+        campaignChange: 0,
+        reputationScore: 0,
     });
 
-    const unsubCampaigns = onValue(campaignRef, (snap) => {
-      const data = snap.val() || {};
-      const arr = Object.values(data) as any[];
-
-      if (arr.length < 2) return;
-
-      const sorted = [...arr].sort(
-        (a, b) => (a.timestamp || 0) - (b.timestamp || 0)
-      );
-
-      const last = sorted.at(-1)?.reach || 0;
-      const prev = sorted.at(-2)?.reach || 0;
-
-      const change = prev === 0 ? 0 : ((last - prev) / prev) * 100;
-
-      setStats((p) => ({
-        ...p,
-        campaignChange: Math.round(change),
-      }));
-    });
-
-    const unsubUser = onValue(userRef, (snap) => {
-      const data = snap.val() || {};
-      setStats((p) => ({
-        ...p,
-        reputationScore: data.reputationScore || 0,
-      }));
-    });
-
-    const shown = sessionStorage.getItem("insightShown");
-
-    if (!shown) {
-      setTimeout(() => {
-        setVisible(true);
-        playSound();
-        sessionStorage.setItem("insightShown", "true");
-      }, 1200);
-    }
-
-    return () => {
-      unsubChats();
-      unsubCampaigns();
-      unsubUser();
-    };
-  }, []);
-
-  // ---------------- AI CALL ----------------
-  const requestAIAdvice = async () => {
-    setLoadingAI(true);
-    setAiAdvice("");
-
-    try {
-      const token = await auth.currentUser?.getIdToken();
-
-      const res = await fetch(
-        "https://malvinai.com/api/malvin-ai-analysis",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            stats,
-            brandName,
-            mode: "insight",
-          }),
+    // ---------------- SOUND ----------------
+    const playSound = async () => {
+        const audio = new Audio("/popup.mp3");
+        audio.volume = 0.4;
+        try {
+        await audio.play();
+        } catch (e) {
+        console.log("Audio blocked until user interaction");
         }
-      );
+    };
 
-      const data = await res.json();
-      setAiAdvice(data.text || "No response received.");
-    } catch (err) {
-      setAiAdvice("AI temporarily unavailable.");
-    } finally {
-      setLoadingAI(false);
-    }
-  };
+    // ---------------- GREETING ----------------
+    const getGreeting = () => {
+        const h = new Date().getHours();
+        if (h < 12) return "Morning";
+        if (h < 18) return "Afternoon";
+        return "Evening";
+    };
 
-  if (!visible) return null;
+    // ---------------- FIREBASE ----------------
+    useEffect(() => {
+        const userId = auth.currentUser?.uid;
+        if (!userId) return;
 
-  const reputationMessage =
-    stats.reputationScore > 70
-      ? "Strong reputation — high trust score."
-      : stats.reputationScore > 40
-      ? "Moderate reputation — improvement recommended."
-      : "Critical reputation — action required immediately.";
+        const chatRef = ref(db, `users/${userId}/chats`);
+        const campaignRef = ref(db, `users/${userId}/campaigns`);
+        const userRef = ref(db, `users/${userId}`);
+
+        const unsubChats = onValue(chatRef, (snap) => {
+        const data = snap.val() || {};
+        const pending = Object.values(data).filter(
+            (c: any) => c?.status === "pending"
+        ).length;
+
+        setStats((p) => ({ ...p, pendingChats: pending }));
+        });
+
+        const unsubCampaigns = onValue(campaignRef, (snap) => {
+            const data = snap.val() || {};
+            const arr = Object.values(data) as any[];
+
+            if (arr.length < 2) return;
+
+            const sorted = [...arr].sort(
+                (a, b) => (a.timestamp || 0) - (b.timestamp || 0)
+            );
+
+            const last = sorted.at(-1)?.reach || 0;
+            const prev = sorted.at(-2)?.reach || 0;
+
+            const change = prev === 0 ? 0 : ((last - prev) / prev) * 100;
+
+            setStats((p) => ({
+                ...p,
+                campaignChange: Math.round(change),
+            }));
+        });
+
+        const unsubUser = onValue(userRef, (snap) => {
+            const data = snap.val() || {};
+            setStats((p) => ({
+                ...p,
+                reputationScore: data.reputationScore || 0,
+            }));
+        });
+
+        const shown = sessionStorage.getItem("insightShown");
+
+        if (!shown) {
+            setTimeout(() => {
+                setVisible(true);
+                playSound();
+                sessionStorage.setItem("insightShown", "true");
+            }, 1200);
+        }
+
+        return () => {
+            unsubChats();
+            unsubCampaigns();
+            unsubUser();
+        };
+    }, []);
+
+    // ---------------- AI CALL ----------------
+    const requestAIAdvice = async () => {
+        setLoadingAI(true);
+        setAiAdvice("");
+
+        try {
+        const token = await auth.currentUser?.getIdToken();
+
+        const res = await fetch(
+            "https://malvinai.com/api/malvin-ai-analysis",
+            {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+                stats,
+                brandName,
+                mode: "insight",
+            }),
+            }
+        );
+
+        const data = await res.json();
+        setAiAdvice(data.text || "No response received.");
+        } catch (err) {
+        setAiAdvice("AI temporarily unavailable.");
+        } finally {
+        setLoadingAI(false);
+        }
+    };
+
+    if (!visible) return null;
+
+    const reputationMessage =
+        stats.reputationScore > 70
+        ? "Strong reputation — high trust score."
+        : stats.reputationScore > 40
+        ? "Moderate reputation — improvement recommended."
+        : "Critical reputation — action required immediately.";
 
     return (
         <>
