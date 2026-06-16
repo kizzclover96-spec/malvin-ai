@@ -36,6 +36,15 @@ const AdsManager = ({ userBrand }: any) => {
         (sum, campaign) => sum + Number(campaign.reach || 0),
         0
     );
+    const formatNumber = (num: number) => {
+        if (num >= 1_000_000) {
+            return (num / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M';
+        }
+        if (num >= 1_000) {
+            return (num / 1_000).toFixed(1).replace(/\.0$/, '') + 'K';
+        }
+        return num.toString();
+    };
     const getStatusColor = (status: string) => {
         switch(status) {
             case 'Pending_Admin_Review':
@@ -286,7 +295,7 @@ const AdsManager = ({ userBrand }: any) => {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginBottom: '40px' }}>
                     <div style={statBox}>
                         <span style={statLabel}>Total Reach</span>
-                        <div style={statValue}>{totalReach.toLocaleString()}</div>
+                        <div style={statValue}>{formatNumber(totalReach)}</div>
                     </div>
                     <div style={statBox}>
                         <span style={statLabel}>Active Campaigns</span>
@@ -295,11 +304,6 @@ const AdsManager = ({ userBrand }: any) => {
                     <div style={statBox}>
                         <span style={statLabel}>Avg. Engagement</span>
                         <div style={statValue}>4.2%</div>
-                    </div>
-                    <div style={statBox}>
-                        <span style={statLabel}>Projected Reach</span>
-                        <div style={statValue}>{totalReach.toLocaleString()}</div>
-                        <div style={{ fontSize: 12, opacity: 0.6, marginTop: 6 }}>Target: -</div>
                     </div>
                 </div>
 
