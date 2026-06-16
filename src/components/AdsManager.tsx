@@ -27,6 +27,15 @@ const AdsManager = ({ userBrand }: any) => {
     const [creativeFile, setCreativeFile] = useState<File | null>(null);
     const [deploying, setDeploying] = useState(false);
     const [loading, setLoading] = useState(true);
+    const activeCampaigns = campaigns.filter(
+        c =>
+            c.status === "Running" ||
+            c.status === "Approved"
+    ).length;
+    const totalReach = campaigns.reduce(
+        (sum, campaign) => sum + Number(campaign.reach || 0),
+        0
+    );
     const getStatusColor = (status: string) => {
         switch(status) {
             case 'Pending_Admin_Review':
@@ -277,15 +286,20 @@ const AdsManager = ({ userBrand }: any) => {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginBottom: '40px' }}>
                     <div style={statBox}>
                         <span style={statLabel}>Total Reach</span>
-                        <div style={statValue}></div>
+                        <div style={statValue}>{totalReach.toLocaleString()}</div>
                     </div>
                     <div style={statBox}>
                         <span style={statLabel}>Active Campaigns</span>
-                        <div style={statValue}>{campaigns.length}</div>
+                        <div style={statValue}> {activeCampaigns}</div>
                     </div>
                     <div style={statBox}>
                         <span style={statLabel}>Avg. Engagement</span>
                         <div style={statValue}>4.2%</div>
+                    </div>
+                    <div style={statBox}>
+                        <span style={statLabel}>Projected Reach</span>
+                        <div style={statValue}>{totalReach.toLocaleString()}</div>
+                        <div style={{ fontSize: 12, opacity: 0.6, marginTop: 6 }}>Target: -</div>
                     </div>
                 </div>
 
