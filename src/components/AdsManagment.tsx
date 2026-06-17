@@ -23,6 +23,17 @@ const AdsManager = () => {
     const [filter, setFilter] = useState("Pending_Admin_Review");
     const [searchTerm, setSearchTerm] = useState('');
     const [activePanel, setActivePanel] = useState("ads");
+    const totalUsers = users.length;
+
+    const verifiedUsers = users.filter(
+     (u) => u.isVerified === true
+    ).length;
+
+    const bannedUsers = users.filter(
+    (u) =>
+        u.brandData?.status === "Banned" ||
+        u.status === "Banned"
+    ).length;
     
     
     
@@ -243,7 +254,53 @@ const AdsManager = () => {
 
                     {/* --- MERCHANT DIRECTORY --- */}
                     <section style={panelStyle}>
-                        <h3 style={sectionTitle}>MERCHANT_DIRECTORY</h3>
+                        <div style={{ marginBottom: "12px" }}>
+                            <h3 style={sectionTitle}>MERCHANT_DIRECTORY</h3>
+
+                            <div
+                                style={{
+                                display: "flex",
+                                gap: "8px",
+                                marginTop: "8px",
+                                flexWrap: "wrap"
+                                }}
+                            >
+                                <span
+                                    style={{
+                                        background: "rgba(255,255,255,0.05)",
+                                        padding: "4px 10px",
+                                        borderRadius: "999px",
+                                        fontSize: "11px"
+                                    }}
+                                    >
+                                    👥 {totalUsers} Users
+                                </span>
+
+                                <span
+                                    style={{
+                                        background: "rgba(0,127,255,0.12)",
+                                        color: "#007fff",
+                                        padding: "4px 10px",
+                                        borderRadius: "999px",
+                                        fontSize: "11px"
+                                    }}
+                                    >
+                                    ✓ {verifiedUsers} Verified
+                                </span>
+
+                                <span
+                                    style={{
+                                        background: "rgba(255,77,77,0.12)",
+                                        color: "#ff4d4d",
+                                        padding: "4px 10px",
+                                        borderRadius: "999px",
+                                        fontSize: "11px"
+                                    }}
+                                    >
+                                    ⛔ {bannedUsers} Banned
+                                </span>
+                            </div>
+                        </div>
                         <input
                             type="text"
                             placeholder="Search email, uid or brand..."
