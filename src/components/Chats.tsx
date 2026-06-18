@@ -306,7 +306,8 @@ const Chats = ({ brandId, userBrand }: any) => {
                 isOrderBlue: true,
                 orderCount: increment(countToRegister),
                 lastOrderAt: serverTimestamp(),
-                orderStatus: "accepted"
+                orderStatus: "accepted",
+                orderId: crypto.randomUUID()
             });
 
             // Fire Celebration Mechanics

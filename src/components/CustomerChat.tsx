@@ -221,14 +221,14 @@ const CustomerChat = ({ pendingOrder: propOrder, quantity: propQuantity }: Custo
             if (!data) return;
 
             const newStatus = data.orderStatus;
+            const lastAcceptedAt = data.lastOrderAt;
             const orderId = data.orderId; // or shipment/order reference
 
-            const acceptedKey =
-                `accepted_${chatId}_${orderId}`;
+            const acceptedKey = `accepted_${chatId}_${lastAcceptedAt?.seconds}`;
 
             if (
                 newStatus === "accepted" &&
-                orderId &&
+                lastAcceptedAt &&
                 !localStorage.getItem(acceptedKey)
             ) {
                 localStorage.setItem(acceptedKey, "1");
