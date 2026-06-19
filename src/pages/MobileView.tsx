@@ -73,25 +73,53 @@ export default function MobileView({ brandId }: { brandId: string }) {
     }, []);
 
     // 1. Live Orders Subscription
+    // 1. Live Orders Subscription
     useEffect(() => {
         if (!brandId) return;
 
-        // Use collectionGroup to find all order messages across all chats
+        // Use collectionGroup to find order messages
         const q = query(
             collectionGroup(firestore, "messages"),
-            where("brandId", "==", brandId),
             where("isOrder", "==", true),
             orderBy("timestamp", "desc")
         );
 
         const unsub = onSnapshot(q, (snap) => {
-            const fetchedOrders = snap.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
+            // 1. Map and Filter the orders immediately so we only handle this brand's orders
+            const fetchedOrders = snap.docs
+                .map((d) => ({
+                    id: d.id,
+                    chatId: d.ref.parent.parent?.id,
+                    ...d.data(),
+                }))
+                // 🌟 CRITICAL FILTER: Ensure the message belongs to this specific brandId
+                // (Adjust d.brandId to match whatever field name holds your brand identifier on the message)
+                .filter((order: any) => order.brandId === brandId);
+
+            // 2. Process changes only for items passing our brand filter
+            snap.docChanges().forEach((change) => {
+                if (change.type === "added") {
+                    const newOrderData = change.doc.data();
+
+                    // Double check that this specific added document belongs to our brand
+                    if (newOrderData.brandId === brandId) {
+                        
+                        // Only trigger sounds/popups if it's a fresh order coming in after mounting
+                        if (prevOrdersCount.current !== null) {
+                            const msg = `🛒 New Order: ${
+                                newOrderData.orderData?.name || "Product"
+                            } x${newOrderData.orderData?.quantity || 1}`;
+
+                            notify("New Order", msg);
+                            setPopupMessage(msg);
+                        }
+                    }
+                }
+            });
+
+            // Sync our counter reference and state with the filtered list
+            prevOrdersCount.current = fetchedOrders.length;
             setOrders(fetchedOrders);
-        }, (err) => {
-            console.error("Mobile view subscription failed:", err.message);
         });
 
         return () => unsub();
@@ -206,28 +234,7 @@ export default function MobileView({ brandId }: { brandId: string }) {
                     </div>
                 )}
 
-                {activeMenuTab === "orders" && (
-                    <div style={{ maxHeight: "320px", overflowY: "auto" }}>
-                        {orders.length === 0 ? (
-                            <div style={styles.emptyNav}>No active orders inside dropdown</div>
-                        ) : (
-                            orders.map((order) => (
-                                <div key={order.id} style={styles.dropdownCardRow}>
-                                    <div>
-                                        {/* FIXED: Reading direct root properties instead of orderData */}
-                                        <div style={{ fontSize: 13, fontWeight: "bold" }}> {order.name} x{order.quantity} </div>
-                                        <div style={{ fontSize: 11, color: "#aaa" }}> Chat: {order.chatId ? `${order.chatId.slice(0, 6)}...` : "N/A"}</div>
-                                        <div style={{ fontSize: 11, color: "#aaa" }}>Status: {order.orderStatus || "pending"}</div>
-                                    </div>
-                                    <div style={styles.actions}>
-                                        <button onClick={() => updateStatus(order.chatId, "accepted")} style={{ ...styles.circle, background: "#00ff88" }} />
-                                        <button onClick={() => updateStatus(order.chatId, "rejected")} style={{ ...styles.circle, background: "#ff3b3b" }} />
-                                    </div>
-                                </div>
-                            ))
-                        )}
-                    </div>
-                )}
+               
             </div>
 
             {/* MAIN BACKGROUND APP CONTENT */}
@@ -237,25 +244,42 @@ export default function MobileView({ brandId }: { brandId: string }) {
                     <p style={styles.empty}>No orders available</p>
                 ) : (
                     orders.map((order) => (
-                        <div key={order.id} style={styles.card}>  
-                            <div style={{ display: "flex", alignItems: "center", gap: 10 }}> 
-                                {order.image && (
-                                    <img src={order.image} alt="" style={styles.cardImg} />
+                        <div key={order.id} style={styles.card}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+
+                                {order.orderData?.image && (
+                                    <img
+                                        src={order.orderData.image}
+                                        alt=""
+                                        style={styles.cardImg}
+                                    />
                                 )}
+
                                 <div>
                                     <div style={{ fontSize: 13, fontWeight: "bold" }}>
-                                        {order.name} × {order.quantity}
+                                        {order.orderData?.name || "Unknown Product"}
+                                        {" × "}
+                                        {order.orderData?.quantity || 1}
                                     </div>
+
                                     <div style={{ fontSize: 11, color: "#aaa" }}>
-                                        🕒 {order.timestamp?.toDate ? new Date(order.timestamp.toDate()).toLocaleString() : "Just now"}
+                                        🕒 {order.timestamp?.toDate
+                                            ? new Date(order.timestamp.toDate()).toLocaleString()
+                                            : "Just now"}
                                     </div>
                                 </div>
                             </div>
 
                             <div style={styles.actions}>
-                                <button onClick={() => updateStatus(order.chatId, "accepted")} style={{ ...styles.circle, background: "#00ff88" }} />
-                                {/* FIXED: Passing order.chatId here instead of order.id */}
-                                <button onClick={() => updateStatus(order.chatId, "rejected")} style={{ ...styles.circle, background: "#ff3b3b" }} />
+                                <button
+                                    onClick={() => updateStatus(order.chatId, "accepted")}
+                                    style={{ ...styles.circle, background: "#00ff88" }}
+                                />
+
+                                <button
+                                    onClick={() => updateStatus(order.chatId, "rejected")}
+                                    style={{ ...styles.circle, background: "#ff3b3b" }}
+                                />
                             </div>
                         </div>
                     ))
@@ -272,7 +296,7 @@ const styles: any = {
     popupCloseBtn: { background: "transparent", border: "none", fontSize: "16px", cursor: "pointer", color: "#000", padding: "0 4px" },
     header: { padding: "15px", height: "52px", display: "flex", alignItems: "center", justifyContent: "center", borderBottom: "1px solid #222", position: "relative", background: "#0b0b0b" },
     menuToggleBtn: { position: "absolute", left: "15px", background: "transparent", border: "1px solid #222", color: "#fff", padding: "6px 12px", borderRadius: "8px", cursor: "pointer", fontSize: "16px" },
-    logoutBtn: { position: "absolute", right: "15px", background: "transparent", border: "1px solid #ff3b3b", color: "#ff3b3b", padding: "6px 12px", borderRadius: "8px", cursor: "pointer", fontSize: "12px", fontWeight: "bold" },
+    logoutBtn: { position: "absolute", right: "15px", background: "transparent", border: "1px solid #493939", color: "#ff3b3b", padding: "6px 12px", borderRadius: "8px", cursor: "pointer", fontSize: "12px", fontWeight: "bold" },
     backdrop: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 20 },
     slidingPanel: { position: "fixed", top: "53px", left: 0, width: "100%", overflowY: "auto", background: "#111", zIndex: 30, transition: "all 0.3s ease" },
     tabBtn: { flex: 1, padding: "10px", fontWeight: "bold", border: "none", borderRadius: "8px", cursor: "pointer" },
