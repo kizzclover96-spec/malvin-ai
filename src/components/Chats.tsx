@@ -67,6 +67,7 @@ const Chats = ({ brandId, userBrand }: any) => {
     //shipment
     const [showShipmentModal, setShowShipmentModal] = useState(false);
     const [shipmentDate, setShipmentDate] = useState("");
+    const [shipmentArrivalDate, setShipmentArrivalDate] = useState("");
 
     const [shipmentProduct, setShipmentProduct] = useState("");
     const [shipmentQuantity, setShipmentQuantity] = useState("1");
@@ -392,6 +393,7 @@ const Chats = ({ brandId, userBrand }: any) => {
                 createdAt: serverTimestamp(),
                 completed:false,
                 address: shipmentAddress,
+                expectedArrival: shipmentArrivalDate,
             }
         );
 
@@ -884,7 +886,7 @@ const Chats = ({ brandId, userBrand }: any) => {
                                                         >
                                                             <span>Status</span>
                                                             <span>{getShipmentProgress(shipment)}</span>
-                                                            <span> {getDaysRemaining(shipment)}</span>
+                                                            <span>📅 Expected Arrival: {shipment.expectedArrival}</span>
                                                         </div>
 
                                                         <div
@@ -1215,7 +1217,7 @@ const Chats = ({ brandId, userBrand }: any) => {
                                         style={{
                                             position: "fixed",
                                             inset: 0,
-                                            background: "rgba(0,0,0,.7)",
+                                            background: "rgba(0,0,0,.65)",
                                             display: "flex",
                                             justifyContent: "center",
                                             alignItems: "center",
@@ -1228,89 +1230,62 @@ const Chats = ({ brandId, userBrand }: any) => {
                                                 background: "#121214",
                                                 border: "1px solid #262626",
                                                 borderRadius: "18px",
-                                                padding: "22px"
+                                                padding: "24px"
                                             }}
                                         >
-                                            <h3
-                                                style={{
-                                                    marginTop: 0,
-                                                    color: "#fff"
-                                                }}
-                                            >
+                                            <h3 style={{ marginTop: 0 }}>
                                                 🚚 Create Shipment
                                             </h3>
 
-                                            <div style={{ marginBottom: "12px" }}>
-                                                <label style={{ color: "#9ca3af", fontSize: "13px" }}>
-                                                    Product Name
-                                                </label>
+                                            <input
+                                                placeholder="Product Name"
+                                                value={shipmentProduct}
+                                                onChange={(e)=>setShipmentProduct(e.target.value)}
+                                                style={inputStyle}
+                                            />
 
-                                                <input
-                                                    value={shipmentProduct}
-                                                    onChange={(e) =>
-                                                        setShipmentProduct(e.target.value)
-                                                    }
-                                                    placeholder="Nike Shoes"
-                                                    style={inputStyle}
-                                                />
-                                            </div>
+                                            <input
+                                                type="number"
+                                                placeholder="Quantity"
+                                                value={shipmentQuantity}
+                                                onChange={(e)=>setShipmentQuantity(e.target.value)}
+                                                style={inputStyle}
+                                            />
 
-                                            <div style={{ marginBottom: "12px" }}>
-                                                <label style={{ color: "#9ca3af", fontSize: "13px" }}>
-                                                    Quantity
-                                                </label>
+                                            <textarea
+                                                placeholder="Client Address"
+                                                value={shipmentAddress}
+                                                onChange={(e)=>setShipmentAddress(e.target.value)}
+                                                style={{
+                                                    ...inputStyle,
+                                                    height:"80px",
+                                                    resize:"none"
+                                                }}
+                                            />
 
-                                                <input
-                                                    type="number"
-                                                    value={shipmentQuantity}
-                                                    onChange={(e) =>
-                                                        setShipmentQuantity(e.target.value)
-                                                    }
-                                                    style={inputStyle}
-                                                />
-                                            </div>
-
-                                            <div style={{ marginBottom: "16px" }}>
-                                                <label style={{ color: "#9ca3af", fontSize: "13px" }}>
-                                                    Client Address
-                                                </label>
-
-                                                <textarea
-                                                    value={shipmentAddress}
-                                                    onChange={(e) =>
-                                                        setShipmentAddress(e.target.value)
-                                                    }
-                                                    placeholder="Client delivery address"
-                                                    style={{
-                                                        width: "100%",
-                                                        minHeight: "80px",
-                                                        background: "#000",
-                                                        border: "1px solid #262626",
-                                                        color: "#fff",
-                                                        borderRadius: "10px",
-                                                        padding: "12px",
-                                                        resize: "none"
-                                                    }}
-                                                />
-                                            </div>
+                                            <input
+                                                type="date"
+                                                value={shipmentArrivalDate}
+                                                onChange={(e)=>setShipmentArrivalDate(e.target.value)}
+                                                style={inputStyle}
+                                            />
 
                                             <div
                                                 style={{
-                                                    display: "flex",
-                                                    gap: "10px"
+                                                    display:"flex",
+                                                    gap:"10px",
+                                                    marginTop:"16px"
                                                 }}
                                             >
                                                 <button
-                                                    onClick={() =>
-                                                        setShowShipmentModal(false)
-                                                    }
+                                                    onClick={()=>setShowShipmentModal(false)}
                                                     style={{
-                                                        flex: 1,
-                                                        padding: "10px",
-                                                        background: "#262626",
-                                                        color: "#fff",
-                                                        border: "none",
-                                                        borderRadius: "10px"
+                                                        flex:1,
+                                                        padding:"10px",
+                                                        borderRadius:"10px",
+                                                        border:"none",
+                                                        background:"#333",
+                                                        color:"#fff"
                                                     }}
                                                 >
                                                     Cancel
@@ -1319,16 +1294,15 @@ const Chats = ({ brandId, userBrand }: any) => {
                                                 <button
                                                     onClick={handleSetShipment}
                                                     style={{
-                                                        flex: 1,
-                                                        padding: "10px",
-                                                        background: "#22c55e",
-                                                        color: "#fff",
-                                                        border: "none",
-                                                        borderRadius: "10px",
-                                                        fontWeight: 600
+                                                        flex:1,
+                                                        padding:"10px",
+                                                        borderRadius:"10px",
+                                                        border:"none",
+                                                        background:"#22c55e",
+                                                        color:"#fff"
                                                     }}
                                                 >
-                                                    Start Delivery
+                                                    Create Shipment
                                                 </button>
                                             </div>
                                         </div>
@@ -1546,12 +1520,13 @@ const Chats = ({ brandId, userBrand }: any) => {
                     {showShippingAnimation && (
                         <div
                             style={{
-                                position: "fixed",
-                                bottom: "120px",
-                                right: "-200px",
-                                fontSize: "80px",
-                                zIndex: 999999,
-                                animation: "truckDrive 3s linear forwards"
+                                position:"fixed",
+                                bottom:"80px",
+                                right:0,
+                                zIndex:999999,
+                                fontSize:"70px",
+                                animation:"truckDrive 3.5s linear forwards",
+                                pointerEvents:"none"
                             }}
                         >
                             🚚
