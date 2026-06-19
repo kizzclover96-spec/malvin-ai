@@ -1543,21 +1543,22 @@ const Chats = ({ brandId, userBrand }: any) => {
                             </div>
                         )}
                     </ChatCard>
+                    {showShippingAnimation && (
+                        <div
+                            style={{
+                                position: "fixed",
+                                bottom: "120px",
+                                right: "-200px",
+                                fontSize: "80px",
+                                zIndex: 999999,
+                                animation: "truckDrive 3s linear forwards"
+                            }}
+                        >
+                            🚚
+                        </div>
+                    )}
                 </div>
-                {showShippingAnimation && (
-                    <div
-                        style={{
-                            position: "fixed",
-                            bottom: "120px",
-                            right: "-200px",
-                            fontSize: "80px",
-                            zIndex: 999999,
-                            animation: "truckDrive 3s linear forwards"
-                        }}
-                    >
-                        🚚
-                    </div>
-                )}
+                
             </div>
         </>
     );
