@@ -5,6 +5,7 @@ import { push, ref, set } from "firebase/database";
 type Props = {
     reportedUserId: string;
     reporterId: string;
+    onBack: () => void;
 };
 
 const Report = ({ reportedUserId, reporterId, onBack  }: Props) => {

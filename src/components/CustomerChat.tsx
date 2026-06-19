@@ -33,6 +33,9 @@ const CustomerChat = ({ pendingOrder: propOrder, quantity: propQuantity }: Custo
 
     const pendingOrderRef = useRef<any>(null);
     const lastAcceptedOrderId = useRef<string | null>(null);
+    const [showShipmentDetails, setShowShipmentDetails] = useState(false);
+    
+    const [shipments, setShipments] = useState<any[]>([]);
 
     const [orderStatus, setOrderStatus] = useState<string | null>(null);
     const [showAcceptedPopup, setShowAcceptedPopup] = useState(false);
@@ -134,6 +137,27 @@ const CustomerChat = ({ pendingOrder: propOrder, quantity: propQuantity }: Custo
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
     }, [chatHistory]);
+    useEffect(() => {
+        if (!chatId) return;
+
+        const shipmentsRef = collection(
+            firestore,
+            "conversations",
+            chatId,
+            "shipments"
+        );
+
+        const unsub = onSnapshot(shipmentsRef, (snap) => {
+            const data = snap.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+
+            setShipments(data);
+        });
+
+        return () => unsub();
+    }, [chatId]);
 
     // Handlers
     const handleSend = async (e?: React.FormEvent, customMsg?: string, isOrder = false, orderData?: any) => {
@@ -288,6 +312,28 @@ const CustomerChat = ({ pendingOrder: propOrder, quantity: propQuantity }: Custo
     return (
         <>
             <style>{`
+                @keyframes rotatePulse {
+                    0% {
+                        transform: rotate(0deg) scale(1);
+                    }
+                    50% {
+                        transform: rotate(180deg) scale(1.08);
+                    }
+                    100% {
+                        transform: rotate(360deg) scale(1);
+                    }
+                }
+
+                @keyframes pulseRing {
+                    0% {
+                        transform: translate(-50%, -50%) scale(0.6);
+                        opacity: 0.8;
+                    }
+                    100% {
+                        transform: translate(-50%, -50%) scale(1.4);
+                        opacity: 0;
+                    }
+                }
                 @keyframes confettiFly {
                     0% {
                         opacity: 1;
@@ -533,7 +579,45 @@ const CustomerChat = ({ pendingOrder: propOrder, quantity: propQuantity }: Custo
                         </div>
                     </div>
                 )}
+                {shipments.length > 0 && (
+                    <div style={{ position: "absolute", bottom: "85px", right: "25px", zIndex: 50 }}>
+                        
+                        {/* PULSE BUTTON */}
+                        <div
+                            onClick={() => setShowShipmentDetails((prev) => !prev)}
+                            style={{
+                                width: "42px",
+                                height: "42px",
+                                borderRadius: "50%",
+                                background: "rgba(34, 197, 94, 0.15)",
+                                border: "1px solid rgba(34, 197, 94, 0.6)",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                cursor: "pointer",
+                                position: "relative",
+                                animation: "rotatePulse 2.5s linear infinite"
+                            }}
+                        >
+                            🚚
+                        </div>
 
+                        {/* OUTER PULSE RING */}
+                        <div
+                            style={{
+                                position: "absolute",
+                                top: "50%",
+                                left: "50%",
+                                width: "70px",
+                                height: "70px",
+                                transform: "translate(-50%, -50%)",
+                                borderRadius: "50%",
+                                border: "2px solid rgba(34, 197, 94, 0.4)",
+                                animation: "pulseRing 1.8s ease-out infinite"
+                            }}
+                        />
+                    </div>
+                )}
                 <form onSubmit={handleSend} style={inputContainerStyle}>
 
                     {chatId && (
@@ -562,6 +646,51 @@ const CustomerChat = ({ pendingOrder: propOrder, quantity: propQuantity }: Custo
                     </button>
 
                 </form>
+                {showShipmentDetails && (
+                    <div
+                        style={{
+                            position: "absolute",
+                            bottom: "140px",
+                            right: "20px",
+                            width: "280px",
+                            background: "rgba(10,10,10,0.95)",
+                            border: "1px solid rgba(34,197,94,0.3)",
+                            borderRadius: "16px",
+                            padding: "14px",
+                            zIndex: 60,
+                            backdropFilter: "blur(10px)"
+                        }}
+                    >
+                        <div style={{ fontWeight: 700, marginBottom: "10px" }}>
+                            🚚 Shipment Updates
+                        </div>
+
+                        {shipments.map((s) => (
+                            <div
+                                key={s.id}
+                                style={{
+                                    padding: "10px",
+                                    borderRadius: "10px",
+                                    background: "#111",
+                                    marginBottom: "8px",
+                                    border: "1px solid #222"
+                                }}
+                            >
+                                <div style={{ fontSize: "13px", fontWeight: 600 }}>
+                                    {s.product}
+                                </div>
+
+                                <div style={{ fontSize: "11px", opacity: 0.7 }}>
+                                    Qty: {s.quantity}
+                                </div>
+
+                                <div style={{ fontSize: "11px", opacity: 0.7 }}>
+                                    ETA: {s.deliveryDate}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
         </>
     );

@@ -61,13 +61,18 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
     const [showComments, setShowComments] = useState(false);
     const currentUid = auth.currentUser?.uid;
 
+    const getConversationId = (brandId?: string) => {
+        const currentUser = auth.currentUser?.uid;
+        if (!brandId || !currentUser) return null;
+
+        return [currentUser, brandId].sort().join("_");
+    };
+
     // Dynamic Profile States (Bio & Meta Verification)
     const [bio, setBio] = useState('');
     const [isVerified, setIsVerified] = useState(false);
 
-    const [activeShipment, setActiveShipment] = useState<any>(null);
-    const [showShipmentBubble, setShowShipmentBubble] = useState(false);
-    const [shipmentCardOpen, setShipmentCardOpen] = useState(false);
+  
 
     
     const [trustScore, setTrustScore] = useState(50);
@@ -200,7 +205,7 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
                     id: key,
                     ...data[key]
                 }));
-                setReviews(fetchedReviews.reverse());
+                setReviews([...fetchedReviews].reverse());
             } else {
                 setReviews([]);
             }
@@ -341,51 +346,8 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
         setOrderModal(null);
         setView('chat');
     };
-
-    useEffect(() => {
-        const storageKey = `activeConversation_${brandId}`;
-        const conversationId = localStorage.getItem(storageKey);
-
-        if (!conversationId) return;
-
-        const shipmentsRef = collection(
-            firestore,
-            "conversations",
-            conversationId,
-            "shipments"
-        );
-        console.log("Brand ID:", brandId);
-        console.log("Storage Key:", storageKey);
-        console.log("Conversation ID:", conversationId);
-
-        const unsubscribe = onSnapshot(shipmentsRef, (snapshot) => {
-            const shipments = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-
-            if (shipments.length === 0) {
-                setActiveShipment(null);
-                setShowShipmentBubble(false);
-                return;
-            }
-
-            const latest = shipments.sort(
-                (a: any, b: any) =>
-                    (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)
-            )[0];
-
-            setActiveShipment(latest);
-            setShowShipmentBubble(true);
-
-            console.log("Shipment received:", latest);
-            console.log("Conversation ID:", conversationId);
-            console.log("Shipment docs:", snapshot.docs.length);
-        });
-        console.log("Conversation ID:", conversationId); 
-
-        return () => unsubscribe();
-    }, [brandId]);
+    const conversationId = getConversationId(brandId);
+    
 
     if (view === 'booking') {
         return (
@@ -483,31 +445,7 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
                 .scrolling-grid::-webkit-scrollbar, .modal-scroll-area::-webkit-scrollbar { width: 4px; }
                 .scrolling-grid::-webkit-scrollbar-thumb, .modal-scroll-area::-webkit-scrollbar-thumb { background: rgba(195, 255, 65, 0.2); border-radius: 2px; }
 
-                @keyframes shipmentPulse {
-                    0%{
-                        transform:scale(1);
-                    }
-
-                    50%{
-                        transform:scale(1.08);
-                    }
-
-                    100%{
-                        transform:scale(1);
-                    }
-                }
-
-                @keyframes shipmentSlideUp{
-                    from{
-                        opacity:0;
-                        transform:translateY(20px);
-                    }
-
-                    to{
-                        opacity:1;
-                        transform:translateY(0);
-                    }
-                }
+                
             `}</style>
 
             <header style={headerStyle}>
@@ -738,205 +676,13 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
                     </div>
                 </div>
             )}
-            {showShipmentBubble && activeShipment && (
-                <>
-                    <div
-                        onClick={() =>
-                            setShipmentCardOpen(
-                                !shipmentCardOpen
-                            )
-                        }
-                        style={{
-                            position: "fixed",
-                            bottom: "24px",
-                            right: "24px",
-
-                            width: "78px",
-                            height: "78px",
-
-                            borderRadius: "50%",
-
-                            background:
-                                "linear-gradient(135deg,#22c55e,#16a34a)",
-
-                            display: "flex",
-                            justifyContent: "center",
-                            alignItems: "center",
-
-                            fontSize: "34px",
-
-                            cursor: "pointer",
-
-                            zIndex: 999999,
-
-                            boxShadow:
-                                "0 0 30px rgba(34,197,94,.45)",
-
-                            animation:
-                                "shipmentPulse 2s infinite"
-                        }}
-                    >
-                        🚚
-                    </div>
-
-                    {shipmentCardOpen && (
-                        <div
-                            style={{
-                                position: "fixed",
-
-                                right: "24px",
-                                bottom: "120px",
-
-                                width: "320px",
-                                maxWidth: "90vw",
-
-                                background:
-                                    "rgba(18,18,20,.95)",
-
-                                backdropFilter:
-                                    "blur(18px)",
-
-                                border:
-                                    "1px solid rgba(255,255,255,.08)",
-
-                                borderRadius: "22px",
-
-                                padding: "18px",
-
-                                zIndex: 999999,
-
-                                animation:
-                                    "shipmentSlideUp .25s ease"
-                            }}
-                        >
-                            <div
-                                style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: "10px",
-                                    marginBottom: "16px"
-                                }}
-                            >
-                                <div
-                                    style={{
-                                        fontSize: "26px"
-                                    }}
-                                >
-                                    🚚
-                                </div>
-
-                                <div>
-                                    <div
-                                        style={{
-                                            fontWeight: 700,
-                                            color: "#fff"
-                                        }}
-                                    >
-                                        Shipment In Progress
-                                    </div>
-
-                                    <div
-                                        style={{
-                                            fontSize: "12px",
-                                            color: "#22c55e"
-                                        }}
-                                    >
-                                        Logistics Active
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div
-                                style={{
-                                    color: "#fff",
-                                    marginBottom: "8px"
-                                }}
-                            >
-                                📦 {activeShipment.product}
-                            </div>
-
-                            <div
-                                style={{
-                                    color: "#9ca3af",
-                                    fontSize: "13px",
-                                    marginBottom: "6px"
-                                }}
-                            >
-                                Quantity:
-                                {" "}
-                                {activeShipment.quantity}
-                            </div>
-
-                            <div
-                                style={{
-                                    color: "#9ca3af",
-                                    fontSize: "13px",
-                                    marginBottom: "14px"
-                                }}
-                            >
-                                ETA:
-                                {" "}
-                                {activeShipment.deliveryDate}
-                            </div>
-
-                            <div
-                                style={{
-                                    display: "flex",
-                                    justifyContent:
-                                        "space-between",
-
-                                    fontSize: "11px",
-                                    color: "#888",
-
-                                    marginBottom: "6px"
-                                }}
-                            >
-                                <span>Status</span>
-                                <span>65%</span>
-                            </div>
-
-                            <div
-                                style={{
-                                    width: "100%",
-                                    height: "8px",
-                                    background: "#222",
-                                    borderRadius: "999px",
-                                    overflow: "hidden"
-                                }}
-                            >
-                                <div
-                                    style={{
-                                        width: "65%",
-                                        height: "100%",
-                                        background: "#22c55e"
-                                    }}
-                                />
-                            </div>
-                        </div>
-                    )}
-                </>
-            )}
-            {showReport && (
+            
+            {showReport && brandId && (
                 <Report
                     reportedUserId={brandId}
                     reporterId={"CURRENT_USER_ID"}
                     onBack={() => setShowReport(false)}
                 />
-            )}
-            {activeShipment && (
-                <div
-                    style={{
-                        position: "fixed",
-                        top: 100,
-                        left: 20,
-                        background: "red",
-                        color: "white",
-                        padding: 10,
-                        zIndex: 999999
-                    }}
-                >
-                    SHIPMENT FOUND
-                </div>
             )}
             
         </div>

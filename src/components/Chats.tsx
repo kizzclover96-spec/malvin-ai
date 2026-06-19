@@ -392,6 +392,7 @@ const Chats = ({ brandId, userBrand }: any) => {
                 deliveryDate: shipmentDate,
                 createdAt: serverTimestamp(),
                 completed:false,
+                status: "in_progress",
                 address: shipmentAddress,
                 expectedArrival: shipmentArrivalDate,
             }
