@@ -580,11 +580,13 @@ const CustomerChat = ({ pendingOrder: propOrder, quantity: propQuantity }: Custo
                     </div>
                 )}
                 {shipments.length > 0 && (
-                    <div style={{ position: "absolute", bottom: "85px", right: "25px", zIndex: 50 }}>
-                        
-                        {/* PULSE BUTTON */}
+                    <div style={{ position: "absolute", bottom: "85px", right: "25px", zIndex: 9999 }}>
+
                         <div
-                            onClick={() => setShowShipmentDetails((prev) => !prev)}
+                            onClick={() => {
+                                console.log("shipment clicked");
+                                setShowShipmentDetails(prev => !prev);
+                            }}
                             style={{
                                 width: "42px",
                                 height: "42px",
@@ -596,13 +598,14 @@ const CustomerChat = ({ pendingOrder: propOrder, quantity: propQuantity }: Custo
                                 justifyContent: "center",
                                 cursor: "pointer",
                                 position: "relative",
-                                animation: "rotatePulse 2.5s linear infinite"
+                                animation: "rotatePulse 2.5s linear infinite",
+                                zIndex: 9999,
+                                pointerEvents: "auto"
                             }}
                         >
                             🚚
                         </div>
 
-                        {/* OUTER PULSE RING */}
                         <div
                             style={{
                                 position: "absolute",
