@@ -377,7 +377,12 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
 
             setActiveShipment(latest);
             setShowShipmentBubble(true);
+
+            console.log("Shipment received:", latest);
+            console.log("Conversation ID:", conversationId);
+            console.log("Shipment docs:", snapshot.docs.length);
         });
+        console.log("Conversation ID:", conversationId); 
 
         return () => unsubscribe();
     }, [brandId]);
@@ -917,6 +922,21 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
                     reporterId={"CURRENT_USER_ID"}
                     onBack={() => setShowReport(false)}
                 />
+            )}
+            {activeShipment && (
+                <div
+                    style={{
+                        position: "fixed",
+                        top: 100,
+                        left: 20,
+                        background: "red",
+                        color: "white",
+                        padding: 10,
+                        zIndex: 999999
+                    }}
+                >
+                    SHIPMENT FOUND
+                </div>
             )}
             
         </div>
