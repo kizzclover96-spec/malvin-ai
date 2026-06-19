@@ -655,7 +655,7 @@ const CustomerChat = ({ pendingOrder: propOrder, quantity: propQuantity }: Custo
                             position: "absolute",
                             bottom: "140px",
                             right: "20px",
-                            width: "280px",
+                            width: "300px",
                             background: "rgba(10,10,10,0.95)",
                             border: "1px solid rgba(34,197,94,0.3)",
                             borderRadius: "16px",
@@ -668,30 +668,49 @@ const CustomerChat = ({ pendingOrder: propOrder, quantity: propQuantity }: Custo
                             🚚 Shipment Updates
                         </div>
 
-                        {shipments.map((s) => (
-                            <div
-                                key={s.id}
-                                style={{
-                                    padding: "10px",
-                                    borderRadius: "10px",
-                                    background: "#111",
-                                    marginBottom: "8px",
-                                    border: "1px solid #222"
-                                }}
-                            >
-                                <div style={{ fontSize: "13px", fontWeight: 600 }}>
-                                    {s.product}
-                                </div>
-
-                                <div style={{ fontSize: "11px", opacity: 0.7 }}>
-                                    Qty: {s.quantity}
-                                </div>
-
-                                <div style={{ fontSize: "11px", opacity: 0.7 }}>
-                                    ETA: {s.deliveryDate}
-                                </div>
+                        {shipments.length === 0 ? (
+                            <div style={{ fontSize: "12px", opacity: 0.6 }}>
+                                No active shipments
                             </div>
-                        ))}
+                        ) : (
+                            shipments.map((s) => (
+                                <div
+                                    key={s.id}
+                                    style={{
+                                        padding: "10px",
+                                        borderRadius: "10px",
+                                        background: "#111",
+                                        marginBottom: "8px",
+                                        border: "1px solid #222"
+                                    }}
+                                >
+                                    {/* PRODUCT */}
+                                    <div style={{ fontSize: "13px", fontWeight: 600 }}>
+                                        📦 {s.product}
+                                    </div>
+
+                                    {/* QUANTITY */}
+                                    <div style={{ fontSize: "11px", opacity: 0.7 }}>
+                                        Qty: {s.quantity}
+                                    </div>
+
+                                    {/* DELIVERY DATE */}
+                                    <div style={{ fontSize: "11px", opacity: 0.7 }}>
+                                        📅 Dispatch: {s.deliveryDate}
+                                    </div>
+
+                                    {/* ARRIVAL DATE */}
+                                    <div style={{ fontSize: "11px", opacity: 0.7 }}>
+                                        🚚 Arrival: {s.expectedArrival}
+                                    </div>
+
+                                    {/* ADDRESS */}
+                                    <div style={{ fontSize: "11px", opacity: 0.7 }}>
+                                        📍 Address: {s.address}
+                                    </div>
+                                </div>
+                            ))
+                        )}
                     </div>
                 )}
             </div>
