@@ -15,6 +15,9 @@ import RefundPolicy from "./pages/RefundPolicy";
 import Impressum from "./pages/Impressum";
 import MarketFront from "./components/MarketFront";
 import Dashboard from "./components/dashboard";
+import DeviceSwitch from "./pages/DeviceSwitch";
+import MobileView from "./pages/MobileView";
+
 
 
 function App() {
@@ -23,6 +26,11 @@ function App() {
   const [hasWokenUp, setHasWokenUp] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
   const [dashboardToken, setDashboardToken] = useState("");
+  const [uiMode, setUiMode] = useState(localStorage.getItem("ui_mode") || "");
+  const resetMode = () => {
+    localStorage.removeItem("ui_mode");
+    setUiMode("");
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -32,6 +40,8 @@ function App() {
         setHasWokenUp(false);
         setShowLogin(false);
         setDashboardToken("");
+        localStorage.removeItem("ui_mode");
+        setUiMode("");
       } else {
         // 🌟 Reset wake-up cycle for any fresh logins to re-run the verification screen
         setHasWokenUp(false); 
@@ -66,27 +76,34 @@ function App() {
             <Route path="/allads" element={<AllAds />} />
             <Route path="/about" element={<About />} />
 
-            <Route path="/" element={
-              !user ? (
-                !showLogin ? (
-                  <LandingPage onLoginClick={() => setShowLogin(true)} />
+            <Route
+              path="/"
+              element={
+                !user ? (
+                  !showLogin ? (
+                    <LandingPage onLoginClick={() => setShowLogin(true)} />
+                  ) : (
+                    <Login />
+                  )
+                ) : isAdmin ? (
+                  <AdsManager />
+                ) : !hasWokenUp ? (
+                  <Welcomeview
+                    userEmail={user.email}
+                    onWakeClick={handleWakeUpSequence}
+                  />
+                ) : !uiMode ? (
+                  <DeviceSwitch onSelect={(mode) => setUiMode(mode)} />
+                ) : uiMode === "mobile" ? (
+                  <MobileView brandId={user.uid} />
                 ) : (
-                  <Login />
+                  <Dashboard
+                    userEmail={user.email}
+                    validationToken={dashboardToken}
+                  />
                 )
-              ) : isAdmin ? (
-                <AdsManager />
-              ) : !hasWokenUp ? (
-                <Welcomeview 
-                  userEmail={user.email} 
-                  onWakeClick={handleWakeUpSequence} 
-                />
-              ) : (
-                <Dashboard
-                  userEmail={user.email}
-                  validationToken={dashboardToken}
-                />
-              )
-            } />
+              }
+            />
 
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>

@@ -23,7 +23,17 @@ but this time let it show actual reports from the users current stats in firebas
 now the way i want it is that when the user enters their dashboard maybe after they log out or.. after the welcomescreen load and it detects that the user is not a new user and the dashboard shows, let a  semi big glas card popup with one of those apple popup sound effects and display the details with the background behind the glascard blured(to give a cool ui effect). then additionally only everysunday it displays a data anlysis of their busness growth and sales over the last week and how many reports they received from customers .
 you can also add other useful analytic things too. please do not use simulations, they must be real and help users.
 
-make it all in a .tsx file so i can import it in my dashboard
+make it all in a .tsx file so i can import { signInWithEmailAndPassword } from "firebase/auth"
+import itimport { Container } from "lucide-react"
+ in my dashboard
 
 
+make it mobile only optimized.
 
+so this is what i wantyou to do. there will be an empty screen and at the top senter of the screen says (in a big font) secondary support (brandname).
+then on the top left cornner will be a drop down icon the onclik a tab slides open from the left to right and in it says BookImageIcon.
+now this is the TaskPriorityChangeEvent. the main page will say all QueryOrderByConstraint, if no oders are avaulable it should say no oders available. then inf there is a new order let it display the order ditaile enveloped in a slim signInWithEmailAndPasswordrectangle Container.
+beside the cotainer will be too small circle, one green one to accept and the other one to reject the order. if the user clicks accept it should update the order status in firebase to accepted and if they click reject it should update the order status to rejected. also add a notification sound effect when a new order comes in.
+now i alredy hasve the market front and customer chat when the customer places the order. so if you need it i can send them so you can get the info such as rtdb readinth path you will needsRbspUnescaping.
+
+you will make it into a mobile .tsx

@@ -182,7 +182,8 @@ const CustomerChat = ({ pendingOrder: propOrder, quantity: propQuantity }: Custo
                 sender: 'customer',
                 timestamp: serverTimestamp(),
                 isOrder,
-                orderData: orderData || null
+                orderData: orderData || null,
+                brandId, // 🔥 ADD THIS
             });
 
             if (!customMsg) setMessage('');
