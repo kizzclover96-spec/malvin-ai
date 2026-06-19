@@ -7,8 +7,9 @@ import {
   doc,
   where,
   orderBy,
-  collectionGroup,
 } from "firebase/firestore";
+// Import getAuth and signOut
+import { getAuth, signOut } from "firebase/auth";
 import { firestore } from "../firebase";
 import { db } from "../firebase";
 import { ref as dbRef, onValue } from "firebase/database";
@@ -50,38 +51,42 @@ export default function MobileView({ brandId }: { brandId: string }) {
     const [bookings, setBookings] = useState<any[]>([]);
     const [orders, setOrders] = useState<any[]>([]);
 
+    const auth = getAuth(); // Initialize auth instance
+
     // 🔊 sound + vibration
     const notify = (title: string, body: string) => {
-        // 1. Play the downloaded audio file (Works on iOS & Android)
         const audio = new Audio("/notification.mp3");
         audio.play().catch((err) => console.log("Audio playback waiting for user interaction:", err));
 
-        // 2. Trigger Android Vibration Fallback
         if (navigator.vibrate) {
             navigator.vibrate([200, 100, 200]); 
         }
 
-        // 3. Trigger System Notification (Forces iOS to vibrate if saved as a PWA)
         if (Notification.permission === "granted") {
             new Notification(title, {
                 body: body,
-                icon: "/favicon.ico", // Optional path to your logo
+                icon: "/favicon.ico",
             });
         }
     };
 
+    // Logout Handler
+    const handleLogout = async () => {
+        try {
+            await signOut(auth);
+        } catch (error) {
+            console.error("Error signing out: ", error);
+        }
+    };
+
     useEffect(() => {
-        // Request permission to send system alerts/vibrations
         if ("Notification" in window && Notification.permission === "default") {
             Notification.requestPermission();
         }
     }, []);
 
-    // 📡 REALTIME ORDERS LISTENER
-    // Add a ref at the top of your component next to prevReservationsCount
     const prevOrdersCount = useRef<number | null>(null);
 
-    // Update your orders useEffect:
     useEffect(() => {
         if (!brandId) return;
 
@@ -97,7 +102,6 @@ export default function MobileView({ brandId }: { brandId: string }) {
                 ...doc.data()
             })) as any[];
 
-            // 🔔 Trigger alert if a new order arrives
             if (prevOrdersCount.current !== null && fetchedOrders.length > prevOrdersCount.current) {
                 const latestOrder = fetchedOrders[0];
                 notify("New Order!", `📦 New order: ${latestOrder.name || "Item"} x${latestOrder.quantity || 1}`);
@@ -111,8 +115,6 @@ export default function MobileView({ brandId }: { brandId: string }) {
         return () => unsub();
     }, [brandId]);
 
-
-    // 📡 REALTIME RESERVATIONS LISTENER (Cleaned & De-duplicated)
     useEffect(() => {
         if (!brandId) return;
 
@@ -132,12 +134,10 @@ export default function MobileView({ brandId }: { brandId: string }) {
                 ...value,
             }));
 
-            // Sort by timestamp
             const sortedList = list.sort(
                 (a: any, b: any) => (b.timestamp || 0) - (a.timestamp || 0)
             );
 
-            // Trigger notification alerts on new arrivals
             if (prevReservationsCount.current !== null && sortedList.length > prevReservationsCount.current) {
                 const latestReservation = sortedList[0];
                 notify("New Reservation", `${latestReservation.clientName || latestReservation.name || "Client"} has booked`);
@@ -151,7 +151,6 @@ export default function MobileView({ brandId }: { brandId: string }) {
         return () => unsubscribe();
     }, [brandId]);
 
-    // Clear highlight alerts & top popups after 4 seconds
     useEffect(() => {
         if (!newOrderId && !popupMessage) return;
         const t = setTimeout(() => {
@@ -161,7 +160,6 @@ export default function MobileView({ brandId }: { brandId: string }) {
         return () => clearTimeout(t);
     }, [newOrderId, popupMessage]);
 
-    // ✅ update order status
     const updateStatus = async (id: string, status: string) => {
         await updateDoc(doc(firestore, "conversations", id), {
             orderStatus: status,
@@ -173,7 +171,6 @@ export default function MobileView({ brandId }: { brandId: string }) {
 
     return (
         <div style={styles.wrapper}>
-            {/* TOP POPUP ALERTS NOTIFICATION BANNER */}
             {popupMessage && (
                 <div style={styles.popupAlert}>
                     <span>{popupMessage}</span>
@@ -200,7 +197,26 @@ export default function MobileView({ brandId }: { brandId: string }) {
                     ☰
                 </button>
 
-                <h2 style={styles.title}>Secondary Support (BrandName)</h2>
+                <h2 style={styles.title}>Secondary Support</h2>
+
+                {/* LOGOUT BUTTON */}
+                <button
+                    onClick={handleLogout}
+                    style={{
+                        position: "absolute",
+                        right: "15px",
+                        background: "transparent",
+                        border: "1px solid #ff3b3b",
+                        color: "#ff3b3b",
+                        padding: "6px 12px",
+                        borderRadius: "8px",
+                        cursor: "pointer",
+                        fontSize: "12px",
+                        fontWeight: "bold"
+                    }}
+                >
+                    Logout
+                </button>
             </div>
 
             {/* BACKDROP */}
@@ -232,7 +248,6 @@ export default function MobileView({ brandId }: { brandId: string }) {
                     padding: menuOpen ? "15px" : "0px 15px"
                 }}
             >
-                {/* TABS CONTROLLERS */}
                 <div style={{ display: "flex", gap: "10px", marginBottom: "15px" }}>
                     <button
                         onClick={() => setActiveMenuTab("reservations")}
@@ -267,7 +282,6 @@ export default function MobileView({ brandId }: { brandId: string }) {
                     </button>
                 </div>
 
-                {/* RESERVATIONS CONTENT VIEW */}
                 {activeMenuTab === "reservations" && (
                     <div style={{ maxHeight: "320px", overflowY: "auto" }}>
                         {bookings.length === 0 ? (
@@ -289,15 +303,8 @@ export default function MobileView({ brandId }: { brandId: string }) {
                                     <div style={{ fontWeight: 700, marginBottom: 4 }}>
                                         {b.clientName || b.name || "Client"}
                                     </div>
-
-                                    <div style={{ fontSize: 12, color: "#aaa" }}>
-                                        📅 {b.date}
-                                    </div>
-
-                                    <div style={{ fontSize: 12, color: "#aaa" }}>
-                                        🕒 {b.time}
-                                    </div>
-
+                                    <div style={{ fontSize: 12, color: "#aaa" }}>📅 {b.date}</div>
+                                    <div style={{ fontSize: 12, color: "#aaa" }}>🕒 {b.time}</div>
                                     <div
                                         style={{
                                             marginTop: 6,
@@ -313,7 +320,6 @@ export default function MobileView({ brandId }: { brandId: string }) {
                     </div>
                 )}
 
-                {/* ORDERS CONTENT VIEW */}
                 {activeMenuTab === "orders" && (
                     <div style={{ maxHeight: "320px", overflowY: "auto" }}>
                         {activeOrders.length === 0 ? (
@@ -337,8 +343,7 @@ export default function MobileView({ brandId }: { brandId: string }) {
                                 >
                                     <div>
                                         <div style={{ fontSize: 13, fontWeight: "bold" }}> {order.orderData?.name} x{order.orderData?.quantity} </div>
-                                        <div style={{ fontSize: 11, color: "#aaa" }}>  Chat: {order.chatId.slice(0, 6)}...</div>
-
+                                        <div style={{ fontSize: 11, color: "#aaa" }}>  Chat: {order.chatId?.slice(0, 6)}...</div>
                                         <div style={{ fontSize: 11, color: "#aaa" }}>{order.lastMessage || "No messages"}</div>
                                     </div>
                                     <div style={styles.actions}>
@@ -372,7 +377,7 @@ export default function MobileView({ brandId }: { brandId: string }) {
                                 border: order.id === newOrderId ? "1px solid #00ff88" : "1px solid #2a2a2a",
                             }}
                         >  
-                           <div style={{ display: "flex", alignItems: "center", gap: 10 }}> 
+                            <div style={{ display: "flex", alignItems: "center", gap: 10 }}> 
                                 {order.image && (
                                     <img
                                         src={order.image}
@@ -390,7 +395,6 @@ export default function MobileView({ brandId }: { brandId: string }) {
                                 <div style={{ fontSize: 13, fontWeight: "bold" }}>
                                     {order.name} × {order.quantity}
                                 </div>
-
                                 <div style={{ fontSize: 11, color: "#aaa" }}>
                                     🕒{" "}
                                     {order.timestamp?.toDate?.()
@@ -442,7 +446,6 @@ const styles: any = {
         alignItems: "center",
         fontWeight: "bold",
         fontSize: "14px",
-        animation: "slideDown 0.2s ease"
     },
     popupCloseBtn: {
         background: "transparent",
