@@ -308,6 +308,22 @@ const Dashboard = (props: any) => {
 
         return categories;
     };
+    const downloadQRCode = () => {
+        // Finds the canvas element inside the QR box wrapper
+        const canvas = document.querySelector('[data-tour="store-qr"] canvas');
+        if (canvas) {
+            const pngUrl = canvas
+                .toDataURL("image/png")
+                .replace("image/png", "image/octet-stream");
+            
+            let downloadLink = document.createElement("a");
+            downloadLink.href = pngUrl;
+            downloadLink.download = "store-qr-code.png";
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+        }
+    };
 
 
     const TourOverlay = ({ step, onNext, onClose }: any) => {
@@ -1240,7 +1256,19 @@ const Dashboard = (props: any) => {
                                         <div data-tour="store-qr" style={qrContainerStyle}>
                                             <div style={{ flex: 1 }}>
                                                 <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '10px' }}>Online Store</div>
-                                                <div style={{ display: 'flex', gap: '8px' }}>
+                                                {/* Changed layout to a column to stack the Download button above the Preview button */}
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-start' }}>
+                                                    <button 
+                                                        onClick={downloadQRCode} 
+                                                        style={{
+                                                            ...secondaryBtnStyle,
+                                                            background: '#C5FF41', // Custom accent color matching your QR code foreground
+                                                            color: '#000',
+                                                            fontWeight: 'bold'
+                                                        }}
+                                                    >
+                                                        📥 Download QR
+                                                    </button>
                                                     <button onClick={() => setActiveTab('Preview')} style={secondaryBtnStyle}>Preview</button>
                                                 </div>
                                             </div>
