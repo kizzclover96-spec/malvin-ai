@@ -37,3 +37,137 @@ beside the cotainer will be too small circle, one green one to accept and the ot
 now i alredy hasve the market front and customer chat when the customer places the order. so if you need it i can send them so you can get the info such as rtdb readinth path you will needsRbspUnescaping.
 
 you will make it into a mobile .tsx
+
+lets do something intersting, i want you to create a Category.tsx file for me (vite) now in this screen let it display 3 things with an on click action. 
+it will display 3 svg icons, one is a plate with fork and spoon at bot sides (like those ones signifying catering/resturant). the second one will be a cloth svg
+and the third will be an eye svg. theses 3 things should be housed in their own circle then one they should be be at the center of the screen and alligned horizontally.
+were going t so some serious beautiful coding soon. when you do tht we will then start with create another code called resturant.tsx, on click of the plate svg takes us to the resturant. but
+first cretE THE CATegory.tsx. let it be fine and permuim looking 
+
+
+now lets work on the resturant.tsx. first of all let it be mobile optimized. the top of the screen will say malvin admin center. then the top right conner will have a g
+
+
+
+
+make a cool morden ordering store front similar to indrive or any other food there apps, using vite and react and not tailswind. mobile optimised
+let the top right corner how an order button. onclik will display the customers orders. let the main screen  display the name of the brand and bio and the products for fire base
+FIREBASE FUNCTIONALITY Brand Name Retrieval Retrieve only: brandName from: restaurantprofile └── {uid} ├── brandName ├── brandBio ├── openingTime ├── closingTime ├── shareLink ├── onlineStatus ├── createdAt └── updatedAt
+then the products from here Restaurantcatalogue └── {uid} ├── ownerId ├── createdAt └── products └── {productId} ├── imageUrl ├── name ├── description ├── price ├── currency ├── discount ├── available ├── preparationTime ├── category ├── ingredients ├── calories ├── tags ├── featured ├── createdAt └── updatedAt. from it can users place orders(1,2..etc), nae of customer, when they can come to pick it, customers current status (home, on the way, traffic...etc)
+then on send the oder waits for confirmation from the manager. on accept order let a receipt for that oder automatically be displayed. the receipt will contain
+the customer name and a random unique 4 digit code and qr code. order details, and an oder statuse that can displayes whether the order is been prepared, in queue, awaiting pickup
+and finished. these status is only been set by the manager. when the status is set as finished, let the receip automatically change t a green cicle that says finished
+
+
+
+Build a modern mobile-optimized food ordering app  (store.tsx) frontend using:
+Vite
+React
+TypeScript
+NO Tailwind CSS (use plain CSS or CSS modules)
+
+The UI should feel modern and premium like Uber Eats, DoorDash, or inDrive Food.
+
+📱 UI REQUIREMENTS
+1. Main Screen (Home)
+Display:
+Restaurant brand name (large, bold)
+Brand bio (small subtitle)
+Below that: product list grid/cards from Firebase
+2. Top Bar
+Top-right corner contains an “Orders” button
+When clicked:
+Opens a modal/drawer
+Shows customer’s current and past orders.
+under the header should have a searchbar
+🔥 FIREBASE DATA STRUCTURE
+Restaurant Profile
+
+Fetch ONLY:
+
+restaurantprofile/{uid}
+
+Fields:
+
+brandName
+brandBio
+openingTime
+closingTime
+shareLink
+onlineStatus
+createdAt
+updatedAt
+Products Catalogue
+Restaurantcatalogue/{uid}/products/{productId}
+
+Fields:
+
+imageUrl
+name
+description
+price
+currency
+discount
+available
+preparationTime
+category
+ingredients
+calories
+tags
+featured
+createdAt
+updatedAt
+
+
+🛒 ORDER SYSTEM
+
+Users can:
+
+Select product quantity (1,2,3…)
+Add to cart
+Enter:
+customer name
+pickup time
+current status (home, on the way, traffic, etc.)
+Order Flow
+User places order
+Order goes into “PENDING” state
+Manager must approve/confirm order
+If approved:
+Generate receipt automatically
+🧾 RECEIPT SYSTEM
+
+When order is accepted:
+
+Generate a receipt containing:
+
+Customer name
+Random unique 4-digit code
+QR code for order
+Full order details
+Order status
+ORDER STATUS (MANAGER CONTROLLED)
+
+Statuses:
+
+pending
+preparing
+in queue
+ready for pickup
+finished
+UI RULES:
+Only manager can update status
+User can only view status
+FINAL STATE
+
+When status becomes finished:
+
+Receipt updates automatically
+Show green success indicator
+Display “ORDER COMPLETED” badge
+🎯 UI GOALS
+Mobile-first design
+Smooth animations
+Clean modern layout
+Fast Firebase sync
+Real-time order updates

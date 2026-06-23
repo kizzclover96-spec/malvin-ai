@@ -3,7 +3,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "./firebase"; 
 import Login from "./pages/loginscreen"; 
 import Welcomeview from "./pages/welcomeview"; 
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import AdsManager from "./components/AdsManagment";
 import LandingPage from "./pages/LandingPage";
 import CookieBanner from "./components/CookieBanner";
@@ -17,11 +17,15 @@ import MarketFront from "./components/MarketFront";
 import Dashboard from "./components/dashboard";
 import DeviceSwitch from "./pages/DeviceSwitch";
 import MobileView from "./pages/MobileView";
+import FoodDashboard from "./components/Food";
+import Category from "./pages/Category";
+import { StoreFrontend } from './components/Store';
 
 
 
 function App() {
   const [user, setUser] = useState(null);
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [hasWokenUp, setHasWokenUp] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
@@ -31,6 +35,9 @@ function App() {
     localStorage.removeItem("ui_mode");
     setUiMode("");
   };
+ 
+  
+  const [flowStep, setFlowStep] = useState("welcome");
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -51,6 +58,12 @@ function App() {
 
     return () => unsubscribe();
   }, []);
+  useEffect(() => {
+    if (!user) return;
+
+    setHasWokenUp(false);
+    setFlowStep("welcome");
+  }, [user]);
 
   if (loading) {
     return <div style={{ backgroundColor: '#000', height: '100vh' }} />;
@@ -60,55 +73,72 @@ function App() {
 
   const handleWakeUpSequence = (tokenFromWelcome) => {
     setDashboardToken(tokenFromWelcome);
-    setHasWokenUp(true);
+    setFlowStep("category"); // correct
   };
+  
+  const handleCategorySelect = (type) => {
+    if (type === "food") {
+      setFlowStep("food"); // Changed from "FoodDashboard" to "food"
+      return;
+    }
 
+    if (type === "fashion") {
+      setFlowStep("device");
+      return;
+    }
+
+    setFlowStep("device");
+  };
   return (
     <>
-      <Router>
-        <div className="App" style={{ minHeight: '100vh' }}>
-          <Routes>
-            <Route path="/chat/:brandId" element={<MarketFront />} />
-            <Route path="/terms" element={<Terms />} />
-            <Route path="/privacy" element={<Privacy />} />
-            <Route path="/refund-policy" element={<RefundPolicy />} />
-            <Route path="/impressum" element={<Impressum />} />
-            <Route path="/allads" element={<AllAds />} />
-            <Route path="/about" element={<About />} />
+      <div className="App" style={{ minHeight: '100vh' }}>
+        <Routes>
+          <Route path="/chat/:brandId" element={<MarketFront />} />
+          <Route path="/food/:Uid" element={<StoreFrontend/>} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/refund-policy" element={<RefundPolicy />} />
+          <Route path="/impressum" element={<Impressum />} />
+          <Route path="/allads" element={<AllAds />} />
+          <Route path="/about" element={<About />} />
 
-            <Route
-              path="/"
-              element={
-                !user ? (
-                  !showLogin ? (
-                    <LandingPage onLoginClick={() => setShowLogin(true)} />
-                  ) : (
-                    <Login />
-                  )
-                ) : isAdmin ? (
-                  <AdsManager />
-                ) : !hasWokenUp ? (
-                  <Welcomeview
-                    userEmail={user.email}
-                    onWakeClick={handleWakeUpSequence}
-                  />
-                ) : !uiMode ? (
-                  <DeviceSwitch onSelect={(mode) => setUiMode(mode)} />
-                ) : uiMode === "mobile" ? (
-                  <MobileView brandId={user.uid} />
+          <Route
+            path="/"
+            element={
+              !user ? (
+                !showLogin ? (
+                  <LandingPage onLoginClick={() => setShowLogin(true)} />
                 ) : (
-                  <Dashboard
-                    userEmail={user.email}
-                    validationToken={dashboardToken}
-                  />
+                  <Login />
                 )
-              }
-            />
+              ) : isAdmin ? (
+                <AdsManager />
+              ) : flowStep === "welcome" ? (
+                <Welcomeview onWakeClick={handleWakeUpSequence} />
+              ) : flowStep === "welcome" ? (
+                <Welcomeview onWakeClick={handleWakeUpSequence} />
+              ) : flowStep === "category" ? (
+                <Category onSelect={handleCategorySelect} />
+              ) : flowStep === "food" ? (
+                <FoodDashboard userEmail={user?.email} currentUserId={user?.uid} />
+              ) : flowStep === "device" ? (
+                <DeviceSwitch
+                  onSelect={(mode) => {
+                    setUiMode(mode);
+                    setFlowStep("done");
+                  }}
+                />
+              ) : uiMode === "mobile" ? (
+                <MobileView brandId={user.uid} />
+              ) : (
+                <Dashboard userEmail={user.email} validationToken={dashboardToken} />
+)
+            }
+          />
 
-            <Route path="*" element={<Navigate to="/" />} />
-          </Routes>
-        </div>
-      </Router>
+          <Route path="*" element={<Navigate to="/" />} />
+        </Routes>
+      </div>
       <CookieBanner />
     </>
   );
