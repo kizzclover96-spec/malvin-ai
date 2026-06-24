@@ -3,6 +3,7 @@ import { firestore as db } from '../firebase'; // Ensure your firebase configura
 import { doc, onSnapshot, collection, addDoc, query, where } from 'firebase/firestore';
 import styles from './store.module.css';
 import { useParams } from "react-router-dom";
+import QRCode from "qrcode";
 
 // --- Interfaces ---
 interface RestaurantProfile {
@@ -32,7 +33,7 @@ interface Order {
   pickupTime: string;
   status: 'pending' | 'preparing' | 'in queue' | 'ready for pickup' | 'finished';
   items: { name: string; quantity: number; price: number }[];
-  fourDigitCode?: string;
+  fourDigitCode: string;
 }
 
 interface StoreProps {
@@ -74,6 +75,12 @@ export const StoreFrontend: React.FC = () => {
   const [currentStatus, setCurrentStatus] = useState('home');
   const [guestId, setGuestId] = useState<string>('');
   console.log("Restaurant UID:", restaurantUid);
+
+  //code
+  const fourDigitCode = crypto.getRandomValues(new Uint32Array(1))[0]
+  .toString()
+  .slice(-4);
+  const [receiptQrs, setReceiptQrs] = useState<Record<string, string>>({});
 
   // 1. Real-time Subscription: Restaurant Profile
   useEffect(() => {
@@ -134,6 +141,29 @@ export const StoreFrontend: React.FC = () => {
     return () => unsubscribe();
   }, [customerName]);
 
+  useEffect(() => {
+    const generateQrs = async () => {
+      const qrMap: Record<string, string> = {};
+
+      for (const order of userOrders) {
+        if (order.fourDigitCode) {
+          // 🔥 FIX: Assign the resolved promise string directly to your map item
+          qrMap[order.id] = await QRCode.toDataURL(
+            JSON.stringify({
+              orderId: order.id,
+              code: order.fourDigitCode,
+              customer: order.customerName,
+            })
+          );
+        }
+      }
+
+      setReceiptQrs(qrMap);
+    };
+
+    generateQrs();
+  }, [userOrders]);
+
   // Actions
   const handleAddToCart = () => {
     if (!activeProduct) return;
@@ -151,6 +181,7 @@ export const StoreFrontend: React.FC = () => {
       customerName,
       guestId,
       pickupTime,
+      fourDigitCode,
       userMobilityStatus: currentStatus,
       status: 'pending',
       createdAt: new Date().toISOString(),
@@ -310,8 +341,27 @@ export const StoreFrontend: React.FC = () => {
                       </p>
                       
                       {/* Placeholder UI logic representing a scanning dynamic target context QR container */}
-                      <div className={styles.qrPlaceholder}>
-                        [ QR SCAN CODE: {order.id.substring(0,6).toUpperCase()} ]
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "center",
+                          marginTop: "10px",
+                        }}
+                      >
+                        {receiptQrs[order.id] && (
+                          <img
+                            src={receiptQrs[order.id]}
+                            alt="Order QR"
+                            style={{
+                              width: "120px",
+                              height: "120px",
+                              border: "2px solid #000",
+                              borderRadius: "12px",
+                              padding: "4px",
+                              background: "#fff",
+                            }}
+                          />
+                        )}
                       </div>
                     </div>
                   )}

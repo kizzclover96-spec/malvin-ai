@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { firestore as db } from '../firebase'; // Adjust to your firebase configuration path
+import { firestore as db } from '../firebase'; 
 import { getAuth, onAuthStateChanged, signOut  } from 'firebase/auth';
 import { 
   doc, 
@@ -17,6 +17,7 @@ import {
 import QRCode from 'qrcode';
 import RestaurantCatalogue from './OrderStoreCatalogue';
 import { getDatabase, ref, onValue } from "firebase/database";
+import { useRef } from "react";
 
 // --- Type Definitions ---
 interface RestaurantData {
@@ -34,6 +35,7 @@ interface IncomingOrder {
   customerName: string;
   pickupTime: string;
   status: string;
+  fourDigitCode?: string;
   items: {
     name: string;
     quantity: number;
@@ -81,48 +83,72 @@ export default function FoodDashboard() {
   const shareLink = `${window.location.origin}/food/${uid}`;
   const [incomingOrders, setIncomingOrders] = useState<IncomingOrder[]>([]);
 
+  //code
+  const [orderQrCodes, setOrderQrCodes] = useState<Record<string, string>>({});
+  const previousOrderCount = useRef(0);
+
   const [activeTab, setActiveTab] = useState<"orders" | "analytics">("orders");
 
   const handleLogout = async () => {
     try {
         const auth = getAuth();
         await signOut(auth);
-        window.location.href = '/login'; // or your landing page
+        window.location.href = '/login'; 
     } catch (err) {
         console.error("Logout failed:", err);
     }
   };
   const [isVerified, setIsVerified] = useState(false);
-  const [analytics, setAnalytics] = useState({
-    totalOrders: 0,
-    acceptedOrders: 0,
-    rejectedOrders: 0,
-    mostOrderedItem: "",
-    mostOrderedCount: 0,
-  });
+    const [analytics, setAnalytics] = useState({
+        totalOrders: 0,
+        acceptedOrders: 0,
+        rejectedOrders: 0,
+        mostAcceptedItem: "N/A",
+        mostAcceptedCount: 0,
+        mostRejectedItem: "N/A",
+        mostRejectedCount: 0,
+    });
     const calculateAnalytics = (orders: IncomingOrder[]) => {
         let accepted = 0;
         let rejected = 0;
 
-        const itemCountMap: Record<string, number> = {};
+        // Track counts separately based on order outcomes
+        const acceptedItemsMap: Record<string, number> = {};
+        const rejectedItemsMap: Record<string, number> = {};
 
         orders.forEach((order) => {
-            if (order.status === "accepted") accepted++;
-            if (order.status === "rejected") rejected++;
-
+            if (order.status === "accepted") {
+            accepted++;
             order.items.forEach((item) => {
-            const key = item.name;
-            itemCountMap[key] = (itemCountMap[key] || 0) + item.quantity;
+                acceptedItemsMap[item.name] = (acceptedItemsMap[item.name] || 0) + item.quantity;
             });
+            }
+            
+            if (order.status === "rejected") {
+            rejected++;
+            order.items.forEach((item) => {
+                rejectedItemsMap[item.name] = (rejectedItemsMap[item.name] || 0) + item.quantity;
+            });
+            }
         });
 
-        let mostOrderedItem = "";
-        let mostOrderedCount = 0;
+        // Calculate most accepted item
+        let mostAcceptedItem = "N/A";
+        let mostAcceptedCount = 0;
+        Object.entries(acceptedItemsMap).forEach(([item, count]) => {
+            if (count > mostAcceptedCount) {
+            mostAcceptedItem = item;
+            mostAcceptedCount = count;
+            }
+        });
 
-        Object.entries(itemCountMap).forEach(([item, count]) => {
-            if (count > mostOrderedCount) {
-            mostOrderedItem = item;
-            mostOrderedCount = count;
+        // Calculate most rejected item
+        let mostRejectedItem = "N/A";
+        let mostRejectedCount = 0;
+        Object.entries(rejectedItemsMap).forEach(([item, count]) => {
+            if (count > mostRejectedCount) {
+            mostRejectedItem = item;
+            mostRejectedCount = count;
             }
         });
 
@@ -130,8 +156,10 @@ export default function FoodDashboard() {
             totalOrders: orders.length,
             acceptedOrders: accepted,
             rejectedOrders: rejected,
-            mostOrderedItem,
-            mostOrderedCount,
+            mostAcceptedItem,
+            mostAcceptedCount,
+            mostRejectedItem,
+            mostRejectedCount,
         });
     };
 
@@ -240,6 +268,29 @@ export default function FoodDashboard() {
       handleCopyLink();
     }
   };
+
+    useEffect(() => {
+        const generateQRCodes = async () => {
+            const qrMap: Record<string, string> = {};
+
+            for (const order of incomingOrders) {
+            qrMap[order.id] = await QRCode.toDataURL(
+                JSON.stringify({
+                id: order.id,
+                code: order.fourDigitCode,
+                customer: order.customerName,
+                })
+            );
+            }
+
+            setOrderQrCodes(qrMap);
+        };
+
+        if (incomingOrders.length) {
+            generateQRCodes();
+        }
+    }, [incomingOrders]);
+
     useEffect(() => {
         if (!uid) return;
 
@@ -248,25 +299,29 @@ export default function FoodDashboard() {
             where("restaurantUid", "==", uid)
         );
 
-        let firstLoad = true;
-
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const orders: IncomingOrder[] = [];
 
             snapshot.forEach((doc) => {
-            orders.push({
+                orders.push({
                 id: doc.id,
                 ...doc.data(),
-            } as IncomingOrder);
+                } as IncomingOrder);
             });
 
-            if (!firstLoad && orders.length > incomingOrders.length) {
-            const audio = new Audio("/notification.mp3");
-            audio.play().catch(() => {});
+            if (
+                previousOrderCount.current > 0 &&
+                orders.length > previousOrderCount.current
+            ) {
+                const audio = new Audio("/notification.mp3");
+                audio.play().catch((err) => {
+                console.log("Audio blocked:", err);
+                });
             }
 
-            firstLoad = false;
-            calculateAnalytics(orders); 
+            previousOrderCount.current = orders.length;
+
+            calculateAnalytics(orders);
             setIncomingOrders(orders);
         });
 
@@ -287,9 +342,10 @@ export default function FoodDashboard() {
     };
     const handleRejectOrder = async (orderId: string) => {
         try {
-            await deleteDoc(
-            doc(db, "orders", orderId)
-            );
+            // 🔥 FIX: Update status instead of deleting the document
+            await updateDoc(doc(db, "orders", orderId), {
+            status: "rejected",
+            });
         } catch (err) {
             console.error(err);
         }
@@ -297,7 +353,7 @@ export default function FoodDashboard() {
 
     const handleSaveChanges = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!uid || !profile) return; // Ensure profile exists
+        if (!uid || !profile) return;
 
         try {
             const { doc, setDoc, serverTimestamp } = await import('firebase/firestore');
@@ -308,7 +364,7 @@ export default function FoodDashboard() {
             brandBio: formBrandBio,
             openingTime: formOpeningTime,
             closingTime: formClosingTime,
-            shareLink: profile.shareLink, // 🔥 Keep the existing shareLink safe!
+            shareLink: profile.shareLink, 
             updatedAt: serverTimestamp(),
             }, { merge: true });
 
@@ -327,6 +383,7 @@ export default function FoodDashboard() {
     );
   }
   if (page === 'catalogue') { return <RestaurantCatalogue onBack={() => setPage('dashboard')} />;}
+  
   return (
     <div className="min-h-screen bg-white text-black font-sans antialiased p-4 relative overflow-x-hidden select-none pb-12">
       
@@ -379,7 +436,8 @@ export default function FoodDashboard() {
       {/* --- PREMIUM DASHBOARD & SETTINGS PANEL --- */}
       <main className="max-w-2xl mx-auto mt-8 space-y-6">
         
-        {!settingsOpen && (
+        {/* 🔥 FIX: Changed '!settingsOpen' to explicitly hide when 'activeTab === "orders"' */}
+        {!settingsOpen && activeTab !== "orders" && (
           <div className="text-center py-12 animate-fadeIn">
             <h1 className="text-4xl font-black uppercase tracking-tight mb-2">Welcome Back.</h1>
             <p className="text-sm font-medium text-gray-600 max-w-xs mx-auto">Tap the gear icon on the top right to deploy and manage your premium SaaS configurations.</p>
@@ -388,12 +446,10 @@ export default function FoodDashboard() {
 
         {settingsOpen && (
           <div className="space-y-6 animate-fadeIn origin-top">
-            
             {/* CARD 1: SHARE STORE */}
             <section className="bg-white/75 backdrop-blur-md border-[3px] border-black rounded-3xl p-5 transition-transform hover:scale-[1.01]">
               <h2 className="text-lg font-black uppercase tracking-wider mb-4 border-b-[2.5px] border-black pb-2">Share Store</h2>
               <div className="flex flex-col sm:flex-row items-center gap-5">
-                {/* QR Generation Area */}
                 <div className="w-40 h-40 border-[3px] border-black bg-white rounded-2xl flex items-center justify-center p-2">
                   {qrCodeUrl ? (
                     <img src={qrCodeUrl} alt="Store QR Code" className="w-full h-full object-contain bg-lime-300" />
@@ -402,7 +458,6 @@ export default function FoodDashboard() {
                   )}
                 </div>
                 
-                {/* Links and Controls */}
                 <div className="w-full flex-1 space-y-3">
                     <div className="bg-lime-300 border-[3px] border-black rounded-xl p-2.5 text-xs font-mono break-all font-bold text-black">
                         {profile?.shareLink}
@@ -494,7 +549,6 @@ export default function FoodDashboard() {
                 <div>
                     <h2 className="text-lg font-black uppercase tracking-wider">Catalogue</h2>
                     <div className="flex items-center gap-3 mt-1.5 text-xs font-bold">
-                    {/* Updated status badge to match the custom hex and a 1px border */}
                     <span 
                         style={{ backgroundColor: "#bef264" }} 
                         className="border-[1px] border-black px-2 py-0.5 rounded-md"
@@ -506,7 +560,6 @@ export default function FoodDashboard() {
                     </div>
                 </div>
                 
-                {/* Updated Manage Items button with custom hex and a 1px border */}
                 <button
                     onClick={() => setPage('catalogue')}
                     style={{ backgroundColor: "#bef264" }}
@@ -515,40 +568,61 @@ export default function FoodDashboard() {
                 Manage Items →
                 </button>
             </section>
-
           </div>
         )}
-        {activeTab === "orders" && incomingOrders.length > 0 && (
-            <section className="space-y-4 max-w-2xl mx-auto mt-6">
+
+        {/* 🔥 FIX: Extracted from wrapper conditional so it accurately populates top layout spaces */}
+        {activeTab === "orders" && incomingOrders.filter(order => order.status !== "rejected").length > 0 && (
+            <section className="space-y-4 max-w-2xl mx-auto mt-6 animate-fadeIn">
                 <h2 className="text-xl font-black">Incoming Orders</h2>
 
-                {incomingOrders.map((order) => (
+                {incomingOrders
+                .filter((order) => order.status !== "rejected")
+                .map((order) => (
                 <div
                     key={order.id}
                     className="border-[3px] border-black rounded-3xl bg-white p-4"
                 >
-                    <div className="flex justify-between items-center mb-3">
-                    <div>
-                        <h3 className="font-black">{order.customerName}</h3>
-                        <p className="text-sm">Pickup: {order.pickupTime}</p>
-                        <p className="text-sm">Status: {order.status}</p>
-                    </div>
+                    <div className="flex justify-between items-start mb-3">
+                        <div className="flex-1">
+                            <h3 className="font-black text-lg">
+                            {order.customerName}
+                            </h3>
+                            <p className="text-sm mt-1">
+                            Pickup: {order.pickupTime}
+                            </p>
+                            <p className="text-sm mt-1">
+                            Status: {order.status}
+                            </p>
+                        </div>
 
-                    <div className="flex gap-2">
-                        <button
-                        onClick={() => handleRejectOrder(order.id)}
-                        className="w-10 h-10 border-2 border-black rounded-xl bg-red-200"
-                        >
-                        ✕
-                        </button>
+                        <div className="flex flex-col items-center mx-4 min-w-[90px]">
+                            <p className="text-sm font-black text-lime-600 mb-1">
+                            {order.fourDigitCode || "----"}
+                            </p>
+                            {orderQrCodes[order.id] && (
+                            <img
+                                src={orderQrCodes[order.id]}
+                                alt="Order QR"
+                                className="w-16 h-16 border-2 border-black rounded-lg p-1 bg-white"
+                            />
+                            )}
+                        </div>
 
-                        <button
-                        onClick={() => handleAcceptOrder(order.id)}
-                        className="w-10 h-10 border-2 border-black rounded-xl bg-lime-300"
-                        >
-                        ✓
-                        </button>
-                    </div>
+                        <div className="flex gap-2">
+                            <button
+                            onClick={() => handleRejectOrder(order.id)}
+                            className="w-10 h-10 border-2 border-black rounded-xl bg-red-200"
+                            >
+                            ✕
+                            </button>
+                            <button
+                            onClick={() => handleAcceptOrder(order.id)}
+                            className="w-10 h-10 border-2 border-black rounded-xl bg-lime-300"
+                            >
+                            ✓
+                            </button>
+                        </div>
                     </div>
 
                     <div className="space-y-2">
@@ -565,26 +639,27 @@ export default function FoodDashboard() {
                 ))}
             </section>
         )}
-        {activeTab === "analytics" && (
-            <section className="max-w-2xl mx-auto mt-6 bg-white border-[3px] border-black rounded-3xl p-5 space-y-3">
-                <h2 className="text-lg font-black uppercase">Analytics</h2>
 
+        {activeTab === "analytics" && (
+            <section className="max-w-2xl mx-auto mt-6 bg-white border-[3px] border-black rounded-3xl p-5 space-y-3 animate-fadeIn">
+                <h2 className="text-lg font-black uppercase">Analytics Workspace</h2>
                 <div className="grid grid-cols-2 gap-3 text-sm font-bold">
-                <div className="p-3 border-[2px] border-black rounded-xl">
+                <div className="p-3 border-[2px] border-black rounded-xl bg-gray-50">
                     Total Orders: {analytics.totalOrders}
                 </div>
-
-                <div className="p-3 border-[2px] border-black rounded-xl">
-                    Accepted: {analytics.acceptedOrders}
+                <div className="p-3 border-[2px] border-black rounded-xl bg-lime-50 text-lime-700">
+                    Accepted Total: {analytics.acceptedOrders}
+                </div>
+                <div className="p-3 border-[2px] border-black rounded-xl bg-red-50 text-red-700">
+                    Rejected Total: {analytics.rejectedOrders}
+                </div>
+                
+                <div className="p-3 border-[2px] border-black rounded-xl col-span-2 bg-lime-100/50">
+                    🔥 Most Accepted Item: <span className="font-black">{analytics.mostAcceptedItem}</span> ({analytics.mostAcceptedCount} units)
                 </div>
 
-                <div className="p-3 border-[2px] border-black rounded-xl">
-                    Rejected: {analytics.rejectedOrders}
-                </div>
-
-                <div className="p-3 border-[2px] border-black rounded-xl col-span-2">
-                    Most Ordered: {analytics.mostOrderedItem || "N/A"} (
-                    {analytics.mostOrderedCount})
+                <div className="p-3 border-[2px] border-black rounded-xl col-span-2 bg-red-100/50">
+                    ⚠️ Most Rejected Item: <span className="font-black">{analytics.mostRejectedItem}</span> ({analytics.mostRejectedCount} units)
                 </div>
                 </div>
             </section>
