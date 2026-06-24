@@ -162,7 +162,7 @@ const LandingPage = ({ onLoginClick }) => {
               <h2>AI Business Automation Platform</h2>
               
               <p style={{ fontSize: '1.05rem', color: 'rgba(255,255,255,0.5)', lineHeight: '1.5', maxWidth: '500px', marginBottom: '30px', fontWeight: '400' }}>
-                Malvin is an all-in-one business operating platform designed to help businesses grow, organize, and scale more effectively. 
+                Malvin is a Multi-vendor commerce platform designed to help businesses grow, organize, and scale more effectively. 
                 With over 95% of the tools and functions most businesses need—from online stores and digital services to physical businesses
                 Malvin provides a powerful, centralized workspace for managing operations.
               </p>

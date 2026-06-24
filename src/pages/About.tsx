@@ -35,7 +35,7 @@ const About = () => {
                     {/* --- INTRO PARAGRAPHS --- */}
                     <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '1.1rem', lineHeight: '1.7', marginBottom: '40px' }}>
                     <p style={{ marginBottom: '16px' }}>
-                        Malvin is an all-in-one business operating platform designed to help businesses grow, organize, and scale more effectively. With over <strong>95% of the tools and functions</strong> most businesses need—from online stores and digital services to physical businesses—Malvin provides a powerful, centralized workspace for managing operations.
+                        Malvin is a Multi-vendor commerce platform designed to help businesses grow, organize, and scale more effectively. With over <strong>95% of the tools and functions</strong> most businesses need—from online stores and digital services to physical businesses—Malvin provides a powerful, centralized workspace for managing operations.
                     </p>
                     <p style={{ marginBottom: '16px' }}>
                         Built with real-time collaboration, intelligent control systems, integrated communication tools, and an AI assistant that prioritizes your brand, Malvin gives businesses everything they need to operate efficiently from a single platform.
