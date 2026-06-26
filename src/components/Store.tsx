@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { firestore as db } from '../firebase'; // Ensure your firebase configuration is exported here
-import { doc, onSnapshot, collection, addDoc, query, where } from 'firebase/firestore';
+import { doc, onSnapshot, collection, addDoc, query, where, deleteDoc } from 'firebase/firestore';
 import styles from './store.module.css';
 import { useParams } from "react-router-dom";
 import QRCode from "qrcode";
@@ -202,6 +202,20 @@ export const StoreFrontend: React.FC = () => {
     }
   };
 
+  const handleCancelOrder = async (orderId: string) => {
+    const confirmCancel = window.confirm("Are you sure you want to cancel this order?");
+    if (!confirmCancel) return;
+
+    try {
+      // Reference the specific order document and delete it
+      const orderDocRef = doc(db, 'orders', orderId);
+      await deleteDoc(orderDocRef);
+      alert("Order cancelled successfully.");
+    } catch (error) {
+      console.error("Error cancelling order: ", error);
+      alert("Failed to cancel order. Please try again.");
+    }
+  };
   const filteredProducts = products.filter(p =>
     p.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -327,7 +341,27 @@ export const StoreFrontend: React.FC = () => {
               userOrders.map((order) => (
                 <div key={order.id} className={styles.orderItem}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span className={`${styles.statusBadge} ${styles[order.status]}`}>{order.status}</span>
+                    <div>
+                      <span className={`${styles.statusBadge} ${styles[order.status]}`}>{order.status}</span>
+                      {/* Show cancel button only if order is pending */}
+                      {order.status === 'pending' && (
+                        <button 
+                          onClick={() => handleCancelOrder(order.id)}
+                          style={{
+                            marginLeft: '10px',
+                            padding: '4px 8px',
+                            background: '#ef4444',
+                            color: '#fff',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            fontSize: '12px'
+                          }}
+                        >
+                          Cancel Order
+                        </button>
+                      )}
+                    </div>
                     <small>{order.pickupTime}</small>
                   </div>
 
@@ -384,6 +418,10 @@ export const StoreFrontend: React.FC = () => {
           </div>
         </div>
       )}
+      {/* Small Blue Watermark */}
+      <div className={styles.watermark}>
+        Malvinai
+      </div>
     </div>
   );
 };

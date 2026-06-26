@@ -11,8 +11,7 @@ import {
   collection,
   query,
   where,
-  updateDoc,
-  deleteDoc,
+  updateDoc
 } from 'firebase/firestore';
 import QRCode from 'qrcode';
 import RestaurantCatalogue from './OrderStoreCatalogue';
@@ -69,6 +68,9 @@ export default function FoodDashboard() {
   const [dropdownOpen, setDropdownOpen] = useState<boolean>(false);
   const [settingsOpen, setSettingsOpen] = useState<boolean>(false);
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
+  
+  // --- New Premium Modal State ---
+  const [showPremiumPopup, setShowPremiumPopup] = useState<boolean>(false);
 
   // Editable Form State
   const [formBrandName, setFormBrandName] = useState<string>('');
@@ -77,13 +79,9 @@ export default function FoodDashboard() {
   const [formClosingTime, setFormClosingTime] = useState<string>('');
 
   const catalogueCount = ""; 
-  const [catalogueOpen, setCatalogueOpen] = useState<boolean>(false);
   const [page, setPage] = useState<'dashboard' | 'catalogue'>('dashboard');
 
-  const shareLink = `${window.location.origin}/food/${uid}`;
   const [incomingOrders, setIncomingOrders] = useState<IncomingOrder[]>([]);
-
-  //code
   const [orderQrCodes, setOrderQrCodes] = useState<Record<string, string>>({});
   const previousOrderCount = useRef(0);
 
@@ -98,8 +96,9 @@ export default function FoodDashboard() {
         console.error("Logout failed:", err);
     }
   };
+
   const [isVerified, setIsVerified] = useState(false);
-    const [analytics, setAnalytics] = useState({
+  const [analytics, setAnalytics] = useState({
         totalOrders: 0,
         acceptedOrders: 0,
         rejectedOrders: 0,
@@ -107,12 +106,22 @@ export default function FoodDashboard() {
         mostAcceptedCount: 0,
         mostRejectedItem: "N/A",
         mostRejectedCount: 0,
-    });
-    const calculateAnalytics = (orders: IncomingOrder[]) => {
+  });
+
+  const handleDownloadQR = () => {
+    if (!qrCodeUrl) return;
+    const link = document.createElement('a');
+    link.href = qrCodeUrl;
+    // This names the downloaded file; falls back to 'store-qr' if brandName isn't loaded
+    link.download = `${profile?.brandName?.replace(/\s+/g, '-').toLowerCase() || 'store'}-qr.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+  const calculateAnalytics = (orders: IncomingOrder[]) => {
         let accepted = 0;
         let rejected = 0;
 
-        // Track counts separately based on order outcomes
         const acceptedItemsMap: Record<string, number> = {};
         const rejectedItemsMap: Record<string, number> = {};
 
@@ -132,7 +141,6 @@ export default function FoodDashboard() {
             }
         });
 
-        // Calculate most accepted item
         let mostAcceptedItem = "N/A";
         let mostAcceptedCount = 0;
         Object.entries(acceptedItemsMap).forEach(([item, count]) => {
@@ -142,7 +150,6 @@ export default function FoodDashboard() {
             }
         });
 
-        // Calculate most rejected item
         let mostRejectedItem = "N/A";
         let mostRejectedCount = 0;
         Object.entries(rejectedItemsMap).forEach(([item, count]) => {
@@ -161,24 +168,22 @@ export default function FoodDashboard() {
             mostRejectedItem,
             mostRejectedCount,
         });
-    };
+  };
 
-
-    useEffect(() => {
+  useEffect(() => {
         if (!uid) return;
 
         const profileRef = ref(rtdb, `users/${uid}/profile`);
 
         const unsubscribe = onValue(profileRef, (snapshot) => {
             const data = snapshot.val();
-
             if (data) {
-            setIsVerified(data.isVerified || false);
+              setIsVerified(data.isVerified || false);
             }
         });
 
         return () => unsubscribe();
-    }, [uid]);
+  }, [uid]);
 
   // --- Listen for Auth Changes ---
   useEffect(() => {
@@ -237,8 +242,7 @@ export default function FoodDashboard() {
         setFormClosingTime(data.closingTime || '');
 
         const shareLink = `${window.location.origin}/food/${uid}`;
-        QRCode.toDataURL(shareLink)
-        .then(url => setQrCodeUrl(url));
+        QRCode.toDataURL(shareLink).then(url => setQrCodeUrl(url));
       }
       setLoading(false);
     });
@@ -248,9 +252,7 @@ export default function FoodDashboard() {
 
   // --- UI Action Handlers ---
   const handleCopyLink = () => {
-    navigator.clipboard.writeText(
-        `${window.location.origin}/food/${uid}`
-    );
+    navigator.clipboard.writeText(`${window.location.origin}/food/${uid}`);
   };
 
   const handleShareLink = async () => {
@@ -269,29 +271,28 @@ export default function FoodDashboard() {
     }
   };
 
-    useEffect(() => {
+  useEffect(() => {
         const generateQRCodes = async () => {
             const qrMap: Record<string, string> = {};
-
             for (const order of incomingOrders) {
-            qrMap[order.id] = await QRCode.toDataURL(
-                JSON.stringify({
-                id: order.id,
-                code: order.fourDigitCode,
-                customer: order.customerName,
-                })
-            );
+              qrMap[order.id] = await QRCode.toDataURL(
+                  JSON.stringify({
+                    id: order.id,
+                    code: order.fourDigitCode,
+                    customer: order.customerName,
+                  })
+              );
             }
-
             setOrderQrCodes(qrMap);
         };
 
         if (incomingOrders.length) {
             generateQRCodes();
         }
-    }, [incomingOrders]);
+  }, [incomingOrders]);
 
-    useEffect(() => {
+  // --- Order Snapshot listener with Daily Limit Logic ---
+  useEffect(() => {
         if (!uid) return;
 
         const q = query(
@@ -301,11 +302,10 @@ export default function FoodDashboard() {
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const orders: IncomingOrder[] = [];
-
             snapshot.forEach((doc) => {
                 orders.push({
-                id: doc.id,
-                ...doc.data(),
+                  id: doc.id,
+                  ...doc.data(),
                 } as IncomingOrder);
             });
 
@@ -315,43 +315,43 @@ export default function FoodDashboard() {
             ) {
                 const audio = new Audio("/notification.mp3");
                 audio.play().catch((err) => {
-                console.log("Audio blocked:", err);
+                  console.log("Audio blocked:", err);
                 });
             }
 
             previousOrderCount.current = orders.length;
-
             calculateAnalytics(orders);
-            setIncomingOrders(orders);
+
+            // 🔥 Verification limit engine check
+            if (!isVerified && orders.length >= 10) {
+              // Slice array at 10 orders to prevent unverified UI exposure
+              setIncomingOrders(orders.slice(0, 10));
+              setShowPremiumPopup(true);
+            } else {
+              setIncomingOrders(orders);
+            }
         });
 
         return () => unsubscribe();
-    }, [uid]);
+  }, [uid, isVerified]);
 
-    const handleAcceptOrder = async (orderId: string) => {
+  const handleAcceptOrder = async (orderId: string) => {
         try {
-            await updateDoc(
-            doc(db, "orders", orderId),
-            {
-                status: "accepted",
-            }
-            );
+            await updateDoc(doc(db, "orders", orderId), { status: "accepted" });
         } catch (err) {
             console.error(err);
         }
-    };
-    const handleRejectOrder = async (orderId: string) => {
+  };
+
+  const handleRejectOrder = async (orderId: string) => {
         try {
-            // 🔥 FIX: Update status instead of deleting the document
-            await updateDoc(doc(db, "orders", orderId), {
-            status: "rejected",
-            });
+            await updateDoc(doc(db, "orders", orderId), { status: "rejected" });
         } catch (err) {
             console.error(err);
         }
-    };
+  };
 
-    const handleSaveChanges = async (e: React.FormEvent) => {
+  const handleSaveChanges = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!uid || !profile) return;
 
@@ -360,12 +360,12 @@ export default function FoodDashboard() {
             const docRef = doc(db, 'restaurantprofile', uid);
             
             await setDoc(docRef, {
-            brandName: formBrandName,
-            brandBio: formBrandBio,
-            openingTime: formOpeningTime,
-            closingTime: formClosingTime,
-            shareLink: profile.shareLink, 
-            updatedAt: serverTimestamp(),
+              brandName: formBrandName,
+              brandBio: formBrandBio,
+              openingTime: formOpeningTime,
+              closingTime: formClosingTime,
+              shareLink: profile.shareLink, 
+              updatedAt: serverTimestamp(),
             }, { merge: true });
 
             alert("Changes saved successfully!");
@@ -373,7 +373,7 @@ export default function FoodDashboard() {
             console.error("Error updating profile:", error);
             alert("Failed to save changes.");
         }
-    };
+  };
 
   if (authLoading || loading) {
     return (
@@ -387,9 +387,38 @@ export default function FoodDashboard() {
   return (
     <div className="min-h-screen bg-white text-black font-sans antialiased p-4 relative overflow-x-hidden select-none pb-12">
       
+      {/* --- POPUP OVERLAY MODAL --- */}
+      {showPremiumPopup && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white border-[4px] border-black rounded-3xl p-6 max-w-sm w-full shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] text-center space-y-4 animate-fadeIn">
+            <div className="w-16 h-16 bg-red-200 border-[3px] border-black rounded-full flex items-center justify-center text-2xl mx-auto">
+              ⚠️
+            </div>
+            <h2 className="text-2xl font-black uppercase tracking-tight">Order Limit Reached</h2>
+            <p className="text-sm font-bold text-gray-700">
+              Unverified accounts are capped at <span className="underline">10 orders a day</span>. Go Premium to unlock infinite incoming streams!
+            </p>
+            <div className="bg-lime-200 border-[3px] border-black rounded-2xl p-3 font-black text-lg">
+              €10 / month
+            </div>
+            <p className="text-xs font-semibold text-gray-500">
+              Need assistance? Contact us at: <br/>
+              <a href="mailto:malvinai.partnerships@gmail.com" className="font-bold underline text-black">
+                malvinai.partnerships@gmail.com
+              </a>
+            </p>
+            <button 
+              onClick={() => setShowPremiumPopup(false)}
+              className="w-full py-3 bg-black text-white rounded-xl text-xs font-black uppercase tracking-wider hover:bg-neutral-800 transition-all active:translate-y-0.5"
+            >
+              Acknowledge
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* --- TOP NAVIGATION SECTION --- */}
       <header className="w-full flex items-center justify-between gap-3 max-w-2xl mx-auto z-40 relative">
-        {/* Dropdown Button */}
         <button 
           onClick={() => setDropdownOpen(!dropdownOpen)}
           className="w-12 h-12 flex items-center justify-center bg-lime-300 border-[3px] border-black rounded-2xl active:translate-y-0.5 active:bg-lime-400 transition-all duration-150"
@@ -397,14 +426,12 @@ export default function FoodDashboard() {
           <span className={`text-xs transform transition-transform duration-200 block ${dropdownOpen ? 'rotate-180' : ''}`}>▼</span>
         </button>
 
-        {/* Central Brand Pill */}
         <div className="flex-1 bg-white border-[3px] border-black rounded-full py-2.5 px-4 flex items-center justify-center text-center">
           <span className="font-extrabold text-sm tracking-tight truncate max-w-[180px] sm:max-w-xs">
             {profile?.brandName || "My Restaurant"} {isVerified && <VerifiedBadge />}
           </span>
         </div>
 
-        {/* Settings Gear Icon */}
         <button
             onClick={handleLogout}
             className="w-12 h-12 flex items-center justify-center border-[3px] border-black bg-red-200 rounded-2xl active:translate-y-0.5 transition-all"
@@ -436,7 +463,6 @@ export default function FoodDashboard() {
       {/* --- PREMIUM DASHBOARD & SETTINGS PANEL --- */}
       <main className="max-w-2xl mx-auto mt-8 space-y-6">
         
-        {/* 🔥 FIX: Changed '!settingsOpen' to explicitly hide when 'activeTab === "orders"' */}
         {!settingsOpen && activeTab !== "orders" && (
           <div className="text-center py-12 animate-fadeIn">
             <h1 className="text-4xl font-black uppercase tracking-tight mb-2">Welcome Back.</h1>
@@ -466,13 +492,22 @@ export default function FoodDashboard() {
                         <button onClick={handleCopyLink} className="py-2 px-3 border-[2.5px] border-black bg-lime-300 text-black rounded-xl text-xs font-black uppercase active:translate-y-0.5 transition-all">
                           Copy Link
                         </button>
-                        <a  href={`${window.location.origin}/food/${uid}`} target="_blank" rel="noreferrer" className="py-2 px-3 border-[2.5px] border-black bg-lime-300 text-black rounded-xl text-xs font-black uppercase text-center active:translate-y-0.5 transition-all">
+                        <a href={`${window.location.origin}/food/${uid}`} target="_blank" rel="noreferrer" className="py-2 px-3 border-[2.5px] border-black bg-lime-300 text-black rounded-xl text-xs font-black uppercase text-center active:translate-y-0.5 transition-all">
                           Open Store
                         </a>
                     </div>
-                    <button onClick={handleShareLink} className="w-full py-2.5 border-[2.5px] border-black bg-lime-300 text-black rounded-xl text-xs font-black uppercase active:translate-y-0.5 transition-all">
-                      ⚡ Share Link
-                    </button>
+                    <div className="grid grid-cols-2 gap-2">
+                        <button onClick={handleShareLink} className="w-full py-2.5 border-[2.5px] border-black bg-lime-300 text-black rounded-xl text-xs font-black uppercase active:translate-y-0.5 transition-all">
+                          ⚡ Share Link
+                        </button>
+                        <button 
+                          onClick={handleDownloadQR} 
+                          disabled={!qrCodeUrl}
+                          className="w-full py-2.5 border-[2.5px] border-black bg-white text-black rounded-xl text-xs font-black uppercase active:translate-y-0.5 transition-all disabled:opacity-50 disabled:pointer-events-none"
+                        >
+                          💾 Download QR
+                        </button>
+                    </div>
                 </div>
               </div>
             </section>
@@ -571,17 +606,19 @@ export default function FoodDashboard() {
           </div>
         )}
 
-        {/* 🔥 FIX: Extracted from wrapper conditional so it accurately populates top layout spaces */}
+        {/* --- ORDERS STREAM CONTAINER --- */}
         {activeTab === "orders" && incomingOrders.filter(order => order.status !== "rejected").length > 0 && (
             <section className="space-y-4 max-w-2xl mx-auto mt-6 animate-fadeIn">
-                <h2 className="text-xl font-black">Incoming Orders</h2>
+                <h2 className="text-xl font-black">
+                  Incoming Orders {!isVerified && <span className="text-xs font-normal text-gray-500">(Daily Cap: {incomingOrders.length}/10)</span>}
+                </h2>
 
                 {incomingOrders
                 .filter((order) => order.status !== "rejected")
                 .map((order) => (
                 <div
                     key={order.id}
-                    className="border-[3px] border-black rounded-3xl bg-white p-4"
+                    className="border-[3px] border-black rounded-3xl bg-white p-4 animate-fadeIn"
                 >
                     <div className="flex justify-between items-start mb-3">
                         <div className="flex-1">

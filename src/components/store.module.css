@@ -294,3 +294,17 @@
   margin: 12px 0;
   border-radius: 8px;
 }
+
+.watermark {
+  position: fixed;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  font-weight: 500;
+  color: #007fff; /* Clean blue tone */
+  letter-spacing: 0.5px;
+  opacity: 0.7; /* Slightly faded so it doesn't distract */
+  z-index: 9999; /* Keeps it on top of other backgrounds */
+  pointer-events: none; /* Allows users to click "through" it if a button is underneath */
+}
