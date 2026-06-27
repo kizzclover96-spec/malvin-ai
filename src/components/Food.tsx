@@ -22,6 +22,7 @@ import { useRef } from "react";
 interface RestaurantData {
   brandName: string;
   brandBio: string;
+  address?: string; 
   openingTime: string;
   closingTime: string;
   shareLink: string;
@@ -35,6 +36,8 @@ interface IncomingOrder {
   pickupTime: string;
   status: string;
   fourDigitCode?: string;
+  userMobilityStatus?: string; 
+  tableNumber?: string;        
   items: {
     name: string;
     quantity: number;
@@ -68,6 +71,7 @@ export default function FoodDashboard() {
   const [dropdownOpen, setDropdownOpen] = useState<boolean>(false);
   const [settingsOpen, setSettingsOpen] = useState<boolean>(false);
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
+  const [showAcceptedModal, setShowAcceptedModal] = useState<boolean>(false);
   
   // --- New Premium Modal State ---
   const [showPremiumPopup, setShowPremiumPopup] = useState<boolean>(false);
@@ -75,6 +79,7 @@ export default function FoodDashboard() {
   // Editable Form State
   const [formBrandName, setFormBrandName] = useState<string>('');
   const [formBrandBio, setFormBrandBio] = useState<string>('');
+  const [formAddress, setFormAddress] = useState<string>(''); 
   const [formOpeningTime, setFormOpeningTime] = useState<string>('');
   const [formClosingTime, setFormClosingTime] = useState<string>('');
 
@@ -112,12 +117,12 @@ export default function FoodDashboard() {
     if (!qrCodeUrl) return;
     const link = document.createElement('a');
     link.href = qrCodeUrl;
-    // This names the downloaded file; falls back to 'store-qr' if brandName isn't loaded
     link.download = `${profile?.brandName?.replace(/\s+/g, '-').toLowerCase() || 'store'}-qr.png`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
+
   const calculateAnalytics = (orders: IncomingOrder[]) => {
         let accepted = 0;
         let rejected = 0;
@@ -215,6 +220,7 @@ export default function FoodDashboard() {
           const defaultData: RestaurantData = {
             brandName: 'My Restaurant',
             brandBio: '',
+            address: '', 
             openingTime: '08:00',
             closingTime: '22:00',
             shareLink: `${window.location.origin}/food/${uid}`,
@@ -238,6 +244,7 @@ export default function FoodDashboard() {
         
         setFormBrandName(data.brandName || '');
         setFormBrandBio(data.brandBio || '');
+        setFormAddress(data.address || ''); 
         setFormOpeningTime(data.openingTime || '');
         setFormClosingTime(data.closingTime || '');
 
@@ -322,9 +329,7 @@ export default function FoodDashboard() {
             previousOrderCount.current = orders.length;
             calculateAnalytics(orders);
 
-            // 🔥 Verification limit engine check
             if (!isVerified && orders.length >= 10) {
-              // Slice array at 10 orders to prevent unverified UI exposure
               setIncomingOrders(orders.slice(0, 10));
               setShowPremiumPopup(true);
             } else {
@@ -362,6 +367,7 @@ export default function FoodDashboard() {
             await setDoc(docRef, {
               brandName: formBrandName,
               brandBio: formBrandBio,
+              address: formAddress, 
               openingTime: formOpeningTime,
               closingTime: formClosingTime,
               shareLink: profile.shareLink, 
@@ -385,7 +391,7 @@ export default function FoodDashboard() {
   if (page === 'catalogue') { return <RestaurantCatalogue onBack={() => setPage('dashboard')} />;}
   
   return (
-    <div className="min-h-screen bg-white text-black font-sans antialiased p-4 relative overflow-x-hidden select-none pb-12">
+    <div className="min-h-screen bg-white text-black font-sans antialiased p-4 relative overflow-x-hidden select-none pb-24">
       
       {/* --- POPUP OVERLAY MODAL --- */}
       {showPremiumPopup && (
@@ -413,6 +419,51 @@ export default function FoodDashboard() {
             >
               Acknowledge
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* --- ACCEPTED ORDERS OVERLAY MODAL --- */}
+      {showAcceptedModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white border-[4px] border-black rounded-3xl p-6 max-w-xl w-full max-h-[80vh] overflow-y-auto shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] space-y-4">
+            <div className="flex justify-between items-center border-b-[3px] border-black pb-2">
+              <h2 className="text-2xl font-black uppercase tracking-tight">Accepted Orders</h2>
+              <button 
+                onClick={() => setShowAcceptedModal(false)}
+                className="w-8 h-8 border-2 border-black rounded-xl bg-red-200 font-bold"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              {incomingOrders.filter(order => order.status === "accepted").length === 0 ? (
+                <p className="text-center font-bold text-gray-500 py-6">No accepted orders yet.</p>
+              ) : (
+                incomingOrders
+                  .filter(order => order.status === "accepted")
+                  .map(order => (
+                    <div key={order.id} className="border-[2px] border-black rounded-2xl bg-lime-50 p-4">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="font-black text-md">{order.customerName}</h4>
+                          <p className="text-xs text-gray-600">Pickup: {order.pickupTime}</p>
+                        </div>
+                        <span className="text-sm font-mono font-black text-lime-700">{order.fourDigitCode || "----"}</span>
+                      </div>
+                      <div className="mt-2 border-t border-black/10 pt-2 space-y-1">
+                        {order.items.map((item, index) => (
+                          <div key={index} className="flex justify-between text-xs">
+                            <span>{item.quantity}x {item.name}</span>
+                            <span>€{(item.price * item.quantity).toFixed(2)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -454,7 +505,7 @@ export default function FoodDashboard() {
       {dropdownOpen && (
         <div className="absolute top-20 left-4 right-4 max-w-xs z-50 bg-white/70 backdrop-blur-md border-[3px] border-black rounded-2xl overflow-hidden transition-all duration-300 animate-fadeIn origin-top">
           <ul className="flex flex-col divide-y-[2.5px] divide-black font-bold">
-            <li className="p-3 hover:bg-lime-300 cursor-pointer transition-colors"  onClick={() => {  setActiveTab("orders"); setDropdownOpen(false); }}>Orders ({incomingOrders.length})</li>
+            <li className="p-3 hover:bg-lime-300 cursor-pointer transition-colors"  onClick={() => {  setActiveTab("orders"); setDropdownOpen(false); }}>Orders ({incomingOrders.filter(o => o.status !== "accepted" && o.status !== "rejected").length})</li>
             <li className="p-3 hover:bg-lime-300 cursor-pointer transition-colors"  onClick={() => { setActiveTab("analytics"); setDropdownOpen(false); }}>Analysis</li>
           </ul>
         </div>
@@ -534,6 +585,16 @@ export default function FoodDashboard() {
                     className="w-full bg-white border-[3px] border-black rounded-xl p-2.5 text-sm font-bold focus:bg-lime-300/10 focus:outline-none transition-colors resize-none"
                   />
                 </div>
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-wider mb-1">Store Address</label>
+                  <input 
+                    type="text" 
+                    value={formAddress} 
+                    placeholder="e.g. 123 Foodie Street, Suite 4B"
+                    onChange={(e) => setFormAddress(e.target.value)}
+                    className="w-full bg-white border-[3px] border-black rounded-xl p-2.5 text-sm font-bold focus:bg-lime-300/10 focus:outline-none transition-colors"
+                  />
+                </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-black uppercase tracking-wider mb-1">Opening Time</label>
@@ -568,6 +629,7 @@ export default function FoodDashboard() {
                   { label: "User Email", value: email || "N/A" },
                   { label: "Online Status", value: profile?.onlineStatus ? "🟢 ONLINE" : "🔴 OFFLINE" },
                   { label: "Firebase UID", value: uid },
+                  { label: "Store Address", value: profile?.address || "No address assigned" }, 
                   { label: "Created Date", value: profile?.createdAt ? profile.createdAt.toDate().toLocaleString() : "N/A" },
                   { label: "Last Updated Date", value: profile?.updatedAt ? profile.updatedAt.toDate().toLocaleString() : "N/A" }
                 ].map((row, i) => (
@@ -607,18 +669,20 @@ export default function FoodDashboard() {
         )}
 
         {/* --- ORDERS STREAM CONTAINER --- */}
-        {activeTab === "orders" && incomingOrders.filter(order => order.status !== "rejected").length > 0 && (
+        {activeTab === "orders" && incomingOrders.filter(order => order.status !== "accepted" && order.status !== "rejected").length > 0 && (
             <section className="space-y-4 max-w-2xl mx-auto mt-6 animate-fadeIn">
                 <h2 className="text-xl font-black">
                   Incoming Orders {!isVerified && <span className="text-xs font-normal text-gray-500">(Daily Cap: {incomingOrders.length}/10)</span>}
                 </h2>
 
                 {incomingOrders
-                .filter((order) => order.status !== "rejected")
+                .filter((order) => order.status !== "accepted" && order.status !== "rejected")
                 .map((order) => (
                 <div
                     key={order.id}
-                    className="border-[3px] border-black rounded-3xl bg-white p-4 animate-fadeIn"
+                    className={`border-[3px] border-black rounded-3xl p-4 animate-fadeIn transition-all duration-300 ${
+                      order.status === 'accepted' ? 'bg-lime-300 scale-95 opacity-0' : 'bg-white'
+                    }`}
                 >
                     <div className="flex justify-between items-start mb-3">
                         <div className="flex-1">
@@ -631,6 +695,14 @@ export default function FoodDashboard() {
                             <p className="text-sm mt-1">
                             Status: {order.status}
                             </p>
+                            
+                            {/* 📱 DYNAMIC STATUS CONTEXT DISPLAY */}
+                            {order.userMobilityStatus && (
+                              <p className="text-xs font-black uppercase tracking-wide mt-1.5 px-2 py-0.5 rounded-md border border-black bg-amber-100 inline-block">
+                                Context: {order.userMobilityStatus} 
+                                {order.userMobilityStatus === 'in store' && order.tableNumber && ` (Table ${order.tableNumber})`}
+                              </p>
+                            )}
                         </div>
 
                         <div className="flex flex-col items-center mx-4 min-w-[90px]">
@@ -702,6 +774,20 @@ export default function FoodDashboard() {
             </section>
         )}
       </main>
+
+      {/* --- FLOATING BOTTOM RIGHT ACCEPTED ORDERS BUTTON --- */}
+      <div className="fixed bottom-6 right-6 z-40">
+        <button
+          onClick={() => setShowAcceptedModal(true)}
+          className="bg-lime-400 text-black border-[3px] border-black font-black uppercase tracking-wider text-xs px-4 py-3 rounded-2xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:bg-lime-300 active:translate-x-0.5 active:translate-y-0.5 active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all flex items-center gap-2"
+        >
+          <span>Accepted Orders</span>
+          <span className="bg-black text-white rounded-full px-1.5 py-0.5 text-[10px]">
+            {incomingOrders.filter(order => order.status === "accepted").length}
+          </span>
+        </button>
+      </div>
+
     </div>
   );
 }

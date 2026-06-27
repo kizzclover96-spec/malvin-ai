@@ -9,6 +9,7 @@ import QRCode from "qrcode";
 interface RestaurantProfile {
   brandName: string;
   brandBio: string;
+  address?: string; // 1. Added brandLocation property (marked optional just in case)
   onlineStatus: boolean;
 }
 
@@ -51,6 +52,7 @@ const VerifiedBadge = () => (
         <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
     </svg>
 );
+
 export const StoreFrontend: React.FC = () => {
 
   const { Uid } = useParams();
@@ -73,6 +75,7 @@ export const StoreFrontend: React.FC = () => {
   const [customerName, setCustomerName] = useState('');
   const [pickupTime, setPickupTime] = useState('');
   const [currentStatus, setCurrentStatus] = useState('home');
+  const [tableNumber, setTableNumber] = useState('');
   const [guestId, setGuestId] = useState<string>('');
   console.log("Restaurant UID:", restaurantUid);
 
@@ -118,7 +121,7 @@ export const StoreFrontend: React.FC = () => {
     return () => unsubscribe();
   }, [restaurantUid]);
 
-  // 3. Real-time Subscription: Track Orders (Simulated for this client device via localStorage backup/name verification)
+  // 3. Real-time Subscription: Track Orders
   useEffect(() => {
     if (!customerName) return;
 
@@ -147,7 +150,6 @@ export const StoreFrontend: React.FC = () => {
 
       for (const order of userOrders) {
         if (order.fourDigitCode) {
-          // 🔥 FIX: Assign the resolved promise string directly to your map item
           qrMap[order.id] = await QRCode.toDataURL(
             JSON.stringify({
               orderId: order.id,
@@ -183,6 +185,7 @@ export const StoreFrontend: React.FC = () => {
       pickupTime,
       fourDigitCode,
       userMobilityStatus: currentStatus,
+      tableNumber: currentStatus === 'in store' ? tableNumber : '',
       status: 'pending',
       createdAt: new Date().toISOString(),
       items: cart.map(item => ({
@@ -196,7 +199,7 @@ export const StoreFrontend: React.FC = () => {
       await addDoc(collection(db, 'orders'), orderData);
       setCart([]);
       setIsCheckoutOpen(false);
-      setIsOrdersOpen(true); // Direct to status/receipt panel
+      setIsOrdersOpen(true); 
     } catch (error) {
       console.error("Error creating order: ", error);
     }
@@ -207,7 +210,6 @@ export const StoreFrontend: React.FC = () => {
     if (!confirmCancel) return;
 
     try {
-      // Reference the specific order document and delete it
       const orderDocRef = doc(db, 'orders', orderId);
       await deleteDoc(orderDocRef);
       alert("Order cancelled successfully.");
@@ -216,6 +218,7 @@ export const StoreFrontend: React.FC = () => {
       alert("Failed to cancel order. Please try again.");
     }
   };
+
   const filteredProducts = products.filter(p =>
     p.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -229,6 +232,13 @@ export const StoreFrontend: React.FC = () => {
         <div className={styles.brandInfo}>
           <h1>{profile?.brandName || 'Loading...'}</h1>
           <p className={styles.brandBio}>{profile?.brandBio || 'Connecting to store...'}</p>
+          
+          {/* 2. Added Brand Location Layout Placement */}
+          {profile?.address && (
+            <p className={styles.brandLocation} style={{ fontSize: '13px', color: '#666', marginTop: '4px' }}>
+              📍 {profile.address}
+            </p>
+          )}
         </div>
         <button className={styles.ordersBtn} onClick={() => setIsOrdersOpen(true)}>
           Orders ({userOrders.length})
@@ -317,9 +327,26 @@ export const StoreFrontend: React.FC = () => {
                   <option value="home">At Home</option>
                   <option value="on the way">On the Way</option>
                   <option value="traffic">Stuck in Traffic</option>
+                  <option value="in store">In Store</option>
                 </select>
               </div>
-              <button type="submit" className={styles.ordersBtn} style={{ width: '100%', padding: '16px', background: '#10b981' }}>
+
+              {/* Conditional Table Number Input */}
+              {currentStatus === 'in store' && (
+                <div className={styles.inputGroup} style={{ marginTop: '12px', paddingLeft: '10px', borderLeft: '3px solid #10b981' }}>
+                  <label>Table Number</label>
+                  <input 
+                    type="text" 
+                    className={styles.input} 
+                    required 
+                    value={tableNumber} 
+                    onChange={e => setTableNumber(e.target.value)} 
+                    placeholder="e.g., 5" 
+                  />
+                </div>
+              )}
+
+              <button type="submit" className={styles.ordersBtn} style={{ width: '100%', padding: '16px', background: '#10b981', marginTop: '16px' }}>
                 Confirm Order Base
               </button>
             </form>
@@ -343,7 +370,6 @@ export const StoreFrontend: React.FC = () => {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
                       <span className={`${styles.statusBadge} ${styles[order.status]}`}>{order.status}</span>
-                      {/* Show cancel button only if order is pending */}
                       {order.status === 'pending' && (
                         <button 
                           onClick={() => handleCancelOrder(order.id)}
@@ -365,7 +391,6 @@ export const StoreFrontend: React.FC = () => {
                     <small>{order.pickupTime}</small>
                   </div>
 
-                  {/* Receipt Presentation Block (Render when past pending/approved status context matches rules) */}
                   {order.status !== 'pending' && (
                     <div style={{ marginTop: '12px', borderTop: '1px dashed #ccc', paddingTop: '12px' }}>
                       <strong>Digital Receipt Token</strong>
@@ -374,7 +399,6 @@ export const StoreFrontend: React.FC = () => {
                         Code: {order.fourDigitCode || '####'}
                       </p>
                       
-                      {/* Placeholder UI logic representing a scanning dynamic target context QR container */}
                       <div
                         style={{
                           display: "flex",
