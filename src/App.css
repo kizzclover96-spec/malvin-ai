@@ -57,6 +57,12 @@
   to { transform: translate(100px, 50px) scale(1.2); }
 }
 
+
+.main-viewport-container {
+  height: auto !important;
+  max-height: none !important;
+  overflow-y: auto !important;
+}
 /* Ensure your sections sit on TOP of the color */
 .left-section, .middle-section, .right-section {
   z-index: 1; /* Makes sure the UI is ABOVE the colorful blobs */
