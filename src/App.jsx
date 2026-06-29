@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { onAuthStateChanged } from "firebase/auth";
-import { auth } from "./firebase"; 
+import { auth, firestore as db } from "./firebase";
+import { collection, getDocs, query, where, doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import Login from "./pages/loginscreen"; 
 import Welcomeview from "./pages/welcomeview"; 
-import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
+import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom"; // Added useLocation
 import AdsManager from "./components/AdsManagment";
 import LandingPage from "./pages/LandingPage";
 import CookieBanner from "./components/CookieBanner";
@@ -21,48 +22,92 @@ import FoodDashboard from "./components/Food";
 import SalonDashboard from "./components/salonDashboard";
 import Category from "./pages/Category";
 import { StoreFrontend } from './components/Store';
-import SalonStore from "./components/salonStore"
-
-
+import SalonStore from "./components/salonStore";
+import { FloatingTeamHub } from "./components/FloatingTeamHub";
+import { WorkerDashboard } from './components/workerDashboard';
 
 function App() {
   const [user, setUser] = useState(null);
   const navigate = useNavigate();
+  const location = useLocation(); // Hook to inspect current active route path
   const [loading, setLoading] = useState(true);
   const [hasWokenUp, setHasWokenUp] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
   const [dashboardToken, setDashboardToken] = useState("");
   const [uiMode, setUiMode] = useState(localStorage.getItem("ui_mode") || "");
+  const [isWorker, setIsWorker] = useState(false);
+  const [assignedManagerUid, setAssignedManagerUid] = useState("");
+  const [flowStep, setFlowStep] = useState("welcome");
+
   const resetMode = () => {
     localStorage.removeItem("ui_mode");
     setUiMode("");
   };
- 
-  
-  const [flowStep, setFlowStep] = useState("welcome");
 
+  // --- Core Authentication State Observer ---
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
 
       if (!currentUser) {
         setHasWokenUp(false);
         setShowLogin(false);
         setDashboardToken("");
+        setIsWorker(false);
+        setAssignedManagerUid("");
         localStorage.removeItem("ui_mode");
         setUiMode("");
+        setLoading(false);
       } else {
-        // 🌟 Reset wake-up cycle for any fresh logins to re-run the verification screen
         setHasWokenUp(false); 
+        
+        if (currentUser.email === 'kizzclover96@gmail.com') {
+          setLoading(false);
+          return;
+        }
+
+        try {
+          const targetEmail = currentUser.email.toLowerCase();
+          const managersSnapshot = await getDocs(collection(db, "managerMembers"));
+          let matchFound = false;
+
+          for (const managerDoc of managersSnapshot.docs) {
+            const managerUid = managerDoc.id;
+            const membersRef = collection(db, "managerMembers", managerUid, "members");
+            
+            const q = query(membersRef, where("email", "==", targetEmail));
+            const memberDocs = await getDocs(q);
+
+            if (!memberDocs.empty) {
+              const matchedMemberDoc = memberDocs.docs[0];
+              matchFound = true;
+              setAssignedManagerUid(managerUid);
+              setIsWorker(true);
+
+              if (matchedMemberDoc.data().status === "pending") {
+                await updateDoc(doc(db, "managerMembers", managerUid, "members", matchedMemberDoc.id), {
+                  workerUid: currentUser.uid,
+                  status: "active",
+                  joinedAt: serverTimestamp()
+                });
+              }
+              break; 
+            }
+          }
+          
+          setLoading(false);
+        } catch (error) {
+          console.error("Error executing operational worker check:", error);
+          setLoading(false);
+        }
       }
-      setLoading(false);
     });
 
     return () => unsubscribe();
   }, []);
+
   useEffect(() => {
     if (!user) return;
-
     setHasWokenUp(false);
     setFlowStep("welcome");
   }, [user]);
@@ -75,7 +120,7 @@ function App() {
 
   const handleWakeUpSequence = (tokenFromWelcome) => {
     setDashboardToken(tokenFromWelcome);
-    setFlowStep("category"); // correct
+    setFlowStep("category"); 
   };
   
   const handleCategorySelect = (type) => {
@@ -83,20 +128,22 @@ function App() {
       setFlowStep("food");
       return;
     }
-
     if (type === "fashion") {
       setFlowStep("device");
       return;
     }
-
     if (type === "explore") {
       setFlowStep("SalonDashboard");
       return;
     }
-
-    // 🟢 Safety fallback: If it's none of the above, don't blindly switch to device
-    console.log("Category selected didn't match cleanly:", type);
   };
+
+  // Check if current path matches any storefront/external paths
+  const isStorefrontPath = 
+    location.pathname.startsWith("/food/") || 
+    location.pathname.startsWith("/salon/") || 
+    location.pathname.startsWith("/chat/");
+
   return (
     <>
       <div className="App" style={{ minHeight: '100vh' }}>
@@ -122,15 +169,15 @@ function App() {
                 )
               ) : isAdmin ? (
                 <AdsManager />
-              ) : flowStep === "welcome" ? (
-                <Welcomeview onWakeClick={handleWakeUpSequence} />
+              ) : isWorker ? (
+                <WorkerDashboard managerUid={assignedManagerUid} workerUid={user.uid} />
               ) : flowStep === "welcome" ? (
                 <Welcomeview onWakeClick={handleWakeUpSequence} />
               ) : flowStep === "category" ? (
                 <Category onSelect={handleCategorySelect} />
               ) : flowStep === "food" ? (
                 <FoodDashboard userEmail={user?.email} currentUserId={user?.uid} />
-              ) : flowStep === "SalonDashboard" ? ( // 🟢 Fixed to match your handleCategorySelect state string
+              ) : flowStep === "SalonDashboard" ? (
                 <SalonDashboard userEmail={user?.email} currentUserId={user?.uid} />
               ) : flowStep === "device" ? (
                 <DeviceSwitch
@@ -143,13 +190,19 @@ function App() {
                 <MobileView brandId={user.uid} />
               ) : (
                 <Dashboard userEmail={user.email} validationToken={dashboardToken} />
-)
+              )
             }
           />
 
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </div>
+
+      {/* Show the FloatingTeamHub only if authenticated, not an admin, and not on a storefront path */}
+      {user && !isAdmin && !isStorefrontPath && (
+        <FloatingTeamHub managerUid={isWorker ? assignedManagerUid : user.uid} />
+      )}
+
       <CookieBanner />
     </>
   );
