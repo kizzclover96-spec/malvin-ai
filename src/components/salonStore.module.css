@@ -1,0 +1,129 @@
+.storeContainer {
+  max-width: 480px;
+  margin: 0 auto;
+  background-color: #FFFFFF;
+  color: #111111;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  padding-bottom: 120px;
+}
+
+/* --- Skeleton Sizing Animations --- */
+.skeletonHero { height: 220px; background: linear-gradient(90deg, #f2f2f2 25%, #e6e6e6 50%, #f2f2f2 75%); background-size: 200% 100%; animation: loadingShimmer 1.5s infinite; }
+.skeletonCard { height: 90px; margin: 16px; border-radius: 12px; background: linear-gradient(90deg, #f2f2f2 25%, #e6e6e6 50%, #f2f2f2 75%); background-size: 200% 100%; animation: loadingShimmer 1.5s infinite; }
+@keyframes loadingShimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+/* --- Toast Framework Alerts --- */
+.toastNotification { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background-color: #111111; color: #FFFFFF; padding: 12px 24px; border-radius: 30px; font-size: 14px; z-index: 2000; box-shadow: 0 4px 12px rgba(0,0,0,0.15); width: 85%; max-width: 400px; text-align: center; }
+
+/* --- Hero Presentation Block --- */
+.heroBanner { background: linear-gradient(135deg, #fcedf0 0%, #ffffff 100%); padding: 32px 20px; border-bottom: 1px solid #eaeaea; }
+.heroGlassDetails h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; letter-spacing: -0.5px; }
+.salonBio { color: #555555; font-size: 15px; line-height: 1.4; margin-bottom: 12px; }
+.salonAddress, .salonHours { font-size: 13px; color: #777777; margin: 4px 0; }
+.trustBadgeRow { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.trustBadgeRow span { font-size: 11px; background-color: #EFA7A7; color: #611818; padding: 4px 10px; border-radius: 20px; font-weight: 600; }
+
+/* --- Horizontal Wizard Progress Headers --- */
+.progressWizardHeader { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; background-color: #FFFFFF; border-bottom: 1px solid #F0F0F0; overflow-x: auto; position: sticky; top: 0; z-index: 100; }
+.wizardNode { font-size: 12px; color: #999999; font-weight: 500; white-space: nowrap; }
+.activeNode { color: #FF6B6B; font-weight: 700; }
+.wizardChevron { color: #CCCCCC; font-size: 12px; margin: 0 4px; }
+
+/* --- Structural Viewports Container --- */
+.wizardStepViewports { padding: 24px 20px; flex: 1; }
+.stepTitleHeading { font-size: 20px; font-weight: 700; margin-bottom: 20px; letter-spacing: -0.3px; }
+.cardsScrollStack { display: flex; flex-direction: column; gap: 14px; }
+
+/* --- Premium Selection Luxury Cards --- */
+.luxurySelectionCard { background: rgba(255, 255, 255, 0.7); border: 1px solid #EAEAEA; border-radius: 16px; padding: 18px; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.luxurySelectionCard:active { transform: scale(0.98); }
+.cardIsSelectedState { border-color: #FF6B6B; background-color: rgba(255, 107, 107, 0.04); box-shadow: 0 4px 14px rgba(255, 107, 107, 0.08); }
+
+.serviceMainLine { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px; }
+.serviceMainLine h3 { font-size: 16px; font-weight: 600; margin: 0; color: #111111; }
+.priceTagText { font-size: 16px; font-weight: 700; color: #111111; }
+.serviceDurationLine { font-size: 13px; color: #777777; margin-bottom: 8px; }
+.serviceCardDescription { font-size: 13px; color: #666666; line-height: 1.4; margin: 0; }
+
+.recommendedBadgeLine { display: flex; justify-content: space-between; align-items: center; }
+.badgeTintRecommend { font-size: 11px; background-color: #E2F3E7; color: #1E502B; padding: 2px 8px; border-radius: 12px; font-weight: 600; }
+
+/* --- Staff Identity Matrix Layouts --- */
+.staffCardFlexLayout { display: flex; gap: 16px; align-items: center; }
+.staffAvatarCircle { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; background-color: #F0F0F0; }
+.staffTextMeta { flex: 1; }
+.staffTextMeta h3 { font-size: 16px; font-weight: 600; margin: 0 0 4px 0; }
+.staffAvailabilityBadge { font-size: 12px; background-color: #F5F5F5; padding: 2px 8px; border-radius: 6px; color: #555555; }
+.staffCatchphraseQuote { font-size: 13px; font-style: italic; color: #666666; margin: 6px 0 0 0; }
+
+/* --- Calendar Pill Element Nodes --- */
+.calendarDaySliderRow { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 12px; margin-bottom: 24px; scrollbar-width: none; }
+.calendarDaySliderRow::-webkit-scrollbar { display: none; }
+.calendarDayPillNode { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 60px; height: 74px; border-radius: 14px; border: 1px solid #EAEAEA; background-color: #FFFFFF; cursor: pointer; flex-shrink: 0; transition: all 0.2s ease; }
+.pillSelected { border-color: #FF6B6B; background-color: rgba(255, 107, 107, 0.05); }
+.weekdayLabelTxt { font-size: 11px; color: #888888; text-transform: uppercase; margin-bottom: 4px; }
+.dayNumTxt { font-size: 18px; font-weight: 700; color: #111111; }
+
+/* --- Time Interactive Selection Grids --- */
+.timeSlotsAdaptiveGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.timeSlotInteractiveButton { height: 48px; border-radius: 12px; border: 1px solid #EAEAEA; background-color: #FFFFFF; font-size: 14px; font-weight: 600; color: #111111; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; transition: all 0.2s ease; }
+.timeSlotInteractiveButton:disabled { background-color: #F8F8F8; border-color: #F0F0F0; color: #CCCCCC; cursor: not-allowed; }
+.timeSelected { border-color: #FF6B6B !important; background-color: #FF6B6B !important; color: #FFFFFF !important; }
+.popularTimeHighlight { border-color: rgba(255, 107, 107, 0.4); background-color: rgba(255, 107, 107, 0.02); }
+.popularMiniTag { font-size: 8px; text-transform: uppercase; color: #FF6B6B; font-weight: 700; position: absolute; bottom: 3px; }
+.timeSelected .popularMiniTag { color: #FFFFFF; }
+.emptyPromptText { grid-column: span 3; text-align: center; color: #888888; font-size: 14px; padding: 32px 0; }
+
+/* --- Form Interface Containers --- */
+.touchFriendlyFormLayout { display: flex; flex-direction: column; gap: 20px; }
+.inputContainerBlock { display: flex; flex-direction: column; gap: 6px; }
+.inputContainerBlock label { font-size: 13px; font-weight: 600; color: #555555; }
+.largeFormInputTarget, .largeFormTextAreaTarget { width: 100%; min-height: 48px; border: 1px solid #EAEAEA; border-radius: 12px; padding: 12px 16px; font-size: 15px; color: #111111; background-color: #FFFFFF; outline: none; box-sizing: border-box; transition: border-color 0.2s ease; }
+.largeFormInputTarget:focus, .largeFormTextAreaTarget:focus { border-color: #FF6B6B; }
+.largeFormTextAreaTarget { min-height: 90px; resize: none; }
+
+/* --- Verification Review Layout Summaries --- */
+.luxurySummaryDisplayCard { background-color: #FFFFFF; border: 1px solid #EAEAEA; border-radius: 20px; padding: 24px; box-shadow: 0 8px 24px rgba(0,0,0,0.02); }
+.luxurySummaryDisplayCard h3 { font-size: 18px; font-weight: 700; margin: 0 0 4px 0; }
+.summaryLocationText { font-size: 13px; color: #666666; margin: 0; }
+.summaryDividerLine { height: 1px; background-color: #F0F0F0; margin: 18px 0; }
+.summaryGroupSection h4, .summaryMetaGridBlock h4 { font-size: 12px; text-transform: uppercase; color: #888888; margin: 0 0 10px 0; letter-spacing: 0.5px; }
+.summaryItemRowLine { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 6px; color: #333333; }
+.summaryMetaGridBlock { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+.summaryMetaGridBlock p { font-size: 14px; margin: 0; color: #111111; font-weight: 500; }
+.finalTotalEmphasizedText { color: #FF6B6B !important; font-size: 18px !important; font-weight: 700 !important; }
+
+/* --- Sticky Booking Footer Control Blocks --- */
+.stickyActionControlFooter { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 480px; background: rgba(255, 255, 255, 0.85); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); border-top: 1px solid #EAEAEA; padding: 16px 20px calc(16px + env(safe-area-inset-bottom, 0px)) 20px; box-sizing: border-box; display: flex; flex-direction: column; gap: 12px; z-index: 999; }
+.summaryOverlayLabelInfo { display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: #555555; }
+.footerPriceEmphasized { font-size: 18px; font-weight: 700; color: #111111; }
+.footerPriceEmphasized small { font-size: 12px; color: #777777; font-weight: 400; }
+.footerActionButtonClusterRow { display: flex; gap: 10px; width: 100%; }
+
+.footerBackButton { flex: 1; height: 48px; border: 1px solid #EAEAEA; background-color: #FFFFFF; border-radius: 12px; font-size: 15px; font-weight: 600; color: #111111; cursor: pointer; }
+.footerContinueButton, .footerSubmitBookingButton { flex: 2; height: 48px; border: none; background-color: #FF6B6B; color: #FFFFFF; border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer; transition: opacity 0.2s ease; }
+.footerContinueButton:active, .footerSubmitBookingButton:active { opacity: 0.85; }
+.footerSubmitBookingButton:disabled { background-color: #FFA3A3; cursor: not-allowed; }
+
+/* --- Success View Sheets --- */
+.successWrapper { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 40px 20px; }
+.successIcon { width: 64px; height: 64px; background-color: #E2F3E7; color: #1E502B; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 700; margin-bottom: 20px; }
+.successTitle { font-size: 24px; font-weight: 700; margin: 0 0 8px 0; letter-spacing: -0.5px; }
+.successSub { font-size: 14px; color: #666666; margin: 0 0 32px 0; line-height: 1.4; }
+.summaryGlassCard { background-color: rgba(255,255,255,0.8); border: 1px solid #EAEAEA; border-radius: 20px; padding: 24px; width: 100%; box-sizing: border-box; margin-bottom: 32px; }
+.refBadge { display: flex; flex-direction: column; align-items: center; margin-bottom: 20px; }
+.refLabel { font-size: 11px; color: #888888; letter-spacing: 0.5px; }
+.refCode { font-size: 22px; color: #111111; letter-spacing: 1px; margin-top: 2px; }
+.qrPlaceholder { display: flex; justify-content: center; margin-bottom: 20px; }
+.qrInner { display: flex; flex-direction: column; align-items: center; font-size: 11px; color: #777777; gap: 6px; }
+.qrBlock { width: 110px; height: 110px; background-color: #111111; border-radius: 8px; opacity: 0.9; }
+.receiptDetails h3 { font-size: 16px; margin: 0 0 8px 0; }
+.receiptDetails p { font-size: 13px; margin: 4px 0; color: #444444; }
+.successActionStack { display: flex; flex-direction: column; gap: 12px; width: 100%; }
+.primaryActionBtn { width: 100%; height: 48px; border: none; background-color: #FF6B6B; color: #FFFFFF; font-size: 15px; font-weight: 600; border-radius: 12px; cursor: pointer; }
+.secondaryActionBtn { width: 100%; height: 48px; border: 1px solid #EAEAEA; background-color: #FFFFFF; color: #111111; font-size: 15px; font-weight: 600; border-radius: 12px; cursor: pointer; }
+.clearDoneBtn { border: none; background: none; color: #777777; font-size: 14px; padding: 8px; cursor: pointer; text-decoration: underline; }

@@ -18,8 +18,10 @@ import Dashboard from "./components/dashboard";
 import DeviceSwitch from "./pages/DeviceSwitch";
 import MobileView from "./pages/MobileView";
 import FoodDashboard from "./components/Food";
+import SalonDashboard from "./components/SalonDashboard"
 import Category from "./pages/Category";
 import { StoreFrontend } from './components/Store';
+import SalonStore from "./components/salonStore";
 
 
 
@@ -87,6 +89,11 @@ function App() {
       return;
     }
 
+    if (type === "explore") {
+      setFlowStep("SalonDashboard");
+      return;
+    }
+
     setFlowStep("device");
   };
   return (
@@ -95,6 +102,7 @@ function App() {
         <Routes>
           <Route path="/chat/:brandId" element={<MarketFront />} />
           <Route path="/food/:Uid" element={<StoreFrontend/>} />
+          <Route path="/salon/:uid" element={<SalonStore />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/refund-policy" element={<RefundPolicy />} />
@@ -121,6 +129,8 @@ function App() {
                 <Category onSelect={handleCategorySelect} />
               ) : flowStep === "food" ? (
                 <FoodDashboard userEmail={user?.email} currentUserId={user?.uid} />
+              ) : flowStep === "SalonDashboard" ? ( // 🟢 Fixed to match your handleCategorySelect state string
+                <SalonDashboard userEmail={user?.email} currentUserId={user?.uid} />
               ) : flowStep === "device" ? (
                 <DeviceSwitch
                   onSelect={(mode) => {
