@@ -56,12 +56,20 @@ export default function SalonDashboard() {
   const [copied, setCopied] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
-  const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
+ const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
 
   const [page, setPage] = useState<'dashboard' | 'catalogue'>('dashboard');
 
   // 🌟 DYNAMIC LINK COMPUTATION (Zero storage dependency)
   const runtimeQrLink = uid ? `${window.location.origin}/salon/${uid}` : '';
+
+  useEffect(() => {
+    if (!runtimeQrLink) return;
+
+    QRCode.toDataURL(runtimeQrLink, { width: 250, margin: 2 })
+      .then(url => setQrCodeUrl(url))
+      .catch(err => console.error("Error generating local QR code:", err));
+  }, [runtimeQrLink]);
 
   // 1. Authenticate & Sync User UID
   useEffect(() => {
@@ -254,7 +262,7 @@ export default function SalonDashboard() {
   if (page === 'catalogue') { return <SalonStation onBack={() => setPage('dashboard')}/>;}
 
   // 🟢 UPDATED: Reads directly from local calculated runtime variable instead of salon field
-  const activeQrSrc = salon.qrImage || `https://chart.googleapis.com/chart?cht=qr&chs=200x200&chl=${encodeURIComponent(runtimeQrLink)}`;
+  const activeQrSrc = qrCodeUrl;
 
   return (
     <div className={styles.dashboardContainer}>
@@ -307,22 +315,39 @@ export default function SalonDashboard() {
 
             <div className={styles.modalBody}>
               
-              <div className={styles.glassCard}>
-                <h3>Salon QR Access</h3>
-                <div className={styles.qrSection}>
-                  <img src={activeQrSrc} alt="Salon QR Code" className={styles.qrImage} />
-                  {/* 🟢 RENDERING LOGATION DYNAMICALLY */}
-                  <p className={styles.qrLinkText}>{runtimeQrLink}</p>
-                  <div className={styles.buttonGroupRow}>
-                    <button type="button" className={styles.glassButtonSecondary} onClick={handleShareLink}>Share Link</button>
-                    <button type="button" className={styles.glassButtonSecondary} onClick={handleCopyLink}>
-                      {copied ? "Copied!" : "Copy Link"}
-                    </button>
-                    {/* 🟢 SOURCE TARGET PATH SET TO RUNTIME VALUE */}
-                    <a href={runtimeQrLink} target="_blank" rel="noreferrer" className={styles.glassButtonSecondaryLink}>Open Link</a>
-                  </div>
+                <div className={styles.glassCard}>
+                    <h3>Salon QR Access</h3>
+                    <div className={styles.qrSection}>
+                        {/* 🟢 Render image container if source is ready */}
+                        {activeQrSrc ? (
+                            <img src={activeQrSrc} alt="Salon QR Code" className={styles.qrImage} />
+                        ) : (
+                            <div className={styles.qrPlaceholder}>Generating QR...</div>
+                        )}
+                        
+                        <p className={styles.qrLinkText}>{runtimeQrLink}</p>
+                        
+                        <div className={styles.buttonGroupRow}>
+                            <button type="button" className={styles.glassButtonSecondary} onClick={handleShareLink}>Share Link</button>
+                            <button type="button" className={styles.glassButtonSecondary} onClick={handleCopyLink}>
+                            {copied ? "Copied!" : "Copy Link"}
+                            </button>
+                            <a href={runtimeQrLink} target="_blank" rel="noreferrer" className={styles.glassButtonSecondaryLink}>Open Link</a>
+                            
+                            {/* 🟢 NEW DOWNLOAD BUTTON */}
+                            {activeQrSrc && (
+                            <a 
+                                href={activeQrSrc} 
+                                download={`${salon.salonName.replace(/\s+/g, '_')}_QRCode.png`} 
+                                className={styles.glassButtonPrimaryLink}
+                                style={{ textDecoration: 'none', textAlign: 'center' }}
+                            >
+                                Download QR
+                            </a>
+                            )}
+                        </div>
+                    </div>
                 </div>
-              </div>
 
               <form onSubmit={handleSaveSettings} className={styles.glassCard}>
                 <h3>Update Information</h3>

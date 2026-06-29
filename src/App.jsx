@@ -18,10 +18,10 @@ import Dashboard from "./components/dashboard";
 import DeviceSwitch from "./pages/DeviceSwitch";
 import MobileView from "./pages/MobileView";
 import FoodDashboard from "./components/Food";
-import SalonDashboard from "./components/SalonDashboard"
+import SalonDashboard from "./components/salonDashboard";
 import Category from "./pages/Category";
 import { StoreFrontend } from './components/Store';
-import SalonStore from "./components/salonStore";
+import SalonStore from "./components/salonStore"
 
 
 
@@ -80,7 +80,7 @@ function App() {
   
   const handleCategorySelect = (type) => {
     if (type === "food") {
-      setFlowStep("food"); // Changed from "FoodDashboard" to "food"
+      setFlowStep("food");
       return;
     }
 
@@ -94,7 +94,8 @@ function App() {
       return;
     }
 
-    setFlowStep("device");
+    // 🟢 Safety fallback: If it's none of the above, don't blindly switch to device
+    console.log("Category selected didn't match cleanly:", type);
   };
   return (
     <>
