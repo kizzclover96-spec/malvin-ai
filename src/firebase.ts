@@ -3,6 +3,7 @@ import { getDatabase } from "firebase/database";
 import { getAuth, GoogleAuthProvider, browserLocalPersistence, setPersistence } from "firebase/auth";
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
+import { getFirestore } from "firebase/firestore";
 
 if (!import.meta.env.VITE_FIREBASE_PROJECT_ID) {
   console.error(
@@ -27,12 +28,9 @@ export const auth = getAuth(app);
 export const db = getDatabase(app);
 export const storage = getStorage(app);
 
+
 // FIXED: Use initializeFirestore directly and remove the duplicate getFirestore declaration
-export const firestore = initializeFirestore(app, {
-  localCache: persistentLocalCache({
-    tabManager: persistentMultipleTabManager()
-  })
-});
+export const firestore = getFirestore(app);
 
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: "select_account" });

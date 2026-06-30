@@ -33,6 +33,7 @@ interface Message {
   id: string;
   senderUid: string;
   senderName: string;
+  senderEmail?: string; // Included senderEmail inside the Interface
   text: string;
   createdAt: any;
   replyToText?: string;
@@ -106,34 +107,34 @@ export const TeamHub: React.FC<TeamHubProps> = ({ managerUid }) => {
     });
 
     // Sub 2: Dynamic Management Workspace Roster
-    // 🌟 FALLBACK LOGIC INTEGRATED HERE: If no emails/members exist yet, elevate user to Manager
-    const unsubMembers = onSnapshot(collection(db, 'managerMembers', managerUid, 'members'), (snapshot) => {
-      const list: Member[] = [];
-      let directMatchFound = false;
-      let matchedRole: UserRole = 'Worker';
+    const unsubMembers = onSnapshot(
+        collection(db, "managerMembers", managerUid, "members"),
+        (snapshot) => {
+            const list: Member[] = [];
+            snapshot.forEach((d) => {
+              list.push({
+                  ...(d.data() as Member),
+                  uid: d.id,
+              });
+            });
+            setMembers(list);
 
-      snapshot.forEach((d) => {
-        const memberData = d.data() as Member;
-        list.push({ ...memberData, uid: d.id });
-        
-        if (d.id === currentUserId) {
-          directMatchFound = true;
-          matchedRole = memberData.role;
+            if (managerUid === currentUserId) {
+              setUserRole("Manager");
+              return;
+            }
+
+            const me = list.find(
+              m => m.workerUid === currentUserId || m.uid === currentUserId
+            );
+
+            if (me) {
+              setUserRole(me.role);
+            } else {
+              setUserRole("Worker");
+            }
         }
-      });
-
-      setMembers(list);
-
-      if (list.length === 0) {
-        // 🚀 System rule override: No team list found, grant placeholder management permissions
-        console.log("Roster is entirely empty. Promoting active session context to Manager role.");
-        setUserRole('Manager');
-      } else if (directMatchFound) {
-        setUserRole(matchedRole);
-      } else {
-        setUserRole('Worker');
-      }
-    });
+    );
 
     // Sub 3: Tasks Tracking Index
     const unsubTasks = onSnapshot(collection(db, 'managerMembers', managerUid, 'tasks'), (snapshot) => {
@@ -189,6 +190,7 @@ export const TeamHub: React.FC<TeamHubProps> = ({ managerUid }) => {
     const messagePayload: any = {
       senderUid: currentUserId,
       senderName: auth.currentUser?.displayName || auth.currentUser?.email?.split('@')[0] || 'User',
+      senderEmail: auth.currentUser?.email || '', // Storing sender's email securely in DB payload
       text: inputText,
       createdAt: serverTimestamp(),
       isRead: false
@@ -234,48 +236,38 @@ export const TeamHub: React.FC<TeamHubProps> = ({ managerUid }) => {
     try {
         const taskDocRef = doc(db, 'managerMembers', managerUid, 'tasks', taskId);
         await updateDoc(taskDocRef, {
-        status: status === 'Pending' ? 'Completed' : 'Pending'
+          status: status === 'Pending' ? 'Completed' : 'Pending'
         });
     } catch (error) {
         console.error("Task update failed:", error);
     }
   };
 
-    const executePostAlert = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!alertText.trim() || !isManager || !managerUid) return;
+  const executePostAlert = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!alertText.trim() || !isManager || !managerUid) return;
 
-        try {
-            await addDoc(collection(db, 'managerMembers', managerUid, 'announcements'), {
+      try {
+          await addDoc(collection(db, 'managerMembers', managerUid, 'announcements'), {
             content: alertText,
             isPinned: alertPinned,
             createdAt: serverTimestamp()
-            });
+          });
 
-            setAlertText('');
-            setAlertPinned(false);
-        } catch (error) {
-            console.error("Failed to post alert:", error);
-        }
-    };
+          setAlertText('');
+          setAlertPinned(false);
+      } catch (error) {
+          console.error("Failed to post alert:", error);
+      }
+  };
+
   const executeSaveMemberInvitation = async (e: React.FormEvent) => {
     e.preventDefault();
-    // 🌟 FIX: Add !currentUserId here to assure TypeScript it's definitely a string
-    if (!inviteEmail.trim() || !isManager || !currentUserId || !managerUid) {
-        console.warn("Action blocked: Missing required session variables.", {
-            currentUserId,
-            managerUid,
-            isManager
-        });
-        return;
-    }
+    if (!inviteEmail.trim() || !isManager || !currentUserId || !managerUid) return;
 
     const cleanEmail = inviteEmail.toLowerCase();
     
-    // 💡 TIP: When a manager saves the first member, we explicitly write the manager to the collection too
-    // to maintain management capabilities once the roster is no longer empty.
     try {
-      // 1. Create the manager document explicitly so you don't lock yourself out
       const managerDocRef = doc(db, 'managerMembers', managerUid, 'members', currentUserId);
       await setDoc(managerDocRef, {
         uid: currentUserId,
@@ -285,10 +277,9 @@ export const TeamHub: React.FC<TeamHubProps> = ({ managerUid }) => {
         joinedAt: serverTimestamp()
       });
 
-      // 2. Save the newly invited member document
       const newMemberId = "mem_" + Math.random().toString(36).substring(2, 11); 
       await setDoc(doc(db, 'managerMembers', managerUid, 'members', newMemberId), {
-        uid: newMemberId, 
+        uid: "", 
         email: cleanEmail,
         role: inviteRole,
         status: 'pending',
@@ -328,12 +319,14 @@ export const TeamHub: React.FC<TeamHubProps> = ({ managerUid }) => {
                   key={msg.id} 
                   style={{
                     ...styles.messageRow,
-                    justifyContent: msg.senderUid === currentUserId ? 'flex-end' : 'flex-start' // 🌟 Fixed
+                    justifyContent: msg.senderUid === currentUserId ? 'flex-end' : 'flex-start'
                   }}
                 >
-                  <div style={{ maxWidth: '78%' }}>
+                  <div style={{ maxWidth: '85%' }}>
                     {msg.senderUid !== currentUserId && (
-                      <span style={styles.senderSubtext}>{msg.senderName}</span>
+                      <span style={styles.senderSubtext}>
+                        {msg.senderName} {msg.senderEmail ? `(${msg.senderEmail})` : ''}
+                      </span>
                     )}
                     {msg.replyToText && (
                       <div style={styles.replyBubbleContext}>
@@ -557,9 +550,9 @@ export const TeamHub: React.FC<TeamHubProps> = ({ managerUid }) => {
   );
 };
 
-// Stylesheet configuration (same as previous)
 const styles: { [key: string]: React.CSSProperties } = {
-  nativeFrame: { display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: '#FFFFFF', color: '#000000', fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif', overflow: 'hidden' },
+  // Expanded width configuration added here
+  nativeFrame: { display: 'flex', flexDirection: 'column', height: '100vh', width: '100%', maxWidth: '600px', margin: '0 auto', borderLeft: '1px solid #F2F2F7', borderRight: '1px solid #F2F2F7', backgroundColor: '#FFFFFF', color: '#000000', fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif', overflow: 'hidden' },
   chatHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 20px', borderBottom: '1px solid #F2F2F7', backgroundColor: '#FFFFFF' },
   headerTitle: { fontSize: '18px', fontWeight: '700', letterSpacing: '-0.4px', margin: 0 },
   headerUidLabel: { fontSize: '11px', color: '#8E8E93', margin: '2px 0 0 0' },

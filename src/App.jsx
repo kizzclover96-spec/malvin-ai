@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth, firestore as db } from "./firebase";
-import { collection, getDocs, query, where, doc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { collection, collectionGroup, getDocs, query, where, doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import Login from "./pages/loginscreen"; 
 import Welcomeview from "./pages/welcomeview"; 
-import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom"; // Added useLocation
+import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import AdsManager from "./components/AdsManagment";
 import LandingPage from "./pages/LandingPage";
 import CookieBanner from "./components/CookieBanner";
@@ -29,7 +29,7 @@ import { WorkerDashboard } from './components/workerDashboard';
 function App() {
   const [user, setUser] = useState(null);
   const navigate = useNavigate();
-  const location = useLocation(); // Hook to inspect current active route path
+  const location = useLocation(); 
   const [loading, setLoading] = useState(true);
   const [hasWokenUp, setHasWokenUp] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
@@ -45,11 +45,11 @@ function App() {
   };
 
   // --- Core Authentication State Observer ---
+ // --- Core Authentication State Observer ---
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser);
-
       if (!currentUser) {
+        setUser(null);
         setHasWokenUp(false);
         setShowLogin(false);
         setDashboardToken("");
@@ -62,42 +62,56 @@ function App() {
         setHasWokenUp(false); 
         
         if (currentUser.email === 'kizzclover96@gmail.com') {
+          setUser(currentUser);
           setLoading(false);
           return;
         }
 
         try {
-          const targetEmail = currentUser.email.toLowerCase();
-          const managersSnapshot = await getDocs(collection(db, "managerMembers"));
-          let matchFound = false;
+          // 🟢 FORCE Firestore to wait until the Auth Token is completely synchronized
+          await currentUser.getIdToken(true); 
 
-          for (const managerDoc of managersSnapshot.docs) {
-            const managerUid = managerDoc.id;
-            const membersRef = collection(db, "managerMembers", managerUid, "members");
+          const targetEmail = currentUser.email.trim();
+          const targetEmailLower = currentUser.email.toLowerCase().trim();
+          
+          // Query ALL "members" subcollections everywhere safely
+          const memberQuery = query(
+            collectionGroup(db, "members"), 
+            where("email", "in", [targetEmail, targetEmailLower])
+          );
+          
+          const memberDocsSnapshot = await getDocs(memberQuery);
+
+          if (!memberDocsSnapshot.empty) {
+            const matchedMemberDoc = memberDocsSnapshot.docs[0];
+            const matchedDocId = matchedMemberDoc.id;
+            const currentStatus = matchedMemberDoc.data().status;
             
-            const q = query(membersRef, where("email", "==", targetEmail));
-            const memberDocs = await getDocs(q);
+            // 🌟 Extract the managerUid safely from the reference path
+            const pathSegments = matchedMemberDoc.ref.path.split('/');
+            const foundManagerUid = pathSegments[1]; 
 
-            if (!memberDocs.empty) {
-              const matchedMemberDoc = memberDocs.docs[0];
-              matchFound = true;
-              setAssignedManagerUid(managerUid);
-              setIsWorker(true);
+            setAssignedManagerUid(foundManagerUid);
+            setIsWorker(true);
 
-              if (matchedMemberDoc.data().status === "pending") {
-                await updateDoc(doc(db, "managerMembers", managerUid, "members", matchedMemberDoc.id), {
-                  workerUid: currentUser.uid,
-                  status: "active",
-                  joinedAt: serverTimestamp()
-                });
-              }
-              break; 
+            if (currentStatus === "pending") {
+              await updateDoc(doc(db, "managerMembers", foundManagerUid, "members", matchedDocId), {
+                workerUid: currentUser.uid,
+                uid: currentUser.uid,
+                status: "active",
+                joinedAt: serverTimestamp()
+              });
             }
+          } else {
+            setIsWorker(false);
+            setAssignedManagerUid("");
           }
           
+          setUser(currentUser);
           setLoading(false);
         } catch (error) {
           console.error("Error executing operational worker check:", error);
+          setUser(currentUser);
           setLoading(false);
         }
       }
@@ -106,17 +120,21 @@ function App() {
     return () => unsubscribe();
   }, []);
 
+  // Sync welcome flow step ONLY for normal management accounts
   useEffect(() => {
-    if (!user) return;
-    setHasWokenUp(false);
+    if (!user || isWorker) return;
     setFlowStep("welcome");
-  }, [user]);
+  }, [user, isWorker]);
 
   if (loading) {
     return <div style={{ backgroundColor: '#000', height: '100vh' }} />;
   }
 
   const isAdmin = user?.email === 'kizzclover96@gmail.com';
+  const isStorefrontPath = 
+    location.pathname.startsWith("/food/") || 
+    location.pathname.startsWith("/salon/") || 
+    location.pathname.startsWith("/chat/");
 
   const handleWakeUpSequence = (tokenFromWelcome) => {
     setDashboardToken(tokenFromWelcome);
@@ -124,25 +142,10 @@ function App() {
   };
   
   const handleCategorySelect = (type) => {
-    if (type === "food") {
-      setFlowStep("food");
-      return;
-    }
-    if (type === "fashion") {
-      setFlowStep("device");
-      return;
-    }
-    if (type === "explore") {
-      setFlowStep("SalonDashboard");
-      return;
-    }
+    if (type === "food") { setFlowStep("food"); return; }
+    if (type === "fashion") { setFlowStep("device"); return; }
+    if (type === "explore") { setFlowStep("SalonDashboard"); return; }
   };
-
-  // Check if current path matches any storefront/external paths
-  const isStorefrontPath = 
-    location.pathname.startsWith("/food/") || 
-    location.pathname.startsWith("/salon/") || 
-    location.pathname.startsWith("/chat/");
 
   return (
     <>
@@ -170,7 +173,14 @@ function App() {
               ) : isAdmin ? (
                 <AdsManager />
               ) : isWorker ? (
-                <WorkerDashboard managerUid={assignedManagerUid} workerUid={user.uid} />
+                // 🌟 Directly displays worker panel using matched Firestore parameters
+                <WorkerDashboard 
+                  businessUid={assignedManagerUid} 
+                  onNavigate={(screen) => {
+                    console.log(`Navigating worker to: ${screen}`);
+                    // Add custom worker router paths here if you expand them later
+                  }} 
+                />
               ) : flowStep === "welcome" ? (
                 <Welcomeview onWakeClick={handleWakeUpSequence} />
               ) : flowStep === "category" ? (
@@ -198,7 +208,6 @@ function App() {
         </Routes>
       </div>
 
-      {/* Show the FloatingTeamHub only if authenticated, not an admin, and not on a storefront path */}
       {user && !isAdmin && !isStorefrontPath && (
         <FloatingTeamHub managerUid={isWorker ? assignedManagerUid : user.uid} />
       )}

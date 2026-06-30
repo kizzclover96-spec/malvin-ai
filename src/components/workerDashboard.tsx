@@ -9,8 +9,7 @@ import {
   limit, 
   onSnapshot, 
   doc, 
-  updateDoc,
-  getDocs
+  updateDoc
 } from 'firebase/firestore';
 
 // --- Interfaces ---
@@ -63,7 +62,7 @@ export const WorkerDashboard: React.FC<WorkerDashboardProps> = ({ businessUid, o
   const [aiResponse, setAiResponse] = useState('');
 
   const currentUserId = auth.currentUser?.uid;
-  const workerName = auth.currentUser?.displayName || 'Emma';
+  const workerName = auth.currentUser?.displayName || auth.currentUser?.email || 'Emma';
 
   // --- Dynamic System Date Formatter ---
   const todayDateString = new Date().toLocaleDateString('en-US', {
@@ -170,435 +169,260 @@ export const WorkerDashboard: React.FC<WorkerDashboardProps> = ({ businessUid, o
     setAiQuery('');
   };
 
-  // --- Performance Calculations ---
-  const completedTodayCount = appointments.filter(a => a.status === 'Completed').length;
-
   return (
     <div style={styles.dashboardContainer}>
-      <div style={styles.glassView}>
-        
-        {/* Dynamic Context Greeting Header */}
-        <header style={styles.welcomeHeader}>
-          <div>
-            <h1 style={styles.greetingText}>Good Morning, {workerName}</h1>
-            <p style={styles.dateLabel}>{todayDateString}</p>
-          </div>
-          <div style={styles.onlineBadge}>Live Workspace</div>
-        </header>
-
-        <div style={styles.scrollContainer}>
-          
-          {/* Urgent Announcement Alert banner */}
-          {announcement && (
-            <div style={{...styles.alertBanner, borderColor: announcement.isUrgent ? '#ef4444' : 'rgba(255,255,255,0.2)'}}>
-              <span style={styles.alertTag}>{announcement.isUrgent ? 'URGENT NOTICE' : 'UPDATE'}</span>
-              <p style={styles.alertBody}>{announcement.content}</p>
-            </div>
-          )}
-
-          {/* Real-time Incoming Message Hub Bridge */}
-          {messagePreview && (
-            <div style={styles.msgCard} onClick={() => onNavigate('chat')}>
-              <div style={styles.msgHeader}>
-                <span style={styles.msgTitle}>Internal Comms Link</span>
-                <span style={styles.msgAction}>Tap to Open Hub →</span>
-              </div>
-              <p style={styles.msgSnippet}><strong>{messagePreview.senderName}:</strong> "{messagePreview.text}"</p>
-            </div>
-          )}
-
-          {/* Fast-access Tactical Quick Actions Control Matrix */}
-          <section style={styles.gridSection}>
-            <button style={styles.quickButton} onClick={() => onNavigate('chat')}>💬 Open Chat</button>
-            <button style={styles.quickButton} onClick={() => onNavigate('appointments')}>📅 Today's Bookings</button>
-            <button style={styles.quickButton} onClick={() => onNavigate('search')}>🔍 Customer Lookup</button>
-            <button style={styles.quickButton} onClick={() => onNavigate('qr')}>🔲 Scan Client QR</button>
-          </section>
-
-          {/* Core Master Schedule Content Area */}
-          <section style={styles.blockSection}>
-            <h2 style={styles.sectionHeading}>Today's Schedule</h2>
-            {appointments.length === 0 ? (
-              <p style={styles.emptyPrompt}>No scheduled bookings for today.</p>
-            ) : (
-              appointments.map((appt) => (
-                <div key={appt.id} style={styles.appointmentCard} onClick={() => setSelectedAppointment(appt)}>
-                  <div style={styles.apptHeaderRow}>
-                    <span style={styles.clientName}>{appt.customerName}</span>
-                    <span style={styles.apptTime}>{appt.time} ({appt.duration})</span>
-                  </div>
-                  <div style={styles.serviceTagsRow}>
-                    {appt.services.map((s, idx) => (
-                      <span key={idx} style={styles.serviceTag}>{s}</span>
-                    ))}
-                  </div>
-                  <div style={styles.statusIndicatorLine}>Status: <strong style={{color: '#fff'}}>{appt.status}</strong></div>
-                  
-                  {/* Action Targets Execution Layer */}
-                  <div style={styles.apptActionsGrid} onClick={(e) => e.stopPropagation()}>
-                    {appt.status === 'Scheduled' && (
-                      <button style={{...styles.apptBtn, backgroundColor: '#3b82f6'}} onClick={() => handleUpdateStatus(appt.id, 'Checked In')}>Check In</button>
-                    )}
-                    {appt.status !== 'Completed' && appt.status !== 'Cancelled' && (
-                      <button style={{...styles.apptBtn, backgroundColor: '#10b981'}} onClick={() => handleUpdateStatus(appt.id, 'Completed')}>Complete</button>
-                    )}
-                    {appt.status !== 'Cancelled' && appt.status !== 'Completed' && (
-                      <button style={{...styles.apptBtn, backgroundColor: 'rgba(239, 68, 68, 0.2)', color: '#f87171'}} onClick={() => handleUpdateStatus(appt.id, 'Cancelled')}>Cancel</button>
-                    )}
-                  </div>
-                </div>
-              ))
-            )}
-          </section>
-
-          {/* Action-Item Task Tracker */}
-          <section style={styles.blockSection}>
-            <h2 style={styles.sectionHeading}>Pending Tasks</h2>
-            {tasks.length === 0 ? (
-              <p style={styles.emptyPrompt}>All clear! No remaining tasks.</p>
-            ) : (
-              tasks.map((task) => (
-                <div key={task.id} style={styles.taskCard}>
-                  <div>
-                    <span style={{...styles.priorityIndicator, backgroundColor: task.priority === 'High' ? '#ef4444' : '#f59e0b'}}>{task.priority}</span>
-                    <p style={styles.taskTitle}>{task.title}</p>
-                    <span style={styles.taskDue}>Due: {task.dueDate}</span>
-                  </div>
-                  <button style={styles.taskCompleteBtn} onClick={() => handleCompleteTask(task.id)}>✓ Done</button>
-                </div>
-              ))
-            )}
-          </section>
-
-          {/* Analytical Metrics Performance Summary */}
-          <section style={styles.blockSection}>
-            <h2 style={styles.sectionHeading}>Performance Metrics</h2>
-            <div style={styles.metricsContainer}>
-              <div style={styles.metricItem}>
-                <span style={styles.metricVal}>{completedTodayCount}</span>
-                <span style={styles.metricLbl}>Completed Today</span>
-              </div>
-              <div style={styles.metricItem}>
-                <span style={styles.metricVal}>4.9★</span>
-                <span style={styles.metricLbl}>Avg Rating</span>
-              </div>
-              <div style={styles.metricItem}>
-                <span style={styles.metricVal}>Active</span>
-                <span style={styles.metricLbl}>Work Status</span>
-              </div>
-            </div>
-          </section>
-
+      
+      {/* Top Professional Header Bar */}
+      <header style={styles.welcomeHeader}>
+        <div>
+          <h1 style={styles.greetingText}>Hello, {workerName}</h1>
+          <p style={styles.dateLabel}>{todayDateString}</p>
         </div>
+        <div style={styles.onlineBadge}>Terminal Active</div>
+      </header>
 
-        {/* Floating Modal Layer: Customer Profile & Historic Notes */}
-        {selectedAppointment && (
-          <div style={styles.modalOverlay} onClick={() => setSelectedAppointment(null)}>
-            <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
-              <h3 style={styles.modalHeading}>Client Profile & History</h3>
-              <p style={styles.modalSubheading}>{selectedAppointment.customerName}</p>
-              
-              <div style={styles.notesSection}>
-                <h4 style={styles.notesTitle}>Preference Profile & Notes</h4>
-                <ul style={styles.notesList}>
-                  <li>Prefers classic skin fade execution.</li>
-                  <li>Maintains routine appointments every 3 weeks.</li>
-                  <li>Hypersensitive skin; strictly avoid scented post-shave tonics.</li>
-                  <li>Requested assignment to current worker profile.</li>
-                </ul>
-              </div>
-              <button style={styles.closeModalBtn} onClick={() => setSelectedAppointment(null)}>Return to Dashboard</button>
-            </div>
+      {/* Main Workspace Layout */}
+      <main style={styles.mainContent}>
+        
+        {/* Urgent Announcement Alert banner (Hidden if empty) */}
+        {announcement && (
+          <div style={{...styles.alertBanner, borderColor: announcement.isUrgent ? '#ef4444' : '#3b82f6'}}>
+            <span style={styles.alertTag}>{announcement.isUrgent ? 'CRITICAL SYSTEM NOTICE' : 'MANAGEMENT UPDATE'}</span>
+            <p style={styles.alertBody}>{announcement.content}</p>
           </div>
         )}
 
-        {/* Floating Intelligent AI Utility Panel */}
-        <div style={styles.aiWidget}>
-          <button style={styles.aiToggleBtn} onClick={() => setIsAiOpen(!isAiOpen)}>🤖 Ask Copilot</button>
-          {isAiOpen && (
-            <div style={styles.aiBox}>
-              <div style={styles.aiHeader}>Malvin Workspace AI</div>
-              {aiResponse && <p style={styles.aiReply}>{aiResponse}</p>}
-              <form onSubmit={handleAiQuerySubmit} style={styles.aiForm}>
-                <input 
-                  type="text" 
-                  value={aiQuery}
-                  onChange={(e) => setAiQuery(e.target.value)}
-                  placeholder="e.g., Who is my next customer?" 
-                  style={styles.aiInput}
-                  required
-                />
-                <button type="submit" style={styles.aiSubmit}>Ask</button>
-              </form>
+        {/* Real-time Incoming Message Hub Bridge */}
+        {messagePreview && (
+          <div style={styles.msgCard} onClick={() => onNavigate('chat')}>
+            <div style={styles.msgHeader}>
+              <span style={styles.msgTitle}>Unread Team Communication</span>
+              <span style={styles.msgAction}>Open Comms Link →</span>
             </div>
-          )}
-        </div>
+            <p style={styles.msgSnippet}><strong>{messagePreview.senderName}:</strong> "{messagePreview.text}"</p>
+          </div>
+        )}
 
+        {/* Central Scan Focus Terminal Area */}
+        <section style={styles.centerScannerSection}>
+          <div style={styles.scannerWrapper}>
+            <div style={styles.scannerTargetBox}>
+              <div style={{...styles.cornerBracket, top: 0, left: 0, borderTop: '4px solid #3b82f6', borderLeft: '4px solid #3b82f6'}} />
+              <div style={{...styles.cornerBracket, top: 0, right: 0, borderTop: '4px solid #3b82f6', borderRight: '4px solid #3b82f6'}} />
+              <div style={{...styles.cornerBracket, bottom: 0, left: 0, borderBottom: '4px solid #3b82f6', borderLeft: '4px solid #3b82f6'}} />
+              <div style={{...styles.cornerBracket, bottom: 0, right: 0, borderBottom: '4px solid #3b82f6', borderRight: '4px solid #3b82f6'}} />
+              
+              <button style={styles.scanTriggerBtn} onClick={() => onNavigate('qr')}>
+                <span style={{fontSize: '44px', marginBottom: '12px'}}>📷</span>
+                <span style={{fontWeight: '600', letterSpacing: '0.5px'}}>INITIALIZE CAMERA SCAN</span>
+                <span style={{fontSize: '11px', color: '#94a3b8', marginTop: '4px'}}>Tap to process client QR authentication</span>
+              </button>
+            </div>
+          </div>
+        </section>
+
+      </main>
+
+      {/* Floating Customer Modal Layer */}
+      {selectedAppointment && (
+        <div style={styles.modalOverlay} onClick={() => setSelectedAppointment(null)}>
+          <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <h3 style={styles.modalHeading}>Client Profile & History</h3>
+            <p style={styles.modalSubheading}>{selectedAppointment.customerName}</p>
+            
+            <div style={styles.notesSection}>
+              <h4 style={styles.notesTitle}>Preference Profile & Notes</h4>
+              <ul style={styles.notesList}>
+                <li>Prefers classic skin fade execution.</li>
+                <li>Maintains routine appointments every 3 weeks.</li>
+                <li>Hypersensitive skin; strictly avoid scented post-shave tonics.</li>
+                <li>Requested assignment to current worker profile.</li>
+              </ul>
+            </div>
+            <button style={styles.closeModalBtn} onClick={() => setSelectedAppointment(null)}>Return to Terminal</button>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Intelligent AI Utility Panel */}
+      <div style={styles.aiWidget}>
+        <button style={styles.aiToggleBtn} onClick={() => setIsAiOpen(!isAiOpen)}>🤖 System Copilot</button>
+        {isAiOpen && (
+          <div style={styles.aiBox}>
+            <div style={styles.aiHeader}>Malvin Workspace AI</div>
+            {aiResponse && <p style={styles.aiReply}>{aiResponse}</p>}
+            <form onSubmit={handleAiQuerySubmit} style={styles.aiForm}>
+              <input 
+                type="text" 
+                value={aiQuery}
+                onChange={(e) => setAiQuery(e.target.value)}
+                placeholder="Ask about data updates..." 
+                style={styles.aiInput}
+                required
+              />
+              <button type="submit" style={styles.aiSubmit}>Query</button>
+            </form>
+          </div>
+        )}
       </div>
+
     </div>
   );
 };
 
-// --- Specialized High-Fidelity Glassmorphic Structural Rules ---
+// --- Enterprise Clean Worker Interface Styles ---
 const styles: { [key: string]: React.CSSProperties } = {
   dashboardContainer: {
     display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
+    flexDirection: 'column',
     minHeight: '100vh',
-    background: 'linear-gradient(135deg, #020617 0%, #0f172a 100%)',
-    padding: '12px',
+    backgroundColor: '#0b0f19',
+    color: '#f8fafc',
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
     boxSizing: 'border-box',
   },
-  glassView: {
-    display: 'flex',
-    flexDirection: 'column',
-    width: '100%',
-    maxWidth: '480px',
-    height: '880px',
-    maxHeight: '94vh',
-    background: 'rgba(255, 255, 255, 0.04)',
-    backdropFilter: 'blur(30px)',
-    WebkitBackdropFilter: 'blur(30px)',
-    borderRadius: '32px',
-    border: '1px solid rgba(255, 255, 255, 0.1)',
-    boxShadow: '0 20px 50px rgba(0, 0, 0, 0.4)',
-    overflow: 'hidden',
-    position: 'relative',
-  },
   welcomeHeader: {
-    padding: '24px 20px 16px 20px',
-    borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+    padding: '20px 24px',
+    backgroundColor: '#111827',
+    borderBottom: '1px solid #1f2937',
     display: 'flex',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
   },
   greetingText: {
     margin: 0,
-    fontSize: '24px',
-    fontWeight: '700',
+    fontSize: '22px',
+    fontWeight: '600',
     color: '#ffffff',
-    letterSpacing: '-0.5px',
   },
   dateLabel: {
     margin: '4px 0 0 0',
     fontSize: '13px',
-    color: '#94a3b8',
+    color: '#9ca3af',
   },
   onlineBadge: {
-    fontSize: '11px',
+    fontSize: '12px',
     fontWeight: '600',
-    color: '#34d399',
-    background: 'rgba(52, 211, 153, 0.1)',
-    padding: '4px 10px',
-    borderRadius: '20px',
+    color: '#10b981',
+    background: 'rgba(16, 185, 129, 0.1)',
+    padding: '6px 12px',
+    borderRadius: '6px',
+    border: '1px solid rgba(16, 185, 129, 0.2)',
   },
-  scrollContainer: {
+  mainContent: {
     flex: 1,
-    overflowY: 'auto',
-    padding: '16px',
+    padding: '24px',
     display: 'flex',
     flexDirection: 'column',
-    gap: '16px',
+    gap: '20px',
+    maxWidth: '1200px',
+    width: '100%',
+    margin: '0 auto',
+    boxSizing: 'border-box',
   },
   alertBanner: {
-    background: 'rgba(255, 255, 255, 0.05)',
+    background: '#111827',
     borderLeft: '4px solid',
-    borderRadius: '12px',
-    padding: '12px',
+    borderRadius: '8px',
+    padding: '16px',
+    border: '1px solid #1f2937',
+    borderLeftWidth: '4px',
   },
   alertTag: {
-    fontSize: '10px',
-    fontWeight: '800',
-    color: '#cbd5e1',
-    letterSpacing: '0.5px',
+    fontSize: '11px',
+    fontWeight: '700',
+    color: '#9ca3af',
+    display: 'block',
+    marginBottom: '4px',
   },
   alertBody: {
-    margin: '4px 0 0 0',
-    fontSize: '13px',
-    color: '#f1f5f9',
-    lineHeight: '1.4',
+    margin: 0,
+    fontSize: '14px',
+    color: '#e5e7eb',
+    lineHeight: '1.5',
   },
   msgCard: {
-    background: 'rgba(255,255,255,0.08)',
-    border: '1px solid rgba(255,255,255,0.12)',
-    borderRadius: '16px',
-    padding: '12px 14px',
+    background: '#111827',
+    border: '1px solid #1f2937',
+    borderRadius: '8px',
+    padding: '14px 16px',
     cursor: 'pointer',
   },
   msgHeader: {
     display: 'flex',
     justifyContent: 'space-between',
-    fontSize: '11px',
-    color: '#94a3b8',
+    fontSize: '12px',
+    color: '#9ca3af',
     marginBottom: '6px',
   },
   msgTitle: {
     fontWeight: '600',
   },
   msgAction: {
-    color: '#cbd5e1',
+    color: '#3b82f6',
+    fontWeight: '500',
   },
   msgSnippet: {
     margin: 0,
-    fontSize: '13px',
-    color: '#f8fafc',
+    fontSize: '14px',
+    color: '#f3f4f6',
   },
-  gridSection: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '10px',
+  centerScannerSection: {
+    flex: 1,
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    minHeight: '380px',
+    padding: '40px 0',
   },
-  quickButton: {
-    background: 'rgba(255, 255, 255, 0.05)',
-    border: '1px solid rgba(255, 255, 255, 0.08)',
-    borderRadius: '14px',
-    padding: '14px',
+  scannerWrapper: {
+    width: '100%',
+    maxWidth: '400px',
+    aspectRatio: '1 / 1',
+    backgroundColor: '#111827',
+    border: '1px solid #1f2937',
+    borderRadius: '16px',
+    padding: '24px',
+    boxSizing: 'border-box',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  scannerTargetBox: {
+    width: '100%',
+    height: '100%',
+    position: 'relative',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#0b0f19',
+    borderRadius: '8px',
+  },
+  cornerBracket: {
+    position: 'absolute',
+    width: '24px',
+    height: '24px',
+  },
+  scanTriggerBtn: {
+    background: 'none',
+    border: 'none',
     color: '#ffffff',
-    fontSize: '13px',
-    fontWeight: '500',
-    textAlign: 'left',
-    cursor: 'pointer',
-    transition: 'background 0.2s',
-  },
-  blockSection: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '10px',
-  },
-  sectionHeading: {
-    margin: '0 0 4px 0',
-    fontSize: '16px',
-    fontWeight: '600',
-    color: '#f8fafc',
-  },
-  emptyPrompt: {
-    margin: 0,
-    fontSize: '13px',
-    color: '#64748b',
-    fontStyle: 'italic',
-  },
-  appointmentCard: {
-    background: 'rgba(255, 255, 255, 0.06)',
-    border: '1px solid rgba(255, 255, 255, 0.1)',
-    borderRadius: '16px',
-    padding: '14px',
-    cursor: 'pointer',
-  },
-  apptHeaderRow: {
-    display: 'flex',
-    justifyContent: 'space-between',
     alignItems: 'center',
-  },
-  clientName: {
-    color: '#ffffff',
-    fontWeight: '600',
-    fontSize: '15px',
-  },
-  apptTime: {
-    color: '#cbd5e1',
-    fontSize: '12px',
-  },
-  serviceTagsRow: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: '6px',
-    margin: '8px 0',
-  },
-  serviceTag: {
-    fontSize: '11px',
-    background: 'rgba(255, 255, 255, 0.12)',
-    padding: '3px 8px',
-    borderRadius: '8px',
-    color: '#e2e8f0',
-  },
-  statusIndicatorLine: {
-    fontSize: '12px',
-    color: '#94a3b8',
-    marginBottom: '10px',
-  },
-  apptActionsGrid: {
-    display: 'flex',
-    gap: '8px',
-  },
-  apptBtn: {
-    flex: 1,
-    border: 'none',
-    borderRadius: '10px',
-    padding: '8px 0',
-    fontSize: '12px',
-    fontWeight: '600',
-    color: '#fff',
     cursor: 'pointer',
-  },
-  taskCard: {
-    background: 'rgba(255,255,255,0.04)',
-    border: '1px solid rgba(255,255,255,0.06)',
-    borderRadius: '14px',
-    padding: '12px',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  priorityIndicator: {
-    fontSize: '9px',
-    fontWeight: '700',
-    color: '#fff',
-    padding: '2px 6px',
-    borderRadius: '6px',
-    textTransform: 'uppercase',
-  },
-  taskTitle: {
-    margin: '6px 0 2px 0',
-    fontSize: '14px',
-    fontWeight: '500',
-    color: '#fff',
-  },
-  taskDue: {
-    fontSize: '11px',
-    color: '#94a3b8',
-  },
-  taskCompleteBtn: {
-    background: 'rgba(255,255,255,0.15)',
-    border: 'none',
-    borderRadius: '8px',
-    padding: '6px 12px',
-    color: '#fff',
-    fontSize: '12px',
-    fontWeight: '600',
-    cursor: 'pointer',
-  },
-  metricsContainer: {
-    display: 'flex',
-    gap: '10px',
-  },
-  metricItem: {
-    flex: 1,
-    background: 'rgba(255,255,255,0.03)',
-    border: '1px solid rgba(255,255,255,0.06)',
-    borderRadius: '12px',
-    padding: '12px',
-    textAlign: 'center',
-  },
-  metricVal: {
-    display: 'block',
-    fontSize: '18px',
-    fontWeight: '700',
-    color: '#fff',
-  },
-  metricLbl: {
-    fontSize: '11px',
-    color: '#64748b',
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    padding: '20px',
   },
   modalOverlay: {
-    position: 'absolute',
+    position: 'fixed',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    background: 'rgba(0,0,0,0.6)',
-    backdropFilter: 'blur(8px)',
+    background: 'rgba(0,0,0,0.75)',
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
@@ -606,95 +430,97 @@ const styles: { [key: string]: React.CSSProperties } = {
     zIndex: 100,
   },
   modalContent: {
-    background: '#0f172a',
-    border: '1px solid rgba(255,255,255,0.15)',
-    borderRadius: '24px',
-    padding: '20px',
+    background: '#111827',
+    border: '1px solid #1f2937',
+    borderRadius: '12px',
+    padding: '24px',
     width: '100%',
-    maxWidth: '360px',
+    maxWidth: '420px',
   },
   modalHeading: {
     margin: 0,
-    fontSize: '16px',
-    color: '#94a3b8',
+    fontSize: '14px',
+    color: '#9ca3af',
   },
   modalSubheading: {
-    margin: '4px 0 16px 0',
-    fontSize: '20px',
+    margin: '4px 0 20px 0',
+    fontSize: '22px',
     fontWeight: '700',
     color: '#fff',
   },
   notesSection: {
-    background: 'rgba(255,255,255,0.05)',
-    padding: '12px',
-    borderRadius: '12px',
-    marginBottom: '16px',
+    background: '#0b0f19',
+    padding: '16px',
+    borderRadius: '8px',
+    marginBottom: '20px',
+    border: '1px solid #1f2937',
   },
   notesTitle: {
-    margin: '0 0 8px 0',
-    fontSize: '13px',
-    color: '#cbd5e1',
+    margin: '0 0 10px 0',
+    fontSize: '14px',
+    color: '#e5e7eb',
   },
   notesList: {
     margin: 0,
-    paddingLeft: '16px',
-    color: '#94a3b8',
-    fontSize: '12px',
+    paddingLeft: '20px',
+    color: '#9ca3af',
+    fontSize: '13px',
     lineHeight: '1.6',
   },
   closeModalBtn: {
     width: '100%',
-    background: '#fff',
-    color: '#000',
+    background: '#3b82f6',
+    color: '#fff',
     border: 'none',
     padding: '12px 0',
-    borderRadius: '12px',
+    borderRadius: '6px',
     fontWeight: '600',
     cursor: 'pointer',
   },
   aiWidget: {
-    position: 'absolute',
-    bottom: '20px',
-    right: '20px',
+    position: 'fixed',
+    bottom: '24px',
+    right: '24px',
     zIndex: 10,
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'flex-end',
   },
   aiToggleBtn: {
-    background: '#ffffff',
-    color: '#0f172a',
-    border: 'none',
-    borderRadius: '30px',
-    padding: '10px 18px',
-    fontWeight: '600',
+    background: '#1f2937',
+    color: '#ffffff',
+    border: '1px solid #374151',
+    borderRadius: '8px',
+    padding: '10px 16px',
+    fontWeight: '500',
     fontSize: '13px',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
     cursor: 'pointer',
   },
   aiBox: {
     marginTop: '10px',
-    width: '280px',
-    background: 'rgba(15, 23, 42, 0.95)',
-    border: '1px solid rgba(255,255,255,0.2)',
-    borderRadius: '16px',
-    padding: '12px',
-    boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+    width: '300px',
+    background: '#111827',
+    border: '1px solid #1f2937',
+    borderRadius: '8px',
+    padding: '14px',
+    boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
   },
   aiHeader: {
     fontSize: '12px',
     fontWeight: '700',
-    color: '#94a3b8',
-    marginBottom: '8px',
+    color: '#9ca3af',
+    marginBottom: '10px',
   },
   aiReply: {
-    margin: '0 0 10px 0',
-    fontSize: '12px',
-    color: '#f1f5f9',
-    background: 'rgba(255,255,255,0.08)',
-    padding: '8px',
-    borderRadius: '8px',
+    margin: '0 0 12px 0',
+    fontSize: '13px',
+    color: '#e5e7eb',
+    background: '#0b0f19',
+    padding: '10px',
+    borderRadius: '6px',
     lineHeight: '1.4',
+    border: '1px solid #1f2937',
   },
   aiForm: {
     display: 'flex',
@@ -702,21 +528,22 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   aiInput: {
     flex: 1,
-    background: 'rgba(255,255,255,0.1)',
-    border: '1px solid rgba(255,255,255,0.15)',
-    borderRadius: '8px',
-    padding: '6px 10px',
+    background: '#0b0f19',
+    border: '1px solid #1f2937',
+    borderRadius: '6px',
+    padding: '8px 12px',
     color: '#fff',
-    fontSize: '12px',
+    fontSize: '13px',
     outline: 'none',
   },
   aiSubmit: {
-    background: 'rgba(255,255,255,0.2)',
+    background: '#2563eb',
     color: '#fff',
     border: 'none',
-    borderRadius: '8px',
-    padding: '0 10px',
-    fontSize: '12px',
+    borderRadius: '6px',
+    padding: '0 14px',
+    fontSize: '13px',
     cursor: 'pointer',
+    fontWeight: '500',
   }
 };
