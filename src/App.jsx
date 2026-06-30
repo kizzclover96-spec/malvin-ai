@@ -25,6 +25,7 @@ import { StoreFrontend } from './components/Store';
 import SalonStore from "./components/salonStore";
 import { FloatingTeamHub } from "./components/FloatingTeamHub";
 import { WorkerDashboard } from './components/workerDashboard';
+import { QrScannerView } from './components/QR Scanner'; // Make sure the path matches your filename
 
 function App() {
   const [user, setUser] = useState(null);
@@ -38,6 +39,9 @@ function App() {
   const [isWorker, setIsWorker] = useState(false);
   const [assignedManagerUid, setAssignedManagerUid] = useState("");
   const [flowStep, setFlowStep] = useState("welcome");
+
+  // Tracks the sub-screen inside the worker dashboard flow
+  const [workerSubScreen, setWorkerSubScreen] = useState("dashboard");
 
   const resetMode = () => {
     localStorage.removeItem("ui_mode");
@@ -173,14 +177,29 @@ function App() {
               ) : isAdmin ? (
                 <AdsManager />
               ) : isWorker ? (
-                // 🌟 Directly displays worker panel using matched Firestore parameters
-                <WorkerDashboard 
-                  businessUid={assignedManagerUid} 
-                  onNavigate={(screen) => {
-                    console.log(`Navigating worker to: ${screen}`);
-                    // Add custom worker router paths here if you expand them later
-                  }} 
-                />
+                // Check if the worker clicked to open the scanner
+                workerSubScreen === "qr" ? (
+                  <QrScannerView 
+                    onScanSuccess={(decodedText) => {
+                      console.log("Scanned QR Text:", decodedText);
+                      // Do your verification or processing with 'decodedText' here
+                      
+                      // Return to main dashboard after a successful scan
+                      setWorkerSubScreen("dashboard");
+                    }}
+                    onBack={() => setWorkerSubScreen("dashboard")}
+                  />
+                ) : (
+                  // Otherwise show the normal dashboard layout
+                  <WorkerDashboard 
+                    businessUid={assignedManagerUid} 
+                    onNavigate={(screen) => {
+                      if (screen === 'qr') {
+                        setWorkerSubScreen("qr");
+                      }
+                    }} 
+                  />
+                )
               ) : flowStep === "welcome" ? (
                 <Welcomeview onWakeClick={handleWakeUpSequence} />
               ) : flowStep === "category" ? (
