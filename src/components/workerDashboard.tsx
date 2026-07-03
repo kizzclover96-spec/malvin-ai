@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { firestore as db } from '../firebase'; 
 import { auth } from "../firebase"; // Adjust paths as needed
+import { signOut } from 'firebase/auth'; // Imported native Firebase authentication signout method
 import { 
   collection, 
   query, 
@@ -145,6 +146,15 @@ export const WorkerDashboard: React.FC<WorkerDashboardProps> = ({ businessUid, o
     await updateDoc(docRef, { status: 'Completed' });
   };
 
+  // --- Firebase Session Destruction Call ---
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error("Error executing terminal logout sequence:", error);
+    }
+  };
+
   // --- Local Deterministic AI Responses Engine ---
   const handleAiQuerySubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -178,7 +188,13 @@ export const WorkerDashboard: React.FC<WorkerDashboardProps> = ({ businessUid, o
           <h1 style={styles.greetingText}>Hello, {workerName}</h1>
           <p style={styles.dateLabel}>{todayDateString}</p>
         </div>
-        <div style={styles.onlineBadge}>Terminal Active</div>
+        <div style={styles.headerControls}>
+          <div style={styles.onlineBadge}>Terminal Active</div>
+          {/* Logout Trigger Node Element */}
+          <button style={styles.logoutBtn} onClick={handleLogout}>
+            Logout
+          </button>
+        </div>
       </header>
 
       {/* Main Workspace Layout */}
@@ -289,6 +305,11 @@ const styles: { [key: string]: React.CSSProperties } = {
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  headerControls: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+  },
   greetingText: {
     margin: 0,
     fontSize: '22px',
@@ -308,6 +329,17 @@ const styles: { [key: string]: React.CSSProperties } = {
     padding: '6px 12px',
     borderRadius: '6px',
     border: '1px solid rgba(16, 185, 129, 0.2)',
+  },
+  logoutBtn: {
+    fontSize: '12px',
+    fontWeight: '600',
+    color: '#f8fafc',
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    padding: '6px 14px',
+    borderRadius: '6px',
+    border: '1px solid rgba(239, 68, 68, 0.3)',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
   },
   mainContent: {
     flex: 1,

@@ -1,7 +1,8 @@
 import React from "react";
 
 type Props = {
-    onSelect: (type: "food" | "fashion" | "explore") => void;
+    // Expanded the type union here to handle the new selection action
+    onSelect: (type: "food" | "fashion" | "explore" | "records") => void;
 };
 
 const Category: React.FC<Props> = ({ onSelect }) => {
@@ -18,7 +19,7 @@ const Category: React.FC<Props> = ({ onSelect }) => {
                     <span style={labelStyle}>Restaurant</span>
                 </div>
 
-                {/* FASHION (CLOTHES → DEVICE SWITCH) */}
+                {/* FASHION */}
                 <div style={circleStyle} onClick={() => onSelect("fashion")}>
                     <svg width="80" height="80" viewBox="0 0 100 100" fill="none">
                         <path
@@ -43,6 +44,20 @@ const Category: React.FC<Props> = ({ onSelect }) => {
                         <circle cx="50" cy="50" r="4" fill="#0f172a" />
                     </svg>
                     <span style={labelStyle}>Explore</span>
+                </div>
+
+                {/* MALVIN RECORDS SYSTEM INTERFACE */}
+                <div style={recordsCircleStyle} onClick={() => onSelect("records")}>
+                    <svg width="80" height="80" viewBox="0 0 100 100" fill="none">
+                        {/* Outer Vinyl Track Ring */}
+                        <circle cx="50" cy="50" r="32" stroke="#E10600" strokeWidth="4" />
+                        {/* Mid Grooves */}
+                        <circle cx="50" cy="50" r="22" stroke="white" strokeWidth="2" strokeDasharray="6 4" />
+                        <circle cx="50" cy="50" r="14" stroke="rgba(255,255,255,0.4)" strokeWidth="1.5" />
+                        {/* Center Center Spindle Hole */}
+                        <circle cx="50" cy="50" r="4" fill="white" />
+                    </svg>
+                    <span style={labelStyle}>Malvin Records</span>
                 </div>
 
             </div>
@@ -81,6 +96,14 @@ const circleStyle: React.CSSProperties = {
     justifyContent: "center",
     alignItems: "center",
     cursor: "pointer",
+    transition: "all 0.2s ease-in-out",
+};
+
+// Specialized styling accent specifically for the premium Malvin Records node
+const recordsCircleStyle: React.CSSProperties = {
+    ...circleStyle,
+    background: "rgba(225, 6, 0, 0.04)",
+    border: "1px solid rgba(225, 6, 0, 0.25)",
 };
 
 const labelStyle: React.CSSProperties = {

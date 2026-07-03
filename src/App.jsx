@@ -26,6 +26,7 @@ import SalonStore from "./components/salonStore";
 import { FloatingTeamHub } from "./components/FloatingTeamHub";
 import { WorkerDashboard } from './components/workerDashboard';
 import { QrScannerView } from './components/QR Scanner'; // Make sure the path matches your filename
+import { MalvinSystemDashboard } from "./components/MalvinSystemDashboard";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -88,23 +89,31 @@ function App() {
 
           if (!memberDocsSnapshot.empty) {
             const matchedMemberDoc = memberDocsSnapshot.docs[0];
-            const matchedDocId = matchedMemberDoc.id;
-            const currentStatus = matchedMemberDoc.data().status;
+            const memberData = matchedMemberDoc.data(); // 🟢 Grab the data
             
-            // 🌟 Extract the managerUid safely from the reference path
-            const pathSegments = matchedMemberDoc.ref.path.split('/');
-            const foundManagerUid = pathSegments[1]; 
+            // Only trigger worker routing if they aren't explicit management
+            if (memberData.role !== 'Manager') { 
+              const matchedDocId = matchedMemberDoc.id;
+              const currentStatus = memberData.status;
+              
+              const pathSegments = matchedMemberDoc.ref.path.split('/');
+              const foundManagerUid = pathSegments[1]; 
 
-            setAssignedManagerUid(foundManagerUid);
-            setIsWorker(true);
+              setAssignedManagerUid(foundManagerUid);
+              setIsWorker(true);
 
-            if (currentStatus === "pending") {
-              await updateDoc(doc(db, "managerMembers", foundManagerUid, "members", matchedDocId), {
-                workerUid: currentUser.uid,
-                uid: currentUser.uid,
-                status: "active",
-                joinedAt: serverTimestamp()
-              });
+              if (currentStatus === "pending") {
+                await updateDoc(doc(db, "managerMembers", foundManagerUid, "members", matchedDocId), {
+                  workerUid: currentUser.uid,
+                  uid: currentUser.uid,
+                  status: "active",
+                  joinedAt: serverTimestamp()
+                });
+              }
+            } else {
+              // It's the manager themselves! Treat them normally.
+              setIsWorker(false);
+              setAssignedManagerUid("");
             }
           } else {
             setIsWorker(false);
@@ -149,6 +158,7 @@ function App() {
     if (type === "food") { setFlowStep("food"); return; }
     if (type === "fashion") { setFlowStep("device"); return; }
     if (type === "explore") { setFlowStep("SalonDashboard"); return; }
+    if (type === "records") { setFlowStep("recordsDashboard"); return; }
   };
 
   return (
@@ -208,6 +218,8 @@ function App() {
                 <FoodDashboard userEmail={user?.email} currentUserId={user?.uid} />
               ) : flowStep === "SalonDashboard" ? (
                 <SalonDashboard userEmail={user?.email} currentUserId={user?.uid} />
+              ) : flowStep === "recordsDashboard" ? (
+                <MalvinSystemDashboard userEmail={user?.email} currentUserId={user?.uid} />
               ) : flowStep === "device" ? (
                 <DeviceSwitch
                   onSelect={(mode) => {

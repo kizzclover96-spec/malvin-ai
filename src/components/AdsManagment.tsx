@@ -9,6 +9,7 @@ import { remove } from "firebase/database";
 import AllAds from "./AllAds";
 import { Link } from "react-router-dom";
 import AdminReports from "./AdminReports";
+import {MalvinAiPersonnelSystem} from "./MalvinAiPersonnelSystem";
 
 const AdsManager = () => {
     const [users, setUsers] = useState<any[]>([]);
@@ -216,7 +217,19 @@ const AdsManager = () => {
     });
 
     
-    
+    if (activePanel === "personnel") {
+        return (
+            <div
+                style={{
+                    width: "100vw",
+                    height: "100vh",
+                    background: "#fff"
+                }}
+            >
+                <MalvinAiPersonnelSystem />
+            </div>
+        );
+    }
 
     return (
         <div style={adminLayout}>
@@ -231,6 +244,13 @@ const AdsManager = () => {
                     ADS_PANEL
                 </button>
                 <button onClick={() => signOut(auth)} style={logoutBtn}>LOGOUT</button>
+                {/* THE NEW AI PERSONNEL SYSTEM SWITCH BUTTON */}
+                <button 
+                    onClick={() => setActivePanel("personnel")} 
+                    style={{...logoutBtn, background: activePanel === "personnel" ? "#C5FF41" : "transparent", color: activePanel === "personnel" ? "#000" : "#fff", fontWeight: 'bold'}}
+                >
+                    AI_PERSONNEL
+                </button>
             </header>
             <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
                 {["ALL", "Pending_Admin_Review", "Approved", "Rejected"].map(f => (
@@ -810,6 +830,8 @@ const AdsManager = () => {
             {activePanel === "reports" && (
                 <AdminReports />
             )}
+            {/* 3. AI PERSONNEL HUB WORKSPACE CONTAINER */}
+           
         </div>
     );
 };
