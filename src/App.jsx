@@ -27,6 +27,8 @@ import { FloatingTeamHub } from "./components/FloatingTeamHub";
 import { WorkerDashboard } from './components/workerDashboard';
 import { QrScannerView } from './components/QR Scanner'; // Make sure the path matches your filename
 import { MalvinSystemDashboard } from "./components/MalvinSystemDashboard";
+import MalvinAiPersonnelSystem from "./components/MalvinAiPersonnelSystem";
+
 
 function App() {
   const [user, setUser] = useState(null);
@@ -56,7 +58,7 @@ function App() {
     if (urlParams.has('scanId')) {
       // If a QR sequence parameter is detected, update step state 
       // to bypass general categories and open the panel immediately
-      setFlowStep("recordsDashboard");
+      setFlowStep("MalvinAiPersonnelSystem");
     }
   }, [location]);
   useEffect(() => {
@@ -183,7 +185,7 @@ function App() {
           <Route path="/allads" element={<AllAds />} />
           <Route path="/about" element={<About />} />
           {/* Add this inside your <Routes> block near paths like /terms or /privacy */}
-          <Route path="/verify" element={<MalvinSystemDashboard userEmail={user?.email} currentUserId={user?.uid} />} />
+          <Route path="/verify" element={<MalvinAiPersonnelSystem userEmail={user?.email} currentUserId={user?.uid} />} />
 
           <Route
             path="/"
@@ -228,8 +230,8 @@ function App() {
                 <FoodDashboard userEmail={user?.email} currentUserId={user?.uid} />
               ) : flowStep === "SalonDashboard" ? (
                 <SalonDashboard userEmail={user?.email} currentUserId={user?.uid} />
-              ) : flowStep === "recordsDashboard" ? (
-                <MalvinSystemDashboard userEmail={user?.email} currentUserId={user?.uid} />
+              ) : flowStep === "MalvinAiPersonnelSystem" ? (
+                <MalvinAiPersonnelSystem userEmail={user?.email} currentUserId={user?.uid} />
               ) : flowStep === "device" ? (
                 <DeviceSwitch
                   onSelect={(mode) => {
