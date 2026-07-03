@@ -146,7 +146,7 @@ export const MalvinAiPersonnelSystem: React.FC = () => {
   // GENUINE SCANNABLE TARGET URL & DOWNLOAD MATRIX GENERATOR
   // --------------------------------------------------------------------------
   const getScanningUrl = (memberId: string) => {
-    const base = window.location.origin + window.location.pathname;
+    const base = window.location.origin + window.location.pathname + "/verify";
     return `${base}?scanId=${memberId}`;
   };
 

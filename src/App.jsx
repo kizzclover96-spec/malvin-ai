@@ -50,7 +50,15 @@ function App() {
   };
 
   // --- Core Authentication State Observer ---
- // --- Core Authentication State Observer ---
+  // --- Core Authentication State Observer ---
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('scanId')) {
+      // If a QR sequence parameter is detected, update step state 
+      // to bypass general categories and open the panel immediately
+      setFlowStep("recordsDashboard");
+    }
+  }, [location]);
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (!currentUser) {
@@ -174,6 +182,8 @@ function App() {
           <Route path="/impressum" element={<Impressum />} />
           <Route path="/allads" element={<AllAds />} />
           <Route path="/about" element={<About />} />
+          {/* Add this inside your <Routes> block near paths like /terms or /privacy */}
+          <Route path="/verify" element={<MalvinSystemDashboard userEmail={user?.email} currentUserId={user?.uid} />} />
 
           <Route
             path="/"
