@@ -97,6 +97,9 @@ export const MalvinAiPersonnelSystem: React.FC = () => {
   // LIVE FIRESTORE SYNCHRONIZATION
   // --------------------------------------------------------------------------
   useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const scanId = urlParams.get('scanId');
+
     const qMembers = query(collection(db, "members"), orderBy("fullName", "asc"));
     const unsubscribeMembers = onSnapshot(qMembers, (snapshot) => {
       const fetchedMembers: Member[] = [];
@@ -104,8 +107,17 @@ export const MalvinAiPersonnelSystem: React.FC = () => {
         fetchedMembers.push({ id: doc.id, ...doc.data() } as Member);
       });
       setMembers(fetchedMembers);
-      if (fetchedMembers.length > 0 && !selectedMember) {
-        setSelectedMember(fetchedMembers[0]);
+
+      // FIX: Look up the scanned user first if present; otherwise, fallback to standard selection.
+      if (fetchedMembers.length > 0) {
+        if (scanId) {
+          const scannedPerson = fetchedMembers.find(m => m.id === scanId);
+          if (scannedPerson) {
+            setSelectedMember(scannedPerson);
+          }
+        } else if (!selectedMember) {
+          setSelectedMember(fetchedMembers[0]);
+        }
       }
       setLoading(false);
     });
@@ -119,9 +131,7 @@ export const MalvinAiPersonnelSystem: React.FC = () => {
       setSecureFiles(fetchedFiles);
     });
 
-    // Check if URL has a query parameter for scanning view
-    const urlParams = new URLSearchParams(window.location.search);
-    const scanId = urlParams.get('scanId');
+    // Intercept view context immediately if query parameters exist
     if (scanId) {
       setScannedSummaryId(scanId);
       setCurrentView('public_summary');
@@ -146,7 +156,8 @@ export const MalvinAiPersonnelSystem: React.FC = () => {
   // GENUINE SCANNABLE TARGET URL & DOWNLOAD MATRIX GENERATOR
   // --------------------------------------------------------------------------
   const getScanningUrl = (memberId: string) => {
-    const base = window.location.origin + window.location.pathname + "/verify";
+    // Keeps the base origin and path intact, adding the query parameter directly
+    const base = window.location.origin + window.location.pathname;
     return `${base}?scanId=${memberId}`;
   };
 
