@@ -320,20 +320,18 @@ export const MalvinAiPersonnelSystem: React.FC = () => {
             <div className="w-24 h-24 mx-auto rounded-full overflow-hidden border-2 border-blue-500 mb-4">
               <img src={activeScannedPerson.profileImage} alt="" className="w-full h-full object-cover" />
             </div>
-            <div className="inline-block px-3 py-0.5 bg-blue-500/10 text-blue-400 text-[10px] font-mono tracking-widest uppercase rounded-full mb-2">Verified Corporate Matrix Profile</div>
+            <div className="inline-block px-3 py-0.5 bg-blue-500/10 text-blue-400 text-[10px] font-mono tracking-widest uppercase rounded-full mb-2">Verified Corporate Malvinai Profile</div>
             <h2 className="text-xl font-black tracking-tight text-white">{activeScannedPerson.fullName}</h2>
             <p className="text-sm text-red-500 font-bold mb-4">{activeScannedPerson.role}</p>
             
             <div className="bg-black/40 border border-white/5 rounded-xl p-4 text-left space-y-2 text-xs text-gray-300 font-mono">
-              <div className="flex justify-between border-b border-white/5 pb-1.5"><span className="text-gray-500">Unique Matrix ID:</span> <span className="text-white font-bold">{activeScannedPerson.id}</span></div>
+              <div className="flex justify-between border-b border-white/5 pb-1.5"><span className="text-gray-500">Malvin ID:</span> <span className="text-white font-bold">{activeScannedPerson.id}</span></div>
               <div className="flex justify-between border-b border-white/5 pb-1.5"><span className="text-gray-500">Corporate Email:</span> <span className="text-white">{activeScannedPerson.email}</span></div>
               <div className="flex justify-between border-b border-white/5 pb-1.5"><span className="text-gray-500">Commencement Date:</span> <span className="text-white">{activeScannedPerson.startingDate}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">Contact Coordinate:</span> <span className="text-white">{activeScannedPerson.contactNumber}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Contact id:</span> <span className="text-white">{activeScannedPerson.contactNumber}</span></div>
             </div>
             
-            <button onClick={() => { window.location.href = window.location.origin + window.location.pathname; }} className="mt-6 w-full py-2.5 bg-neutral-900 border border-white/10 hover:bg-white/5 rounded-xl text-xs font-bold transition-all text-gray-400 hover:text-white">
-              Launch Primary Management Gateway
-            </button>
+            
           </div>
         ) : (
           <div className="text-center space-y-2 max-w-sm">
