@@ -27,7 +27,7 @@ import { FloatingTeamHub } from "./components/FloatingTeamHub";
 import { WorkerDashboard } from './components/workerDashboard';
 import { QrScannerView } from './components/QR Scanner'; // Make sure the path matches your filename
 import { MalvinSystemDashboard } from "./components/MalvinSystemDashboard";
-import MalvinAiPersonnelSystem from "./components/MalvinAiPersonnelSystem";
+import { MalvinAiPersonnelSystem } from "./components/MalvinAiPersonnelSystem";
 
 
 function App() {
