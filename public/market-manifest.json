@@ -1,17 +1,16 @@
 
 {
-  "name": "Malvin Market",
-  "short_name": "Market",
-  "name": "Market Front",
+  "name": "Malvin AI",
+  "short_name": "Malvin AI",
   "orientation": "portrait",
   "icons": [
     {
-      "src": "market-icon-192.png",
+      "src": "malvinmain.png",
       "type": "image/png",
       "sizes": "192x192"
     },
     {
-      "src": "icon-512.png",
+      "src": "malvinghost.png",
       "type": "image/png",
       "sizes": "512x512"
     }

@@ -4,6 +4,7 @@ import { auth, firestore as db } from "./firebase";
 import { collection, collectionGroup, getDocs, query, where, doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import Login from "./pages/loginscreen"; 
 import Welcomeview from "./pages/welcomeview"; 
+import { UserOption } from "./components/UserOption"; // Sleek dark/crimson alternative layout
 import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import AdsManager from "./components/AdsManagment";
 import LandingPage from "./pages/LandingPage";
@@ -25,10 +26,9 @@ import { StoreFrontend } from './components/Store';
 import SalonStore from "./components/salonStore";
 import { FloatingTeamHub } from "./components/FloatingTeamHub";
 import { WorkerDashboard } from './components/workerDashboard';
-import { QrScannerView } from './components/QR Scanner'; // Make sure the path matches your filename
+import { QrScannerView } from './components/QR Scanner'; 
 import { MalvinSystemDashboard } from "./components/MalvinSystemDashboard";
 import { MalvinAiPersonnelSystem } from "./components/MalvinAiPersonnelSystem";
-
 
 function App() {
   const [user, setUser] = useState(null);
@@ -42,8 +42,6 @@ function App() {
   const [isWorker, setIsWorker] = useState(false);
   const [assignedManagerUid, setAssignedManagerUid] = useState("");
   const [flowStep, setFlowStep] = useState("welcome");
-
-  // Tracks the sub-screen inside the worker dashboard flow
   const [workerSubScreen, setWorkerSubScreen] = useState("dashboard");
 
   const resetMode = () => {
@@ -51,18 +49,14 @@ function App() {
     setUiMode("");
   };
 
-  // --- Core Authentication State Observer ---
-  // --- Core Authentication State Observer ---
-  // --- Core Authentication State Observer ---
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const scanId = urlParams.get('scanId');
-    
-    // If the parameter is detected on the root URL '/', hand off routing to the path '/verify'
     if (scanId && location.pathname === '/') {
       navigate(`/verify?scanId=${scanId}`, { replace: true });
     }
   }, [location, navigate]);
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (!currentUser) {
@@ -85,13 +79,10 @@ function App() {
         }
 
         try {
-          // 🟢 FORCE Firestore to wait until the Auth Token is completely synchronized
           await currentUser.getIdToken(true); 
-
           const targetEmail = currentUser.email.trim();
           const targetEmailLower = currentUser.email.toLowerCase().trim();
           
-          // Query ALL "members" subcollections everywhere safely
           const memberQuery = query(
             collectionGroup(db, "members"), 
             where("email", "in", [targetEmail, targetEmailLower])
@@ -101,13 +92,11 @@ function App() {
 
           if (!memberDocsSnapshot.empty) {
             const matchedMemberDoc = memberDocsSnapshot.docs[0];
-            const memberData = matchedMemberDoc.data(); // 🟢 Grab the data
+            const memberData = matchedMemberDoc.data();
             
-            // Only trigger worker routing if they aren't explicit management
             if (memberData.role !== 'Manager') { 
               const matchedDocId = matchedMemberDoc.id;
               const currentStatus = memberData.status;
-              
               const pathSegments = matchedMemberDoc.ref.path.split('/');
               const foundManagerUid = pathSegments[1]; 
 
@@ -123,7 +112,6 @@ function App() {
                 });
               }
             } else {
-              // It's the manager themselves! Treat them normally.
               setIsWorker(false);
               setAssignedManagerUid("");
             }
@@ -145,7 +133,6 @@ function App() {
     return () => unsubscribe();
   }, []);
 
-  // Sync welcome flow step ONLY for normal management accounts
   useEffect(() => {
     if (!user || isWorker) return;
     setFlowStep("welcome");
@@ -163,7 +150,7 @@ function App() {
 
   const handleWakeUpSequence = (tokenFromWelcome) => {
     setDashboardToken(tokenFromWelcome);
-    setFlowStep("category"); 
+    setFlowStep("options"); 
   };
   
   const handleCategorySelect = (type) => {
@@ -186,9 +173,9 @@ function App() {
           <Route path="/impressum" element={<Impressum />} />
           <Route path="/allads" element={<AllAds />} />
           <Route path="/about" element={<About />} />
-          {/* Add this inside your <Routes> block near paths like /terms or /privacy */}
-          {/* Change your old verify route line to this: */}
-          <Route path="/verify"  element={ <MalvinAiPersonnelSystem   userEmail={user?.email || ""}  currentUserId={user?.uid || ""}  />} />
+          <Route path="/verify" element={<MalvinAiPersonnelSystem userEmail={user?.email || ""} currentUserId={user?.uid || ""} />} />
+          
+          <Route path="/customerchat" element={<MarketFront />} />
 
           <Route
             path="/"
@@ -202,20 +189,15 @@ function App() {
               ) : isAdmin ? (
                 <AdsManager />
               ) : isWorker ? (
-                // Check if the worker clicked to open the scanner
                 workerSubScreen === "qr" ? (
                   <QrScannerView 
                     onScanSuccess={(decodedText) => {
                       console.log("Scanned QR Text:", decodedText);
-                      // Do your verification or processing with 'decodedText' here
-                      
-                      // Return to main dashboard after a successful scan
                       setWorkerSubScreen("dashboard");
                     }}
                     onBack={() => setWorkerSubScreen("dashboard")}
                   />
                 ) : (
-                  // Otherwise show the normal dashboard layout
                   <WorkerDashboard 
                     businessUid={assignedManagerUid} 
                     onNavigate={(screen) => {
@@ -227,13 +209,17 @@ function App() {
                 )
               ) : flowStep === "welcome" ? (
                 <Welcomeview onWakeClick={handleWakeUpSequence} />
+              ) : flowStep === "options" ? (
+                // 🔴 Passing operational callback to step forward into Category rendering block
+                <UserOption onSelectWorker={() => setFlowStep("category")} />
               ) : flowStep === "category" ? (
                 <Category onSelect={handleCategorySelect} />
               ) : flowStep === "food" ? (
                 <FoodDashboard userEmail={user?.email} currentUserId={user?.uid} />
               ) : flowStep === "SalonDashboard" ? (
                 <SalonDashboard userEmail={user?.email} currentUserId={user?.uid} />
-              
+              ) : flowStep === "recordsDashboard" ? (
+                <MalvinSystemDashboard userEmail={user?.email} currentUserId={user?.uid} />
               ) : flowStep === "device" ? (
                 <DeviceSwitch
                   onSelect={(mode) => {
