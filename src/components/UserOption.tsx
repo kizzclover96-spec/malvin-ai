@@ -1,15 +1,12 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 
 type UserOptionProps = {
-  // This prop allows us to cleanly alter App.tsx's flow state directly on click
-  onSelectWorker: () => void;
+  onSelectCustomer: () => void; // 🟢 Trigger state shift for Front view
+  onSelectWorker: () => void;   // Trigger state shift for Category view
 };
 
-export const UserOption: React.FC<UserOptionProps> = ({ onSelectWorker }) => {
-  const navigate = useNavigate();
-
+export const UserOption: React.FC<UserOptionProps> = ({ onSelectCustomer, onSelectWorker }) => {
   return (
     <div className="w-full min-h-screen bg-neutral-950 flex flex-col justify-between items-center px-6 py-12 selection:bg-red-500/30 select-none font-sans overflow-hidden relative">
       
@@ -36,7 +33,7 @@ export const UserOption: React.FC<UserOptionProps> = ({ onSelectWorker }) => {
         {/* CARD 1: CUSTOMER VIEW INTERACTION */}
         <motion.div
           whileTap={{ scale: 0.97 }}
-          onClick={() => navigate('/customerchat')}
+          onClick={onSelectCustomer} // 🟢 Calls prop directly to change state flow step
           className="w-full bg-neutral-900/40 border border-neutral-800/60 rounded-[1.75rem] p-5 shadow-2xl backdrop-blur-xl flex items-center text-left gap-4 cursor-pointer hover:border-red-500/30 transition-all group"
         >
           <div className="w-14 h-14 rounded-2xl bg-[#E53935] flex items-center justify-center shadow-[0_8px_20px_rgba(229,57,53,0.2)] shrink-0 group-hover:scale-105 transition-transform">
@@ -59,7 +56,7 @@ export const UserOption: React.FC<UserOptionProps> = ({ onSelectWorker }) => {
         {/* CARD 2: BUSINESS / WORKER INTERACTION */}
         <motion.div
           whileTap={{ scale: 0.97 }}
-          onClick={onSelectWorker} // 👈 Calls prop directly to fire setFlowStep("category") inside App.tsx
+          onClick={onSelectWorker}
           className="w-full bg-neutral-900/40 border border-neutral-800/60 rounded-[1.75rem] p-5 shadow-2xl backdrop-blur-xl flex items-center text-left gap-4 cursor-pointer hover:border-red-500/30 transition-all group"
         >
           <div className="w-14 h-14 rounded-2xl bg-neutral-800 border border-neutral-700 flex items-center justify-center shadow-md shrink-0 group-hover:scale-105 transition-transform">

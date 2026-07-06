@@ -4,7 +4,7 @@ import { auth, firestore as db } from "./firebase";
 import { collection, collectionGroup, getDocs, query, where, doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import Login from "./pages/loginscreen"; 
 import Welcomeview from "./pages/welcomeview"; 
-import { UserOption } from "./components/UserOption"; // Sleek dark/crimson alternative layout
+import { UserOption } from "./components/UserOption"; 
 import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import AdsManager from "./components/AdsManagment";
 import LandingPage from "./pages/LandingPage";
@@ -29,6 +29,7 @@ import { WorkerDashboard } from './components/workerDashboard';
 import { QrScannerView } from './components/QR Scanner'; 
 import { MalvinSystemDashboard } from "./components/MalvinSystemDashboard";
 import { MalvinAiPersonnelSystem } from "./components/MalvinAiPersonnelSystem";
+import { Front } from './pages/Front';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -210,8 +211,12 @@ function App() {
               ) : flowStep === "welcome" ? (
                 <Welcomeview onWakeClick={handleWakeUpSequence} />
               ) : flowStep === "options" ? (
-                // 🔴 Passing operational callback to step forward into Category rendering block
-                <UserOption onSelectWorker={() => setFlowStep("category")} />
+                <UserOption 
+                  onSelectCustomer={() => setFlowStep("front")} 
+                  onSelectWorker={() => setFlowStep("category")} 
+                />
+              ) : flowStep === "front" ? (
+                <Front />
               ) : flowStep === "category" ? (
                 <Category onSelect={handleCategorySelect} />
               ) : flowStep === "food" ? (
@@ -239,7 +244,8 @@ function App() {
         </Routes>
       </div>
 
-      {user && !isAdmin && !isStorefrontPath && (
+      {/* 🛠️ Block FloatingTeamHub from customer view layers (`isStorefrontPath` or `flowStep === "front"`) */}
+      {user && !isAdmin && !isStorefrontPath && flowStep !== "front" && (
         <FloatingTeamHub managerUid={isWorker ? assignedManagerUid : user.uid} />
       )}
 
