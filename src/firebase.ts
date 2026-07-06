@@ -29,8 +29,13 @@ export const db = getDatabase(app);
 export const storage = getStorage(app);
 
 
-// FIXED: Use initializeFirestore directly and remove the duplicate getFirestore declaration
-export const firestore = getFirestore(app);
+// FIXED: Use initializeFirestore with long-polling fallback enabled
+export const firestore = initializeFirestore(app, {
+  experimentalAutoDetectLongPolling: true,
+  localCache: persistentLocalCache({
+    tabManager: persistentMultipleTabManager(),
+  }),
+});
 
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: "select_account" });

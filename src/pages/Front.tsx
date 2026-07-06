@@ -5,7 +5,7 @@ import {
   User, Save, Mail, Loader2, CheckCircle2, AlertCircle,
   Clock, Heart, Bell, Moon, Globe, LogOut, ChevronRight 
 } from 'lucide-react';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { firestore as db } from '../firebase'; 
 import { auth } from "../firebase"; 
@@ -23,6 +23,9 @@ export const Front: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'home' | 'wallet'>('home');
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [activeStoreUid, setActiveStoreUid] = useState<string | null>(null);
+  
+  // State tracking whether historical list has rendering records
+  const [hasRecentItems, setHasRecentItems] = useState(false);
 
   // App & Settings states
   const [vinQuery, setVinQuery] = useState('');
@@ -41,6 +44,40 @@ export const Front: React.FC = () => {
     setToast({ type, message });
     setTimeout(() => setToast(null), 3500);
   };
+
+    const handleBusinessVisit = async (inputUidOrUrl: string) => {
+        if (!user?.uid) return;
+
+        const rawInput = inputUidOrUrl.trim();
+        let cleanUid = rawInput;
+
+        if (cleanUid.includes('/')) {
+            const segments = cleanUid.split('/');
+            cleanUid = segments.filter(Boolean).pop() || cleanUid;
+        }
+
+        const storefrontTarget = rawInput.includes('http') 
+            ? rawInput 
+            : `https://malvinai.com/salon/${rawInput}`;
+
+        setActiveStoreUid(storefrontTarget);
+
+        try {
+            const recentDocRef = doc(db, 'customers', user.uid, 'recentBusinesses', cleanUid);
+            const docSnap = await getDoc(recentDocRef);
+            
+            // 🟢 Save cleanly without blocking prompt modals
+            await setDoc(recentDocRef, {
+            businessUid: storefrontTarget,
+            lastVisited: new Date().toISOString(),
+            // Keep existing customName if it's already there, otherwise default to 'Saved Store'
+            customName: docSnap.exists() ? (docSnap.data().customName || 'Saved Store') : 'Saved Store'
+            }, { merge: true });
+
+        } catch (err) {
+            console.error("Failed to log business visit history item:", err);
+        }
+    };
 
   // Profile data synchronization
   useEffect(() => {
@@ -80,6 +117,16 @@ export const Front: React.FC = () => {
     }
   };
 
+  // Handles manual link submissions identically to the QR Camera scan pipeline
+  const handleQueryLaunch = () => {
+    const cleanQuery = vinQuery.trim();
+    if (!cleanQuery) return;
+
+    showToast('success', `Opening linked context page...`);
+    handleBusinessVisit(cleanQuery); // 🟢 Changed from setActiveStoreUid
+    setVinQuery('');
+  };
+
   const handleLogout = async () => {
     try { await signOut(auth); } catch (err) {
       showToast('error', 'An operational fault interrupted the checkout pipeline.');
@@ -94,6 +141,7 @@ export const Front: React.FC = () => {
     );
   }
 
+  // 🟢 SWAP ENTIRE LAYOUT IF BUSINESS IS SCANNED / VISITED
   if (activeStoreUid) {
     return (
       <StoreFront 
@@ -152,56 +200,65 @@ export const Front: React.FC = () => {
       </motion.header>
 
       {/* BODY WORKSPACE CONTAINER */}
-      <div className="flex-grow flex flex-col justify-center my-auto">
-        {activeTab === 'home' ? (
-          <motion.div
-            key="home-view"
-            initial={{ opacity: 0, scale: 0.99 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="w-full"
-          >
-            <motion.main 
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-              className="w-full max-w-md mx-auto flex flex-col items-center text-center px-4"
-            >
-              <h1 className="text-2xl font-black text-neutral-900 tracking-tight leading-snug mb-8">
-                Scan a VINQR or input <br />
-                <span className="text-[#E53935]">VINLIKE</span> to continue.
-              </h1>
-
-              <div className="w-full relative shadow-[0_16px_40px_rgba(0,0,0,0.02)] group">
-                <input
-                  type="text"
-                  placeholder="Enter VINLIKE..."
-                  value={vinQuery}
-                  onChange={(e) => setVinQuery(e.target.value)}
-                  className="w-full bg-neutral-50 border border-neutral-200 rounded-[2rem] pl-6 pr-14 py-4.5 text-sm font-medium text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-[#E53935] focus:bg-white focus:ring-4 focus:ring-[#E53935]/5 transition-all"
-                />
-                <motion.button
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => showToast('success', `Executing validation parsing query routine for: ${vinQuery}`)}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-3 bg-neutral-100 hover:bg-[#E53935] text-neutral-500 hover:text-white rounded-full transition-all"
+      {/* BODY WORKSPACE CONTAINER */}
+        <div className="flex-grow flex flex-col justify-start pt-12 w-full">
+            {activeTab === 'home' ? (
+                <motion.div
+                    key="home-view"
+                    initial={{ opacity: 0, scale: 0.99 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="w-full flex flex-col items-center"
                 >
-                  <Search className="w-4 h-4" />
-                </motion.button>
-              </div>
-            </motion.main>
+                    <motion.main 
+                        initial={{ opacity: 0, y: 30 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.7, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+                        className="w-full max-w-md mx-auto flex flex-col items-center text-center px-4"
+                    >
+                        {/* 🟢 HIDES SCAN BANNER ELEMENT IF ITEMS EXIST IN HISTORICAL LAYER */}
+                        {!hasRecentItems && (
+                        <h1 className="text-2xl font-black text-neutral-900 tracking-tight leading-snug mb-8">
+                            Scan a VINQR or input <br />
+                            <span className="text-[#E53935]">VINLIKE</span> to continue.
+                        </h1>
+                        )}
 
-            <RecentBusinesses onSelectBusiness={(uid) => setActiveStoreUid(uid)} />
-          </motion.div>
-        ) : (
-          <motion.div
-            key="wallet-view"
-            initial={{ opacity: 0, scale: 0.99 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="w-full"
-          >
-            <Wallet onNavigateToHome={() => setActiveTab('home')} />
-          </motion.div>
-        )}
-      </div>
+                        <div className="w-full relative shadow-[0_16px_40px_rgba(0,0,0,0.02)] group mb-4">
+                        <input
+                            type="text"
+                            placeholder="Enter VINLIKE..."
+                            value={vinQuery}
+                            onChange={(e) => setVinQuery(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleQueryLaunch()}
+                            className="w-full bg-neutral-50 border border-neutral-200 rounded-[2rem] pl-6 pr-14 py-4.5 text-sm font-medium text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-[#E53935] focus:bg-white focus:ring-4 focus:ring-[#E53935]/5 transition-all"
+                        />
+                        <motion.button
+                            whileTap={{ scale: 0.95 }}
+                            onClick={handleQueryLaunch}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 p-3 bg-neutral-100 hover:bg-[#E53935] text-neutral-500 hover:text-white rounded-full transition-all"
+                        >
+                            <Search className="w-4 h-4" />
+                        </motion.button>
+                        </div>
+                    </motion.main>
+
+                    {/* HISTORICAL COMPONENT RENDERING ROW */}
+                    <RecentBusinesses 
+                        onSelectBusiness={(uid) => handleBusinessVisit(uid)} // 🟢 Changed from setActiveStoreUid
+                        setHasRecentItems={setHasRecentItems}
+                    />
+                </motion.div>
+            ) : (
+                <motion.div
+                key="wallet-view"
+                initial={{ opacity: 0, scale: 0.99 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="w-full"
+                >
+                <Wallet onNavigateToHome={() => setActiveTab('home')} />
+                </motion.div>
+            )}
+        </div>
 
       {/* NAVIGATION PILL */}
       <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-4">
@@ -233,20 +290,20 @@ export const Front: React.FC = () => {
         </motion.button>
       </div>
 
-      {/* FULL-SCREEN QR SCANNER CONTAINER LAYER */}
+      {/* SCANNER MODAL WRAPPER LAYER */}
       <AnimatePresence>
         {isScannerOpen && (
           <QRScannerView 
             onClose={() => setIsScannerOpen(false)} 
             onScanSuccess={(businessUid) => {
               setIsScannerOpen(false);
-              setActiveStoreUid(businessUid);
+              handleBusinessVisit(businessUid);
             }} 
           />
         )}
       </AnimatePresence>
 
-      {/* PREMIUM SLIDE-OUT SETTINGS PANEL LAYOUT */}
+      {/* SETTINGS DRAWER OVERLAY PANEL */}
       <AnimatePresence>
         {isSettingsOpen && (
           <>
@@ -279,7 +336,6 @@ export const Front: React.FC = () => {
                 </motion.button>
               </div>
 
-              {/* REFACTORED COMPACT LAUNCHER CARD: PERSONAL DETAILS TAB */}
               <div className="mt-6 bg-white border border-neutral-200/80 rounded-[1.75rem] p-5 shadow-[0_8px_24px_rgba(0,0,0,0.01)]">
                 <button 
                   onClick={() => setIsPersonalDetailsModalOpen(true)}
@@ -298,7 +354,7 @@ export const Front: React.FC = () => {
                 </button>
               </div>
 
-              {/* CARD 2: USEFUL PREFERENCES FEATURES */}
+              {/* SETTINGS OPTIONS GRID LAYOUT */}
               <div className="mt-4 bg-white border border-neutral-200/80 rounded-[1.75rem] p-5 shadow-[0_8px_24px_rgba(0,0,0,0.01)]">
                 <div className="flex items-center gap-2 mb-4">
                   <Globe className="w-4 h-4 text-[#E53935]" />
@@ -329,7 +385,6 @@ export const Front: React.FC = () => {
                 </div>
               </div>
 
-              {/* CARD 3: LOGOUT ACTUATOR */}
               <div className="mt-4 mb-6 bg-white border border-neutral-200/80 rounded-[1.75rem] p-5 shadow-[0_8px_24px_rgba(0,0,0,0.01)]">
                 <motion.button
                   whileTap={{ scale: 0.98 }}
@@ -346,7 +401,7 @@ export const Front: React.FC = () => {
         )}
       </AnimatePresence>
 
-      {/* DETACHED SUB-MODAL: PERSONAL PROFILE METRIC EDITING LAYER */}
+      {/* DETAIL MODAL METRICS PROFILE FORM LAYER */}
       <AnimatePresence>
         {isPersonalDetailsModalOpen && (
           <>
