@@ -165,6 +165,17 @@ export default function SalonStore({ onExecuteWalletPayment }: SalonStoreProps) 
     };
   }, [uid]);
 
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+        console.log("SalonStore auth user:", user);
+
+        setValidatedUser(user);
+        setIsAwaitingAuth(false);
+    });
+
+    return unsubscribe;
+  }, []);
+
   
 
   // --- Computed Variables / State Aggregations ---
@@ -255,6 +266,9 @@ export default function SalonStore({ onExecuteWalletPayment }: SalonStoreProps) 
 
   // 2. Modified Booking Handler incorporating the payment phase
   const executeFinalBookingSubmit = async () => {
+    console.log("isAwaitingAuth:", isAwaitingAuth);
+    console.log("validatedUser:", validatedUser);
+    console.log("Firebase currentUser:", auth.currentUser);
     if (!uid || !customerName.trim() || !selectedDate || !selectedTime || selectedServices.length === 0) {
       triggerToast("Missing required scheduling credentials.");
       return;
@@ -263,7 +277,9 @@ export default function SalonStore({ onExecuteWalletPayment }: SalonStoreProps) 
       alert("Security verification pending. Please try again in a moment.");
       return;
     }
-
+    console.log("validatedUser:", validatedUser);
+    console.log("auth.currentUser:", auth.currentUser);
+    console.log("isAwaitingAuth:", isAwaitingAuth);
     setIsSubmitting(true);
     try {
       // Phase A: Atomic wallet deduction step
@@ -293,6 +309,10 @@ export default function SalonStore({ onExecuteWalletPayment }: SalonStoreProps) 
       await setDoc(docRef, payload);
       setGeneratedRefId(referenceId);
       setStep('success');
+
+      console.log("validatedUser:", validatedUser);
+      console.log("auth.currentUser:", auth.currentUser);
+      console.log("isAwaitingAuth:", isAwaitingAuth);
     } catch (err: any) {
       console.error(err);
       triggerToast(err.message || "Payment verification failed. Booking aborted.");
