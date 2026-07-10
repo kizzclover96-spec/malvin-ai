@@ -53,13 +53,20 @@ export default function SalonStore() {
 
   const handleProceedToCheckout = () => {
     const checkoutPayload = {
-      targetBusinessUid: uid, // Is 'uid' correctly pulled from useParams()?
-      totalPrice: totalPrice, // Does 'totalPrice' state exist under this exact name?
-      services: selectedServices, // Check name matches your state array
-      stylist: selectedStylist, 
-      duration: totalDuration 
+      targetBusinessUid: uid,
+      totalPrice: totalPrice, 
+      // 🟢 Map these keys to the exact state variables tracked in your wizard:
+      services: selectedServices,   // Maps your Step 1 selections array
+      stylist: selectedWorkerId,    // Maps your Step 2 state variable string
+      duration: totalDuration,      // Maps your useMemo duration computation
+      date: selectedDate,           
+      time: selectedTime,           
+      customerName: customerName.trim(),
+      customerPhone: customerPhone.trim(),
+      customerNote: customerNote.trim()
     };
 
+    console.log("Navigating with payload:", checkoutPayload);
     navigate("/ticket-checkout", { state: checkoutPayload });
   };
 
