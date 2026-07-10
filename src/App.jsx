@@ -12,6 +12,7 @@ import {
   serverTimestamp,
   runTransaction
 } from "firebase/firestore";
+
 import Login from "./pages/loginscreen"; 
 import Welcomeview from "./pages/welcomeview"; 
 import { UserOption } from "./components/UserOption"; 
@@ -57,10 +58,16 @@ function App() {
 
   // 🟢 ATOMIC BALANCE PAYMENT CONTROLLER
   const handleWalletPaymentExecution = async (amount, targetBusinessUid) => {
-    if (!user?.uid) throw new Error("Authentication context invalid.");
+    // 1. Fetch fresh authentication instance status directly from the Firebase Core SDK
+    const currentAuthUser = auth.currentUser; 
+
+    if (!currentAuthUser?.uid) {
+      throw new Error("Authentication context invalid. No active user session found.");
+    }
     if (amount <= 0) throw new Error("Invalid checkout balance specification.");
 
-    const userDocRef = doc(db, "users", user.uid);
+    // 2. Use the guaranteed active user UID for document lookups
+    const userDocRef = doc(db, "users", currentAuthUser.uid);
     const businessDocRef = doc(db, "businesses", targetBusinessUid);
 
     try {
@@ -87,8 +94,8 @@ function App() {
           "wallet.balance": (businessSnap.data().wallet?.balance || 0) + amount
         });
 
-        // 4. Drop an immutable transaction ledger reference item
-        const userTxRef = doc(collection(db, "users", user.uid, "walletTransactions"));
+        // 4. Drop an immutable transaction ledger reference item using currentAuthUser
+        const userTxRef = doc(collection(db, "users", currentAuthUser.uid, "walletTransactions"));
         transaction.set(userTxRef, {
           storeName: businessSnap.data().businessName || "Malvin Storefront Platform",
           amount: amount,
