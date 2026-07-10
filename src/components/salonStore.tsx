@@ -267,7 +267,7 @@ export default function SalonStore({ onExecuteWalletPayment }: SalonStoreProps) 
     try {
       // Phase A: Atomic wallet deduction step
       triggerToast("Processing checkout ledger deduction...");
-      await onExecuteWalletPayment(totalPrice, businessId, validatedUser.uid);
+      await onExecuteWalletPayment(totalPrice, uid, validatedUser.uid);
 
       // Phase B: Write booking context after successful payment settlement
       const referenceId = `SAL-${Math.floor(100000 + Math.random() * 900000)}`;
