@@ -57,31 +57,13 @@ function App() {
   const [workerSubScreen, setWorkerSubScreen] = useState("dashboard");
 
   // 🟢 ATOMIC BALANCE PAYMENT CONTROLLER
-  const handleWalletPaymentExecution = async (amount, targetBusinessUid) => {
-    // 🟢 Helper promise to get the user even if Firebase is still booting up
-    const getAuthenticatedUser = () => {
-      return new Promise((resolve) => {
-        // If it's already loaded, resolve immediately
-        if (auth.currentUser) {
-          resolve(auth.currentUser);
-          return;
-        }
-        // If it's not loaded yet, wait for the first auth change event
-        const unsubscribe = onAuthStateChanged(auth, (userInstance) => {
-          unsubscribe();
-          resolve(userInstance);
-        });
-      });
-    };
+  const handleWalletPaymentExecution = async (  amount,  targetBusinessUid, customerUid ) => {
+    
+    if (!customerUid) { throw new Error("Customer not authenticated.");}
 
-    const currentAuthUser = await getAuthenticatedUser();
-
-    if (!currentAuthUser?.uid) {
-      throw new Error("Authentication context invalid. No active user session found after initialization check.");
-    }
     if (amount <= 0) throw new Error("Invalid checkout balance specification.");
 
-    const userDocRef = doc(db, "users", currentAuthUser.uid);
+    const userDocRef = doc(db, "users", customerUid);
     const businessDocRef = doc(db, "businesses", targetBusinessUid);
 
     try {
@@ -105,7 +87,7 @@ function App() {
           "wallet.balance": (businessSnap.data().wallet?.balance || 0) + amount
         });
 
-        const userTxRef = doc(collection(db, "users", currentAuthUser.uid, "walletTransactions"));
+        const userTxRef = doc(collection(db, "users", customerUid, "walletTransactions"));
         transaction.set(userTxRef, {
           storeName: businessSnap.data().businessName || "Malvin Storefront Platform",
           amount: amount,
@@ -133,24 +115,8 @@ function App() {
     }
   }, [location, navigate]);
 
-  useEffect(() => {
-    const handleRequestSync = (event) => {
-      if (event.data?.type === "REQUEST_SALON_AUTH_SYNC" && auth.currentUser) {
-        // Send the current validated instance parameters right back down
-        if (event.source) {
-          event.source.postMessage({
-            type: "MALVIN_AUTH_TRANSFER",
-            uid: auth.currentUser.uid,
-            email: auth.currentUser.email
-          }, "*");
-        }
-      }
-    };
-
-    window.addEventListener("message", handleRequestSync);
-    return () => window.removeEventListener("message", handleRequestSync);
-  }, [user]); // Re-run or evaluate when the parent state updates
   
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (!currentUser) {

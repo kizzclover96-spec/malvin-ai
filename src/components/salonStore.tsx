@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { firestore as db } from '../firebase';
 import { doc, getDoc, collection, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
 import styles from './salonStore.module.css';
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "../firebase";
 
 // --- Types & Interfaces ---
 interface SalonProfile {
@@ -58,6 +60,10 @@ export default function SalonStore({ onExecuteWalletPayment }: SalonStoreProps) 
   // Wizard Framework State
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5 | 'success'>(1);
 
+  //auth
+  const [validatedUser, setValidatedUser] = useState(null);
+  const [isAwaitingAuth, setIsAwaitingAuth] = useState(true);
+
   // Booking Selection State
   const [selectedServices, setSelectedServices] = useState<Service[]>([]);
   const [selectedWorkerId, setSelectedWorkerId] = useState<string>('any'); // 'any' or workerId
@@ -68,13 +74,28 @@ export default function SalonStore({ onExecuteWalletPayment }: SalonStoreProps) 
   const [customerNote, setCustomerNote] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [generatedRefId, setGeneratedRefId] = useState('');
-  const [validatedUser, setValidatedUser] = useState<any>(null);
-  const [isAwaitingAuth, setIsAwaitingAuth] = useState(true);
+
 
   const triggerToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 4000);
   };
+
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+        if (user) {
+            setValidatedUser(user);
+        } else {
+            setValidatedUser(null);
+        }
+
+        setIsAwaitingAuth(false);
+    });
+
+    return unsubscribe;
+  }, []);
+
 
   // Data Aggregation & Real-time Synchronization Loop
   useEffect(() => {
@@ -144,27 +165,7 @@ export default function SalonStore({ onExecuteWalletPayment }: SalonStoreProps) 
     };
   }, [uid]);
 
-  useEffect(() => {
-    // 🟢 Establish the secure situational inbound listener
-    const handleAuthDelivery = (event: MessageEvent) => {
-      // Basic structural verification
-      if (event.data?.type === "MALVIN_AUTH_TRANSFER" && event.data?.uid) {
-        console.log("🔒 Target credential securely piped into Salon listener:", event.data.uid);
-        
-        setValidatedUser({ uid: event.data.uid, email: event.data.email });
-        setIsAwaitingAuth(false); // Stop awaiting immediately
-      }
-    };
-
-    window.addEventListener("message", handleAuthDelivery);
-    
-    // Request token from parent frame/view right away upon mounting
-    if (window.parent) {
-      window.parent.postMessage({ type: "REQUEST_SALON_AUTH_SYNC" }, "*");
-    }
-
-    return () => window.removeEventListener("message", handleAuthDelivery);
-  }, []);
+  
 
   // --- Computed Variables / State Aggregations ---
   const totalDuration = useMemo(() => 
