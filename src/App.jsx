@@ -134,6 +134,24 @@ function App() {
   }, [location, navigate]);
 
   useEffect(() => {
+    const handleRequestSync = (event) => {
+      if (event.data?.type === "REQUEST_SALON_AUTH_SYNC" && auth.currentUser) {
+        // Send the current validated instance parameters right back down
+        if (event.source) {
+          event.source.postMessage({
+            type: "MALVIN_AUTH_TRANSFER",
+            uid: auth.currentUser.uid,
+            email: auth.currentUser.email
+          }, "*");
+        }
+      }
+    };
+
+    window.addEventListener("message", handleRequestSync);
+    return () => window.removeEventListener("message", handleRequestSync);
+  }, [user]); // Re-run or evaluate when the parent state updates
+  
+  useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (!currentUser) {
         setUser(null);

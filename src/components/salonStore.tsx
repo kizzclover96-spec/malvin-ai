@@ -68,6 +68,8 @@ export default function SalonStore({ onExecuteWalletPayment }: SalonStoreProps) 
   const [customerNote, setCustomerNote] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [generatedRefId, setGeneratedRefId] = useState('');
+  const [validatedUser, setValidatedUser] = useState<any>(null);
+  const [isAwaitingAuth, setIsAwaitingAuth] = useState(true);
 
   const triggerToast = (msg: string) => {
     setToast(msg);
@@ -141,6 +143,28 @@ export default function SalonStore({ onExecuteWalletPayment }: SalonStoreProps) 
       unsubscribeBookings();
     };
   }, [uid]);
+
+  useEffect(() => {
+    // 🟢 Establish the secure situational inbound listener
+    const handleAuthDelivery = (event: MessageEvent) => {
+      // Basic structural verification
+      if (event.data?.type === "MALVIN_AUTH_TRANSFER" && event.data?.uid) {
+        console.log("🔒 Target credential securely piped into Salon listener:", event.data.uid);
+        
+        setValidatedUser({ uid: event.data.uid, email: event.data.email });
+        setIsAwaitingAuth(false); // Stop awaiting immediately
+      }
+    };
+
+    window.addEventListener("message", handleAuthDelivery);
+    
+    // Request token from parent frame/view right away upon mounting
+    if (window.parent) {
+      window.parent.postMessage({ type: "REQUEST_SALON_AUTH_SYNC" }, "*");
+    }
+
+    return () => window.removeEventListener("message", handleAuthDelivery);
+  }, []);
 
   // --- Computed Variables / State Aggregations ---
   const totalDuration = useMemo(() => 
@@ -234,12 +258,16 @@ export default function SalonStore({ onExecuteWalletPayment }: SalonStoreProps) 
       triggerToast("Missing required scheduling credentials.");
       return;
     }
+    if (isAwaitingAuth || !validatedUser?.uid) {
+      alert("Security verification pending. Please try again in a moment.");
+      return;
+    }
 
     setIsSubmitting(true);
     try {
       // Phase A: Atomic wallet deduction step
       triggerToast("Processing checkout ledger deduction...");
-      await onExecuteWalletPayment(totalPrice, uid);
+      await onExecuteWalletPayment(totalPrice, businessId, validatedUser.uid);
 
       // Phase B: Write booking context after successful payment settlement
       const referenceId = `SAL-${Math.floor(100000 + Math.random() * 900000)}`;
