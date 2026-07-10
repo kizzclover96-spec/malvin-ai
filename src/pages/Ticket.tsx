@@ -36,62 +36,74 @@ export default function TicketCheckout() {
 
   const payload = location.state;
 
-  useEffect(() => {
-    if (!payload || !payload.targetBusinessUid) {
-      setPaymentStatus("error");
-      setErrorMessage("No active checkout details found.");
-      return;
-    }
-
-    setTicketDetails(payload);
-
-    const processAutoPayment = async () => {
-      try {
-        const activeUid = auth.currentUser?.uid || payload.customerUid;
-
-        if (!activeUid) {
-          setPaymentStatus("error");
-          setErrorMessage("Customer identity verification failed.");
-          return;
+    useEffect(() => {
+        if (!payload || !payload.targetBusinessUid) {
+            setPaymentStatus("error");
+            setErrorMessage("No active checkout details found.");
+            return;
         }
 
-        // 🚀 FIX: Replace the direct frontend prop with the secure Cloud Function call
-        const paymentResult = await handleWalletPayment(payload.targetBusinessUid, payload.totalPrice);
+        setTicketDetails(payload);
 
-        if (!paymentResult.success) {
-          setPaymentStatus("error");
-          setErrorMessage(paymentResult.error || "Wallet payment rejected due to insufficient funds.");
-          return;
-        }
-        
-        // Generate a clean ticket ID
-        const ticketId = `SAL-${Math.floor(100000 + Math.random() * 900000)}`;
-        const appointmentRef = doc(collection(db, "salonAppointments", activeUid, "appointments"));
-        
-        // Write the local appointment pass safely
-        await runTransaction(db, async (transaction) => {
-          transaction.set(appointmentRef, {
-            ticketId: ticketId,
-            businessId: payload.targetBusinessUid,
-            services: payload.services,
-            stylist: payload.stylist,
-            duration: payload.duration,
-            totalPaid: payload.totalPrice,
-            status: "paid",
-            createdAt: serverTimestamp()
-          });
-        });
+        const processAutoPayment = async () => {
+            try {
+            // 1. Force check the current memory state first
+            let currentUser = auth.currentUser;
 
-        setTicketDetails(prev => ({ ...prev, ticketId }));
-        setPaymentStatus("success");
-      } catch (error: any) {
-        setPaymentStatus("error");
-        setErrorMessage(error.message || "An unexpected error occurred during checkout.");
-      }
-    };
+            // 2. If it's lagging, wait for it to hydrate up to 3 seconds before failing
+            if (!currentUser) {
+                await new Promise<void>((resolve) => {
+                const unsubscribe = auth.onAuthStateChanged((user) => {
+                    if (user) currentUser = user;
+                    unsubscribe();
+                    resolve();
+                });
+                setTimeout(resolve, 3000); // safety fallback timeout
+                });
+            }
 
-    processAutoPayment();
-  }, [payload]);
+            if (!currentUser) {
+                setPaymentStatus("error");
+                setErrorMessage("Payment failed: Firebase Auth session not initialized in time.");
+                return;
+            }
+
+            console.log(`Auth synchronized for UID: ${currentUser.uid}. Triggering function...`);
+            
+            const paymentResult = await handleWalletPayment(payload.targetBusinessUid, payload.totalPrice);
+
+            if (!paymentResult.success) {
+                setPaymentStatus("error");
+                setErrorMessage(paymentResult.error || "Wallet payment rejected.");
+                return;
+            }
+            
+            const ticketId = `SAL-${Math.floor(100000 + Math.random() * 900000)}`;
+            const appointmentRef = doc(collection(db, "salonAppointments", currentUser.uid, "appointments"));
+            
+            await runTransaction(db, async (transaction) => {
+                transaction.set(appointmentRef, {
+                ticketId: ticketId,
+                businessId: payload.targetBusinessUid,
+                services: payload.services,
+                stylist: payload.stylist,
+                duration: payload.duration,
+                totalPaid: payload.totalPrice,
+                status: "paid",
+                createdAt: serverTimestamp()
+                });
+            });
+
+            setTicketDetails(prev => ({ ...prev, ticketId }));
+            setPaymentStatus("success");
+            } catch (error: any) {
+            setPaymentStatus("error");
+            setErrorMessage(error.message || "An unexpected error occurred during checkout.");
+            }
+        };
+
+        processAutoPayment();
+    }, [payload]);
 
   if (paymentStatus === "processing") {
     return (

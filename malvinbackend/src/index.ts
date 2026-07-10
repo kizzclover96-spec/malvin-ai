@@ -211,14 +211,14 @@ export const stripeWebhook = onRequest(
 6. SECURE BALANCE PAYMENT PROCESSOR
 =====================================
 */
-export const processPayment = onCall(async (request) => {
-  // Ensure the caller is authenticated
+export const processPayment = onCall({ cors: true }, async (request) => {
+  // Fallback: If auth context is missing entirely from the client handshake header
   if (!request.auth) {
-    throw new HttpsError("unauthenticated", "Authentication context is required.");
+    throw new HttpsError("unauthenticated", "Authentication context is missing or could not be verified by the client SDK.");
   }
 
   const { targetBusinessUid, amount } = request.data;
-  const customerUid = request.auth.uid;
+  const customerUid = request.auth.uid; // Read cleanly from the verified token context
 
   if (!targetBusinessUid || typeof amount !== "number" || amount <= 0) {
     throw new HttpsError("invalid-argument", "A valid business UID and payment amount are required.");
@@ -232,7 +232,6 @@ export const processPayment = onCall(async (request) => {
   const txRef = userRef.collection("walletTransactions").doc();
 
   try {
-    // Added explicit type annotation to the transaction parameter
     await db.runTransaction(async (transaction: typeof Transaction) => {
       const userDoc = await transaction.get(userRef);
       const salonDoc = await transaction.get(salonRef);
@@ -244,16 +243,13 @@ export const processPayment = onCall(async (request) => {
       const userData = userDoc.data();
       const currentCustomerBalance = userData?.wallet?.balance ?? 0;
 
-      // Business check: Prevent balances from going negative on the client end
       if (currentCustomerBalance < amount) {
         throw new HttpsError("failed-precondition", "Insufficient client wallet funds available.");
       }
 
-      // Execute balance updates atomically
       transaction.update(userRef, { "wallet.balance": FieldValue.increment(-amount) });
       transaction.update(salonRef, { walletBalance: FieldValue.increment(amount) });
 
-      // Generate verification receipt entry
       transaction.set(txRef, {
         storeName: salonDoc.data()?.name || "Pamela nails",
         amount: amount,
