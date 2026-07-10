@@ -4,16 +4,45 @@ import { ArrowLeft } from 'lucide-react';
 
 interface StoreFrontProps {
   businessUid: string;
+  userUid: string;
   userWalletBalance: number;
-  onExecutePayment: (amount: number, businessId: string) => Promise<void>;
+  onExecutePayment: (
+    amount:number,
+    businessId:string
+  ) => Promise<void>;
   onExit: () => void;
-  userUid: string; // ADD THIS
 }
-export const StoreFront: React.FC<StoreFrontProps> = ({  businessUid,  onExit, userUid }) => {
+export const StoreFront: React.FC<StoreFrontProps> = ({  businessUid, userUid, onExit }) => {
   // Fallback check to ensure we have a valid absolute URL string
   const targetUrl = businessUid.startsWith('http://') || businessUid.startsWith('https://') ? businessUid : `https://${businessUid}`;
 
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  useEffect(() => {
+
+    const iframe = document.querySelector("iframe");
+
+    if(!iframe) return;
+
+
+    iframe.onload = () => {
+
+      iframe.contentWindow?.postMessage(
+        {
+          type:"MALVIN_USER",
+          uid:userUid
+        },
+        "*"
+      );
+
+      console.log(
+        "Sent Malvin user identity:",
+        userUid
+      );
+
+    };
+
+  },[userUid]);
+  
   useEffect(() => {
     const sendUserIdentity = () => {
       if (iframeRef.current?.contentWindow) {
