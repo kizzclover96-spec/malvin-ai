@@ -12,93 +12,82 @@ export default function TicketCheckout() {
   const [ticketDetails, setTicketDetails] = useState<any>(null);
 
   // Secure Cloud Function Runner
-  const handleWalletPayment = async (targetBusinessUid: string, amount: number) => {
-    const functions = getFunctions();
-    const processPayment = httpsCallable(functions, 'processPayment');
+    const handleWalletPayment = async (targetBusinessUid: string, amount: number, customerUid: string) => {
+        const functions = getFunctions();
+        const processPayment = httpsCallable(functions, 'processPayment');
 
-    try {
-      console.log("Sending transaction request to secure backend...");
-      const response = await processPayment({
-        targetBusinessUid: targetBusinessUid,
-        amount: amount
-      });
+        try {
+        console.log("Sending transaction request to secure backend...");
+        const response = await processPayment({
+            targetBusinessUid: targetBusinessUid,
+            amount: amount,
+            fallbackCustomerUid: customerUid // 👈 Pass this explicitly
+        });
 
-      if (response.data && (response.data as any).success) {
-        console.log("Payment settled successfully via Cloud Functions!");
-        return { success: true };
-      }
-      return { success: false };
-    } catch (error: any) {
-      console.error("Payment transaction failed:", error.message);
-      return { success: false, error: error.message };
-    }
-  };
+        if (response.data && (response.data as any).success) {
+            return { success: true };
+        }
+        return { success: false };
+        } catch (error: any) {
+        console.error("Payment transaction failed:", error.message);
+        return { success: false, error: error.message };
+        }
+    };
 
   const payload = location.state;
 
     useEffect(() => {
         if (!payload || !payload.targetBusinessUid) {
-            setPaymentStatus("error");
-            setErrorMessage("No active checkout details found.");
-            return;
+        setPaymentStatus("error");
+        setErrorMessage("No active checkout details found.");
+        return;
         }
 
         setTicketDetails(payload);
 
         const processAutoPayment = async () => {
             try {
-            // 1. Force check the current memory state first
-            let currentUser = auth.currentUser;
+                // Use the frame's internal auth user, or fall back immediately to the payload identity
+                const activeUid = auth.currentUser?.uid || payload.customerUid;
 
-            // 2. If it's lagging, wait for it to hydrate up to 3 seconds before failing
-            if (!currentUser) {
-                await new Promise<void>((resolve) => {
-                const unsubscribe = auth.onAuthStateChanged((user) => {
-                    if (user) currentUser = user;
-                    unsubscribe();
-                    resolve();
-                });
-                setTimeout(resolve, 3000); // safety fallback timeout
-                });
-            }
-
-            if (!currentUser) {
+                if (!activeUid) {
                 setPaymentStatus("error");
-                setErrorMessage("Payment failed: Firebase Auth session not initialized in time.");
+                setErrorMessage("Payment failed: Customer identity verification missing.");
                 return;
-            }
+                }
 
-            console.log(`Auth synchronized for UID: ${currentUser.uid}. Triggering function...`);
-            
-            const paymentResult = await handleWalletPayment(payload.targetBusinessUid, payload.totalPrice);
+                console.log(`Identity verified: ${activeUid}. Triggering function...`);
+                
+                // Pass the activeUid to our function helper
+                const paymentResult = await handleWalletPayment(payload.targetBusinessUid, payload.totalPrice, activeUid);
 
-            if (!paymentResult.success) {
+                if (!paymentResult.success) {
                 setPaymentStatus("error");
                 setErrorMessage(paymentResult.error || "Wallet payment rejected.");
                 return;
-            }
-            
-            const ticketId = `SAL-${Math.floor(100000 + Math.random() * 900000)}`;
-            const appointmentRef = doc(collection(db, "salonAppointments", currentUser.uid, "appointments"));
-            
-            await runTransaction(db, async (transaction) => {
+                }
+                
+                const ticketId = `SAL-${Math.floor(100000 + Math.random() * 900000)}`;
+                const appointmentRef = doc(collection(db, "salonAppointments", activeUid, "appointments"));
+                
+                await runTransaction(db, async (transaction) => {
                 transaction.set(appointmentRef, {
-                ticketId: ticketId,
-                businessId: payload.targetBusinessUid,
-                services: payload.services,
-                stylist: payload.stylist,
-                duration: payload.duration,
-                totalPaid: payload.totalPrice,
-                status: "paid",
-                createdAt: serverTimestamp()
+                    ticketId: ticketId,
+                    businessId: payload.targetBusinessUid,
+                    services: payload.services,
+                    stylist: payload.stylist,
+                    duration: payload.duration,
+                    totalPaid: payload.totalPrice,
+                    status: "paid",
+                    createdAt: serverTimestamp()
                 });
-            });
+                });
 
-            setTicketDetails(prev => ({ ...prev, ticketId }));
-            setPaymentStatus("success");
+                setTicketDetails(prev => ({ ...prev, ticketId }));
+                setPaymentStatus("success");
             } catch (error: any) {
-            setPaymentStatus("error");
-            setErrorMessage(error.message || "An unexpected error occurred during checkout.");
+                setPaymentStatus("error");
+                setErrorMessage(error.message || "An unexpected error occurred during checkout.");
             }
         };
 

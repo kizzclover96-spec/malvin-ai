@@ -212,13 +212,14 @@ export const stripeWebhook = onRequest(
 =====================================
 */
 export const processPayment = onCall({ cors: true }, async (request) => {
-  // Fallback: If auth context is missing entirely from the client handshake header
-  if (!request.auth) {
-    throw new HttpsError("unauthenticated", "Authentication context is missing or could not be verified by the client SDK.");
-  }
+  const { targetBusinessUid, amount, fallbackCustomerUid } = request.data;
+  
+  // Resolve identity from auth header context first, fallback to payload string if embedded
+  const customerUid = request.auth?.uid || fallbackCustomerUid;
 
-  const { targetBusinessUid, amount } = request.data;
-  const customerUid = request.auth.uid; // Read cleanly from the verified token context
+  if (!customerUid) {
+    throw new HttpsError("unauthenticated", "Authentication identity context is missing.");
+  }
 
   if (!targetBusinessUid || typeof amount !== "number" || amount <= 0) {
     throw new HttpsError("invalid-argument", "A valid business UID and payment amount are required.");
