@@ -42,7 +42,7 @@ interface Appointment {
 
 // 1. Accept the atomic wallet payment prop passed down from App.jsx
 interface SalonStoreProps {
-  onExecuteWalletPayment: (amount: number, targetBusinessUid: string) => Promise<void>;
+  onExecuteWalletPayment: (amount: number, targetBusinessUid: string  userUid: string ) => Promise<void>;
 }
 
 export default function SalonStore({ onExecuteWalletPayment }: SalonStoreProps) {
@@ -80,21 +80,12 @@ export default function SalonStore({ onExecuteWalletPayment }: SalonStoreProps) 
     setToast(msg);
     setTimeout(() => setToast(null), 4000);
   };
-
-
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-        if (user) {
-            setValidatedUser(user);
-        } else {
-            setValidatedUser(null);
-        }
-
-        setIsAwaitingAuth(false);
-    });
-
-    return unsubscribe;
+    console.log("SalonStore mounted");
+    console.log("Initial auth:", auth.currentUser);
   }, []);
+
+  
 
 
   // Data Aggregation & Real-time Synchronization Loop
