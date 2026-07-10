@@ -8,4 +8,11 @@ typings/
 # Node.js dependency directory
 node_modules/
 *.local
+
+node_modules
+
+lib
+
 .env
+
+.env.local

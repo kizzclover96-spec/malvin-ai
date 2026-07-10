@@ -4,6 +4,7 @@ import { getAuth, GoogleAuthProvider, browserLocalPersistence, setPersistence } 
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getFirestore } from "firebase/firestore";
+import { getFunctions } from "firebase/functions";
 
 if (!import.meta.env.VITE_FIREBASE_PROJECT_ID) {
   console.error(
@@ -22,7 +23,7 @@ const firebaseConfig = {
 };
 
 // Prevent duplicate initializations during hot reloads
-const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+export const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
 export const db = getDatabase(app);
@@ -36,6 +37,8 @@ export const firestore = initializeFirestore(app, {
     tabManager: persistentMultipleTabManager(),
   }),
 });
+
+export const functions = getFunctions(app, "us-central1");
 
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: "select_account" });

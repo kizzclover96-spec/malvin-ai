@@ -38,7 +38,12 @@ interface Appointment {
   duration: number;
 }
 
-export default function SalonStore() {
+// 1. Accept the atomic wallet payment prop passed down from App.jsx
+interface SalonStoreProps {
+  onExecuteWalletPayment: (amount: number, targetBusinessUid: string) => Promise<void>;
+}
+
+export default function SalonStore({ onExecuteWalletPayment }: SalonStoreProps) {
   const { uid } = useParams<{ uid: string }>();
   const navigate = useNavigate();
 
@@ -64,86 +69,79 @@ export default function SalonStore() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [generatedRefId, setGeneratedRefId] = useState('');
 
-  
-
   const triggerToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 4000);
   };
 
-  // 1. Data Aggregation & Real-time Synchronization Loop
-  // 1. Data Aggregation & Real-time Synchronization Loop
-    useEffect(() => {
-        if (!uid) return;
+  // Data Aggregation & Real-time Synchronization Loop
+  useEffect(() => {
+    if (!uid) return;
 
-        const loadSalonProfile = async () => {
-        try {
-            const profileSnap = await getDoc(doc(db, 'salons', uid));
-            if (profileSnap.exists()) {
-            setProfile(profileSnap.data() as SalonProfile);
-            } else {
-            triggerToast("Salon configurations missing.");
-            setLoading(false); // Gatekeeper fallback if doc doesn't exist
-            }
-        } catch (err) {
-            triggerToast("Failed loading business configuration framework.");
-            setLoading(false);
+    const loadSalonProfile = async () => {
+      try {
+        const profileSnap = await getDoc(doc(db, 'salons', uid));
+        if (profileSnap.exists()) {
+          setProfile(profileSnap.data() as SalonProfile);
+        } else {
+          triggerToast("Salon configurations missing.");
+          setLoading(false);
         }
-        };
+      } catch (err) {
+        triggerToast("Failed loading business configuration framework.");
+        setLoading(false);
+      }
+    };
 
-        loadSalonProfile();
+    loadSalonProfile();
 
-        // Stream workers list
-        const unsubscribeWorkers = onSnapshot(
-        collection(db, 'salonstation', uid, 'salonWorkers'),
-        (snap) => setWorkers(snap.docs.map(d => d.data() as Worker)),
-        () => triggerToast("Error loading workers feed.")
-        );
+    const unsubscribeWorkers = onSnapshot(
+      collection(db, 'salonstation', uid, 'salonWorkers'),
+      (snap) => setWorkers(snap.docs.map(d => d.data() as Worker)),
+      () => triggerToast("Error loading workers feed.")
+    );
 
-        // Stream services list
-        const unsubscribeServices = onSnapshot(
-            collection(db, 'salonstation', uid, 'services'),
-            (snap) => setServices(snap.docs.map(d => {
-                const data = d.data();
-                return {
-                serviceId: d.id, 
-                serviceName: data.serviceName || '',
-                price: Number(data.price || 0),
-                duration: Number(data.duration || 0),
-                description: data.description || '',
-                category: data.category || ''
-                } as Service;
-            })),
-            () => triggerToast("Error loading premium services matrix.")
-        );
-        
-        // 🟢 FIXED: Target the correct subcollection path ('appointments')
-        const unsubscribeBookings = onSnapshot(
-        collection(db, 'salonAppointments', uid, 'appointments'),
-        (snap) => {
-            const appointments = snap.docs.map(d => {
-            const data = d.data();
-            return {
-                workerId: data.selectedWorker,
-                date: data.date,
-                time: data.time,
-                duration: data.totalDuration
-            } as Appointment;
-            });
-            setExistingBookings(appointments);
-            setLoading(false);
-        },
-        () => setLoading(false)
-        );
+    const unsubscribeServices = onSnapshot(
+      collection(db, 'salonstation', uid, 'services'),
+      (snap) => setServices(snap.docs.map(d => {
+        const data = d.data();
+        return {
+          serviceId: d.id, 
+          serviceName: data.serviceName || '',
+          price: Number(data.price || 0),
+          duration: Number(data.duration || 0),
+          description: data.description || '',
+          category: data.category || ''
+        } as Service;
+      })),
+      () => triggerToast("Error loading premium services matrix.")
+    );
+    
+    const unsubscribeBookings = onSnapshot(
+      collection(db, 'salonAppointments', uid, 'appointments'),
+      (snap) => {
+        const appointments = snap.docs.map(d => {
+          const data = d.data();
+          return {
+            workerId: data.selectedWorker,
+            date: data.date,
+            time: data.time,
+            duration: data.totalDuration
+          } as Appointment;
+        });
+        setExistingBookings(appointments);
+        setLoading(false);
+      },
+      () => setLoading(false)
+    );
 
-        return () => {
-        unsubscribeWorkers();
-        unsubscribeServices();
-        unsubscribeBookings();
-        };
-    }, [uid]);
+    return () => {
+      unsubscribeWorkers();
+      unsubscribeServices();
+      unsubscribeBookings();
+    };
+  }, [uid]);
 
-  // --- Computed Variables / State Aggregations ---
   // --- Computed Variables / State Aggregations ---
   const totalDuration = useMemo(() => 
     selectedServices.reduce((acc, s) => acc + Number(s.duration || 0), 0), 
@@ -155,21 +153,17 @@ export default function SalonStore() {
     [selectedServices]
   );
 
-  // Parse time helper (HH:MM -> absolute minutes from midnight)
   const parseTimeToMinutes = (t: string) => {
-
     const [h, m] = t.split(':').map(Number);
     return h * 60 + m;
   };
 
-  // Render Time string back from absolute minutes
   const formatMinutesToTime = (min: number) => {
     const h = Math.floor(min / 60).toString().padStart(2, '0');
     const m = (min % 60).toString().padStart(2, '0');
     return `${h}:${m}`;
   };
 
-  // Build 7 calendar days starting today, filtering out offDays matching day name strings
   const availableCalendarDays = useMemo(() => {
     const days = [];
     const options: Intl.DateTimeFormatOptions = { weekday: 'long' };
@@ -192,23 +186,19 @@ export default function SalonStore() {
     return days;
   }, [profile]);
 
-  // Compute operational availability slot configurations dynamically
   const computedTimeSlots = useMemo(() => {
     if (!profile || !selectedDate || totalDuration === 0) return [];
 
     const slots = [];
     const startMin = parseTimeToMinutes(profile.openingTime);
     const endMin = parseTimeToMinutes(profile.closingTime);
-    const stepSize = 30; // standard 30-min block steps
+    const stepSize = 30;
 
     for (let current = startMin; current + totalDuration <= endMin; current += stepSize) {
       const timeStr = formatMinutesToTime(current);
       
-      // Verification rules against active bookings structural overlaps
       const isBusy = existingBookings.some(booking => {
         if (booking.date !== selectedDate) return false;
-        
-        // Match specific resource unless "any" worker was assigned
         if (selectedWorkerId !== 'any' && booking.workerId !== 'any' && booking.workerId !== selectedWorkerId) {
           return false;
         }
@@ -218,20 +208,18 @@ export default function SalonStore() {
         const prospectiveStart = current;
         const prospectiveEnd = current + totalDuration;
 
-        // Check if interval overlaps
         return prospectiveStart < bookingEnd && prospectiveEnd > bookingStart;
       });
 
       slots.push({
         time: timeStr,
         disabled: isBusy,
-        isPopular: current === startMin + 120 || current === startMin + 240 // Highlights example high traffic slots
+        isPopular: current === startMin + 120 || current === startMin + 240
       });
     }
     return slots;
   }, [profile, selectedDate, totalDuration, selectedWorkerId, existingBookings]);
 
-  // --- Actions & Processing ---
   const toggleService = (service: Service) => {
     setSelectedServices(prev => 
       prev.some(s => s.serviceId === service.serviceId)
@@ -240,6 +228,7 @@ export default function SalonStore() {
     );
   };
 
+  // 2. Modified Booking Handler incorporating the payment phase
   const executeFinalBookingSubmit = async () => {
     if (!uid || !customerName.trim() || !selectedDate || !selectedTime || selectedServices.length === 0) {
       triggerToast("Missing required scheduling credentials.");
@@ -248,6 +237,11 @@ export default function SalonStore() {
 
     setIsSubmitting(true);
     try {
+      // Phase A: Atomic wallet deduction step
+      triggerToast("Processing checkout ledger deduction...");
+      await onExecuteWalletPayment(totalPrice, uid);
+
+      // Phase B: Write booking context after successful payment settlement
       const referenceId = `SAL-${Math.floor(100000 + Math.random() * 900000)}`;
       const appointmentId = `app_${Date.now()}`;
       const docRef = doc(db, 'salonAppointments', uid, 'appointments', appointmentId);
@@ -262,7 +256,7 @@ export default function SalonStore() {
         time: selectedTime,
         totalPrice: totalPrice,
         totalDuration: totalDuration,
-        status: "pending",
+        status: "paid", // status updated to paid
         referenceId: referenceId,
         createdAt: serverTimestamp()
       };
@@ -270,8 +264,9 @@ export default function SalonStore() {
       await setDoc(docRef, payload);
       setGeneratedRefId(referenceId);
       setStep('success');
-    } catch (err) {
-      triggerToast("Internal scheduling error. Slot matching failed.");
+    } catch (err: any) {
+      console.error(err);
+      triggerToast(err.message || "Payment verification failed. Booking aborted.");
     } finally {
       setIsSubmitting(false);
     }
@@ -294,27 +289,28 @@ export default function SalonStore() {
         <div className={styles.successWrapper}>
           <div className={styles.successIcon}>✓</div>
           <h1 className={styles.successTitle}>Booking Confirmed</h1>
-          <p className={styles.successSub}>Your appointment has been instantly processed into our ledger system.</p>
+          <p className={styles.successSub}>Your payment has cleared and your appointment ticket is locked.</p>
 
           <div className={styles.summaryGlassCard}>
             <div className={styles.refBadge}>
-              <span className={styles.refLabel}>REFERENCE ID</span>
+              <span className={styles.refLabel}>TICKET REFERENCE ID</span>
               <strong className={styles.refCode}>{generatedRefId}</strong>
             </div>
 
             <div className={styles.qrPlaceholder}>
               <div className={styles.qrInner}>
-                {/* QR Code visual graphic representation */}
                 <div className={styles.qrBlock} />
-                <span>Scan At Check-in</span>
+                <span>Scan Ticket At Check-in</span>
               </div>
             </div>
 
             <div className={styles.receiptDetails}>
               <h3>{profile?.salonName}</h3>
-              <p>📅 {selectedDate} at <strong>{selectedTime}</strong></p>
+              <p>👤 Client Name: <strong>{customerName}</strong></p>
+              {customerPhone && <p>📞 Phone: {customerPhone}</p>}
+              <p>📅 Schedule: {selectedDate} at <strong>{selectedTime}</strong></p>
               <p>⏱ Duration: {totalDuration} Mins</p>
-              <p>💰 Total Bill: €{totalPrice.toFixed(2)}</p>
+              <p>💳 Paid via Malvin Wallet: <strong>€{totalPrice.toFixed(2)}</strong></p>
             </div>
           </div>
 
@@ -330,17 +326,7 @@ export default function SalonStore() {
       </div>
     );
   }
-  if (loading) {
-    return (
-      <div className={styles.storeContainer}>
-        <div className={styles.skeletonHero}></div>
-        <div className={styles.skeletonCard}></div>
-        <div className={styles.skeletonCard}></div>
-      </div>
-    );
-  }
 
-  // 🟢 NEW PROFILE FALLBACK CHECK
   if (!profile) {
     return (
       <div className={styles.storeContainer}>
@@ -356,7 +342,6 @@ export default function SalonStore() {
     <div className={styles.storeContainer}>
       {toast && <div className={styles.toastNotification}>{toast}</div>}
 
-      {/* --- HERO PROFILE MATRIX BANNER --- */}
       {step === 1 && profile && (
         <section className={styles.heroBanner}>
           <div className={styles.heroGlassDetails}>
@@ -366,7 +351,7 @@ export default function SalonStore() {
             <p className={styles.salonHours}>🕒 Open daily: {profile.openingTime} - {profile.closingTime}</p>
             
             <div className={styles.trustBadgeRow}>
-              <span>✓ Instant Confirmation</span>
+              <span>✓ Instant Wallet Pay</span>
               <span>✓ Secure Booking</span>
               <span>✓ Free Cancellation</span>
             </div>
@@ -374,7 +359,6 @@ export default function SalonStore() {
         </section>
       )}
 
-      {/* --- STEP PROGRESS INDICATOR WIZARD BAR --- */}
       <nav className={styles.progressWizardHeader}>
         <div className={`${styles.wizardNode} ${step >= 1 ? styles.activeNode : ''}`}>Services</div>
         <div className={styles.wizardChevron}>&rarr;</div>
@@ -387,10 +371,9 @@ export default function SalonStore() {
         <div className={`${styles.wizardNode} ${step >= 5 ? styles.activeNode : ''}`}>Confirm</div>
       </nav>
 
-      {/* --- STEP CARD LAYOUT VIEWPORTS --- */}
       <main className={styles.wizardStepViewports}>
         
-        {/* STEP 1: SELECT PREMIUM SERVICES */}
+        {/* STEP 1: SELECT SERVICES */}
         {step === 1 && (
           <div className={styles.stepViewport}>
             <h2 className={styles.stepTitleHeading}>Select Premium Services</h2>
@@ -416,13 +399,11 @@ export default function SalonStore() {
           </div>
         )}
 
-        {/* STEP 2: ASSIGN WORKER RESOURCE */}
+        {/* STEP 2: CHOOSE WORKER */}
         {step === 2 && (
           <div className={styles.stepViewport}>
             <h2 className={styles.stepTitleHeading}>Choose Stylist/Worker</h2>
             <div className={styles.cardsScrollStack}>
-              
-              {/* ANY AVAILABLE OPTION CARD */}
               <div 
                 className={`${styles.luxurySelectionCard} ${selectedWorkerId === 'any' ? styles.cardIsSelectedState : ''}`}
                 onClick={() => setSelectedWorkerId('any')}
@@ -434,7 +415,6 @@ export default function SalonStore() {
                 <p className={styles.serviceCardDescription}>Select this path to pair your allocation automatically with the best matched professional framework slot.</p>
               </div>
 
-              {/* INDIVIDUAL STAFF CARDS */}
               {workers.map(worker => {
                 const isSelected = selectedWorkerId === worker.workerId;
                 return (
@@ -458,12 +438,10 @@ export default function SalonStore() {
           </div>
         )}
 
-        {/* STEP 3: SCHEDULE DATE & AVAILABLE TIMES */}
+        {/* STEP 3: DATE & TIME */}
         {step === 3 && (
           <div className={styles.stepViewport}>
             <h2 className={styles.stepTitleHeading}>Select Date & Time Slot</h2>
-            
-            {/* HORIZONTAL SCROLL CALENDAR BAR */}
             <div className={styles.calendarDaySliderRow}>
               {availableCalendarDays.map(day => (
                 <button 
@@ -478,7 +456,6 @@ export default function SalonStore() {
               ))}
             </div>
 
-            {/* TIME SLOTS GRID REPOSITORIES */}
             {selectedDate ? (
               <div className={styles.timeSlotsAdaptiveGrid}>
                 {computedTimeSlots.map(slot => (
@@ -503,7 +480,7 @@ export default function SalonStore() {
           </div>
         )}
 
-        {/* STEP 4: CUSTOMER CREDENTIAL INPUT DETAILS */}
+        {/* STEP 4: CUSTOMER DETAILS */}
         {step === 4 && (
           <div className={styles.stepViewport}>
             <h2 className={styles.stepTitleHeading}>Customer Details</h2>
@@ -545,10 +522,10 @@ export default function SalonStore() {
           </div>
         )}
 
-        {/* STEP 5: FINAL VERIFICATION REVIEW SUMMARY */}
+        {/* STEP 5: CONFIRM & PAY */}
         {step === 5 && (
           <div className={styles.stepViewport}>
-            <h2 className={styles.stepTitleHeading}>Confirm Your Appointment</h2>
+            <h2 className={styles.stepTitleHeading}>Confirm & Pay with Wallet</h2>
             <div className={styles.luxurySummaryDisplayCard}>
               <h3>{profile?.salonName}</h3>
               <p className={styles.summaryLocationText}>📍 {profile?.address}</p>
@@ -581,7 +558,7 @@ export default function SalonStore() {
                   <p>{totalDuration} Minutes</p>
                 </div>
                 <div>
-                  <h4>Total Aggregate Bill</h4>
+                  <h4>Total Due</h4>
                   <p className={styles.finalTotalEmphasizedText}>€{totalPrice.toFixed(2)}</p>
                 </div>
               </div>
@@ -617,7 +594,7 @@ export default function SalonStore() {
                 if (step === 1 && selectedServices.length === 0) return triggerToast("Please select at least one service.");
                 if (step === 3 && (!selectedDate || !selectedTime)) return triggerToast("Please specify calendar date and time targets.");
                 if (step === 4 && !customerName.trim()) return triggerToast("Your client profile requires an assignment name identifier.");
-                setStep(prev => (typeof prev === 'number' ? prev + 1 : 1) as 1 | 2 | 3 | 4 | 5 | 'success');
+                setStep(prev => (typeof prev === 'number' ? prev + 1 : 1) as any);
               }}
             >
               Continue
@@ -629,7 +606,7 @@ export default function SalonStore() {
               disabled={isSubmitting}
               onClick={executeFinalBookingSubmit}
             >
-              {isSubmitting ? "Locking Your Slot..." : "Book Appointment"}
+              {isSubmitting ? "Processing Wallet Payment..." : "Pay & Book Appointment"}
             </button>
           )}
         </div>

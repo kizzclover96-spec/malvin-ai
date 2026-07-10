@@ -13,6 +13,7 @@ import {
 import styles from './salonDashboard.module.css';
 import SalonStation from './salonStation';
 import QRCode from 'qrcode';
+import { useBusinessWallet } from "../hooks/useBusinessWallet";
 
 // --- Interfaces ---
 interface SalonData {
@@ -36,6 +37,7 @@ export default function SalonDashboard() {
   // Auth & Loading States
   const [uid, setUid] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const {balance, currency} = useBusinessWallet();
   
   // Salon Data State
   const [salon, setSalon] = useState<SalonData | null>(null);
@@ -404,7 +406,7 @@ export default function SalonDashboard() {
                 <h3>Account & Ledger</h3>
                 <div className={styles.metaRow}><strong>UID:</strong> <span className={styles.codeText}>{uid}</span></div>
                 <div className={styles.metaRow}><strong>Status:</strong> <span>{salon.status}</span></div>
-                <div className={styles.metaRow}><strong>VIN Wallet Balance:</strong> <span>${salon.walletBalance.toFixed(2)}</span></div>
+                <div className={styles.metaRow}><strong>VIN Wallet Balance:</strong> <span>{currency} {balance.toFixed(2)}</span></div>
                 <button type="button" className={styles.glassButtonPrimary} style={{ marginTop: '12px' }} onClick={handleWithdrawProfit}>
                   Withdraw Profit
                 </button>

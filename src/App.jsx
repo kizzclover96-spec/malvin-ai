@@ -1,7 +1,17 @@
 import React, { useState, useEffect } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth, firestore as db } from "./firebase";
-import { collection, collectionGroup, getDocs, query, where, doc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { 
+  collection, 
+  collectionGroup, 
+  getDocs, 
+  query, 
+  where, 
+  doc, 
+  updateDoc, 
+  serverTimestamp,
+  runTransaction
+} from "firebase/firestore";
 import Login from "./pages/loginscreen"; 
 import Welcomeview from "./pages/welcomeview"; 
 import { UserOption } from "./components/UserOption"; 
@@ -44,6 +54,54 @@ function App() {
   const [assignedManagerUid, setAssignedManagerUid] = useState("");
   const [flowStep, setFlowStep] = useState("welcome");
   const [workerSubScreen, setWorkerSubScreen] = useState("dashboard");
+
+  // 🟢 ATOMIC BALANCE PAYMENT CONTROLLER
+  const handleWalletPaymentExecution = async (amount, targetBusinessUid) => {
+    if (!user?.uid) throw new Error("Authentication context invalid.");
+    if (amount <= 0) throw new Error("Invalid checkout balance specification.");
+
+    const userDocRef = doc(db, "users", user.uid);
+    const businessDocRef = doc(db, "businesses", targetBusinessUid);
+
+    try {
+      await runTransaction(db, async (transaction) => {
+        // 1. Audit user balances safely inside transaction block
+        const userSnap = await transaction.get(userDocRef);
+        if (!userSnap.exists()) throw new Error("User file directory missing.");
+        
+        const currentBalance = userSnap.data().wallet?.balance || 0;
+        if (currentBalance < amount) {
+          throw new Error("Insufficient wallet balance.");
+        }
+
+        // 2. Access business details
+        const businessSnap = await transaction.get(businessDocRef);
+        if (!businessSnap.exists()) throw new Error("Merchant registration not found.");
+
+        // 3. Atomically execute mutation updates across nodes
+        transaction.update(userDocRef, {
+          "wallet.balance": currentBalance - amount
+        });
+
+        transaction.update(businessDocRef, {
+          "wallet.balance": (businessSnap.data().wallet?.balance || 0) + amount
+        });
+
+        // 4. Drop an immutable transaction ledger reference item
+        const userTxRef = doc(collection(db, "users", user.uid, "walletTransactions"));
+        transaction.set(userTxRef, {
+          storeName: businessSnap.data().businessName || "Malvin Storefront Platform",
+          amount: amount,
+          type: "spent",
+          timestamp: serverTimestamp()
+        });
+      });
+      console.log("Internal transfer finalized cleanly.");
+    } catch (error) {
+      console.error("Payment settlement error trace:", error);
+      throw error;
+    }
+  };
 
   const resetMode = () => {
     localStorage.removeItem("ui_mode");
@@ -166,8 +224,11 @@ function App() {
       <div className="App" style={{ minHeight: '100vh' }}>
         <Routes>
           <Route path="/chat/:brandId" element={<MarketFront />} />
-          <Route path="/food/:Uid" element={<StoreFrontend/>} />
-          <Route path="/salon/:uid" element={<SalonStore />} />
+          
+          {/* 🟢 Passing the wallet execution mechanism directly down into routing subcomponents */}
+          <Route path="/food/:Uid" element={<StoreFrontend onExecuteWalletPayment={handleWalletPaymentExecution} />} />
+          <Route path="/salon/:uid" element={<SalonStore onExecuteWalletPayment={handleWalletPaymentExecution} />} />
+          
           <Route path="/terms" element={<Terms />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/refund-policy" element={<RefundPolicy />} />
@@ -216,7 +277,7 @@ function App() {
                   onSelectWorker={() => setFlowStep("category")} 
                 />
               ) : flowStep === "front" ? (
-                <Front />
+                <Front onExecuteWalletPayment={handleWalletPaymentExecution} />
               ) : flowStep === "category" ? (
                 <Category onSelect={handleCategorySelect} />
               ) : flowStep === "food" ? (
@@ -244,7 +305,6 @@ function App() {
         </Routes>
       </div>
 
-      {/* 🛠️ Block FloatingTeamHub from customer view layers (`isStorefrontPath` or `flowStep === "front"`) */}
       {user && !isAdmin && !isStorefrontPath && flowStep !== "front" && (
         <FloatingTeamHub managerUid={isWorker ? assignedManagerUid : user.uid} />
       )}

@@ -3,10 +3,11 @@ import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 
 interface StoreFrontProps {
-  businessUid: string; // Holds the full scanned URL string (e.g., https://malvinai.com/salon/...)
+  businessUid: string; 
+  userWalletBalance: number; // Pass current balance down
+  onExecutePayment: (amount: number, businessId: string) => Promise<void>; // Pass payment trigger function down
   onExit: () => void;
 }
-
 export const StoreFront: React.FC<StoreFrontProps> = ({ businessUid, onExit }) => {
   // Fallback check to ensure we have a valid absolute URL string
   const targetUrl = businessUid.startsWith('http://') || businessUid.startsWith('https://')

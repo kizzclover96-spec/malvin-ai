@@ -17,6 +17,8 @@ import QRCode from 'qrcode';
 import RestaurantCatalogue from './OrderStoreCatalogue';
 import { getDatabase, ref, onValue } from "firebase/database";
 import { useRef } from "react";
+import { useBusinessWallet } from "../hooks/useBusinessWallet";
+import styles from './salonDashboard.module.css';
 
 // --- Type Definitions ---
 interface RestaurantData {
@@ -75,6 +77,7 @@ export default function FoodDashboard() {
   
   // --- New Premium Modal State ---
   const [showPremiumPopup, setShowPremiumPopup] = useState<boolean>(false);
+  const { balance, currency } = useBusinessWallet();
 
   // Editable Form State
   const [formBrandName, setFormBrandName] = useState<string>('');
@@ -91,6 +94,17 @@ export default function FoodDashboard() {
   const previousOrderCount = useRef(0);
 
   const [activeTab, setActiveTab] = useState<"orders" | "analytics">("orders");
+
+  const handleWithdrawProfit = () => {
+    if (!salon || salon.walletBalance <= 0) {
+      alert("No profits available to withdraw.");
+      return;
+    }
+    const confirmWithdraw = window.confirm(`Are you sure you want to withdraw your current balance of $${salon.walletBalance}?`);
+    if (confirmWithdraw) {
+      showToast("Withdrawal request initiated successfully!");
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -639,6 +653,12 @@ export default function FoodDashboard() {
                   </div>
                 ))}
               </div>
+            </section>
+            <section className="bg-white/75 backdrop-blur-md border-[3px] border-black rounded-3xl p-5">
+              <div className={styles.metaRow}><strong>VIN Wallet Balance:</strong> <span>{currency} {balance.toFixed(2)}</span></div>
+              <button type="button" className={styles.glassButtonPrimary} style={{ marginTop: '12px' }} onClick={handleWithdrawProfit}>
+                Withdraw Profit
+              </button>
             </section>
 
             {/* CARD 4: CATALOGUE */}

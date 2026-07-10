@@ -7,6 +7,7 @@ import {
 import { doc, collection, onSnapshot, query, orderBy, limit } from 'firebase/firestore';
 import { firestore as db } from '../firebase'; 
 import { auth } from "../firebase"; 
+import { getFunctions, httpsCallable } from 'firebase/functions'; // <-- ADD THIS IMPORT
 
 interface Transaction {
   id: string;
@@ -21,14 +22,12 @@ interface WalletProps {
 }
 
 export const Wallet: React.FC<WalletProps> = () => {
- const user = auth.currentUser;
+  const user = auth.currentUser;
   
-  // Real-time Ledger States
   const [balance, setBalance] = useState<number>(0.00);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  
-  // Action Feedback States
+  const [isProcessingTopUp, setIsProcessingTopUp] = useState<boolean>(false); // <-- ADD THIS STATE
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const showToast = (type: 'success' | 'error', message: string) => {
@@ -36,23 +35,34 @@ export const Wallet: React.FC<WalletProps> = () => {
     setTimeout(() => setToast(null), 3000);
   };
 
+  // Listen to Success/Cancel redirects from Stripe URL parameters
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('status') === 'success') {
+      showToast('success', 'Payment authorized! Your balance will update shortly.');
+      // Clean up URL parameters
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (params.get('status') === 'cancel') {
+      showToast('error', 'Top-up transaction cancelled.');
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
   useEffect(() => {
     if (!user?.uid) return;
 
-    // 1. Realtime balance synchronization pipeline
-    const balanceDocRef = doc(db, 'wallets', user.uid);
-    const unsubscribeBalance = onSnapshot(balanceDocRef, (docSnap) => {
-      if (docSnap.exists()) {
-        setBalance(docSnap.data().balance || 0.00);
-      } else {
-        setBalance(0.00);
+    const userDocRef = doc( db, "users", user.uid );
+    const unsubscribeBalance = onSnapshot(userDocRef, (docSnap)=>{
+        if(docSnap.exists()){
+          const data = docSnap.data();
+          setBalance(data.wallet?.balance || 0);
+        }
+      }, (error)=>{
+        console.error("Wallet sync error:", error);
       }
-    }, (error) => {
-      console.error("Error reading live wallet balance layer:", error);
-    });
+    );
 
-    // 2. Realtime transactional timeline compilation ledger (Limited to 3 for clean layout fit)
-    const transactionsRef = collection(db, 'wallets', user.uid, 'transactions');
+    const transactionsRef = collection( db, "users", user.uid, "walletTransactions" );
     const transactionsQuery = query(transactionsRef, orderBy('timestamp', 'desc'), limit(3));
     
     const unsubscribeTransactions = onSnapshot(transactionsQuery, (querySnapshot) => {
@@ -80,15 +90,49 @@ export const Wallet: React.FC<WalletProps> = () => {
     };
   }, [user]);
 
-  // Utility to cleanly parse operational timestamps 
+  // HANDLE TOP UP LOGIC
+  // HANDLE TOP UP LOGIC
+  const handleTopUp = async () => {
+    if (!user?.uid) return;
+
+    // Hardcoded testing amount to bypass the prompt error
+    const parsedAmount = 10.00; 
+
+    try {
+      setIsProcessingTopUp(true);
+      showToast('success', 'Connecting to secure billing architecture...');
+      
+      const functions = getFunctions();
+      const createWalletTopUpSessionFn = httpsCallable<{ amount: number; userId: string }, { url: string }>(
+        functions, 
+        'createWalletTopUpSession'
+      );
+      
+      const response = await createWalletTopUpSessionFn({
+        amount: parsedAmount,
+        userId: user.uid
+      });
+
+      if (response.data?.url) {
+        // Redirect user directly out to Stripe's payment gateway page
+        window.location.href = response.data.url;
+      } else {
+        throw new Error("No gateway link generated.");
+      }
+
+    } catch (err: any) {
+      console.error(err);
+      showToast('error', err.message || 'Failed to instantiate top-up request pipeline.');
+    } finally {
+      setIsProcessingTopUp(false);
+    }
+  };
+
   const formatTime = (timestamp: any) => {
     if (!timestamp) return 'Processing...';
     const date = timestamp.seconds ? new Date(timestamp.seconds * 1000) : new Date(timestamp);
     return date.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric', 
-      hour: '2-digit', 
-      minute: '2-digit' 
+      month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
     });
   };
 
@@ -103,7 +147,6 @@ export const Wallet: React.FC<WalletProps> = () => {
   return (
     <div className="w-full max-w-md mx-auto h-full overflow-hidden flex flex-col box-border select-none">
       
-      {/* TOAST SYSTEM ACCENT */}
       <AnimatePresence>
         {toast && (
           <motion.div
@@ -120,11 +163,9 @@ export const Wallet: React.FC<WalletProps> = () => {
         )}
       </AnimatePresence>
 
-      {/* VIEW HEADER */}
       <motion.div 
         initial={{ opacity: 0, y: -5 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
         className="w-full pb-4 flex items-center justify-between"
       >
         <h1 className="text-2xl font-black text-neutral-900 tracking-tight">Wallet</h1>
@@ -134,18 +175,13 @@ export const Wallet: React.FC<WalletProps> = () => {
         </div>
       </motion.div>
 
-      {/* MID-SECTION MAIN CANVAS (STABILIZED HEIGHT/NO-SCROLL LAYOUT) */}
       <div className="w-full flex-grow flex flex-col gap-4 overflow-hidden justify-start">
         
-        {/* CARD 1: CURRENT BALANCE VIEW */}
         <motion.div
           initial={{ opacity: 0, scale: 0.98, y: 10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
           className="w-full bg-neutral-50/70 border border-neutral-200/50 rounded-[2rem] p-6 shadow-[0_20px_50px_rgba(0,0,0,0.02)] backdrop-blur-xl relative overflow-hidden flex flex-col justify-between shrink-0"
         >
-          <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/20 to-transparent pointer-events-none" />
-          
           <div>
             <span className="text-[10px] font-black uppercase tracking-widest text-neutral-400 block mb-1">Available Balance</span>
             <h2 className="text-4xl font-black text-neutral-900 tracking-tight">
@@ -155,19 +191,22 @@ export const Wallet: React.FC<WalletProps> = () => {
 
           <motion.button
             whileTap={{ scale: 0.97 }}
-            onClick={() => showToast('success', 'Launching premium secure fiat top-up infrastructure portal...')}
-            className="w-full mt-6 bg-[#E53935] hover:bg-[#d32f2f] text-white text-xs font-black rounded-xl py-3.5 transition-all shadow-[0_8px_20px_rgba(229,57,53,0.15)] flex items-center justify-center gap-2 outline-none"
+            onClick={handleTopUp}
+            disabled={isProcessingTopUp}
+            className="w-full mt-6 bg-[#E53935] hover:bg-[#d32f2f] text-white text-xs font-black rounded-xl py-3.5 transition-all shadow-[0_8px_20px_rgba(229,57,53,0.15)] flex items-center justify-center gap-2 outline-none disabled:opacity-50"
           >
-            <Plus className="w-4 h-4" />
-            <span>Add Money</span>
+            {isProcessingTopUp ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Plus className="w-4 h-4" />
+            )}
+            <span>{isProcessingTopUp ? 'Connecting...' : 'Add Money'}</span>
           </motion.button>
         </motion.div>
 
-        {/* CARD 2: TRANSACTION HISTORY */}
         <motion.div
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.05, ease: [0.16, 1, 0.3, 1] }}
           className="w-full flex-grow bg-neutral-50/70 border border-neutral-200/50 rounded-[2rem] p-5 shadow-[0_20px_50px_rgba(0,0,0,0.02)] backdrop-blur-xl flex flex-col overflow-hidden"
         >
           <div className="flex items-center gap-2 mb-3 border-b border-neutral-200/50 pb-3 shrink-0">

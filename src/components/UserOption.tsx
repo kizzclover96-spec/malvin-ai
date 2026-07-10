@@ -1,5 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import { createBusinessStripeAccount } from "../stripe";
+import { app } from "../firebase";
 
 type UserOptionProps = {
   onSelectCustomer: () => void; // 🟢 Trigger state shift for Front view
@@ -7,6 +9,19 @@ type UserOptionProps = {
 };
 
 export const UserOption: React.FC<UserOptionProps> = ({ onSelectCustomer, onSelectWorker }) => {
+
+    const testStripeConnection = async () => {
+        try {
+            const result = await createBusinessStripeAccount({
+                email: "test@malvinai.com",
+            });
+
+            console.log("Stripe response:", result.data);
+
+        } catch (error) {
+            console.error("Stripe error:", error);
+        }
+    };
   return (
     <div className="w-full min-h-screen bg-neutral-950 flex flex-col justify-between items-center px-6 py-12 selection:bg-red-500/30 select-none font-sans overflow-hidden relative">
       

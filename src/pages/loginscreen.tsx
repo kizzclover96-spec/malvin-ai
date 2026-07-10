@@ -12,6 +12,7 @@ import { Capacitor } from "@capacitor/core";
 import { useNavigate } from "react-router-dom";
 import { ref, update, serverTimestamp } from "firebase/database";
 import { db } from "../firebase";
+import { initializeUser } from "../services/initializeUser";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -109,7 +110,16 @@ export default function Login() {
       
       // Capture metadata after success
       if (userCredential.user) {
-        await saveUserMetadata(userCredential.user.uid);
+
+        await saveUserMetadata(
+          userCredential.user.uid
+        );
+
+
+        await initializeUser(
+          userCredential.user
+        );
+
       }
     } catch (error: any) {
       alert("Login failed: " + error.message);
@@ -131,7 +141,16 @@ export default function Login() {
 
       // Capture metadata after success
       if (userCredential.user) {
-        await saveUserMetadata(userCredential.user.uid);
+
+        await saveUserMetadata(
+          userCredential.user.uid
+        );
+
+
+        await initializeUser(
+          userCredential.user
+        );
+
       }
     } catch (error: any) {
       alert(error.message);
