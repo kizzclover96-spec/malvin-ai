@@ -58,21 +58,34 @@ function App() {
 
   // 🟢 ATOMIC BALANCE PAYMENT CONTROLLER
   const handleWalletPaymentExecution = async (amount, targetBusinessUid) => {
-    // 1. Fetch fresh authentication instance status directly from the Firebase Core SDK
-    const currentAuthUser = auth.currentUser; 
+    // 🟢 Helper promise to get the user even if Firebase is still booting up
+    const getAuthenticatedUser = () => {
+      return new Promise((resolve) => {
+        // If it's already loaded, resolve immediately
+        if (auth.currentUser) {
+          resolve(auth.currentUser);
+          return;
+        }
+        // If it's not loaded yet, wait for the first auth change event
+        const unsubscribe = onAuthStateChanged(auth, (userInstance) => {
+          unsubscribe();
+          resolve(userInstance);
+        });
+      });
+    };
+
+    const currentAuthUser = await getAuthenticatedUser();
 
     if (!currentAuthUser?.uid) {
-      throw new Error("Authentication context invalid. No active user session found.");
+      throw new Error("Authentication context invalid. No active user session found after initialization check.");
     }
     if (amount <= 0) throw new Error("Invalid checkout balance specification.");
 
-    // 2. Use the guaranteed active user UID for document lookups
     const userDocRef = doc(db, "users", currentAuthUser.uid);
     const businessDocRef = doc(db, "businesses", targetBusinessUid);
 
     try {
       await runTransaction(db, async (transaction) => {
-        // 1. Audit user balances safely inside transaction block
         const userSnap = await transaction.get(userDocRef);
         if (!userSnap.exists()) throw new Error("User file directory missing.");
         
@@ -81,11 +94,9 @@ function App() {
           throw new Error("Insufficient wallet balance.");
         }
 
-        // 2. Access business details
         const businessSnap = await transaction.get(businessDocRef);
         if (!businessSnap.exists()) throw new Error("Merchant registration not found.");
 
-        // 3. Atomically execute mutation updates across nodes
         transaction.update(userDocRef, {
           "wallet.balance": currentBalance - amount
         });
@@ -94,7 +105,6 @@ function App() {
           "wallet.balance": (businessSnap.data().wallet?.balance || 0) + amount
         });
 
-        // 4. Drop an immutable transaction ledger reference item using currentAuthUser
         const userTxRef = doc(collection(db, "users", currentAuthUser.uid, "walletTransactions"));
         transaction.set(userTxRef, {
           storeName: businessSnap.data().businessName || "Malvin Storefront Platform",
