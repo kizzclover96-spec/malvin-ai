@@ -13,52 +13,56 @@ export default function TicketCheckout({ onExecuteWalletPayment }) {
   // Extract payload state safely when page mounts
   const payload = location.state;
 
-  useEffect(() => {
-    if (!payload || !payload.targetBusinessUid) {
-      setPaymentStatus("error");
-      setErrorMessage("No active checkout details found.");
-      return;
-    }
-
-    setTicketDetails(payload);
-
-    const processAutoPayment = async () => {
-      try {
-        // Trigger the shared balance deduction handler using fresh auth context
-        await onExecuteWalletPayment(payload.totalPrice, payload.targetBusinessUid);
-        
-        // 🟢 Generate the digital ticket node in Firestore right here
-        const currentUser = auth.currentUser;
-        if (currentUser) {
-          const ticketId = `SAL-${Math.floor(100000 + Math.random() * 900000)}`;
-          const appointmentRef = doc(collection(db, "salonAppointments", currentUser.uid, "appointments"));
-          
-          await runTransaction(db, async (transaction) => {
-            transaction.set(appointmentRef, {
-              ticketId: ticketId,
-              businessId: payload.targetBusinessUid,
-              services: payload.services,
-              stylist: payload.stylist,
-              duration: payload.duration,
-              totalPaid: payload.totalPrice,
-              status: "paid",
-              createdAt: serverTimestamp()
-            });
-          });
-
-          // Update localized state to append ticket tracking token to receipt UI
-          setTicketDetails(prev => ({ ...prev, ticketId }));
+    useEffect(() => {
+        if (!payload || !payload.targetBusinessUid) {
+        setPaymentStatus("error");
+        setErrorMessage("No active checkout details found.");
+        return;
         }
 
-        setPaymentStatus("success");
-      } catch (error: any) {
-        setPaymentStatus("error");
-        setErrorMessage(error.message || "Wallet transaction rejected.");
-      }
-    };
+        setTicketDetails(payload);
 
-    processAutoPayment();
-  }, [payload]);
+        const processAutoPayment = async () => {
+            try {
+                // 🟢 Fallback to the payload's verified identity if Firebase state is lagging
+                const activeUid = auth.currentUser?.uid || payload.customerUid;
+
+                if (!activeUid) {
+                setPaymentStatus("error");
+                setErrorMessage("Customer identity verification failed.");
+                return;
+                }
+
+                // Trigger the shared balance deduction handler using our verified identifier
+                await onExecuteWalletPayment(payload.totalPrice, payload.targetBusinessUid, activeUid);
+                
+                // Generate the digital ticket node in Firestore
+                const ticketId = `SAL-${Math.floor(100000 + Math.random() * 900000)}`;
+                const appointmentRef = doc(collection(db, "salonAppointments", activeUid, "appointments"));
+                
+                await runTransaction(db, async (transaction) => {
+                transaction.set(appointmentRef, {
+                    ticketId: ticketId,
+                    businessId: payload.targetBusinessUid,
+                    services: payload.services,
+                    stylist: payload.stylist,
+                    duration: payload.duration,
+                    totalPaid: payload.totalPrice,
+                    status: "paid",
+                    createdAt: serverTimestamp()
+                });
+                });
+
+                setTicketDetails(prev => ({ ...prev, ticketId }));
+                setPaymentStatus("success");
+            } catch (error: any) {
+                setPaymentStatus("error");
+                setErrorMessage(error.message || "Wallet transaction rejected.");
+            }
+        };
+
+        processAutoPayment();
+    }, [payload]);
 
   if (paymentStatus === "processing") {
     return (

@@ -63,7 +63,8 @@ export default function SalonStore() {
       time: selectedTime,           
       customerName: customerName.trim(),
       customerPhone: customerPhone.trim(),
-      customerNote: customerNote.trim()
+      customerNote: customerNote.trim(),
+      customerUid: customerUid
     };
 
     console.log("Navigating with payload:", checkoutPayload);
