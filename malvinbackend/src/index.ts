@@ -112,7 +112,7 @@ export const checkStripeAccount = onCall(async (request) => {
 =====================================
 */
 export const createWalletTopUpSession = onCall(
-  { secrets: ["SECURE_STRIPE_KEY"] }, // <-- Add this options object
+  { secrets: ["SECURE_STRIPE_KEY"] }, 
   async (request) => {
     if (!process.env.SECURE_STRIPE_KEY) {
       throw new HttpsError("failed-precondition", "Stripe secret key is missing on the server.");
@@ -157,10 +157,10 @@ export const createWalletTopUpSession = onCall(
 =====================================
 */
 export const stripeWebhook = onRequest(
-  { cors: true, secrets: ["SECURE_STRIPE_KEY", "SECURE_WEBHOOK_SECRET"] }, // Make sure it uses SECURE_STRIPE_KEY
+  { cors: true, secrets: ["SECURE_STRIPE_KEY", "SECURE_WEBHOOK_SECRET"] }, 
   async (req, res) => {
     const { FieldValue } = require("firebase-admin/firestore");
-    const stripe = new (require("stripe"))(process.env.SECURE_STRIPE_KEY || ""); // Read the secure key here
+    const stripe = new (require("stripe"))(process.env.SECURE_STRIPE_KEY || ""); 
     const db = getDb();
 
     const sig = req.headers["stripe-signature"];
@@ -205,3 +205,67 @@ export const stripeWebhook = onRequest(
     res.json({ received: true });
   }
 );
+
+/*
+=====================================
+6. SECURE BALANCE PAYMENT PROCESSOR
+=====================================
+*/
+export const processPayment = onCall(async (request) => {
+  // Ensure the caller is authenticated
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Authentication context is required.");
+  }
+
+  const { targetBusinessUid, amount } = request.data;
+  const customerUid = request.auth.uid;
+
+  if (!targetBusinessUid || typeof amount !== "number" || amount <= 0) {
+    throw new HttpsError("invalid-argument", "A valid business UID and payment amount are required.");
+  }
+
+  const db = getDb();
+  const { FieldValue, Transaction } = require("firebase-admin/firestore");
+
+  const userRef = db.collection("users").doc(customerUid);
+  const salonRef = db.collection("salons").doc(targetBusinessUid);
+  const txRef = userRef.collection("walletTransactions").doc();
+
+  try {
+    // Added explicit type annotation to the transaction parameter
+    await db.runTransaction(async (transaction: typeof Transaction) => {
+      const userDoc = await transaction.get(userRef);
+      const salonDoc = await transaction.get(salonRef);
+
+      if (!userDoc.exists || !salonDoc.exists) {
+        throw new HttpsError("not-found", "Target user profile or salon directory node is missing.");
+      }
+
+      const userData = userDoc.data();
+      const currentCustomerBalance = userData?.wallet?.balance ?? 0;
+
+      // Business check: Prevent balances from going negative on the client end
+      if (currentCustomerBalance < amount) {
+        throw new HttpsError("failed-precondition", "Insufficient client wallet funds available.");
+      }
+
+      // Execute balance updates atomically
+      transaction.update(userRef, { "wallet.balance": FieldValue.increment(-amount) });
+      transaction.update(salonRef, { walletBalance: FieldValue.increment(amount) });
+
+      // Generate verification receipt entry
+      transaction.set(txRef, {
+        storeName: salonDoc.data()?.name || "Pamela nails",
+        amount: amount,
+        type: "spent",
+        timestamp: FieldValue.serverTimestamp(),
+      });
+    });
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("Internal billing failure trace:", error);
+    if (error instanceof HttpsError) throw error;
+    throw new HttpsError("internal", "The ledger settlement failed to complete.");
+  }
+});
