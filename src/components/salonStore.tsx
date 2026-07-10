@@ -3,8 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { firestore as db } from '../firebase';
 import { doc, getDoc, collection, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
 import styles from './salonStore.module.css';
-import { onAuthStateChanged } from "firebase/auth";
-import { auth } from "../firebase";
+
 
 // --- Types & Interfaces ---
 interface SalonProfile {
@@ -61,8 +60,7 @@ export default function SalonStore({ onExecuteWalletPayment }: SalonStoreProps) 
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5 | 'success'>(1);
 
   //auth
-  const [validatedUser, setValidatedUser] = useState(null);
-  const [isAwaitingAuth, setIsAwaitingAuth] = useState(true);
+  const [customerUid, setCustomerUid] = useState<string | null>(null);
 
   // Booking Selection State
   const [selectedServices, setSelectedServices] = useState<Service[]>([]);
@@ -85,6 +83,39 @@ export default function SalonStore({ onExecuteWalletPayment }: SalonStoreProps) 
     console.log("Initial auth:", auth.currentUser);
   }, []);
 
+  useEffect(() => {
+
+    const receiveUserIdentity = (event: MessageEvent) => {
+
+      if(event.data?.type === "MALVIN_USER"){
+
+        console.log(
+          "Received Malvin customer UID:",
+          event.data.uid
+        );
+
+        setCustomerUid(event.data.uid);
+
+      }
+
+    };
+
+
+    window.addEventListener(
+      "message",
+      receiveUserIdentity
+    );
+
+
+    return () => {
+      window.removeEventListener(
+        "message",
+        receiveUserIdentity
+      );
+    };
+
+
+  }, []);
   
 
 
@@ -264,8 +295,8 @@ export default function SalonStore({ onExecuteWalletPayment }: SalonStoreProps) 
       triggerToast("Missing required scheduling credentials.");
       return;
     }
-    if (isAwaitingAuth || !validatedUser?.uid) {
-      alert("Security verification pending. Please try again in a moment.");
+    if (!customerUid) {
+      alert("Waiting for Malvin identity...");
       return;
     }
     console.log("validatedUser:", validatedUser);
@@ -275,7 +306,7 @@ export default function SalonStore({ onExecuteWalletPayment }: SalonStoreProps) 
     try {
       // Phase A: Atomic wallet deduction step
       triggerToast("Processing checkout ledger deduction...");
-      await onExecuteWalletPayment(totalPrice, uid, validatedUser.uid);
+      await onExecuteWalletPayment( totalPrice, uid, customerUid );
 
       // Phase B: Write booking context after successful payment settlement
       const referenceId = `SAL-${Math.floor(100000 + Math.random() * 900000)}`;

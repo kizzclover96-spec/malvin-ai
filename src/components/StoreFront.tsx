@@ -1,19 +1,52 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 
 interface StoreFrontProps {
-  businessUid: string; 
-  userWalletBalance: number; // Pass current balance down
-  onExecutePayment: (amount: number, businessId: string) => Promise<void>; // Pass payment trigger function down
+  businessUid: string;
+  userWalletBalance: number;
+  onExecutePayment: (amount: number, businessId: string) => Promise<void>;
   onExit: () => void;
+  userUid: string; // ADD THIS
 }
-export const StoreFront: React.FC<StoreFrontProps> = ({ businessUid, onExit }) => {
+export const StoreFront: React.FC<StoreFrontProps> = ({  businessUid,  onExit, userUid }) => {
   // Fallback check to ensure we have a valid absolute URL string
-  const targetUrl = businessUid.startsWith('http://') || businessUid.startsWith('https://')
-    ? businessUid
-    : `https://${businessUid}`;
+  const targetUrl = businessUid.startsWith('http://') || businessUid.startsWith('https://') ? businessUid : `https://${businessUid}`;
 
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  useEffect(() => {
+    const sendUserIdentity = () => {
+      if (iframeRef.current?.contentWindow) {
+        iframeRef.current.contentWindow.postMessage(
+          {
+            type: "MALVIN_USER",
+            uid: userUid
+          },
+          "*"
+        );
+
+        console.log(
+          "Sent Malvin user identity:",
+          userUid
+        );
+      }
+    };
+
+    const iframe = iframeRef.current;
+
+    iframe?.addEventListener(
+      "load",
+      sendUserIdentity
+    );
+
+    return () => {
+      iframe?.removeEventListener(
+        "load",
+        sendUserIdentity
+      );
+    };
+
+  }, [userUid]);
   return (
     <motion.div 
       initial={{ opacity: 0, y: 15 }}
@@ -39,7 +72,8 @@ export const StoreFront: React.FC<StoreFrontProps> = ({ businessUid, onExit }) =
       {/* MOBILE OPTIMIZED IFRAME VIEWPORT */}
       <div className="flex-1 w-full relative bg-neutral-50 overflow-hidden">
         <iframe 
-            src={targetUrl} 
+            ref={iframeRef}
+            src={targetUrl}
             title="In-App Store Webview Content"
             className="w-full h-full border-none m-0 p-0"
             // 🟢 Expanded permissions to make sure third-party checkout scripts don't break
