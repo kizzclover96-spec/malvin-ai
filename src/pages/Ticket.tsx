@@ -1,137 +1,218 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { auth, firestore as db } from "../firebase";
-import { doc, collection, runTransaction, serverTimestamp } from "firebase/firestore";
+import { auth } from "../firebase";
 import { getFunctions, httpsCallable } from 'firebase/functions';
+import { QRCodeSVG } from 'qrcode.react'; // 👈 Optimized SVG QR element
+import { Download, ArrowLeft, CheckCircle, RefreshCw } from 'lucide-react'; // Clean modern icons
 
 export default function TicketCheckout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const [paymentStatus, setPaymentStatus] = useState("processing"); // 'processing' | 'success' | 'error'
+  const receiptRef = useRef<HTMLDivElement>(null); // Reference for downlods/printing
+  
+  const [paymentStatus, setPaymentStatus] = useState("processing"); 
   const [errorMessage, setErrorMessage] = useState("");
   const [ticketDetails, setTicketDetails] = useState<any>(null);
 
-  // Secure Cloud Function Runner
-    const handleWalletPayment = async (targetBusinessUid: string, amount: number, customerUid: string) => {
+  const payload = location.state;
+
+  useEffect(() => {
+    if (!payload || !payload.targetBusinessUid) {
+      setPaymentStatus("error");
+      setErrorMessage("No active checkout details found.");
+      return;
+    }
+
+    setTicketDetails(payload);
+
+    const processAutoPayment = async () => {
+      try {
+        const activeUid = auth.currentUser?.uid || payload.customerUid;
+
+        if (!activeUid) {
+          setPaymentStatus("error");
+          setErrorMessage("Payment failed: Customer identity verification missing.");
+          return;
+        }
+
+        console.log(`Identity verified: ${activeUid}. Triggering function...`);
+        
         const functions = getFunctions();
         const processPayment = httpsCallable(functions, 'processPayment');
 
-        try {
-        console.log("Sending transaction request to secure backend...");
         const response = await processPayment({
-            targetBusinessUid: targetBusinessUid,
-            amount: amount,
-            fallbackCustomerUid: customerUid // 👈 Pass this explicitly
+          targetBusinessUid: payload.targetBusinessUid,
+          amount: payload.totalPrice,
+          fallbackCustomerUid: activeUid,
+          appointmentDetails: {
+            services: payload.services,
+            stylist: payload.stylist,
+            duration: payload.duration
+          }
         });
 
-        if (response.data && (response.data as any).success) {
-            return { success: true };
+        const resultData = response.data as any;
+
+        if (resultData && resultData.success) {
+          setTicketDetails(prev => ({ ...prev, ticketId: resultData.ticketId }));
+          setPaymentStatus("success");
+        } else {
+          setPaymentStatus("error");
+          setErrorMessage("Wallet payment processing was rejected by the server ledger.");
         }
-        return { success: false };
-        } catch (error: any) {
-        console.error("Payment transaction failed:", error.message);
-        return { success: false, error: error.message };
-        }
+      } catch (error: any) {
+        setPaymentStatus("error");
+        setErrorMessage(error.message || "An unexpected error occurred during checkout.");
+      }
     };
 
-  const payload = location.state;
+    processAutoPayment();
+  }, [payload]);
 
-    useEffect(() => {
-        if (!payload || !payload.targetBusinessUid) {
-            setPaymentStatus("error");
-            setErrorMessage("No active checkout details found.");
-            return;
-        }
+  // Handle saving the ticket context to user's device
+  const handleDownloadReceipt = () => {
+    if (!ticketDetails) return;
 
-        setTicketDetails(payload);
+    // Format plain text data file alternative
+    const receiptText = `
+========================================
+         MALVIN APPOINTMENT PASS        
+========================================
+Ticket ID: ${ticketDetails.ticketId || "N/A"}
+Stylist: ${ticketDetails.stylist || "Any Available"}
+Duration: ${ticketDetails.duration} mins
+Total Paid: €${ticketDetails.totalPrice}
 
-        const processAutoPayment = async () => {
-            try {
-            const activeUid = auth.currentUser?.uid || payload.customerUid;
+SERVICES CHOSEN:
+${ticketDetails.services?.map((s: any) => `- ${s.serviceName || s.name} (€${s.price})`).join("\n")}
 
-            if (!activeUid) {
-                setPaymentStatus("error");
-                setErrorMessage("Payment failed: Customer identity verification missing.");
-                return;
-            }
+----------------------------------------
+Scan the QR code on your app frame at 
+the store reception front desk to check-in.
+========================================
+    `;
 
-            console.log(`Identity verified: ${activeUid}. Triggering function...`);
-            
-            const functions = getFunctions();
-            const processPayment = httpsCallable(functions, 'processPayment');
+    const blob = new Blob([receiptText], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `Malvin-Ticket-${ticketDetails.ticketId || "Receipt"}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
-            // Call the endpoint while passing the ticket payload items across to the server context
-            const response = await processPayment({
-                targetBusinessUid: payload.targetBusinessUid,
-                amount: payload.totalPrice,
-                fallbackCustomerUid: activeUid,
-                appointmentDetails: {
-                services: payload.services,
-                stylist: payload.stylist,
-                duration: payload.duration
-                }
-            });
-
-            const resultData = response.data as any;
-
-            if (resultData && resultData.success) {
-                // Grab the official ticket ID generated securely by the server
-                setTicketDetails(prev => ({ ...prev, ticketId: resultData.ticketId }));
-                setPaymentStatus("success");
-            } else {
-                setPaymentStatus("error");
-                setErrorMessage("Wallet payment processing was rejected by the server ledger.");
-            }
-            } catch (error: any) {
-            setPaymentStatus("error");
-            setErrorMessage(error.message || "An unexpected error occurred during checkout.");
-            }
-        };
-
-        processAutoPayment();
-    }, [payload]);
+  // Convert payload data securely into a clean scan string
+  const getQrCodeDataString = () => {
+    if (!ticketDetails) return "";
+    return JSON.stringify({
+      tId: ticketDetails.ticketId,
+      bId: ticketDetails.targetBusinessUid,
+      cId: auth.currentUser?.uid || ticketDetails.customerUid,
+      stylist: ticketDetails.stylist,
+      price: ticketDetails.totalPrice
+    });
+  };
 
   if (paymentStatus === "processing") {
     return (
-      <div style={{ background: "#000", height: "100vh", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <h2>Securing your booking and processing wallet payment...</h2>
+      <div style={{ background: "#050505", height: "100vh", color: "#fff", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: "sans-serif" }}>
+        <RefreshCw style={{ animation: "spin 2s linear infinite", marginBottom: "16px", color: "#E53935" }} size={32} />
+        <h2 style={{ fontSize: "16px", fontWeight: 700, tracking: "-0.02em" }}>Processing settlement ledger...</h2>
       </div>
     );
   }
 
   if (paymentStatus === "error") {
     return (
-      <div style={{ padding: "20px", background: "#000", color: "#fff", height: "100vh" }}>
-        <h2 style={{ color: "red" }}>Checkout Failed</h2>
-        <p>{errorMessage}</p>
-        <button onClick={() => navigate(-1)} style={{ padding: "10px 20px", background: "#fff", color: "#000", border: "none", cursor: "pointer" }}>Go Back</button>
+      <div style={{ padding: "24px", background: "#050505", color: "#fff", height: "100vh", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", fontFamily: "sans-serif" }}>
+        <h2 style={{ color: "#E53935", fontSize: "24px", fontWeight: 900 }}>Checkout Failed</h2>
+        <p style={{ color: "#aaa", fontSize: "14px", margin: "12px 0 24px", textAlign: "center", maxWidth: "320px" }}>{errorMessage}</p>
+        <button onClick={() => navigate(-1)} style={{ padding: "12px 24px", background: "#fff", color: "#000", border: "none", borderRadius: "12px", fontWeight: "bold", cursor: "pointer", display: "flex", alignItems: "center", gap: "8px" }}>
+          <ArrowLeft size={16} /> Go Back
+        </button>
       </div>
     );
   }
 
   return (
-    <div style={{ padding: "20px", background: "#000", color: "#fff", minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center" }}>
-      <div style={{ border: "2px dashed #fff", padding: "30px", borderRadius: "12px", width: "100%", maxWidth: "400px", background: "#111" }}>
-        <h1 style={{ textAlign: "center", color: "#4BB543", fontSize: "20px" }}>✓ APPOINTMENT CONFIRMED</h1>
-        <hr style={{ borderColor: "#333", margin: "20px 0" }} />
+    <div style={{ padding: "40px 20px", background: "#050505", color: "#fff", minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyConent: "start", fontFamily: "sans-serif" }}>
+      
+      {/* 🧾 CARD BOUNDARY CONTAINER */}
+      <div ref={receiptRef} style={{ border: "1px solid #222", padding: "32px", borderRadius: "24px", width: "100%", maxWidth: "380px", background: "#0c0c0c", boxShadow: "0 20px 40px rgba(0,0,0,0.5)" }}>
         
-        <p><strong>Ticket ID:</strong> {ticketDetails?.ticketId}</p>
-        <p><strong>Total Paid:</strong> €{ticketDetails?.totalPrice}</p>
-        <p><strong>Stylist:</strong> {ticketDetails?.stylist || "Any available"}</p>
-        <p><strong>Duration:</strong> {ticketDetails?.duration} mins</p>
-        
-        {/* 📲 QR CODE PLACEHOLDER SECTION */}
-        <div style={{ background: "#fff", color: "#000", padding: "20px", margin: "20px 0", borderRadius: "8px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ width: "150px", height: "150px", background: "#ccc", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold" }}>
-            [ QR Code Component ]
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: "24px" }}>
+          <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "rgba(75,181,67,0.1)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "12px" }}>
+            <CheckCircle color="#4BB543" size={24} />
           </div>
-          <span style={{ fontSize: "11px", marginTop: "8px", color: "#666" }}>Scan at reception desk</span>
+          <h1 style={{ textTransform: "uppercase", letterSpacing: "1px", color: "#4BB543", fontSize: "14px", fontWeight: 900 }}>Appointment Confirmed</h1>
         </div>
 
-        <button onClick={() => navigate("/")} style={{ width: "100%", padding: "12px", marginTop: "10px", background: "#fff", color: "#000", border: "none", borderRadius: "6px", fontWeight: "bold", cursor: "pointer" }}>
-          Return to Home
-        </button>
+        <hr style={{ borderColor: "#1a1a1a", margin: "20px 0" }} />
+        
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "14px" }}>
+          <p style={{ display: "flex", justifyContent: "between", margin: 0 }}><span style={{ color: "#666" }}>Ticket ID:</span> <span style={{ fontWeight: "bold", marginLeft: "auto" }}>{ticketDetails?.ticketId}</span></p>
+          <p style={{ display: "flex", justifyContent: "between", margin: 0 }}><span style={{ color: "#666" }}>Stylist:</span> <span style={{ fontWeight: "bold", marginLeft: "auto" }}>{ticketDetails?.stylist || "Any available"}</span></p>
+          <p style={{ display: "flex", justifyContent: "between", margin: 0 }}><span style={{ color: "#666" }}>Duration:</span> <span style={{ fontWeight: "bold", marginLeft: "auto" }}>{ticketDetails?.duration} mins</span></p>
+          
+          <div style={{ margin: "8px 0", borderTop: "1px dashed #222", paddingTop: "8px" }}>
+            <span style={{ color: "#666", fontSize: "12px", block: "true" }}>Services:</span>
+            <div style={{ marginTop: "6px", display: "flex", flexDirection: "column", gap: "4px" }}>
+              {ticketDetails?.services?.map((service: any, index: number) => (
+                <div key={index} style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", background: "#111", padding: "6px 10px", borderRadius: "6px" }}>
+                  <span>{service.serviceName || service.name}</span>
+                  <span style={{ fontWeight: "bold" }}>€{service.price}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <p style={{ display: "flex", justifyContent: "between", margin: "8px 0 0", paddingTop: "8px", borderTop: "1px solid #1a1a1a" }}>
+            <span style={{ color: "#fff", fontWeight: "bold" }}>Total Amount Paid:</span> 
+            <span style={{ fontWeight: 900, color: "#fff", marginLeft: "auto", fontSize: "16px" }}>€{ticketDetails?.totalPrice}</span>
+          </p>
+        </div>
+        
+        {/* 📲 LIVE QR GENERATION CONTAINER */}
+        <div style={{ background: "#fff", color: "#000", padding: "24px", margin: "24px 0 16px", borderRadius: "16px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+          {ticketDetails && (
+            <QRCodeSVG 
+              value={getQrCodeDataString()} 
+              size={140}
+              level={"M"}
+              includeMargin={false}
+            />
+          )}
+          <span style={{ fontSize: "11px", fontWeight: "bold", marginTop: "12px", color: "#888", textTransform: "uppercase", letterSpacing: "0.5px" }}>Scan at reception front desk</span>
+        </div>
+
+        {/* UTILITY ACTION ITEMS */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "20px" }}>
+          <button 
+            onClick={handleDownloadReceipt} 
+            style={{ width: "100%", padding: "12px", background: "#111", color: "#fff", border: "1px solid #222", borderRadius: "12px", fontWeight: "bold", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", fontSize: "13px" }}
+          >
+            <Download size={14} /> Download Pass
+          </button>
+
+          <button 
+            onClick={() => navigate("/")} 
+            style={{ width: "100%", padding: "14px", background: "#fff", color: "#000", border: "none", borderRadius: "12px", fontWeight: 900, cursor: "pointer", fontSize: "13px" }}
+          >
+            Return to Home
+          </button>
+        </div>
+
       </div>
+      
+      {/* Dynamic Keyframe style injection for loader spin */}
+      <style>{`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 }
