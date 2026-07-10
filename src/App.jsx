@@ -41,6 +41,7 @@ import { QrScannerView } from './components/QR Scanner';
 import { MalvinSystemDashboard } from "./components/MalvinSystemDashboard";
 import { MalvinAiPersonnelSystem } from "./components/MalvinAiPersonnelSystem";
 import { Front } from './pages/Front';
+import TicketCheckout from "./pages/Ticket";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -237,6 +238,7 @@ function App() {
           <Route path="/allads" element={<AllAds />} />
           <Route path="/about" element={<About />} />
           <Route path="/verify" element={<MalvinAiPersonnelSystem userEmail={user?.email || ""} currentUserId={user?.uid || ""} />} />
+          <Route path="/ticket-checkout" element={<TicketCheckout onExecuteWalletPayment={handleWalletPaymentExecution} />} />
           
           <Route path="/customerchat" element={<MarketFront />} />
 

@@ -5,6 +5,7 @@ import { doc, getDoc, collection, onSnapshot, setDoc, serverTimestamp } from 'fi
 import styles from './salonStore.module.css';
 
 
+
 // --- Types & Interfaces ---
 interface SalonProfile {
   salonName: string;
@@ -44,9 +45,23 @@ interface SalonStoreProps {
   onExecuteWalletPayment: (amount: number, targetBusinessUid: string,  userUid: string ) => Promise<void>;
 }
 
-export default function SalonStore({ onExecuteWalletPayment }: SalonStoreProps) {
+export default function SalonStore() {
   const { uid } = useParams<{ uid: string }>();
   const navigate = useNavigate();
+
+  // This is the merchant business ID from the URL
+
+  const handleProceedToCheckout = () => {
+    const checkoutPayload = {
+      targetBusinessUid: uid, // Is 'uid' correctly pulled from useParams()?
+      totalPrice: totalPrice, // Does 'totalPrice' state exist under this exact name?
+      services: selectedServices, // Check name matches your state array
+      stylist: selectedStylist, 
+      duration: totalDuration 
+    };
+
+    navigate("/ticket-checkout", { state: checkoutPayload });
+  };
 
   // Loading & Hydration
   const [loading, setLoading] = useState(true);
@@ -73,6 +88,18 @@ export default function SalonStore({ onExecuteWalletPayment }: SalonStoreProps) 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [generatedRefId, setGeneratedRefId] = useState('');
 
+  const receiveUserIdentity = (event: MessageEvent) => {
+
+    console.log("Salon received:", event.data);
+
+    if (event.data?.type === "MALVIN_USER") {
+
+      console.log("Received Malvin customer UID:", event.data.uid);
+
+      setCustomerUid(event.data.uid);
+    }
+  };
+
 
   const triggerToast = (msg: string) => {
     setToast(msg);
@@ -82,6 +109,17 @@ export default function SalonStore({ onExecuteWalletPayment }: SalonStoreProps) 
     console.log("SalonStore mounted");
     console.log("customerUid:", customerUid);
   }, [customerUid]);
+
+  useEffect(() => {
+    window.parent.postMessage(
+      {
+        type: "SALON_READY",
+      },
+      "*"
+    );
+
+    console.log("Sent SALON_READY to parent");
+  }, []);
 
   useEffect(() => {
 
@@ -662,7 +700,7 @@ export default function SalonStore({ onExecuteWalletPayment }: SalonStoreProps) 
               type="button" 
               className={styles.footerSubmitBookingButton} 
               disabled={isSubmitting}
-              onClick={executeFinalBookingSubmit}
+              onClick={handleProceedToCheckout}
             >
               {isSubmitting ? "Processing Wallet Payment..." : "Pay & Book Appointment"}
             </button>
