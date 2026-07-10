@@ -7,7 +7,7 @@ import {
 import { doc, collection, onSnapshot, query, orderBy, limit } from 'firebase/firestore';
 import { firestore as db } from '../firebase'; 
 import { auth } from "../firebase"; 
-import { getFunctions, httpsCallable } from 'firebase/functions'; // <-- ADD THIS IMPORT
+import { getFunctions, httpsCallable } from 'firebase/functions';
 
 interface Transaction {
   id: string;
@@ -27,7 +27,8 @@ export const Wallet: React.FC<WalletProps> = () => {
   const [balance, setBalance] = useState<number>(0.00);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [isProcessingTopUp, setIsProcessingTopUp] = useState<boolean>(false); // <-- ADD THIS STATE
+  const [topUpAmount, setTopUpAmount] = useState<string>(''); // 👈 New state for custom input field
+  const [isProcessingTopUp, setIsProcessingTopUp] = useState<boolean>(false);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const showToast = (type: 'success' | 'error', message: string) => {
@@ -35,12 +36,10 @@ export const Wallet: React.FC<WalletProps> = () => {
     setTimeout(() => setToast(null), 3000);
   };
 
-  // Listen to Success/Cancel redirects from Stripe URL parameters
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('status') === 'success') {
       showToast('success', 'Payment authorized! Your balance will update shortly.');
-      // Clean up URL parameters
       window.history.replaceState({}, document.title, window.location.pathname);
     } else if (params.get('status') === 'cancel') {
       showToast('error', 'Top-up transaction cancelled.');
@@ -51,18 +50,17 @@ export const Wallet: React.FC<WalletProps> = () => {
   useEffect(() => {
     if (!user?.uid) return;
 
-    const userDocRef = doc( db, "users", user.uid );
-    const unsubscribeBalance = onSnapshot(userDocRef, (docSnap)=>{
-        if(docSnap.exists()){
-          const data = docSnap.data();
-          setBalance(data.wallet?.balance || 0);
-        }
-      }, (error)=>{
-        console.error("Wallet sync error:", error);
+    const userDocRef = doc(db, "users", user.uid);
+    const unsubscribeBalance = onSnapshot(userDocRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setBalance(data.wallet?.balance || 0);
       }
-    );
+    }, (error) => {
+      console.error("Wallet sync error:", error);
+    });
 
-    const transactionsRef = collection( db, "users", user.uid, "walletTransactions" );
+    const transactionsRef = collection(db, "users", user.uid, "walletTransactions");
     const transactionsQuery = query(transactionsRef, orderBy('timestamp', 'desc'), limit(3));
     
     const unsubscribeTransactions = onSnapshot(transactionsQuery, (querySnapshot) => {
@@ -90,13 +88,22 @@ export const Wallet: React.FC<WalletProps> = () => {
     };
   }, [user]);
 
-  // HANDLE TOP UP LOGIC
-  // HANDLE TOP UP LOGIC
   const handleTopUp = async () => {
     if (!user?.uid) return;
 
-    // Hardcoded testing amount to bypass the prompt error
-    const parsedAmount = 10.00; 
+    // Convert the text input value safely into a float
+    const parsedAmount = parseFloat(topUpAmount);
+
+    // Frontend validation guardrails
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      showToast('error', 'Please enter a valid deposit amount greater than €0.');
+      return;
+    }
+
+    if (parsedAmount < 5.00) {
+      showToast('error', 'Minimum processing threshold is €5.00.');
+      return;
+    }
 
     try {
       setIsProcessingTopUp(true);
@@ -114,7 +121,6 @@ export const Wallet: React.FC<WalletProps> = () => {
       });
 
       if (response.data?.url) {
-        // Redirect user directly out to Stripe's payment gateway page
         window.location.href = response.data.url;
       } else {
         throw new Error("No gateway link generated.");
@@ -189,11 +195,26 @@ export const Wallet: React.FC<WalletProps> = () => {
             </h2>
           </div>
 
+          {/* 📲 CUSTOM INPUT BOX ADDED HERE */}
+          <div className="mt-5 relative">
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-black text-neutral-400">€</span>
+            <input
+              type="number"
+              placeholder="0.00"
+              step="0.01"
+              min="5"
+              value={topUpAmount}
+              onChange={(e) => setTopUpAmount(e.target.value)}
+              disabled={isProcessingTopUp}
+              className="w-full pl-8 pr-4 py-3 bg-white border border-neutral-200 text-neutral-900 placeholder-neutral-300 rounded-xl text-sm font-bold outline-none transition-all focus:border-neutral-400 disabled:opacity-60"
+            />
+          </div>
+
           <motion.button
             whileTap={{ scale: 0.97 }}
             onClick={handleTopUp}
-            disabled={isProcessingTopUp}
-            className="w-full mt-6 bg-[#E53935] hover:bg-[#d32f2f] text-white text-xs font-black rounded-xl py-3.5 transition-all shadow-[0_8px_20px_rgba(229,57,53,0.15)] flex items-center justify-center gap-2 outline-none disabled:opacity-50"
+            disabled={isProcessingTopUp || !topUpAmount}
+            className="w-full mt-3 bg-[#E53935] hover:bg-[#d32f2f] text-white text-xs font-black rounded-xl py-3.5 transition-all shadow-[0_8px_20px_rgba(229,57,53,0.15)] flex items-center justify-center gap-2 outline-none disabled:opacity-40"
           >
             {isProcessingTopUp ? (
               <Loader2 className="w-4 h-4 animate-spin" />

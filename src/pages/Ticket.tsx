@@ -38,56 +38,53 @@ export default function TicketCheckout() {
 
     useEffect(() => {
         if (!payload || !payload.targetBusinessUid) {
-        setPaymentStatus("error");
-        setErrorMessage("No active checkout details found.");
-        return;
+            setPaymentStatus("error");
+            setErrorMessage("No active checkout details found.");
+            return;
         }
 
         setTicketDetails(payload);
 
         const processAutoPayment = async () => {
             try {
-                // Use the frame's internal auth user, or fall back immediately to the payload identity
-                const activeUid = auth.currentUser?.uid || payload.customerUid;
+            const activeUid = auth.currentUser?.uid || payload.customerUid;
 
-                if (!activeUid) {
+            if (!activeUid) {
                 setPaymentStatus("error");
                 setErrorMessage("Payment failed: Customer identity verification missing.");
                 return;
+            }
+
+            console.log(`Identity verified: ${activeUid}. Triggering function...`);
+            
+            const functions = getFunctions();
+            const processPayment = httpsCallable(functions, 'processPayment');
+
+            // Call the endpoint while passing the ticket payload items across to the server context
+            const response = await processPayment({
+                targetBusinessUid: payload.targetBusinessUid,
+                amount: payload.totalPrice,
+                fallbackCustomerUid: activeUid,
+                appointmentDetails: {
+                services: payload.services,
+                stylist: payload.stylist,
+                duration: payload.duration
                 }
+            });
 
-                console.log(`Identity verified: ${activeUid}. Triggering function...`);
-                
-                // Pass the activeUid to our function helper
-                const paymentResult = await handleWalletPayment(payload.targetBusinessUid, payload.totalPrice, activeUid);
+            const resultData = response.data as any;
 
-                if (!paymentResult.success) {
-                setPaymentStatus("error");
-                setErrorMessage(paymentResult.error || "Wallet payment rejected.");
-                return;
-                }
-                
-                const ticketId = `SAL-${Math.floor(100000 + Math.random() * 900000)}`;
-                const appointmentRef = doc(collection(db, "salonAppointments", activeUid, "appointments"));
-                
-                await runTransaction(db, async (transaction) => {
-                transaction.set(appointmentRef, {
-                    ticketId: ticketId,
-                    businessId: payload.targetBusinessUid,
-                    services: payload.services,
-                    stylist: payload.stylist,
-                    duration: payload.duration,
-                    totalPaid: payload.totalPrice,
-                    status: "paid",
-                    createdAt: serverTimestamp()
-                });
-                });
-
-                setTicketDetails(prev => ({ ...prev, ticketId }));
+            if (resultData && resultData.success) {
+                // Grab the official ticket ID generated securely by the server
+                setTicketDetails(prev => ({ ...prev, ticketId: resultData.ticketId }));
                 setPaymentStatus("success");
-            } catch (error: any) {
+            } else {
                 setPaymentStatus("error");
-                setErrorMessage(error.message || "An unexpected error occurred during checkout.");
+                setErrorMessage("Wallet payment processing was rejected by the server ledger.");
+            }
+            } catch (error: any) {
+            setPaymentStatus("error");
+            setErrorMessage(error.message || "An unexpected error occurred during checkout.");
             }
         };
 

@@ -212,9 +212,8 @@ export const stripeWebhook = onRequest(
 =====================================
 */
 export const processPayment = onCall({ cors: true }, async (request) => {
-  const { targetBusinessUid, amount, fallbackCustomerUid } = request.data;
+  const { targetBusinessUid, amount, fallbackCustomerUid, appointmentDetails } = request.data;
   
-  // Resolve identity from auth header context first, fallback to payload string if embedded
   const customerUid = request.auth?.uid || fallbackCustomerUid;
 
   if (!customerUid) {
@@ -231,6 +230,10 @@ export const processPayment = onCall({ cors: true }, async (request) => {
   const userRef = db.collection("users").doc(customerUid);
   const salonRef = db.collection("salons").doc(targetBusinessUid);
   const txRef = userRef.collection("walletTransactions").doc();
+  
+  // Create a reference for the salon appointment on the server side
+  const ticketId = `SAL-${Math.floor(100000 + Math.random() * 900000)}`;
+  const appointmentRef = db.collection("salonAppointments").doc(customerUid).collection("appointments").doc();
 
   try {
     await db.runTransaction(async (transaction: typeof Transaction) => {
@@ -248,18 +251,33 @@ export const processPayment = onCall({ cors: true }, async (request) => {
         throw new HttpsError("failed-precondition", "Insufficient client wallet funds available.");
       }
 
+      // 1. Update balances
       transaction.update(userRef, { "wallet.balance": FieldValue.increment(-amount) });
       transaction.update(salonRef, { walletBalance: FieldValue.increment(amount) });
 
+      // 2. Save user transaction statement logs
       transaction.set(txRef, {
         storeName: salonDoc.data()?.name || "Pamela nails",
         amount: amount,
         type: "spent",
         timestamp: FieldValue.serverTimestamp(),
       });
+
+      // 3. SECURE TICKET CREATION: Generate the booking pass right here!
+      transaction.set(appointmentRef, {
+        ticketId: ticketId,
+        businessId: targetBusinessUid,
+        services: appointmentDetails?.services || [],
+        stylist: appointmentDetails?.stylist || "Any available",
+        duration: appointmentDetails?.duration || 0,
+        totalPaid: amount,
+        status: "paid",
+        createdAt: FieldValue.serverTimestamp()
+      });
     });
 
-    return { success: true };
+    // Return the generated ticket ID back to the frontend to build the receipt UI
+    return { success: true, ticketId };
   } catch (error: any) {
     console.error("Internal billing failure trace:", error);
     if (error instanceof HttpsError) throw error;
