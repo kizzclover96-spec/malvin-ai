@@ -144,9 +144,12 @@ export const Front: React.FC = () => {
   // 🟢 SWAP ENTIRE LAYOUT IF BUSINESS IS SCANNED / VISITED
   if (activeStoreUid) {
     return (
-      <StoreFront 
-        businessUid={activeStoreUid} 
-        onExit={() => setActiveStoreUid(null)} 
+      <StoreFront
+        businessUid={activeStoreUid}
+        userUid={user.uid}
+        userWalletBalance={0}
+        onExecutePayment={async () => {}}
+        onExit={() => setActiveStoreUid(null)}
       />
     );
   }

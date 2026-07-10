@@ -17,65 +17,36 @@ export const StoreFront: React.FC<StoreFrontProps> = ({  businessUid, userUid, o
   const targetUrl = businessUid.startsWith('http://') || businessUid.startsWith('https://') ? businessUid : `https://${businessUid}`;
 
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
+ 
   useEffect(() => {
 
-    const iframe = document.querySelector("iframe");
+    const listener = (event: MessageEvent) => {
 
-    if(!iframe) return;
+        if (event.data?.type === "SALON_READY") {
 
+            iframeRef.current?.contentWindow?.postMessage(
+                {
+                    type: "MALVIN_USER",
+                    uid: userUid
+                },
+                "*"
+            );
 
-    iframe.onload = () => {
-
-      iframe.contentWindow?.postMessage(
-        {
-          type:"MALVIN_USER",
-          uid:userUid
-        },
-        "*"
-      );
-
-      console.log(
-        "Sent Malvin user identity:",
-        userUid
-      );
+            console.log(
+                "Salon requested identity:",
+                userUid
+            );
+        }
 
     };
 
-  },[userUid]);
-  
-  useEffect(() => {
-    const sendUserIdentity = () => {
-      if (iframeRef.current?.contentWindow) {
-        iframeRef.current.contentWindow.postMessage(
-          {
-            type: "MALVIN_USER",
-            uid: userUid
-          },
-          "*"
-        );
+    window.addEventListener("message", listener);
 
-        console.log(
-          "Sent Malvin user identity:",
-          userUid
-        );
-      }
-    };
-
-    const iframe = iframeRef.current;
-
-    iframe?.addEventListener(
-      "load",
-      sendUserIdentity
-    );
-
-    return () => {
-      iframe?.removeEventListener(
-        "load",
-        sendUserIdentity
-      );
-    };
+    return () => window.removeEventListener("message", listener);
 
   }, [userUid]);
+
+ 
   return (
     <motion.div 
       initial={{ opacity: 0, y: 15 }}

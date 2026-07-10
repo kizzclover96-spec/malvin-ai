@@ -80,7 +80,8 @@ export default function SalonStore({ onExecuteWalletPayment }: SalonStoreProps) 
   };
   useEffect(() => {
     console.log("SalonStore mounted");
-  }, []);
+    console.log("customerUid:", customerUid);
+  }, [customerUid]);
 
   useEffect(() => {
 
