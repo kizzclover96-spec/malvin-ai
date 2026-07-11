@@ -242,7 +242,9 @@ export const StoreFrontend: React.FC = () => {
       <div style={{ background: "#111", borderBottom: "1px solid #222", padding: "8px 24px" }}>
         <div style={{ maxWidth: "600px", margin: "0 auto", display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#aaa" }}>
           <span>Your Active Wallet Status:</span>
-          <span style={{ color: "#4BB543", fontWeight: "bold" }}>Available Balance: {currency}{walletBalance.toFixed(2)}</span>
+          <span style={{ color: "#4BB543", fontWeight: "bold" }}>
+            Available Balance: {currency}{typeof walletBalance === 'number' ? walletBalance.toFixed(2) : '0.00'}
+          </span>
         </div>
       </div>
 
