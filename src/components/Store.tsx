@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { db } from '../firebase'; // 👈 Adjusted from 'firestore as db' if standard
+import { firestore as db } from '../firebase'; // 👈 Adjusted from 'firestore as db' if standard
 import { doc, onSnapshot, collection, query, where, deleteDoc, updateDoc, increment } from 'firebase/firestore';
 import styles from './store.module.css';
 import { useParams, useNavigate } from "react-router-dom";
