@@ -38,7 +38,7 @@ export default function TicketCheckout() {
         console.log(`Identity verified: ${activeUid}. Triggering function...`);
         
         const functions = getFunctions();
-        const processPayment = httpsCallable(functions, 'processPayment');
+        const processPayment = httpsCallable(functions, 'malvinbackend-processPayment');
 
         const response = await processPayment({
           targetBusinessUid: payload.targetBusinessUid,
