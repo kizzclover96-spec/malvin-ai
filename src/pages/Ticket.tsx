@@ -8,7 +8,7 @@ import { Download, ArrowLeft, CheckCircle, RefreshCw } from 'lucide-react'; // C
 export default function TicketCheckout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const receiptRef = useRef<HTMLDivElement>(null); // Reference for downlods/printing
+  const receiptRef = useRef<HTMLDivElement>(null); // Reference for downloads/printing
   
   const [paymentStatus, setPaymentStatus] = useState("processing"); 
   const [errorMessage, setErrorMessage] = useState("");
@@ -119,7 +119,7 @@ the store reception front desk to check-in.
     return (
       <div style={{ background: "#050505", height: "100vh", color: "#fff", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: "sans-serif" }}>
         <RefreshCw style={{ animation: "spin 2s linear infinite", marginBottom: "16px", color: "#E53935" }} size={32} />
-        <h2 style={{ fontSize: "16px", fontWeight: 700, tracking: "-0.02em" }}>Processing settlement ledger...</h2>
+        <h2 style={{ fontSize: "16px", fontWeight: 700 }}>Processing settlement ledger...</h2>
       </div>
     );
   }
@@ -137,40 +137,40 @@ the store reception front desk to check-in.
   }
 
   return (
-    <div style={{ padding: "40px 20px", background: "#050505", color: "#fff", minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyConent: "start", fontFamily: "sans-serif" }}>
+    <div style={{ padding: "24px 16px", background: "#050505", color: "#fff", minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", fontFamily: "sans-serif" }}>
       
-      {/* 🧾 CARD BOUNDARY CONTAINER */}
-      <div ref={receiptRef} style={{ border: "1px solid #222", padding: "32px", borderRadius: "24px", width: "100%", maxWidth: "380px", background: "#0c0c0c", boxShadow: "0 20px 40px rgba(0,0,0,0.5)" }}>
+      {/* 🧾 CARD BOUNDARY CONTAINER — Optimized for Width & Responsiveness */}
+      <div ref={receiptRef} style={{ border: "1px solid #222", padding: "clamp(16px, 5vw, 32px)", borderRadius: "24px", width: "95%", maxWidth: "460px", background: "#0c0c0c", boxShadow: "0 20px 40px rgba(0,0,0,0.5)", boxSizing: "border-box" }}>
         
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: "24px" }}>
           <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "rgba(75,181,67,0.1)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "12px" }}>
             <CheckCircle color="#4BB543" size={24} />
           </div>
-          <h1 style={{ textTransform: "uppercase", letterSpacing: "1px", color: "#4BB543", fontSize: "14px", fontWeight: 900 }}>Appointment Confirmed</h1>
+          <h1 style={{ textTransform: "uppercase", letterSpacing: "1px", color: "#4BB543", fontSize: "14px", fontWeight: 900, textAlign: "center" }}>Appointment Confirmed</h1>
         </div>
 
         <hr style={{ borderColor: "#1a1a1a", margin: "20px 0" }} />
         
-        <div style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "14px" }}>
-          <p style={{ display: "flex", justifyContent: "between", margin: 0 }}><span style={{ color: "#666" }}>Ticket ID:</span> <span style={{ fontWeight: "bold", marginLeft: "auto" }}>{ticketDetails?.ticketId}</span></p>
-          <p style={{ display: "flex", justifyContent: "between", margin: 0 }}><span style={{ color: "#666" }}>Stylist:</span> <span style={{ fontWeight: "bold", marginLeft: "auto" }}>{ticketDetails?.stylist || "Any available"}</span></p>
-          <p style={{ display: "flex", justifyContent: "between", margin: 0 }}><span style={{ color: "#666" }}>Duration:</span> <span style={{ fontWeight: "bold", marginLeft: "auto" }}>{ticketDetails?.duration} mins</span></p>
+        <div style={{ display: "flex", flexDirection: "column", gap: "14px", fontSize: "14px" }}>
+          <p style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: 0 }}><span style={{ color: "#666" }}>Ticket ID:</span> <span style={{ fontWeight: "bold", textAlign: "right", wordBreak: "break-all", marginLeft: "16px" }}>{ticketDetails?.ticketId}</span></p>
+          <p style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: 0 }}><span style={{ color: "#666" }}>Stylist:</span> <span style={{ fontWeight: "bold", textAlign: "right", marginLeft: "16px" }}>{ticketDetails?.stylist || "Any available"}</span></p>
+          <p style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: 0 }}><span style={{ color: "#666" }}>Duration:</span> <span style={{ fontWeight: "bold", textAlign: "right", marginLeft: "16px" }}>{ticketDetails?.duration} mins</span></p>
           
-          <div style={{ margin: "8px 0", borderTop: "1px dashed #222", paddingTop: "8px" }}>
-            <span style={{ color: "#666", fontSize: "12px", block: "true" }}>Services:</span>
-            <div style={{ marginTop: "6px", display: "flex", flexDirection: "column", gap: "4px" }}>
+          <div style={{ margin: "8px 0", borderTop: "1px dashed #222", paddingTop: "12px" }}>
+            <span style={{ color: "#666", fontSize: "12px", display: "block", marginBottom: "6px" }}>Services:</span>
+            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
               {ticketDetails?.services?.map((service: any, index: number) => (
-                <div key={index} style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", background: "#111", padding: "6px 10px", borderRadius: "6px" }}>
-                  <span>{service.serviceName || service.name}</span>
-                  <span style={{ fontWeight: "bold" }}>€{service.price}</span>
+                <div key={index} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "13px", background: "#111", padding: "8px 12px", borderRadius: "8px", gap: "8px" }}>
+                  <span style={{ textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>{service.serviceName || service.name}</span>
+                  <span style={{ fontWeight: "bold", flexShrink: 0 }}>€{service.price}</span>
                 </div>
               ))}
             </div>
           </div>
 
-          <p style={{ display: "flex", justifyContent: "between", margin: "8px 0 0", paddingTop: "8px", borderTop: "1px solid #1a1a1a" }}>
+          <p style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "8px 0 0", paddingTop: "12px", borderTop: "1px solid #1a1a1a" }}>
             <span style={{ color: "#fff", fontWeight: "bold" }}>Total Amount Paid:</span> 
-            <span style={{ fontWeight: 900, color: "#fff", marginLeft: "auto", fontSize: "16px" }}>€{ticketDetails?.totalPrice}</span>
+            <span style={{ fontWeight: 900, color: "#fff", fontSize: "18px" }}>€{ticketDetails?.totalPrice}</span>
           </p>
         </div>
         
@@ -179,12 +179,12 @@ the store reception front desk to check-in.
           {ticketDetails && (
             <QRCodeSVG 
               value={getQrCodeDataString()} 
-              size={140}
+              size={150}
               level={"M"}
               includeMargin={false}
             />
           )}
-          <span style={{ fontSize: "11px", fontWeight: "bold", marginTop: "12px", color: "#888", textTransform: "uppercase", letterSpacing: "0.5px" }}>Scan at reception front desk</span>
+          <span style={{ fontSize: "11px", fontWeight: "bold", marginTop: "12px", color: "#888", textTransform: "uppercase", letterSpacing: "0.5px", textAlign: "center" }}>Scan at reception front desk</span>
         </div>
 
         {/* UTILITY ACTION ITEMS */}
