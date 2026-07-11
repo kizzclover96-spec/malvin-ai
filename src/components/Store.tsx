@@ -179,6 +179,18 @@ export const StoreFrontend: React.FC = () => {
       generateQrs();
     }
   }, [userOrders]);
+  // Add this inside StoreFrontend in store.tsx:
+  useEffect(() => {
+    // Ping the parent wrapper using the name it expects
+    window.parent.postMessage(
+      {
+        type: "SALON_READY", 
+      },
+      "*"
+    );
+
+    console.log("Sent STORE_READY frame handshake from StoreFrontend to parent wrapper");
+  }, []);
 
   // 5. Catch Incoming Auto-Bounce Payments from ticket.tsx
   useEffect(() => {
