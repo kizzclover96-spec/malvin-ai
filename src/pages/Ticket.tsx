@@ -48,15 +48,18 @@ export default function TicketCheckout() {
         const functions = getFunctions();
         const processPayment = httpsCallable(functions, 'processPayment');
 
+        const inferredMerchantType = payload.fromStore ? "food" : "salon";
+
         const response = await processPayment({
-          targetBusinessUid: payload.targetBusinessUid,
-          amount: payload.totalPrice,
-          fallbackCustomerUid: activeUid, 
-          appointmentDetails: {
-            services: payload.services,
-            stylist: payload.stylist,
-            duration: payload.duration
-          }
+            targetBusinessUid: payload.targetBusinessUid,
+            amount: payload.totalPrice,
+            fallbackCustomerUid: activeUid, 
+            merchantType: inferredMerchantType, // 🟢 Add this line to pass it to the cloud function
+            appointmentDetails: {
+                services: payload.services,
+                stylist: payload.stylist,
+                duration: payload.duration
+            }
         });
 
         const resultData = response.data as any;

@@ -64,7 +64,8 @@ export default function SalonStore() {
       customerName: customerName.trim(),
       customerPhone: customerPhone.trim(),
       customerNote: customerNote.trim(),
-      customerUid: customerUid
+      customerUid: customerUid,
+      merchantType: "salon"
     };
 
     console.log("Navigating with payload:", checkoutPayload);

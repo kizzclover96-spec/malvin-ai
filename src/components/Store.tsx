@@ -272,7 +272,8 @@ export const StoreFrontend: React.FC = () => {
       userMobilityStatus: currentStatus,
       tableNumber: currentStatus === 'in store' ? tableNumber : '',
       customerUid: finalUid, // 👈 Ensures the active ID goes straight through
-      fromStore: true 
+      fromStore: true ,
+      merchantType: "food"
     };
 
     setCart([]);

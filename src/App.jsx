@@ -59,15 +59,17 @@ function App() {
 
   // 🟢 ATOMIC BALANCE PAYMENT CONTROLLER
   // 🟢 ATOMIC BALANCE PAYMENT CONTROLLER
-  const handleWalletPaymentExecution = async ( amount, targetBusinessUid, customerUid ) => {
-    
-    if (!customerUid) { throw new Error("Customer not authenticated.");}
+  // 🟢 Update handleWalletPaymentExecution in App.tsx to check a merchantType flag
+  const handleWalletPaymentExecution = async (amount, targetBusinessUid, customerUid, merchantType = "salon") => {
+      
+    if (!customerUid) throw new Error("Customer not authenticated.");
     if (amount <= 0) throw new Error("Invalid checkout balance specification.");
 
     const userDocRef = doc(db, "users", customerUid);
     
-    // 🟢 CHANGE THIS FROM "businesses" TO "salons" to sync with your manager profile directory:
-    const businessDocRef = doc(db, "salons", targetBusinessUid);
+    // 🟢 DYNAMIC ROUTING: Choose collection based on incoming storefront context
+    const collectionName = merchantType === "food" ? "restaurantprofile" : "salons";
+    const businessDocRef = doc(db, collectionName, targetBusinessUid);
 
     try {
       await runTransaction(db, async (transaction) => {
@@ -80,28 +82,27 @@ function App() {
         }
 
         const businessSnap = await transaction.get(businessDocRef);
-        // This will look up your newly created profile inside /salons/ now!
         if (!businessSnap.exists()) throw new Error("Merchant registration not found.");
 
         transaction.update(userDocRef, {
           "wallet.balance": currentBalance - amount
         });
 
+        // Update the correct store field (Food profiles might use walletBalance or something similar)
+        const currentStoreBalance = businessSnap.data().walletBalance || businessSnap.data().wallet?.balance || 0;
         transaction.update(businessDocRef, {
-          // 🟢 Adds the funds directly to the salon's wallet balance matrix field
-          "walletBalance": (businessSnap.data().walletBalance || 0) + amount
+          "walletBalance": currentStoreBalance + amount
         });
 
         const userTxRef = doc(collection(db, "users", customerUid, "walletTransactions"));
         transaction.set(userTxRef, {
-          // Uses the correct salon layout parameter structure key:
-          storeName: businessSnap.data().salonName || "Malvin Storefront Platform",
+          storeName: businessSnap.data().brandName || businessSnap.data().salonName || "Malvin Storefront Platform",
           amount: amount,
           type: "spent",
           timestamp: serverTimestamp()
         });
       });
-      console.log("Internal transfer finalized cleanly.");
+      console.log(`Internal transfer finalized cleanly for ${collectionName}.`);
     } catch (error) {
       console.error("Payment settlement error trace:", error);
       throw error;
