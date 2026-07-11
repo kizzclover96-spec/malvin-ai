@@ -2,19 +2,21 @@ import React, { useEffect, useState, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { auth } from "../firebase";
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { QRCodeSVG } from 'qrcode.react'; // 👈 Optimized SVG QR element
-import { Download, ArrowLeft, CheckCircle, RefreshCw } from 'lucide-react'; // Clean modern icons
+import { QRCodeSVG } from 'qrcode.react'; 
+import { Download, ArrowLeft, CheckCircle, RefreshCw } from 'lucide-react'; 
 
 export default function TicketCheckout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const receiptRef = useRef<HTMLDivElement>(null); // Reference for downloads/printing
+  const receiptRef = useRef<HTMLDivElement>(null); 
   
   const [paymentStatus, setPaymentStatus] = useState("processing"); 
   const [errorMessage, setErrorMessage] = useState("");
   const [ticketDetails, setTicketDetails] = useState<any>(null);
 
   const payload = location.state;
+  // 🛑 GUARD AGAINST DOUBLE MOUNT INJECTIONS:
+  const paymentTriggered = useRef(false);
 
   useEffect(() => {
     if (!payload || !payload.targetBusinessUid) {
@@ -26,7 +28,12 @@ export default function TicketCheckout() {
     setTicketDetails(payload);
 
     const processAutoPayment = async () => {
+      // Prevent subsequent parallel execution calls
+      if (paymentTriggered.current) return;
+      paymentTriggered.current = true;
+
       try {
+        // Enforce pulling the authentic context UID from the active session loop
         const activeUid = auth.currentUser?.uid || payload.customerUid;
 
         if (!activeUid) {
@@ -38,38 +45,29 @@ export default function TicketCheckout() {
         console.log(`Identity verified: ${activeUid}. Triggering function...`);
         
         const functions = getFunctions();
-        
-        // 🛠️ DYNAMIC ROUTING ENGINE:
-        // Automatically maps the route name based on whether it came from the store or salon context
-        // Update this line inside ticket.tsx:
-        const functionName = 'processPayment'; // 👈 Look at that, beautifully simple!
-        const processPayment = httpsCallable(functions, functionName);
+        const processPayment = httpsCallable(functions, 'processPayment');
 
-        // Inside ticket.tsx -> Find where you call processPayment:
         const response = await processPayment({
-            targetBusinessUid: payload.targetBusinessUid,
-            amount: payload.totalPrice,
-            // Change fallbackCustomerUid to look for auth.currentUser first, then activeUid
-            fallbackCustomerUid: auth.currentUser?.uid || activeUid || payload.customerUid, 
-            appointmentDetails: {
-                services: payload.services,
-                stylist: payload.stylist,
-                duration: payload.duration
-            }
+          targetBusinessUid: payload.targetBusinessUid,
+          amount: payload.totalPrice,
+          fallbackCustomerUid: activeUid, 
+          appointmentDetails: {
+            services: payload.services,
+            stylist: payload.stylist,
+            duration: payload.duration
+          }
         });
 
         const resultData = response.data as any;
 
         if (resultData && resultData.success) {
           if (payload.fromStore) {
-            // 1. 🟢 Store context: Bypass this screen completely and bounce back immediately
             navigate(`/store/${payload.targetBusinessUid}`, { 
               state: { paymentConfirmed: true, orderPayload: payload },
-              replace: true // Prevents back-button loops
+              replace: true 
             });
           } else {
-            // 2. 💇 Salon context: Render standard checkout view ticket item details
-            setTicketDetails(prev => ({ ...prev, ticketId: resultData.ticketId }));
+            setTicketDetails((prev: any) => ({ ...prev, ticketId: resultData.ticketId }));
             setPaymentStatus("success");
           }
         } else {
@@ -78,32 +76,6 @@ export default function TicketCheckout() {
         }
       } catch (error: any) {
         setPaymentStatus("error");
-        
-        // Fallback catch: If the codebase prefix route hits a CORS/404 block, retry the root function mapping as a secondary line of defense
-        if (payload.fromStore && error.message?.includes('not-found')) {
-          try {
-            const functions = getFunctions();
-            const fallbackProcessor = httpsCallable(functions, 'processPayment');
-            const response = await fallbackProcessor({
-              targetBusinessUid: payload.targetBusinessUid,
-              amount: payload.totalPrice,
-              fallbackCustomerUid: auth.currentUser?.uid || payload.customerUid,
-              appointmentDetails: { services: payload.services, stylist: payload.stylist, duration: payload.duration }
-            });
-            const fallbackData = response.data as any;
-            if (fallbackData && fallbackData.success) {
-              navigate(`/store/${payload.targetBusinessUid}`, { 
-                state: { paymentConfirmed: true, orderPayload: payload },
-                replace: true 
-              });
-              return;
-            }
-          } catch (retryError: any) {
-            setErrorMessage(retryError.message || "Ledger resolution path mismatch.");
-            return;
-          }
-        }
-        
         setErrorMessage(error.message || "An unexpected error occurred during checkout.");
       }
     };
@@ -111,7 +83,6 @@ export default function TicketCheckout() {
     processAutoPayment();
   }, [payload, navigate]);
 
-  // Handle saving the ticket context to user's device
   const handleDownloadReceipt = () => {
     if (!ticketDetails) return;
 
@@ -144,7 +115,6 @@ the store reception front desk to check-in.
     URL.revokeObjectURL(url);
   };
 
-  // Convert payload data securely into a clean scan string
   const getQrCodeDataString = () => {
     if (!ticketDetails) return "";
     return JSON.stringify({
