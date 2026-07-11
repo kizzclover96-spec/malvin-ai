@@ -1,0 +1,128 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { ShieldCheck, X, Camera, VideoOff } from 'lucide-react';
+import { Html5QrcodeScanner } from 'html5-qrcode';
+
+interface ConfirmQRScannerProps {
+  onCrosscheck: (id: string) => void;
+  onClose: () => void;
+}
+
+export default function ConfirmQRScanner({ onCrosscheck, onClose }: ConfirmQRScannerProps) {
+  const [ticketInput, setTicketInput] = useState('');
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+
+  useEffect(() => {
+    if (isCameraActive) {
+      // Initialize the scanner layer on the reader div element
+      scannerRef.current = new Html5QrcodeScanner(
+        "qr-reader",
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        /* verbose= */ false
+      );
+
+      scannerRef.current.render(
+        (decodedText) => {
+          onCrosscheck(decodedText);
+          setIsCameraActive(false);
+        },
+        (error) => {
+          // Silent fallback for scanning noise frame drops
+        }
+      );
+    }
+
+    return () => {
+      if (scannerRef.current) {
+        scannerRef.current.clear().catch(err => console.error(err));
+        scannerRef.current = null;
+      }
+    };
+  }, [isCameraActive, onCrosscheck]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (ticketInput.trim()) {
+      onCrosscheck(ticketInput.trim());
+      setTicketInput('');
+    }
+  };
+
+  return (
+    <div style={{
+      background: "#0c0c0c",
+      borderBottom: "2px solid #E53935",
+      padding: "20px 32px",
+      display: "flex",
+      flexDirection: "column",
+      gap: "12px",
+      animation: "slideDown 0.25s ease-out",
+      width: "100%",
+      boxSizing: "border-box"
+    }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", maxWidth: "600px", margin: "0 auto" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <ShieldCheck size={18} color="#4BB543" />
+          <span style={{ fontSize: "14px", fontWeight: "bold", color: "#aaa" }}>Anti-Fraud Ticket Verification Panel</span>
+        </div>
+        <button onClick={onClose} style={{ background: "none", border: "none", color: "#666", cursor: "pointer" }}>
+          <X size={18} />
+        </button>
+      </div>
+
+      <form onSubmit={handleSubmit} style={{ display: "flex", alignItems: "center", gap: "12px", width: "100%", maxWidth: "600px", margin: "0 auto" }}>
+        <div style={{ position: "relative", flex: 1 }}>
+          <input 
+            type="text" 
+            placeholder="Type or Scan Receipt Ticket ID..." 
+            value={ticketInput}
+            onChange={(e) => setTicketInput(e.target.value)}
+            style={{ 
+              background: "#111", 
+              border: "1px solid #333", 
+              borderRadius: "8px", 
+              padding: "10px 16px", 
+              paddingRight: "40px",
+              color: "#fff", 
+              width: "100%", 
+              fontSize: "14px",
+              boxSizing: "border-box"
+            }}
+            autoFocus
+          />
+          <button 
+            type="button"
+            onClick={() => setIsCameraActive(!isCameraActive)}
+            style={{ position: "absolute", right: "6px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: isCameraActive ? "#E53935" : "#555", cursor: "pointer", display: "flex", alignItems: "center", padding: "6px" }}
+            title="Toggle Live Camera Stream View"
+          >
+            {isCameraActive ? <VideoOff size={18} /> : <Camera size={18} />}
+          </button>
+        </div>
+        <button 
+          type="submit"
+          style={{ 
+            background: "#E53935", 
+            border: "none", 
+            color: "#fff", 
+            borderRadius: "8px", 
+            padding: "10px 24px", 
+            fontWeight: "bold", 
+            cursor: "pointer", 
+            fontSize: "13px",
+            whiteSpace: "nowrap"
+          }}
+        >
+          Crosscheck
+        </button>
+      </form>
+
+      {/* Camera target mount zone */}
+      {isCameraActive && (
+        <div style={{ width: "100%", maxWidth: "400px", margin: "12px auto 0 auto", background: "#111", borderRadius: "12px", overflow: "hidden", border: "1px solid #222" }}>
+          <div id="qr-reader" style={{ width: "100%" }}></div>
+        </div>
+      )}
+    </div>
+  );
+}

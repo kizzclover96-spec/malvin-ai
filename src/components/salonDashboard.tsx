@@ -20,7 +20,8 @@ import styles from './salonDashboard.module.css';
 import SalonStation from './salonStation';
 import QRCode from 'qrcode';
 import { useBusinessWallet } from "../hooks/useBusinessWallet";
-import { Bell, Sparkles, Clock, User, QrCode, ShieldCheck, ShieldAlert } from 'lucide-react';
+import { Bell, Sparkles, Clock, User, QrCode } from 'lucide-react';
+import ConfirmQRScanner from './ConfirmQRScanner'; // Imported custom validation scanner
 
 interface SalonData {
   salonName: string;
@@ -74,9 +75,6 @@ export default function SalonDashboard() {
   const [hasChanges, setHasChanges] = useState(false);
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
   const [page, setPage] = useState<'dashboard' | 'catalogue'>('dashboard');
-
-  // Anti-Fraud Verification States
-  const [scanInput, setScanInput] = useState('');
   const [showScannerInput, setShowScannerInput] = useState(false);
 
   const runtimeQrLink = uid ? `${window.location.origin}/salon/${uid}` : '';
@@ -147,7 +145,7 @@ export default function SalonDashboard() {
       collectionGroup(db, 'appointments'),
       where('businessId', '==', uid),
       orderBy('createdAt', 'desc'),
-      limit(50)
+      limit(100)
     );
 
     let initialLoadComplete = false;
@@ -196,37 +194,33 @@ export default function SalonDashboard() {
     return () => unsubscribeAppointments();
   }, [uid]);
 
-  // Anti-Fraud Verification and Crosscheck System
+  // Anti-Fraud Core Process Engine (Immediate Removal Strategy)
   const handleVerifyTicketId = async (idToVerify: string) => {
-    const cleanedId = idToVerify.trim();
-    if (!cleanedId) return;
-
-    // Search existing live matching appointments stream
+    const cleanedId = idToVerify.trim().toLowerCase();
+    
     const matchedAppointment = incomingAppointments.find(
-      app => app.ticketId.toLowerCase() === cleanedId.toLowerCase() || app.id === cleanedId
+      app => app.ticketId.toLowerCase() === cleanedId || app.id.toLowerCase() === cleanedId
     );
 
     if (matchedAppointment) {
+      // 1. Instantly drop item from local UI array queue state
+      setIncomingAppointments(prev => prev.filter(item => item.id !== matchedAppointment.id));
+      showToast("Confirmed! Appointment matched and verified.");
+
+      // 2. Perform background targeted document removal clean up task 
       try {
-        // Match found! Auto-delete to resolve and confirm
-        const parentPathParts = matchedAppointment.ticketId.split('-');
-        // Fallback or explicit subcollection document reference targeting structural deletion
         await deleteDoc(doc(db, "salons", uid!, "appointments", matchedAppointment.id));
-        showToast(`Verification Confirmed! Valid Appointment resolved.`);
-        alert(`🔒 CONFIRMED:\nTicket ID: ${matchedAppointment.ticketId} is valid. Appointment auto-cleared from active queue successfully.`);
+        alert(`🔒 CONFIRMED:\nTicket ID "${matchedAppointment.ticketId}" has been verified. Fraud checks passed. Record removed from database.`);
       } catch (err) {
-        // Fallback strategy if subcollection query layout varies
-        showToast("Confirmed matching ID! Clearing item view.");
-        setIncomingAppointments(prev => prev.filter(item => item.id !== matchedAppointment.id));
+        console.warn("Firestore collection mismatch. View item auto-cleared cleanly locally.");
       }
+      setShowScannerInput(false);
     } else {
-      alert("❌ FRAUD DETECTED / INVALID ID:\nNo appointment registered for this unique identifier ticket.");
+      alert("❌ FRAUD DETECTED:\nNo appointment registered for this user.");
     }
-    setScanInput('');
-    setShowScannerInput(false);
   };
 
-  // Chronological Date Categorization Buckets
+  // Day Categorizer Engine
   const categorizeAppointments = () => {
     const categories: { [key: string]: LiveAppointment[] } = {
       'Yesterday': [],
@@ -332,9 +326,9 @@ export default function SalonDashboard() {
 
   if (loading || !salon) {
     return (
-      <div className={styles.dashboardContainer} style={{ background: "#050505", minHeight: "100vh" }}>
-        <div className={styles.skeletonHeader} style={{ height: "60px", background: "#0c0c0c" }}></div>
-        <div className={styles.skeletonMain} style={{ padding: "40px" }}></div>
+      <div className={styles.dashboardContainer} style={{ background: "#050505", minHeight: "100vh", width: "100vw" }}>
+        <div style={{ height: "60px", background: "#0c0c0c" }}></div>
+        <div style={{ padding: "40px" }}></div>
       </div>
     );
   }
@@ -344,56 +338,44 @@ export default function SalonDashboard() {
   }
 
   return (
-    <div className={styles.dashboardContainer} style={{ background: "#050505", minHeight: "100vh", color: "#fff", fontFamily: "sans-serif", width: "100vw", overflowX: "hidden" }}>
+    /* REMOVED MAX WIDTH AND BOUNDS FROM CONTAINER TO ENSURE FLUID ULTRA-WIDE SCREEN EXPANSION */
+    <div className={styles.dashboardContainer} style={{ background: "#050505", minHeight: "100%", color: "#fff", fontFamily: "sans-serif", width: "100%", display: "flex", flexDirection: "column", boxSizing: "border-box", overflowX: "hidden" }}>
       {toast && <div className={styles.toast}>{toast}</div>}
 
-      {/* FULL-WIDTH FLUID DENSITY HEADER */}
+      {/* FULL WIDTH FLUID SCREEN HEADER */}
       <header className={styles.header} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 32px", background: "#0c0c0c", borderBottom: "1px solid #1a1a1a", width: "100%", boxSizing: "border-box" }}>
         <button className={styles.iconButton} onClick={() => setIsDrawerOpen(true)} style={{ background: "none", border: "none", color: "#fff", cursor: "pointer" }}>
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
         </button>
 
-        {/* Action Controls Side Area Including Live Fraud Scanner Verification */}
-        <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
+        {/* Header Management Icons Column Section */}
+        <div style={{ display: "flex", alignItems: "center", gap: "24px" }}>
           <button 
-            title="Scan Pass Unique ID" 
+            title="Scan Verification Ticket"
             onClick={() => setShowScannerInput(!showScannerInput)} 
-            style={{ background: showScannerInput ? "#rgba(229,57,53,0.2)" : "none", border: "none", color: showScannerInput ? "#E53935" : "#aaa", cursor: "pointer", transition: "color 0.2s", display: "flex", alignItems: "center" }}
+            style={{ background: "none", border: "none", color: showScannerInput ? "#E53935" : "#aaa", cursor: "pointer", display: "flex", alignItems: "center", padding: 0 }}
           >
             <QrCode size={22} />
           </button>
           
-          <button className={styles.iconButton} onClick={() => setIsModalOpen(true)} style={{ background: "none", border: "none", color: "#aaa", cursor: "pointer" }}>
+          <button className={styles.iconButton} onClick={() => setIsModalOpen(true)} style={{ background: "none", border: "none", color: "#aaa", cursor: "pointer", padding: 0 }}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
           </button>
         </div>
       </header>
 
-      {/* FRAUD VERIFICATION OVERLAY DROPDOWN STRIP */}
+      {/* RENDERED IMPORTED SCANNER PANEL */}
       {showScannerInput && (
-        <div style={{ background: "#0c0c0c", borderBottom: "1px solid #E53935", padding: "16px 32px", display: "flex", alignItems: "center", justifyContent: "center", gap: "12px", animation: "slideIn 0.2s ease" }}>
-          <ShieldCheck size={18} color="#4BB543" />
-          <input 
-            type="text" 
-            placeholder="Enter or scan Unique Ticket ID..." 
-            value={scanInput}
-            onChange={(e) => setScanInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleVerifyTicketId(scanInput)}
-            style={{ background: "#111", border: "1px solid #333", borderRadius: "8px", padding: "8px 16px", color: "#fff", width: "100%", maxWidth: "400px", fontSize: "14px" }}
-          />
-          <button 
-            onClick={() => handleVerifyTicketId(scanInput)}
-            style={{ background: "#E53935", border: "none", color: "#fff", borderRadius: "8px", padding: "8px 20px", fontWeight: "bold", cursor: "pointer", fontSize: "13px" }}
-          >
-            Crosscheck
-          </button>
-        </div>
+        <ConfirmQRScanner 
+          onCrosscheck={handleVerifyTicketId} 
+          onClose={() => setShowScannerInput(false)} 
+        />
       )}
 
-      {/* EDGE-TO-EDGE FLUID CONTAINER MAIN BODY */}
-      <main className={styles.mainContent} style={{ padding: "32px", width: "100%", boxSizing: "border-box" }}>
+      {/* FULL EDGE TO EDGE LAYOUT CONTENT WRAPPER */}
+      <main className={styles.mainContent} style={{ padding: "32px", width: "100%", boxSizing: "border-box", flex: 1 }}>
         
-        {/* HERO TITLE CONTAINER */}
+        {/* HERO BANNER BLOCK */}
         <div className={styles.heroGlassCard} style={{ background: "#0c0c0c", border: "1px solid #1a1a1a", padding: "32px", borderRadius: "24px", marginBottom: "32px", width: "100%", boxSizing: "border-box" }}>
           <h1 className={styles.salonTitle} style={{ margin: "0 0 8px 0", fontSize: "32px", fontWeight: 900 }}>{salon.salonName}</h1>
           <p className={styles.salonBio} style={{ color: "#888", margin: "0 0 16px 0", fontSize: "14px", lineHeight: "1.5" }}>{salon.bio}</p>
@@ -403,11 +385,11 @@ export default function SalonDashboard() {
           </div>
         </div>
 
-        {/* LIVE STREAM CHRONOLOGICAL DATA PANELS */}
+        {/* CHRONOLOGICAL GROUPS RENDER PANEL */}
         <div style={{ marginTop: "32px", width: "100%" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "24px" }}>
             <Bell size={18} color="#E53935" style={{ animation: "pulse 2s infinite", flexShrink: 0 }} />
-            <h2 style={{ fontSize: "13px", fontWeight: 900, textTransform: "uppercase", letterSpacing: "1.5px", color: "#aaa", margin: 0 }}>Live Appointments Monitor</h2>
+            <h2 style={{ fontSize: "13px", fontWeight: 900, textTransform: "uppercase", letterSpacing: "1.5px", color: "#aaa", margin: 0 }}>Live Active Queue</h2>
           </div>
 
           {incomingAppointments.length === 0 ? (
@@ -420,10 +402,9 @@ export default function SalonDashboard() {
               if (items.length === 0) return null;
 
               return (
-                <div key={groupName} style={{ marginBottom: "28px", width: "100%" }}>
-                  {/* Category Section Group Header Tab */}
-                  <h3 style={{ fontSize: "13px", color: "#E53935", background: "rgba(229,57,53,0.06)", display: "inline-block", padding: "4px 12px", borderRadius: "6px", marginBottom: "12px", fontWeight: "bold", letterSpacing: "0.5px" }}>
-                    {groupName} ({items.length})
+                <div key={groupName} style={{ marginBottom: "32px", width: "100%" }}>
+                  <h3 style={{ fontSize: "12px", color: "#E53935", background: "rgba(229,57,53,0.08)", display: "inline-block", padding: "6px 14px", borderRadius: "8px", marginBottom: "16px", fontWeight: "bold", letterSpacing: "0.5px", textTransform: "uppercase" }}>
+                    {groupName} — {items.length} {items.length === 1 ? 'Order' : 'Orders'}
                   </h3>
 
                   <div style={{ display: "flex", flexDirection: "column", gap: "12px", width: "100%" }}>
@@ -438,7 +419,7 @@ export default function SalonDashboard() {
                           background: "linear-gradient(90deg, #0c0c0c 0%, #111 100%)", 
                           border: "1px solid #1a1a1a", 
                           borderRadius: "16px", 
-                          padding: "16px 24px", 
+                          padding: "18px 24px", 
                           boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
                           animation: "slideIn 0.3s ease-out",
                           gap: "16px",
@@ -460,7 +441,7 @@ export default function SalonDashboard() {
                           </div>
                         </div>
 
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "24px", flexWrap: "wrap", width: "auto", marginLeft: "auto" }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "28px", flexWrap: "wrap", width: "auto", marginLeft: "auto" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "#aaa" }}>
                             <User size={13} style={{ color: "#555" }} />
                             <span style={{ fontSize: "12px", fontWeight: "bold" }}>{booking.stylist}</span>
@@ -483,7 +464,7 @@ export default function SalonDashboard() {
         </div>
       </main>
 
-      {/* Navigation Drawer Overlay & Panels */}
+      {/* Navigation Drawer Component Overlay */}
       {isDrawerOpen && <div className={styles.drawerOverlay} onClick={() => setIsDrawerOpen(false)} />}
       <nav className={`${styles.drawer} ${isDrawerOpen ? styles.drawerOpen : ''}`}>
         <div className={styles.drawerHeader}>
@@ -496,7 +477,7 @@ export default function SalonDashboard() {
         </ul>
       </nav>
 
-      {/* Settings Modal */}
+      {/* Settings Configuration Modal */}
       {isModalOpen && (
         <div className={styles.modalOverlay}>
           <div className={styles.modalContent}>
@@ -603,7 +584,7 @@ export default function SalonDashboard() {
 
       <style>{`
         @keyframes slideIn {
-          from { opacity: 0; transform: translateY(-4px); }
+          from { opacity: 0; transform: translateY(4px); }
           to { opacity: 1; transform: translateY(0); }
         }
         @keyframes pulse {
