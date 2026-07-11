@@ -4,6 +4,7 @@ import { doc, onSnapshot, collection, addDoc, query, where, deleteDoc } from 'fi
 import styles from './store.module.css';
 import { useParams, useNavigate, useLocation } from "react-router-dom"; // 👈 Restored all required routing hooks
 import QRCode from "qrcode";
+import { auth } from '../firebase';
 
 // --- Interfaces ---
 interface RestaurantProfile {
@@ -94,12 +95,28 @@ export const StoreFrontend: React.FC = () => {
 
   // Guest Session setup
   useEffect(() => {
-    let id = localStorage.getItem('guest_id');
-    if (!id) {
-      id = crypto.randomUUID();
-      localStorage.setItem('guest_id', id);
+    // 1. Check if a real Firebase user is logged in
+    if (auth.currentUser?.uid) {
+      setGuestId(auth.currentUser.uid);
+      return;
     }
-    setGuestId(id);
+
+    // 2. Fallback to check if a valid session ID was passed from parent window frames
+    const handleIdentityMessage = (event: MessageEvent) => {
+      if (event.data?.type === "MALVIN_IDENTITY" && event.data?.uid) {
+        setGuestId(event.data.uid);
+      }
+    };
+
+    window.addEventListener("message", handleIdentityMessage);
+    
+    // Quick backup look up in case localStorage already has the real ID saved
+    const realUid = localStorage.getItem('guest_id');
+    if (realUid && !realUid.includes("-")) { // Ignore random UUIDs containing dashes
+      setGuestId(realUid);
+    }
+
+    return () => window.removeEventListener("message", handleIdentityMessage);
   }, []);
 
   // 2. Real-time Subscription: Product Catalog
