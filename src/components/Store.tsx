@@ -95,24 +95,23 @@ export const StoreFrontend: React.FC = () => {
 
   // Guest Session setup
   useEffect(() => {
-    // 1. Check if a real Firebase user is logged in
     if (auth.currentUser?.uid) {
       setGuestId(auth.currentUser.uid);
       return;
     }
 
-    // 2. Fallback to check if a valid session ID was passed from parent window frames
     const handleIdentityMessage = (event: MessageEvent) => {
-      if (event.data?.type === "MALVIN_IDENTITY" && event.data?.uid) {
+      // 🟢 Fix: Align type filter string with your system's postMessage type
+      if ((event.data?.type === "MALVIN_IDENTITY" || event.data?.type === "MALVIN_USER") && event.data?.uid) {
+        console.log("StoreFrontend caught real context identity:", event.data.uid);
         setGuestId(event.data.uid);
       }
     };
 
     window.addEventListener("message", handleIdentityMessage);
     
-    // Quick backup look up in case localStorage already has the real ID saved
     const realUid = localStorage.getItem('guest_id');
-    if (realUid && !realUid.includes("-")) { // Ignore random UUIDs containing dashes
+    if (realUid && !realUid.includes("-")) {
       setGuestId(realUid);
     }
 
@@ -238,6 +237,13 @@ export const StoreFrontend: React.FC = () => {
     e.preventDefault();
     if (cart.length === 0 || !customerName || !pickupTime) return;
 
+    const finalUid = auth.currentUser?.uid || guestId;
+
+    if (!finalUid) {
+      alert("Authentication handling is still initializing. Please wait a brief moment...");
+      return;
+    }
+
     const checkoutPayload = {
       targetBusinessUid: restaurantUid,
       totalPrice: cartTotal, 
@@ -253,11 +259,10 @@ export const StoreFrontend: React.FC = () => {
       customerName: customerName.trim(),
       userMobilityStatus: currentStatus,
       tableNumber: currentStatus === 'in store' ? tableNumber : '',
-      customerUid: guestId,
+      customerUid: finalUid, // 👈 Ensures the active ID goes straight through
       fromStore: true 
     };
 
-    // Reset local store configuration views and navigate directly to settlement processing engine
     setCart([]);
     setIsCheckoutOpen(false);
     navigate("/ticket-checkout", { state: checkoutPayload });
