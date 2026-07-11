@@ -332,14 +332,15 @@ export default function SalonDashboard() {
         </button>
       </header>
 
-      <main className={styles.mainContent} style={{ padding: "24px", maxWidth: "800px", margin: "0 auto" }}>
+      {/* 🌍 EXPANDED MAIN CONTAINER — Changed max-width to 1400px for full desk expansion, with padding for mobile */}
+      <main className={styles.mainContent} style={{ padding: "clamp(16px, 4vw, 32px)", maxWidth: "1400px", width: "100%", margin: "0 auto", boxSizing: "border-box" }}>
         
         {/* HERO HEADER GLASS CARD */}
-        <div className={styles.heroGlassCard} style={{ background: "#0c0c0c", border: "1px solid #1a1a1a", padding: "32px", borderRadius: "24px", marginBottom: "32px" }}>
-          <h1 className={styles.salonTitle} style={{ margin: "0 0 8px 0", fontSize: "28px", fontWeight: 900 }}>{salon.salonName}</h1>
-          <p className={styles.salonBio} style={{ color: "#888", margin: "0 0 16px 0", fontSize: "14px" }}>{salon.bio}</p>
+        <div className={styles.heroGlassCard} style={{ background: "#0c0c0c", border: "1px solid #1a1a1a", padding: "clamp(20px, 4vw, 32px)", borderRadius: "24px", marginBottom: "32px" }}>
+          <h1 className={styles.salonTitle} style={{ margin: "0 0 8px 0", fontSize: "clamp(22px, 4vw, 32px)", fontWeight: 900 }}>{salon.salonName}</h1>
+          <p className={styles.salonBio} style={{ color: "#888", margin: "0 0 16px 0", fontSize: "14px", lineHeight: "1.5" }}>{salon.bio}</p>
           <div className={styles.salonAddressBlock} style={{ color: "#aaa", fontSize: "13px", display: "flex", alignItems: "center" }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: '8px' }}><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: '8px', flexShrink: 0 }}><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="12" r="3"></circle></svg>
             <span>{salon.address}</span>
           </div>
         </div>
@@ -347,13 +348,13 @@ export default function SalonDashboard() {
         {/* ⚡ REAL-TIME APPOINTMENT RECTANGLE MONITOR PANEL */}
         <div style={{ marginTop: "24px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px" }}>
-            <Bell size={18} color="#E53935" style={{ animation: "pulse 2s infinite" }} />
-            <h2 style={{ fontSize: "14px", fontWeight: 900, textTransform: "uppercase", letterSpacing: "1px", color: "#aaa", margin: 0 }}>Live Appointments Stream</h2>
+            <Bell size={18} color="#E53935" style={{ animation: "pulse 2s infinite", flexShrink: 0 }} />
+            <h2 style={{ fontSize: "13px", fontWeight: 900, textTransform: "uppercase", letterSpacing: "1px", color: "#aaa", margin: 0 }}>Live Appointments Stream</h2>
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
             {incomingAppointments.length === 0 ? (
-              <div style={{ padding: "24px", background: "#0c0c0c", border: "1px dashed #222", borderRadius: "16px", textAlign: "center", color: "#555", fontSize: "13px", fontWeight: "bold" }}>
+              <div style={{ padding: "32px 16px", background: "#0c0c0c", border: "1px dashed #222", borderRadius: "16px", textAlign: "center", color: "#555", fontSize: "13px", fontWeight: "bold" }}>
                 Waiting for incoming appointments...
               </div>
             ) : (
@@ -362,41 +363,45 @@ export default function SalonDashboard() {
                   key={booking.id} 
                   style={{ 
                     display: "flex", 
+                    flexWrap: "wrap", // Allows row sections to break safely onto new lines on small mobile screens
                     alignItems: "center", 
                     justifyContent: "space-between", 
                     background: "linear-gradient(90deg, #0c0c0c 0%, #111 100%)", 
                     border: "1px solid #1a1a1a", 
-                    borderRadius: "12px", 
-                    padding: "12px 20px", 
+                    borderRadius: "16px", 
+                    padding: "16px 20px", 
                     boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
-                    animation: "slideIn 0.3s ease-out"
+                    animation: "slideIn 0.3s ease-out",
+                    gap: "16px"
                   }}
                 >
-                  <div style={{ display: "flex", alignItems: "center", gap: "16px", minWidth: "0", flex: 1 }}>
-                    <div style={{ background: "rgba(229,57,53,0.1)", padding: "8px", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <Sparkles size={16} color="#E53935" />
+                  {/* Left Content Area */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "16px", minWidth: "240px", flex: "1 1 0%" }}>
+                    <div style={{ background: "rgba(229,57,53,0.1)", padding: "10px", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <Sparkles size={18} color="#E53935" />
                     </div>
                     <div style={{ minWidth: "0" }}>
-                      <p style={{ margin: 0, fontSize: "13px", fontWeight: 900, color: "#fff" }}>
+                      <p style={{ margin: 0, fontSize: "14px", fontWeight: 900, color: "#fff" }}>
                         {booking.ticketId}
                       </p>
-                      <p style={{ margin: "2px 0 0 0", fontSize: "11px", color: "#666", textTransform: "truncate" }}>
+                      <p style={{ margin: "4px 0 0 0", fontSize: "12px", color: "#777", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {booking.services.map(s => s.serviceName || s.name).join(", ")}
                       </p>
                     </div>
                   </div>
 
-                  <div style={{ display: "flex", alignItems: "center", gap: "24px", marginLeft: "16px" }}>
+                  {/* Right Metadata Badge Items Container */}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "24px", flexWrap: "wrap", width: "auto", marginLeft: "auto" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "#aaa" }}>
-                      <User size={12} />
+                      <User size={13} style={{ color: "#666" }} />
                       <span style={{ fontSize: "12px", fontWeight: "bold" }}>{booking.stylist}</span>
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "#aaa" }}>
-                      <Clock size={12} />
+                      <Clock size={13} style={{ color: "#666" }} />
                       <span style={{ fontSize: "12px" }}>{booking.duration}m</span>
                     </div>
-                    <div style={{ textAlign: "right" }}>
-                      <span style={{ fontSize: "14px", fontWeight: 900, color: "#4BB543" }}>+€{booking.totalPaid}</span>
+                    <div style={{ textAlign: "right", minWidth: "70px" }}>
+                      <span style={{ fontSize: "16px", fontWeight: 900, color: "#4BB543" }}>+€{booking.totalPaid}</span>
                     </div>
                   </div>
                 </div>
@@ -508,7 +513,6 @@ export default function SalonDashboard() {
                 <h3>Account & Ledger</h3>
                 <div className={styles.metaRow}><strong>UID:</strong> <span className={styles.codeText}>{uid}</span></div>
                 <div className={styles.metaRow}><strong>Status:</strong> <span>{salon.status}</span></div>
-                {/* 🟢 DYNAMIC UPDATE APPLIED BELOW TO DISPLAY DIRECT WALLET FIELD OR HOOK EQUIVALENT BALANCE */}
                 <div className={styles.metaRow}><strong>VIN Wallet Balance:</strong> <span>{currency} {(salon.walletBalance || balance).toFixed(2)}</span></div>
                 <button type="button" className={styles.glassButtonPrimary} style={{ marginTop: '12px' }} onClick={handleWithdrawProfit}>
                   Withdraw Profit
@@ -538,5 +542,5 @@ export default function SalonDashboard() {
         }
       `}</style>
     </div>
-  );
+  )
 }
