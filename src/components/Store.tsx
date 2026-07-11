@@ -289,7 +289,7 @@ export const StoreFrontend: React.FC = () => {
       <div style={{ background: "#111", borderBottom: "1px solid #222", padding: "8px 24px" }}>
         <div style={{ maxWidth: "600px", margin: "0 auto", display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#aaa" }}>
           <span>Your Active Wallet Status:</span>
-          <span style={{ color: "#4BB543", fontWeight: "bold" }}>Available Balance: {currency}{walletBalance.toFixed(2)}</span>
+          <span>Available Balance: {currency}{(walletBalance ?? 0).toFixed(2)}</span>
         </div>
       </div>
 
@@ -446,7 +446,7 @@ export const StoreFrontend: React.FC = () => {
                       {order.items.map((it, idx) => (
                         <div key={idx} style={{ fontSize: '13px', display: 'flex', justifyContent: 'space-between', color: "#aaa" }}>
                           <span>{it.quantity}x {it.name}</span>
-                          <span>{currency}{(it.price * it.quantity).toFixed(2)}</span>
+                          <span>{currency}{((it.price || 0) * (it.quantity || 1)).toFixed(2)}</span>
                         </div>
                       ))}
                     </div>
