@@ -38,7 +38,11 @@ export default function TicketCheckout() {
         console.log(`Identity verified: ${activeUid}. Triggering function...`);
         
         const functions = getFunctions();
-        const processPayment = httpsCallable(functions, 'processPayment');
+        
+        // 🛠️ DYNAMIC ROUTING ENGINE:
+        // Automatically maps the route name based on whether it came from the store or salon context
+        const functionName = payload.fromStore ? 'malvinbackend-processPayment' : 'processPayment';
+        const processPayment = httpsCallable(functions, functionName);
 
         const response = await processPayment({
           targetBusinessUid: payload.targetBusinessUid,
@@ -54,43 +58,60 @@ export default function TicketCheckout() {
         const resultData = response.data as any;
 
         if (resultData && resultData.success) {
-          setTicketDetails(prev => ({ ...prev, ticketId: resultData.ticketId }));
-          setPaymentStatus("success");
+          if (payload.fromStore) {
+            // 1. 🟢 Store context: Bypass this screen completely and bounce back immediately
+            navigate(`/store/${payload.targetBusinessUid}`, { 
+              state: { paymentConfirmed: true, orderPayload: payload },
+              replace: true // Prevents back-button loops
+            });
+          } else {
+            // 2. 💇 Salon context: Render standard checkout view ticket item details
+            setTicketDetails(prev => ({ ...prev, ticketId: resultData.ticketId }));
+            setPaymentStatus("success");
+          }
         } else {
           setPaymentStatus("error");
           setErrorMessage("Wallet payment processing was rejected by the server ledger.");
         }
-
-        if (resultData && resultData.success) {
-            if (payload.fromStore) {
-                // 1. 🟢 Store context: Bypass this screen completely and bounce back immediately
-                navigate(`/store/${payload.targetBusinessUid}`, { 
-                state: { paymentConfirmed: true, orderPayload: payload },
-                replace: true // Using replace prevents the user from clicking "Back" into a processing loop
-                });
-            } else {
-                // 2. 💇 Salon context: Fallback to normal rendering behaviors
-                setTicketDetails(prev => ({ ...prev, ticketId: resultData.ticketId }));
-                setPaymentStatus("success");
-            }
-            } else {
-            setPaymentStatus("error");
-            setErrorMessage("Wallet payment processing was rejected by the server ledger.");
-        }
       } catch (error: any) {
         setPaymentStatus("error");
+        
+        // Fallback catch: If the codebase prefix route hits a CORS/404 block, retry the root function mapping as a secondary line of defense
+        if (payload.fromStore && error.message?.includes('not-found')) {
+          try {
+            const functions = getFunctions();
+            const fallbackProcessor = httpsCallable(functions, 'processPayment');
+            const response = await fallbackProcessor({
+              targetBusinessUid: payload.targetBusinessUid,
+              amount: payload.totalPrice,
+              fallbackCustomerUid: auth.currentUser?.uid || payload.customerUid,
+              appointmentDetails: { services: payload.services, stylist: payload.stylist, duration: payload.duration }
+            });
+            const fallbackData = response.data as any;
+            if (fallbackData && fallbackData.success) {
+              navigate(`/store/${payload.targetBusinessUid}`, { 
+                state: { paymentConfirmed: true, orderPayload: payload },
+                replace: true 
+              });
+              return;
+            }
+          } catch (retryError: any) {
+            setErrorMessage(retryError.message || "Ledger resolution path mismatch.");
+            return;
+          }
+        }
+        
         setErrorMessage(error.message || "An unexpected error occurred during checkout.");
       }
     };
 
     processAutoPayment();
-  }, [payload]);
+  }, [payload, navigate]);
 
   // Handle saving the ticket context to user's device
   const handleDownloadReceipt = () => {
     if (!ticketDetails) return;
 
-    // Format plain text data file alternative
     const receiptText = `
 ========================================
          MALVIN APPOINTMENT PASS        
@@ -156,7 +177,6 @@ the store reception front desk to check-in.
   return (
     <div style={{ padding: "24px 16px", background: "#050505", color: "#fff", minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", fontFamily: "sans-serif" }}>
       
-      {/* 🧾 CARD BOUNDARY CONTAINER — Optimized for Width & Responsiveness */}
       <div ref={receiptRef} style={{ border: "1px solid #222", padding: "clamp(16px, 5vw, 32px)", borderRadius: "24px", width: "95%", maxWidth: "460px", background: "#0c0c0c", boxShadow: "0 20px 40px rgba(0,0,0,0.5)", boxSizing: "border-box" }}>
         
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: "24px" }}>
@@ -191,7 +211,6 @@ the store reception front desk to check-in.
           </p>
         </div>
         
-        {/* 📲 LIVE QR GENERATION CONTAINER */}
         <div style={{ background: "#fff", color: "#000", padding: "24px", margin: "24px 0 16px", borderRadius: "16px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
           {ticketDetails && (
             <QRCodeSVG 
@@ -204,7 +223,6 @@ the store reception front desk to check-in.
           <span style={{ fontSize: "11px", fontWeight: "bold", marginTop: "12px", color: "#888", textTransform: "uppercase", letterSpacing: "0.5px", textAlign: "center" }}>Scan at reception front desk</span>
         </div>
 
-        {/* UTILITY ACTION ITEMS */}
         <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "20px" }}>
           <button 
             onClick={handleDownloadReceipt} 
@@ -223,7 +241,6 @@ the store reception front desk to check-in.
 
       </div>
       
-      {/* Dynamic Keyframe style injection for loader spin */}
       <style>{`
         @keyframes spin {
           0% { transform: rotate(0deg); }
