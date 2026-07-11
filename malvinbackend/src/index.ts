@@ -238,8 +238,19 @@ export const processPayment = onCall({ cors: true }, async (request) => {
   try {
     await db.runTransaction(async (transaction: typeof Transaction) => {
       const userDoc = await transaction.get(userRef);
-      const salonDoc = await transaction.get(salonRef);
+      
+      // 1. Try fetching from the "salons" collection first
+      let salonDoc = await transaction.get(salonRef);
+      let targetCollection = "salons";
 
+      // 2. Fallback: If it doesn't exist in "salons", check "restaurantprofile"
+      if (!salonDoc.exists) {
+        const restaurantRef = db.collection("restaurantprofile").doc(targetBusinessUid);
+        salonDoc = await transaction.get(restaurantRef);
+        targetCollection = "restaurantprofile";
+      }
+
+      // 3. Now check if BOTH lookups failed
       if (!userDoc.exists || !salonDoc.exists) {
         throw new HttpsError("not-found", "Target user profile or salon directory node is missing.");
       }
@@ -251,19 +262,21 @@ export const processPayment = onCall({ cors: true }, async (request) => {
         throw new HttpsError("failed-precondition", "Insufficient client wallet funds available.");
       }
 
-      // 1. Update balances
+      // 4. Update balances using the correct collection reference dynamic update
       transaction.update(userRef, { "wallet.balance": FieldValue.increment(-amount) });
-      transaction.update(salonRef, { walletBalance: FieldValue.increment(amount) });
+      
+      const dynamicBusinessRef = db.collection(targetCollection).doc(targetBusinessUid);
+      transaction.update(dynamicBusinessRef, { walletBalance: FieldValue.increment(amount) });
 
-      // 2. Save user transaction statement logs
+      // 5. Save user transaction statement logs (using fallback name if needed)
       transaction.set(txRef, {
-        storeName: salonDoc.data()?.name || "Pamela nails",
+        storeName: salonDoc.data()?.name || salonDoc.data()?.brandName || "Pamela nails",
         amount: amount,
         type: "spent",
         timestamp: FieldValue.serverTimestamp(),
       });
 
-      // 3. SECURE TICKET CREATION: Generate the booking pass right here!
+      // 6. SECURE TICKET CREATION
       transaction.set(appointmentRef, {
         ticketId: ticketId,
         businessId: targetBusinessUid,
@@ -276,7 +289,6 @@ export const processPayment = onCall({ cors: true }, async (request) => {
       });
     });
 
-    // Return the generated ticket ID back to the frontend to build the receipt UI
     return { success: true, ticketId };
   } catch (error: any) {
     console.error("Internal billing failure trace:", error);
