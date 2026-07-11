@@ -36,10 +36,11 @@ export default function TicketCheckout() {
         // Enforce pulling the authentic context UID from the active session loop
         const activeUid = auth.currentUser?.uid || payload.customerUid;
 
-        if (!activeUid) {
-          setPaymentStatus("error");
-          setErrorMessage("Payment failed: Customer identity verification missing.");
-          return;
+        // Simplified safety check: just ensure it is a non-empty string
+        if (!activeUid || typeof activeUid !== 'string' || activeUid.trim() === '') {
+            setPaymentStatus("error");
+            setErrorMessage("Payment failed: Customer identity verification missing.");
+            return;
         }
 
         console.log(`Identity verified: ${activeUid}. Triggering function...`);
