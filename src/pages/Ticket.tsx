@@ -34,9 +34,9 @@ export default function TicketCheckout() {
 
       try {
         // Enforce pulling the authentic context UID from the active session loop
-        const activeUid = auth.currentUser?.uid || payload.customerUid;
-
         // Simplified safety check: just ensure it is a non-empty string
+        const activeUid = auth.currentUser?.uid || payload?.customerUid || payload?.userUid;
+
         if (!activeUid || typeof activeUid !== 'string' || activeUid.trim() === '') {
             setPaymentStatus("error");
             setErrorMessage("Payment failed: Customer identity verification missing.");
