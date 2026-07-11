@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { firestore as db } from '../firebase'; 
 import { doc, onSnapshot, collection, addDoc, query, where, deleteDoc, updateDoc, increment } from 'firebase/firestore';
 import styles from './store.module.css';
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation} from "react-router-dom";
 import QRCode from "qrcode";
 import { useBusinessWallet } from "../hooks/useBusinessWallet"; 
 import { ShoppingBag, Search, Clock, MapPin, CheckCircle, CreditCard, AlertCircle } from 'lucide-react';
@@ -127,7 +127,6 @@ export const StoreFrontend: React.FC = () => {
 
     return () => unsubscribe();
   }, [customerName, restaurantUid]);
-  
   const location = useLocation();
 
   useEffect(() => {
