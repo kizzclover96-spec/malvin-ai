@@ -2,14 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { firestore as db } from '../firebase'; // Ensure your firebase configuration is exported here
 import { doc, onSnapshot, collection, addDoc, query, where, deleteDoc } from 'firebase/firestore';
 import styles from './store.module.css';
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom"; // 👈 Restored all required routing hooks
 import QRCode from "qrcode";
 
 // --- Interfaces ---
 interface RestaurantProfile {
   brandName: string;
   brandBio: string;
-  address?: string; // 1. Added brandLocation property (marked optional just in case)
+  address?: string; 
   onlineStatus: boolean;
 }
 
@@ -37,10 +37,6 @@ interface Order {
   fourDigitCode: string;
 }
 
-interface StoreProps {
-  restaurantUid: string; // Pass the target restaurant UID as a prop
-}
-
 const VerifiedBadge = () => (
     <svg 
         width="14" 
@@ -54,10 +50,13 @@ const VerifiedBadge = () => (
 );
 
 export const StoreFrontend: React.FC = () => {
-
   const { Uid } = useParams();
-
   const restaurantUid = Uid || "";
+  
+  // Initialize Hooks
+  const navigate = useNavigate();
+  const location = useLocation();
+
   // State
   const [profile, setProfile] = useState<RestaurantProfile | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
@@ -77,39 +76,35 @@ export const StoreFrontend: React.FC = () => {
   const [currentStatus, setCurrentStatus] = useState('home');
   const [tableNumber, setTableNumber] = useState('');
   const [guestId, setGuestId] = useState<string>('');
-  console.log("Restaurant UID:", restaurantUid);
-
-  //code
-  const fourDigitCode = crypto.getRandomValues(new Uint32Array(1))[0]
-  .toString()
-  .slice(-4);
+  
+  // Code generation state variables
   const [receiptQrs, setReceiptQrs] = useState<Record<string, string>>({});
 
   // 1. Real-time Subscription: Restaurant Profile
   useEffect(() => {
+    if (!restaurantUid) return;
     const docRef = doc(db, 'restaurantprofile', restaurantUid);
     const unsubscribe = onSnapshot(docRef, (docSnap) => {
       if (docSnap.exists()) {
         setProfile(docSnap.data() as RestaurantProfile);
       }
     });
-    console.log("Restaurant UID:", restaurantUid);
     return () => unsubscribe();
   }, [restaurantUid]);
 
+  // Guest Session setup
   useEffect(() => {
     let id = localStorage.getItem('guest_id');
-
     if (!id) {
       id = crypto.randomUUID();
       localStorage.setItem('guest_id', id);
     }
-
     setGuestId(id);
   }, []);
 
   // 2. Real-time Subscription: Product Catalog
   useEffect(() => {
+    if (!restaurantUid) return;
     const colRef = collection(db, 'Restaurantcatalogue', restaurantUid, 'products');
     const unsubscribe = onSnapshot(colRef, (querySnapshot) => {
       const items: Product[] = [];
@@ -126,45 +121,92 @@ export const StoreFrontend: React.FC = () => {
     if (!customerName) return;
 
     const colRef = collection(db, 'orders');
-    const q = query(colRef, where('customerName', '==', customerName));
+    const q = query(colRef, where('customerName', '==', customerName.trim()));
 
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const ordersList: Order[] = [];
-
       querySnapshot.forEach((docSnap) => {
         ordersList.push({
           id: docSnap.id,
           ...docSnap.data()
         } as Order);
       });
-
       setUserOrders(ordersList);
     });
 
     return () => unsubscribe();
   }, [customerName]);
 
+  // 4. Live Tracking QR Generation Lookups
   useEffect(() => {
     const generateQrs = async () => {
       const qrMap: Record<string, string> = {};
-
       for (const order of userOrders) {
         if (order.fourDigitCode) {
-          qrMap[order.id] = await QRCode.toDataURL(
-            JSON.stringify({
-              orderId: order.id,
-              code: order.fourDigitCode,
-              customer: order.customerName,
-            })
-          );
+          try {
+            qrMap[order.id] = await QRCode.toDataURL(
+              JSON.stringify({
+                orderId: order.id,
+                code: order.fourDigitCode,
+                customer: order.customerName,
+              })
+            );
+          } catch (err) {
+            console.error("Failed to generate QR string data: ", err);
+          }
         }
       }
-
       setReceiptQrs(qrMap);
     };
 
-    generateQrs();
+    if (userOrders.length > 0) {
+      generateQrs();
+    }
   }, [userOrders]);
+
+  // 5. Catch Incoming Auto-Bounce Payments from ticket.tsx
+  useEffect(() => {
+    if (location.state?.paymentConfirmed && location.state?.orderPayload) {
+      const confirmedData = location.state.orderPayload;
+      
+      const commitOrderToDatabase = async () => {
+        try {
+          const fourDigitPin = Math.floor(1000 + Math.random() * 9000).toString();
+          
+          await addDoc(collection(db, 'orders'), {
+            restaurantUid: restaurantUid,
+            customerName: confirmedData.customerName,
+            pickupTime: confirmedData.time,
+            status: 'pending',
+            items: confirmedData.services.map((s: any) => ({
+              name: s.serviceName,
+              quantity: s.quantity,
+              price: s.price
+            })),
+            fourDigitCode: fourDigitPin,
+            totalPaid: confirmedData.totalPrice,
+            paymentStatus: 'paid',
+            userMobilityStatus: confirmedData.userMobilityStatus,
+            tableNumber: confirmedData.tableNumber,
+            customerUid: confirmedData.customerUid,
+            createdAt: new Date().toISOString()
+          });
+
+          // Open up the tickets side drawer so they see the live QR code right away
+          setIsOrdersOpen(true);
+          
+          // Clear router configuration memory state pointers to prevent duplicate records on page refresh actions
+          navigate(location.pathname, { replace: true, state: {} });
+        } catch (err) {
+          console.error("Failed writing verified order log:", err);
+        }
+      };
+
+      commitOrderToDatabase();
+    }
+  }, [location.state, restaurantUid, navigate, location.pathname]);
+
+  const cartTotal = cart.reduce((acc, item) => acc + (item.product.price * item.quantity), 0);
 
   // Actions
   const handleAddToCart = () => {
@@ -174,35 +216,34 @@ export const StoreFrontend: React.FC = () => {
     setSelectedQty(1);
   };
 
-  const handlePlaceOrder = async (e: React.FormEvent) => {
+  // Optimized to package details and transition directly to secure checkout without data duplication
+  const handlePlaceOrder = (e: React.FormEvent) => {
     e.preventDefault();
     if (cart.length === 0 || !customerName || !pickupTime) return;
 
-    const orderData = {
-      restaurantUid,
-      customerName,
-      guestId,
-      pickupTime,
-      fourDigitCode,
+    const checkoutPayload = {
+      targetBusinessUid: restaurantUid,
+      totalPrice: cartTotal, 
+      services: cart.map(item => ({
+        serviceId: item.product.id,
+        serviceName: item.product.name,
+        price: item.product.price,
+        quantity: item.quantity
+      })),
+      duration: 0,
+      date: new Date().toISOString().split('T')[0],
+      time: pickupTime, 
+      customerName: customerName.trim(),
       userMobilityStatus: currentStatus,
       tableNumber: currentStatus === 'in store' ? tableNumber : '',
-      status: 'pending',
-      createdAt: new Date().toISOString(),
-      items: cart.map(item => ({
-        name: item.product.name,
-        quantity: item.quantity,
-        price: item.product.price
-      }))
+      customerUid: guestId,
+      fromStore: true 
     };
 
-    try {
-      await addDoc(collection(db, 'orders'), orderData);
-      setCart([]);
-      setIsCheckoutOpen(false);
-      setIsOrdersOpen(true); 
-    } catch (error) {
-      console.error("Error creating order: ", error);
-    }
+    // Reset local store configuration views and navigate directly to settlement processing engine
+    setCart([]);
+    setIsCheckoutOpen(false);
+    navigate("/ticket-checkout", { state: checkoutPayload });
   };
 
   const handleCancelOrder = async (orderId: string) => {
@@ -223,8 +264,6 @@ export const StoreFrontend: React.FC = () => {
     p.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const cartTotal = cart.reduce((acc, item) => acc + (item.product.price * item.quantity), 0);
-
   return (
     <div className={styles.appContainer}>
       {/* Top Bar */}
@@ -233,7 +272,7 @@ export const StoreFrontend: React.FC = () => {
           <h1>{profile?.brandName || 'Loading...'}</h1>
           <p className={styles.brandBio}>{profile?.brandBio || 'Connecting to store...'}</p>
           
-          {/* 2. Added Brand Location Layout Placement */}
+          {/* Added Brand Location Layout Placement */}
           {profile?.address && (
             <p className={styles.brandLocation} style={{ fontSize: '13px', color: '#666', marginTop: '4px' }}>
               📍 {profile.address}
@@ -402,7 +441,7 @@ export const StoreFrontend: React.FC = () => {
                       <div
                         style={{
                           display: "flex",
-                          justifyContent: "center",
+                          justify: "center",
                           marginTop: "10px",
                         }}
                       >
@@ -425,10 +464,10 @@ export const StoreFrontend: React.FC = () => {
                   )}
 
                   <div style={{ margin: '8px 0' }}>
-                    {order.items.map((it, idx) => (
+                    {order.items?.map((it, idx) => (
                       <div key={idx} style={{ fontSize: '13px', display: 'flex', justifyContent: 'space-between' }}>
                         <span>{it.quantity}x {it.name}</span>
-                        <span>${(it.price * it.quantity).toFixed(2)}</span>
+                        <span>${((it.price || 0) * (it.quantity || 1)).toFixed(2)}</span>
                       </div>
                     ))}
                   </div>
@@ -442,6 +481,7 @@ export const StoreFrontend: React.FC = () => {
           </div>
         </div>
       )}
+      
       {/* Small Blue Watermark */}
       <div className={styles.watermark}>
         Malvinai

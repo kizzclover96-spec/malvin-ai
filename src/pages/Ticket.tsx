@@ -63,14 +63,19 @@ export default function TicketCheckout() {
 
         if (resultData && resultData.success) {
             if (payload.fromStore) {
-                // 🟢 Send the user back to the store along with the payment clearance stamp
+                // 1. 🟢 Store context: Bypass this screen completely and bounce back immediately
                 navigate(`/store/${payload.targetBusinessUid}`, { 
-                state: { paymentConfirmed: true, orderPayload: payload } 
+                state: { paymentConfirmed: true, orderPayload: payload },
+                replace: true // Using replace prevents the user from clicking "Back" into a processing loop
                 });
             } else {
+                // 2. 💇 Salon context: Fallback to normal rendering behaviors
                 setTicketDetails(prev => ({ ...prev, ticketId: resultData.ticketId }));
                 setPaymentStatus("success");
             }
+            } else {
+            setPaymentStatus("error");
+            setErrorMessage("Wallet payment processing was rejected by the server ledger.");
         }
       } catch (error: any) {
         setPaymentStatus("error");
