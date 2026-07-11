@@ -41,7 +41,8 @@ export default function TicketCheckout() {
         
         // 🛠️ DYNAMIC ROUTING ENGINE:
         // Automatically maps the route name based on whether it came from the store or salon context
-        const functionName = payload.fromStore ? 'malvinbackend-processPayment' : 'processPayment';
+        // Update this line inside ticket.tsx:
+        const functionName = 'processPayment'; // 👈 Look at that, beautifully simple!
         const processPayment = httpsCallable(functions, functionName);
 
         const response = await processPayment({
