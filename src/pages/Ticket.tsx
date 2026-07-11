@@ -2,22 +2,19 @@ import React, { useEffect, useState, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { auth } from "../firebase";
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { QRCodeSVG } from 'qrcode.react'; 
-import { Download, ArrowLeft, CheckCircle, RefreshCw } from 'lucide-react'; 
+import { QRCodeSVG } from 'qrcode.react'; // 👈 Optimized SVG QR element
+import { Download, ArrowLeft, CheckCircle, RefreshCw } from 'lucide-react'; // Clean modern icons
 
 export default function TicketCheckout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const receiptRef = useRef<HTMLDivElement>(null); 
+  const receiptRef = useRef<HTMLDivElement>(null); // Reference for downloads/printing
   
   const [paymentStatus, setPaymentStatus] = useState("processing"); 
   const [errorMessage, setErrorMessage] = useState("");
   const [ticketDetails, setTicketDetails] = useState<any>(null);
 
   const payload = location.state;
-
-  // 🌟 Identify if the checkout route originated from the restaurant front-end
-  const isFoodOrder = payload?.userMobilityStatus !== undefined;
 
   useEffect(() => {
     if (!payload || !payload.targetBusinessUid) {
@@ -49,8 +46,8 @@ export default function TicketCheckout() {
           fallbackCustomerUid: activeUid,
           appointmentDetails: {
             services: payload.services,
-            stylist: payload.stylist || "Restaurant Kitchen",
-            duration: payload.duration || 0
+            stylist: payload.stylist,
+            duration: payload.duration
           }
         });
 
@@ -63,6 +60,18 @@ export default function TicketCheckout() {
           setPaymentStatus("error");
           setErrorMessage("Wallet payment processing was rejected by the server ledger.");
         }
+
+        if (resultData && resultData.success) {
+            if (payload.fromStore) {
+                // 🟢 Send the user back to the store along with the payment clearance stamp
+                navigate(`/store/${payload.targetBusinessUid}`, { 
+                state: { paymentConfirmed: true, orderPayload: payload } 
+                });
+            } else {
+                setTicketDetails(prev => ({ ...prev, ticketId: resultData.ticketId }));
+                setPaymentStatus("success");
+            }
+        }
       } catch (error: any) {
         setPaymentStatus("error");
         setErrorMessage(error.message || "An unexpected error occurred during checkout.");
@@ -72,23 +81,26 @@ export default function TicketCheckout() {
     processAutoPayment();
   }, [payload]);
 
+  // Handle saving the ticket context to user's device
   const handleDownloadReceipt = () => {
     if (!ticketDetails) return;
 
+    // Format plain text data file alternative
     const receiptText = `
 ========================================
-     MALVIN ${isFoodOrder ? "FOOD ORDER RECEIPT" : "APPOINTMENT PASS"}        
+         MALVIN APPOINTMENT PASS        
 ========================================
 Ticket ID: ${ticketDetails.ticketId || "N/A"}
-${isFoodOrder ? `Pickup Time: ${ticketDetails.time}` : `Stylist: ${ticketDetails.stylist || "Any Available"}`}
+Stylist: ${ticketDetails.stylist || "Any Available"}
+Duration: ${ticketDetails.duration} mins
 Total Paid: €${ticketDetails.totalPrice}
 
-ITEMS ORDERED:
-${ticketDetails.services?.map((s: any) => `- ${s.serviceName || s.name} (x${s.quantity || 1}) - €${s.price}`).join("\n")}
+SERVICES CHOSEN:
+${ticketDetails.services?.map((s: any) => `- ${s.serviceName || s.name} (€${s.price})`).join("\n")}
 
 ----------------------------------------
-Scan this ticket profile at the counter 
-to collect your selection.
+Scan the QR code on your app frame at 
+the store reception front desk to check-in.
 ========================================
     `;
 
@@ -96,19 +108,21 @@ to collect your selection.
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `Malvin-Receipt-${ticketDetails.ticketId || "Receipt"}.txt`;
+    link.download = `Malvin-Ticket-${ticketDetails.ticketId || "Receipt"}.txt`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   };
 
+  // Convert payload data securely into a clean scan string
   const getQrCodeDataString = () => {
     if (!ticketDetails) return "";
     return JSON.stringify({
       tId: ticketDetails.ticketId,
       bId: ticketDetails.targetBusinessUid,
       cId: auth.currentUser?.uid || ticketDetails.customerUid,
+      stylist: ticketDetails.stylist,
       price: ticketDetails.totalPrice
     });
   };
@@ -137,41 +151,29 @@ to collect your selection.
   return (
     <div style={{ padding: "24px 16px", background: "#050505", color: "#fff", minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", fontFamily: "sans-serif" }}>
       
+      {/* 🧾 CARD BOUNDARY CONTAINER — Optimized for Width & Responsiveness */}
       <div ref={receiptRef} style={{ border: "1px solid #222", padding: "clamp(16px, 5vw, 32px)", borderRadius: "24px", width: "95%", maxWidth: "460px", background: "#0c0c0c", boxShadow: "0 20px 40px rgba(0,0,0,0.5)", boxSizing: "border-box" }}>
         
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: "24px" }}>
           <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "rgba(75,181,67,0.1)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "12px" }}>
             <CheckCircle color="#4BB543" size={24} />
           </div>
-          <h1 style={{ textTransform: "uppercase", letterSpacing: "1px", color: "#4BB543", fontSize: "14px", fontWeight: 900, textAlign: "center" }}>
-            {isFoodOrder ? "Order Confirmed" : "Appointment Confirmed"}
-          </h1>
+          <h1 style={{ textTransform: "uppercase", letterSpacing: "1px", color: "#4BB543", fontSize: "14px", fontWeight: 900, textAlign: "center" }}>Appointment Confirmed</h1>
         </div>
 
         <hr style={{ borderColor: "#1a1a1a", margin: "20px 0" }} />
         
         <div style={{ display: "flex", flexDirection: "column", gap: "14px", fontSize: "14px" }}>
           <p style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: 0 }}><span style={{ color: "#666" }}>Ticket ID:</span> <span style={{ fontWeight: "bold", textAlign: "right", wordBreak: "break-all", marginLeft: "16px" }}>{ticketDetails?.ticketId}</span></p>
-          
-          {!isFoodOrder ? (
-            <>
-              <p style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: 0 }}><span style={{ color: "#666" }}>Stylist:</span> <span style={{ fontWeight: "bold", textAlign: "right", marginLeft: "16px" }}>{ticketDetails?.stylist || "Any available"}</span></p>
-              <p style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: 0 }}><span style={{ color: "#666" }}>Duration:</span> <span style={{ fontWeight: "bold", textAlign: "right", marginLeft: "16px" }}>{ticketDetails?.duration} mins</span></p>
-            </>
-          ) : (
-            <p style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: 0 }}><span style={{ color: "#666" }}>Target Pickup:</span> <span style={{ fontWeight: "bold", textAlign: "right", marginLeft: "16px" }}>{ticketDetails?.time}</span></p>
-          )}
+          <p style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: 0 }}><span style={{ color: "#666" }}>Stylist:</span> <span style={{ fontWeight: "bold", textAlign: "right", marginLeft: "16px" }}>{ticketDetails?.stylist || "Any available"}</span></p>
+          <p style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: 0 }}><span style={{ color: "#666" }}>Duration:</span> <span style={{ fontWeight: "bold", textAlign: "right", marginLeft: "16px" }}>{ticketDetails?.duration} mins</span></p>
           
           <div style={{ margin: "8px 0", borderTop: "1px dashed #222", paddingTop: "12px" }}>
-            <span style={{ color: "#666", fontSize: "12px", display: "block", marginBottom: "6px" }}>
-              {isFoodOrder ? "Items:" : "Services:"}
-            </span>
+            <span style={{ color: "#666", fontSize: "12px", display: "block", marginBottom: "6px" }}>Services:</span>
             <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
               {ticketDetails?.services?.map((service: any, index: number) => (
                 <div key={index} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "13px", background: "#111", padding: "8px 12px", borderRadius: "8px", gap: "8px" }}>
-                  <span style={{ textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
-                    {service.serviceName || service.name} {service.quantity ? `(x${service.quantity})` : ''}
-                  </span>
+                  <span style={{ textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>{service.serviceName || service.name}</span>
                   <span style={{ fontWeight: "bold", flexShrink: 0 }}>€{service.price}</span>
                 </div>
               ))}
@@ -184,6 +186,7 @@ to collect your selection.
           </p>
         </div>
         
+        {/* 📲 LIVE QR GENERATION CONTAINER */}
         <div style={{ background: "#fff", color: "#000", padding: "24px", margin: "24px 0 16px", borderRadius: "16px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
           {ticketDetails && (
             <QRCodeSVG 
@@ -193,11 +196,10 @@ to collect your selection.
               includeMargin={false}
             />
           )}
-          <span style={{ fontSize: "11px", fontWeight: "bold", marginTop: "12px", color: "#888", textTransform: "uppercase", letterSpacing: "0.5px", textAlign: "center" }}>
-            {isFoodOrder ? "Present receipt scan to collect order" : "Scan at reception front desk"}
-          </span>
+          <span style={{ fontSize: "11px", fontWeight: "bold", marginTop: "12px", color: "#888", textTransform: "uppercase", letterSpacing: "0.5px", textAlign: "center" }}>Scan at reception front desk</span>
         </div>
 
+        {/* UTILITY ACTION ITEMS */}
         <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "20px" }}>
           <button 
             onClick={handleDownloadReceipt} 
@@ -206,24 +208,17 @@ to collect your selection.
             <Download size={14} /> Download Pass
           </button>
 
-          {/* 🌟 Adaptive Route Navigation Action Button */}
           <button 
-            onClick={() => {
-              if (isFoodOrder) {
-                // Return back directly to the specific food restaurant catalog view
-                navigate(`/food/${ticketDetails.targetBusinessUid}`);
-              } else {
-                navigate("/");
-              }
-            }} 
+            onClick={() => navigate("/")} 
             style={{ width: "100%", padding: "14px", background: "#fff", color: "#000", border: "none", borderRadius: "12px", fontWeight: 900, cursor: "pointer", fontSize: "13px" }}
           >
-            {isFoodOrder ? "Return to Restaurant Store" : "Return to Home"}
+            Return to Home
           </button>
         </div>
 
       </div>
       
+      {/* Dynamic Keyframe style injection for loader spin */}
       <style>{`
         @keyframes spin {
           0% { transform: rotate(0deg); }

@@ -127,6 +127,49 @@ export const StoreFrontend: React.FC = () => {
 
     return () => unsubscribe();
   }, [customerName, restaurantUid]);
+  
+  const location = useLocation();
+
+  useEffect(() => {
+    if (location.state?.paymentConfirmed && location.state?.orderPayload) {
+      const confirmedData = location.state.orderPayload;
+      
+      const commitOrderToDatabase = async () => {
+        try {
+          const fourDigitPin = Math.floor(1000 + Math.random() * 9000).toString();
+          
+          await addDoc(collection(db, 'orders'), {
+            restaurantUid: restaurantUid,
+            customerName: confirmedData.customerName,
+            pickupTime: confirmedData.time,
+            status: 'pending',
+            items: confirmedData.services.map((s: any) => ({
+              name: s.serviceName,
+              quantity: s.quantity,
+              price: s.price
+            })),
+            fourDigitCode: fourDigitPin,
+            totalPaid: confirmedData.totalPrice,
+            paymentStatus: 'paid',
+            userMobilityStatus: confirmedData.userMobilityStatus,
+            tableNumber: confirmedData.tableNumber,
+            customerUid: confirmedData.customerUid,
+            createdAt: new Date()
+          });
+
+          // Open up the tickets side drawer so they see the generated QR code right away
+          setIsOrdersOpen(true);
+          
+          // Clear history state pointers to prevent double-writes on manual page refresh actions
+          navigate(location.pathname, { replace: true, state: {} });
+        } catch (err) {
+          console.error("Failed writing verified order log:", err);
+        }
+      };
+
+      commitOrderToDatabase();
+    }
+  }, [location.state, restaurantUid, navigate]);
 
   // 5. Build Live Ticket QR Codes
   useEffect(() => {
@@ -156,6 +199,7 @@ export const StoreFrontend: React.FC = () => {
     setSelectedQty(1);
   };
 
+
   const cartTotal = cart.reduce((acc, item) => acc + (item.product.price * item.quantity), 0);
 
   // Mandatory Upfront Payment and Booking Routine
@@ -178,15 +222,16 @@ export const StoreFrontend: React.FC = () => {
         price: item.product.price,
         quantity: item.quantity
       })),
-      duration: 0, // Fallback placeholder to satisfy common ticket structures
-      date: new Date().toISOString().split('T')[0], // Today's date stamp assignment
+      duration: 0,
+      date: new Date().toISOString().split('T')[0],
       time: pickupTime, 
       customerName: customerName.trim(),
       userMobilityStatus: currentStatus,
       tableNumber: currentStatus === 'in store' ? tableNumber : '',
-      customerUid: userId || guestId
+      customerUid: userId || guestId,
+      // 🔴 Crucial Addition: tell ticket.tsx to auto-return here
+      fromStore: true 
     };
-
     console.log("Navigating restaurant basket into global checkout framework:", checkoutPayload);
     
     // Clear local display states and push to the ticket checkout layout route view
@@ -219,6 +264,7 @@ export const StoreFrontend: React.FC = () => {
   const filteredProducts = products.filter(p =>
     p.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
 
   return (
     <div className={styles.appContainer} style={{ background: "#050505", minHeight: "100vh", color: "#fff", fontFamily: "sans-serif", width: "100vw", display: "flex", flexDirection: "column", boxSizing: "border-box" }}>
