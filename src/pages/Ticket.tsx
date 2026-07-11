@@ -45,15 +45,17 @@ export default function TicketCheckout() {
         const functionName = 'processPayment'; // 👈 Look at that, beautifully simple!
         const processPayment = httpsCallable(functions, functionName);
 
+        // Inside ticket.tsx -> Find where you call processPayment:
         const response = await processPayment({
-          targetBusinessUid: payload.targetBusinessUid,
-          amount: payload.totalPrice,
-          fallbackCustomerUid: activeUid,
-          appointmentDetails: {
-            services: payload.services,
-            stylist: payload.stylist,
-            duration: payload.duration
-          }
+            targetBusinessUid: payload.targetBusinessUid,
+            amount: payload.totalPrice,
+            // Change fallbackCustomerUid to look for auth.currentUser first, then activeUid
+            fallbackCustomerUid: auth.currentUser?.uid || activeUid || payload.customerUid, 
+            appointmentDetails: {
+                services: payload.services,
+                stylist: payload.stylist,
+                duration: payload.duration
+            }
         });
 
         const resultData = response.data as any;
