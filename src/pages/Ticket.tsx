@@ -61,24 +61,27 @@ export default function TicketCheckout() {
 
         const resultData = response.data as any;
 
+        // Inside the transaction success block of TicketCheckout (ticket.tsx):
         if (resultData && resultData.success) {
-          if (payload.fromStore) {
-            navigate(`/store/${payload.targetBusinessUid}`, { 
-              state: { paymentConfirmed: true, orderPayload: payload },
-              replace: true 
-            });
-          } else {
-            setTicketDetails((prev: any) => ({ ...prev, ticketId: resultData.ticketId }));
-            setPaymentStatus("success");
-          }
-        } else {
-          setPaymentStatus("error");
-          setErrorMessage("Wallet payment processing was rejected by the server ledger.");
+            if (payload.fromStore) {
+                // 🟢 Fix: Change "/store/" to "/food/" to align with App.tsx routing table parameters
+                navigate(`/food/${payload.targetBusinessUid}`, { 
+                state: { paymentConfirmed: true, orderPayload: payload },
+                replace: true 
+                });
+            } else {
+                setTicketDetails((prev: any) => ({ ...prev, ticketId: resultData.ticketId }));
+                setPaymentStatus("success");
+            }
+
+            } else {
+            setPaymentStatus("error");
+            setErrorMessage("Wallet payment processing was rejected by the server ledger.");
+            }
+        } catch (error: any) {
+            setPaymentStatus("error");
+            setErrorMessage(error.message || "An unexpected error occurred during checkout.");
         }
-      } catch (error: any) {
-        setPaymentStatus("error");
-        setErrorMessage(error.message || "An unexpected error occurred during checkout.");
-      }
     };
 
     processAutoPayment();
