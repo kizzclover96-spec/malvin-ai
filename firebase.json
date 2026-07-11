@@ -2,7 +2,7 @@
   "functions": [
     {
       "source": "malvinbackend",
-      "codebase": "malvinbackend",
+      "codebase": "default",
       "disallowLegacyRuntimeConfig": true,
       "ignore": [
         "node_modules",
