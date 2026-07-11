@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { firestore as db } from '../firebase'; // 👈 Adjusted from 'firestore as db' if standard
-import { doc, onSnapshot, collection, query, where, deleteDoc, updateDoc, increment } from 'firebase/firestore';
+import { firestore as db } from '../firebase'; 
+import { doc, onSnapshot, collection, addDoc, query, where, deleteDoc, updateDoc, increment } from 'firebase/firestore';
 import styles from './store.module.css';
 import { useParams, useNavigate } from "react-router-dom";
 import QRCode from "qrcode";
@@ -45,7 +45,8 @@ export const StoreFrontend: React.FC = () => {
   const restaurantUid = Uid || "";
   const navigate = useNavigate();
   
-  const { currency, walletBalance, userId } = useBusinessWallet();
+  // Wallet Hook Integration for verifying balances and identifying active users
+  const { currency, walletBalance, deductFunds, userId } = useBusinessWallet();
 
   // State
   const [profile, setProfile] = useState<RestaurantProfile | null>(null);
@@ -66,8 +67,8 @@ export const StoreFrontend: React.FC = () => {
   const [currentStatus, setCurrentStatus] = useState('home');
   const [tableNumber, setTableNumber] = useState('');
   const [guestId, setGuestId] = useState<string>('');
-  const [isProcessingPayment] = useState(false);
-  const [paymentError] = useState<string | null>(null);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
 
   const [receiptQrs, setReceiptQrs] = useState<Record<string, string>>({});
 
@@ -107,17 +108,11 @@ export const StoreFrontend: React.FC = () => {
     return () => unsubscribe();
   }, [restaurantUid]);
 
-  // 4. Live Feed: Order Tracking Pipeline (Fixed to use active ID mapping stability)
+  // 4. Live Feed: Order Tracking pipeline
   useEffect(() => {
-    const activeCustomerUid = userId || guestId;
-    if (!activeCustomerUid || !restaurantUid) return;
-
+    if (!customerName) return;
     const colRef = collection(db, 'orders');
-    const q = query(
-      colRef, 
-      where('customerUid', '==', activeCustomerUid), 
-      where('restaurantUid', '==', restaurantUid)
-    );
+    const q = query(colRef, where('customerName', '==', customerName), where('restaurantUid', '==', restaurantUid));
 
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const ordersList: Order[] = [];
@@ -131,7 +126,7 @@ export const StoreFrontend: React.FC = () => {
     });
 
     return () => unsubscribe();
-  }, [userId, guestId, restaurantUid]);
+  }, [customerName, restaurantUid]);
 
   // 5. Build Live Ticket QR Codes
   useEffect(() => {
@@ -139,18 +134,14 @@ export const StoreFrontend: React.FC = () => {
       const qrMap: Record<string, string> = {};
       for (const order of userOrders) {
         if (order.fourDigitCode) {
-          try {
-            qrMap[order.id] = await QRCode.toDataURL(
-              JSON.stringify({
-                orderId: order.id,
-                code: order.fourDigitCode,
-                customer: order.customerName,
-                payment: order.paymentStatus
-              })
-            );
-          } catch (err) {
-            console.error("QR Code generation error:", err);
-          }
+          qrMap[order.id] = await QRCode.toDataURL(
+            JSON.stringify({
+              orderId: order.id,
+              code: order.fourDigitCode,
+              customer: order.customerName,
+              payment: order.paymentStatus
+            })
+          );
         }
       }
       setReceiptQrs(qrMap);
@@ -167,6 +158,8 @@ export const StoreFrontend: React.FC = () => {
 
   const cartTotal = cart.reduce((acc, item) => acc + (item.product.price * item.quantity), 0);
 
+  // Mandatory Upfront Payment and Booking Routine
+  // Matches the exact transactional checkout framework pattern used in the Salon workflow
   const handlePlaceOrder = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -175,6 +168,7 @@ export const StoreFrontend: React.FC = () => {
       return;
     }
 
+    // Pack the state properties exactly how your central ticket checkout system demands it
     const checkoutPayload = {
       targetBusinessUid: restaurantUid,
       totalPrice: cartTotal, 
@@ -184,15 +178,18 @@ export const StoreFrontend: React.FC = () => {
         price: item.product.price,
         quantity: item.quantity
       })),
-      duration: 0, 
-      date: new Date().toISOString().split('T')[0], 
+      duration: 0, // Fallback placeholder to satisfy common ticket structures
+      date: new Date().toISOString().split('T')[0], // Today's date stamp assignment
       time: pickupTime, 
       customerName: customerName.trim(),
       userMobilityStatus: currentStatus,
       tableNumber: currentStatus === 'in store' ? tableNumber : '',
       customerUid: userId || guestId
     };
+
+    console.log("Navigating restaurant basket into global checkout framework:", checkoutPayload);
     
+    // Clear local display states and push to the ticket checkout layout route view
     setCart([]);
     setIsCheckoutOpen(false);
     navigate("/ticket-checkout", { state: checkoutPayload });
@@ -203,11 +200,15 @@ export const StoreFrontend: React.FC = () => {
     if (!confirmCancel) return;
 
     try {
+      // 1. Delete production queue document
       await deleteDoc(doc(db, 'orders', orderId));
+      
+      // 2. Rollback client ledger transaction
       const clientWalletRef = doc(db, 'wallets', userId || guestId);
       await updateDoc(clientWalletRef, {
         balance: increment(amount)
       });
+
       alert("Order voided successfully. Funds returned to your wallet.");
     } catch (error) {
       console.error("Error running cancellation engine: ", error);
@@ -239,12 +240,11 @@ export const StoreFrontend: React.FC = () => {
         </div>
       </header>
 
+      {/* Wallet Balance Strip Indicator */}
       <div style={{ background: "#111", borderBottom: "1px solid #222", padding: "8px 24px" }}>
         <div style={{ maxWidth: "600px", margin: "0 auto", display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#aaa" }}>
           <span>Your Active Wallet Status:</span>
-          <span style={{ color: "#4BB543", fontWeight: "bold" }}>
-            Available Balance: {currency}{typeof walletBalance === 'number' ? walletBalance.toFixed(2) : '0.00'}
-          </span>
+          <span style={{ color: "#4BB543", fontWeight: "bold" }}>Available Balance: {currency}{walletBalance.toFixed(2)}</span>
         </div>
       </div>
 
@@ -398,7 +398,7 @@ export const StoreFrontend: React.FC = () => {
                     </div>
 
                     <div style={{ margin: '8px 0', display: "flex", flexDirection: "column", gap: "4px" }}>
-                      {order.items?.map((it, idx) => (
+                      {order.items.map((it, idx) => (
                         <div key={idx} style={{ fontSize: '13px', display: 'flex', justifyContent: 'space-between', color: "#aaa" }}>
                           <span>{it.quantity}x {it.name}</span>
                           <span>{currency}{(it.price * it.quantity).toFixed(2)}</span>
