@@ -212,7 +212,8 @@ export const stripeWebhook = onRequest(
 =====================================
 */
 export const processPayment = onCall({ cors: true }, async (request) => {
-  const { targetBusinessUid, amount, fallbackCustomerUid, appointmentDetails } = request.data;
+  // 1. 🟢 Destructure merchantType along with the other payload items
+  const { targetBusinessUid, amount, fallbackCustomerUid, appointmentDetails, merchantType } = request.data;
   
   const customerUid = request.auth?.uid || fallbackCustomerUid;
 
@@ -228,31 +229,28 @@ export const processPayment = onCall({ cors: true }, async (request) => {
   const { FieldValue, Transaction } = require("firebase-admin/firestore");
 
   const userRef = db.collection("users").doc(customerUid);
-  const salonRef = db.collection("salons").doc(targetBusinessUid);
   const txRef = userRef.collection("walletTransactions").doc();
   
-  // Create a reference for the salon appointment on the server side
-  const ticketId = `SAL-${Math.floor(100000 + Math.random() * 900000)}`;
-  const appointmentRef = db.collection("salonAppointments").doc(customerUid).collection("appointments").doc();
+  // 2. 🟢 Explicitly choose collections based on the incoming storefront variant flag
+  const isFood = merchantType === "food";
+  const targetCollection = isFood ? "restaurantprofile" : "salons";
+  const appointmentCollection = isFood ? "foodOrders" : "salonAppointments"; // Adjust "foodOrders" to your actual restaurant order collection name
+
+  const businessRef = db.collection(targetCollection).doc(targetBusinessUid);
+  const ticketId = isFood 
+    ? `FOOD-${Math.floor(100000 + Math.random() * 900000)}` 
+    : `SAL-${Math.floor(100000 + Math.random() * 900000)}`;
+
+  // Move this inside or dynamically resolve the collection reference path
+  const appointmentRef = db.collection(appointmentCollection).doc(customerUid).collection("appointments").doc();
 
   try {
     await db.runTransaction(async (transaction: typeof Transaction) => {
       const userDoc = await transaction.get(userRef);
-      
-      // 1. Try fetching from the "salons" collection first
-      let salonDoc = await transaction.get(salonRef);
-      let targetCollection = "salons";
+      const businessDoc = await transaction.get(businessRef);
 
-      // 2. Fallback: If it doesn't exist in "salons", check "restaurantprofile"
-      if (!salonDoc.exists) {
-        const restaurantRef = db.collection("restaurantprofile").doc(targetBusinessUid);
-        salonDoc = await transaction.get(restaurantRef);
-        targetCollection = "restaurantprofile";
-      }
-
-      // 3. Now check if BOTH lookups failed
-      if (!userDoc.exists || !salonDoc.exists) {
-        throw new HttpsError("not-found", "Target user profile or salon directory node is missing.");
+      if (!userDoc.exists || !businessDoc.exists) {
+        throw new HttpsError("not-found", `Target user profile or merchant directory node (${targetCollection}) is missing.`);
       }
 
       const userData = userDoc.data();
@@ -262,21 +260,21 @@ export const processPayment = onCall({ cors: true }, async (request) => {
         throw new HttpsError("failed-precondition", "Insufficient client wallet funds available.");
       }
 
-      // 4. Update balances using the correct collection reference dynamic update
+      // 3. Deduct from customer wallet
       transaction.update(userRef, { "wallet.balance": FieldValue.increment(-amount) });
       
-      const dynamicBusinessRef = db.collection(targetCollection).doc(targetBusinessUid);
-      transaction.update(dynamicBusinessRef, { walletBalance: FieldValue.increment(amount) });
+      // 4. Update balance directly on the cleanly dynamically routed business node
+      transaction.update(businessRef, { walletBalance: FieldValue.increment(amount) });
 
-      // 5. Save user transaction statement logs (using fallback name if needed)
+      // 5. Save user transaction statement logs with accurate fallback metadata strings
       transaction.set(txRef, {
-        storeName: salonDoc.data()?.name || salonDoc.data()?.brandName || "Pamela nails",
+        storeName: businessDoc.data()?.brandName || businessDoc.data()?.name || businessDoc.data()?.salonName || "Malvin Storefront Platform",
         amount: amount,
         type: "spent",
         timestamp: FieldValue.serverTimestamp(),
       });
 
-      // 6. SECURE TICKET CREATION
+      // 6. 🟢 SECURE DYNAMIC TICKET CREATION
       transaction.set(appointmentRef, {
         ticketId: ticketId,
         businessId: targetBusinessUid,
@@ -285,6 +283,7 @@ export const processPayment = onCall({ cors: true }, async (request) => {
         duration: appointmentDetails?.duration || 0,
         totalPaid: amount,
         status: "paid",
+        merchantType: merchantType,
         createdAt: FieldValue.serverTimestamp()
       });
     });
