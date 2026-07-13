@@ -35,6 +35,7 @@ interface SalonData {
   qrImage: string;
   walletBalance: number;
   status: string;
+  hasPinConfigured?: boolean;
 }
 
 interface LiveAppointment {
@@ -65,6 +66,10 @@ export default function SalonDashboard() {
   const [isForgotPinOpen, setIsForgotPinOpen] = useState(false);
   const [resetCode, setResetCode] = useState('');
   const [newPin, setNewPin] = useState('');
+  // First-Time Pin Setup States
+  const [setupPin, setSetupPin] = useState('');
+  const [confirmSetupPin, setConfirmSetupPin] = useState('');
+  const [isRegisteringPin, setIsRegisteringPin] = useState(false);
   const handleForgotPinRequest = async () => {
     try {
       const { getFunctions, httpsCallable } = await import('firebase/functions');
@@ -104,6 +109,45 @@ export default function SalonDashboard() {
       setNewPin('');
     } catch (error: any) {
       alert(`Reset Failed: ${error.message}`);
+    }
+  };
+
+  // INITIAL SETUP: Generates a new merchant PIN on the backend
+  const handleRegisterSetupPin = async () => {
+    if (setupPin.length !== 4 || confirmSetupPin.length !== 4) {
+      alert("PIN must be exactly 4 digits.");
+      return;
+    }
+
+    if (setupPin !== confirmSetupPin) {
+      alert("PINs do not match. Please verify.");
+      return;
+    }
+
+    setIsRegisteringPin(true);
+    showToast("Registering your secure PIN...");
+
+    try {
+      const { getFunctions, httpsCallable } = await import('firebase/functions');
+      const setupPinFn = httpsCallable(getFunctions(), 'initializeMerchantPin'); // Ensure this matches your cloud function setup name
+
+      await setupPinFn({
+        pin: setupPin,
+        merchantType: "salon"
+      });
+
+      alert("🎉 Security PIN successfully established! You can now withdraw funds securely.");
+      
+      // Update local state to reflect the setup completion
+      if (salon) setSalon({ ...salon, hasPinConfigured: true });
+      
+      setIsPinSetupModalOpen(false);
+    } catch (error: any) {
+      alert(`Setup Failed: ${error.message}`);
+    } finally {
+      setIsRegisteringPin(false);
+      setSetupPin('');
+      setConfirmSetupPin('');
     }
   };
 
@@ -351,7 +395,14 @@ export default function SalonDashboard() {
       return;
     }
     
-    // Clear any leftover PIN inputs from previous sessions
+    // If the database states we haven't set up a PIN, force initialization
+    if (salon.hasPinConfigured === false) {
+      setSetupPin('');
+      setConfirmSetupPin('');
+      setIsPinSetupModalOpen(true);
+      return;
+    }
+
     setPinInput(''); 
     setIsPinModalOpen(true);
   };
@@ -761,6 +812,55 @@ export default function SalonDashboard() {
                 style={{ background: 'none', border: 'none', color: '#E53935', fontSize: '11px', cursor: 'pointer', marginTop: '8px', textDecoration: 'underline' }}
               >
                 Forgot PIN?
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* FIRST-TIME PIN SETUP OVERLAY */}
+      {isPinSetupModalOpen && (
+        <div className={styles.modalOverlay} style={{ zIndex: 2700 }}>
+          <div className={styles.modalContent} style={{ maxWidth: '380px', textAlign: 'center' }}>
+            <h3>Initialize Security PIN</h3>
+            <p style={{ color: '#aaa', fontSize: '13px' }}>You haven't configured a secure PIN yet. Setup a numeric 4-digit PIN to secure future withdrawals.</p>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', margin: '20px 0', alignItems: 'center' }}>
+              <div>
+                <label style={{ fontSize: '11px', textTransform: 'uppercase', color: '#666', display: 'block', marginBottom: '6px' }}>Choose PIN</label>
+                <input 
+                  type="password" 
+                  maxLength={4}
+                  placeholder="••••"
+                  value={setupPin}
+                  disabled={isRegisteringPin}
+                  onChange={(e) => setSetupPin(e.target.value.replace(/\D/g, ''))}
+                  style={{ background: '#111', color: '#fff', border: '1px solid #222', padding: '10px', borderRadius: '8px', width: '110px', fontSize: '18px', textAlign: 'center', letterSpacing: '4px' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '11px', textTransform: 'uppercase', color: '#666', display: 'block', marginBottom: '6px' }}>Confirm PIN</label>
+                <input 
+                  type="password" 
+                  maxLength={4}
+                  placeholder="••••"
+                  value={confirmSetupPin}
+                  disabled={isRegisteringPin}
+                  onChange={(e) => setConfirmSetupPin(e.target.value.replace(/\D/g, ''))}
+                  style={{ background: '#111', color: '#fff', border: '1px solid #222', padding: '10px', borderRadius: '8px', width: '110px', fontSize: '18px', textAlign: 'center', letterSpacing: '4px' }}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button className={styles.glassButtonSecondary} disabled={isRegisteringPin} onClick={() => setIsPinSetupModalOpen(false)} style={{ flex: 1 }}>Cancel</button>
+              <button 
+                className={styles.glassButtonPrimary} 
+                disabled={isRegisteringPin || setupPin.length !== 4 || setupPin !== confirmSetupPin} 
+                onClick={handleRegisterSetupPin} 
+                style={{ flex: 1 }}
+              >
+                {isRegisteringPin ? "Saving..." : "Set PIN"}
               </button>
             </div>
           </div>
