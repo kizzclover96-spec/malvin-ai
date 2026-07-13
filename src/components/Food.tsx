@@ -399,6 +399,33 @@ export default function FoodDashboard() {
         }
   };
 
+  // Place these state hooks near your other state hooks at the top of the component:
+  const [showScanner, setShowScanner] = useState(false);
+  const [scanResultMsg, setScanResultMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+
+  // Handler to verify and delete processed receipts 
+  const handleScanReceiptCode = async (scannedOrderId: string) => {
+    if (!scannedOrderId) return;
+    
+    try {
+      // Search local state first for a match
+      const matchedOrder = incomingOrders.find(o => o.id === scannedOrderId);
+      
+      if (matchedOrder) {
+        // Find order reference path inside Firestore 'orders' collection
+        const orderDocRef = doc(db, 'orders', scannedOrderId);
+        await deleteDoc(orderDocRef);
+        
+        setScanResultMsg({ type: 'success', text: `Order confirmed for ${matchedOrder.customerName}! Ticket deleted.` });
+      } else {
+        setScanResultMsg({ type: 'error', text: 'Order doesn\'t exist or was already processed.' });
+      }
+    } catch (err) {
+      console.error("Scanner exception error processing ticket delete: ", err);
+      setScanResultMsg({ type: 'error', text: 'Error connecting to database workspace.' });
+    }
+  };
+
   if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-white text-black flex items-center justify-center font-sans">
@@ -437,6 +464,51 @@ export default function FoodDashboard() {
             >
               Acknowledge
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* --- QR CODE SCANNER MODAL OVERLAY --- */}
+      {showScanner && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white border-[4px] border-black rounded-3xl p-6 max-w-md w-full shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] space-y-4">
+            <div className="flex justify-between items-center border-b-[3px] border-black pb-2">
+              <h2 className="text-xl font-black uppercase tracking-tight">QR Ticket Validation</h2>
+              <button 
+                onClick={() => { setShowScanner(false); setScanResultMsg(null); }}
+                className="w-8 h-8 border-2 border-black rounded-xl bg-red-200 font-bold"
+              >
+                ✕
+              </button>
+            </div>
+            
+            {/* Visual simulation zone for code lookup capture */}
+            <div className="border-[3px] border-dashed border-black rounded-2xl p-6 bg-neutral-50 text-center relative flex flex-col items-center justify-center min-h-[160px]">
+              <span className="text-4xl mb-2 animate-pulse">📷</span>
+              <p className="text-xs font-bold text-gray-500">Align customer live receipt digital QR inside viewfinder</p>
+              
+              {/* Optional fast-manual text input fallback option to query testing strings */}
+              <input 
+                type="text"
+                placeholder="Paste scanned raw JSON/ID string here"
+                className="mt-4 w-full bg-white border-[2px] border-black text-xs font-mono p-2 rounded-xl"
+                onChange={(e) => {
+                  try {
+                    // Automatically extract ID if whole payload JSON string gets passed or look up raw id text input
+                    const parsed = JSON.parse(e.target.value);
+                    if (parsed.orderId) handleScanReceiptCode(parsed.orderId);
+                  } catch {
+                    if (e.target.value.length > 5) handleScanReceiptCode(e.target.value);
+                  }
+                }}
+              />
+            </div>
+
+            {scanResultMsg && (
+              <div className={`border-[3px] border-black rounded-2xl p-3 text-center font-black text-sm uppercase ${scanResultMsg.type === 'success' ? 'bg-lime-200 text-lime-900' : 'bg-red-200 text-red-900'}`}>
+                {scanResultMsg.text}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -500,6 +572,15 @@ export default function FoodDashboard() {
             {profile?.brandName || "My Restaurant"} {isVerified && <VerifiedBadge />}
           </span>
         </div>
+
+        {/* 🎛️ NEW: Added QR Scanner Trigger Icon button */}
+        <button
+            onClick={() => setShowScanner(true)}
+            className="w-12 h-12 flex items-center justify-center border-[3px] border-black bg-cyan-200 rounded-2xl active:translate-y-0.5 transition-all text-lg font-black"
+            title="Scan Receipt Code"
+        >
+          🔲
+        </button>
 
         <button
             onClick={handleLogout}
