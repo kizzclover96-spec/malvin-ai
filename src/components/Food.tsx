@@ -19,6 +19,7 @@ import { getDatabase, ref, onValue } from "firebase/database";
 import { useRef } from "react";
 import { useBusinessWallet } from "../hooks/useBusinessWallet";
 import styles from './salonDashboard.module.css';
+import ConfirmQRScanner from './ConfirmQRScanner';
 
 // --- Type Definitions ---
 interface RestaurantData {
@@ -404,25 +405,44 @@ export default function FoodDashboard() {
   const [scanResultMsg, setScanResultMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
   // Handler to verify and delete processed receipts 
-  const handleScanReceiptCode = async (scannedOrderId: string) => {
-    if (!scannedOrderId) return;
+  const handleScanReceiptCode = async (scannedOutput: string) => {
+    if (!scannedOutput) return;
     
+    let targetOrderId = scannedOutput.trim();
+
+    // 1. Safe parsing: If a different route gives a full URL link path, extract just the end ID
+    if (targetOrderId.includes('/')) {
+      targetOrderId = targetOrderId.split('/').pop() || targetOrderId;
+    }
+
+    // 2. Safe parsing: If a different template formats it as an object
     try {
-      // Search local state first for a match
-      const matchedOrder = incomingOrders.find(o => o.id === scannedOrderId);
+      const parsed = JSON.parse(targetOrderId);
+      if (parsed.orderId) targetOrderId = parsed.orderId;
+    } catch (e) {
+      // Keep targetOrderId unchanged if it's a plain text token
+    }
+
+    try {
+      const matchedOrder = incomingOrders.find(o => o.id === targetOrderId);
       
       if (matchedOrder) {
-        // Find order reference path inside Firestore 'orders' collection
-        const orderDocRef = doc(db, 'orders', scannedOrderId);
+        const orderDocRef = doc(db, 'orders', targetOrderId);
         await deleteDoc(orderDocRef);
         
-        setScanResultMsg({ type: 'success', text: `Order confirmed for ${matchedOrder.customerName}! Ticket deleted.` });
+        setScanResultMsg({ 
+          type: 'success', 
+          text: `Order verified for ${matchedOrder.customerName}! Ticket removed.` 
+        });
       } else {
-        setScanResultMsg({ type: 'error', text: 'Order doesn\'t exist or was already processed.' });
+        setScanResultMsg({ 
+          type: 'error', 
+          text: "Order doesn't exist or was already cleared." 
+        });
       }
     } catch (err) {
-      console.error("Scanner exception error processing ticket delete: ", err);
-      setScanResultMsg({ type: 'error', text: 'Error connecting to database workspace.' });
+      console.error("Firestore database update dropped:", err);
+      setScanResultMsg({ type: 'error', text: 'Server connection sync error.' });
     }
   };
 
@@ -469,47 +489,26 @@ export default function FoodDashboard() {
       )}
 
       {/* --- QR CODE SCANNER MODAL OVERLAY --- */}
+      {/* --- INLINE SATELLITE SCANNER DROPDOWN PANEL --- */}
       {showScanner && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white border-[4px] border-black rounded-3xl p-6 max-w-md w-full shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] space-y-4">
-            <div className="flex justify-between items-center border-b-[3px] border-black pb-2">
-              <h2 className="text-xl font-black uppercase tracking-tight">QR Ticket Validation</h2>
-              <button 
-                onClick={() => { setShowScanner(false); setScanResultMsg(null); }}
-                className="w-8 h-8 border-2 border-black rounded-xl bg-red-200 font-bold"
-              >
-                ✕
-              </button>
-            </div>
-            
-            {/* Visual simulation zone for code lookup capture */}
-            <div className="border-[3px] border-dashed border-black rounded-2xl p-6 bg-neutral-50 text-center relative flex flex-col items-center justify-center min-h-[160px]">
-              <span className="text-4xl mb-2 animate-pulse">📷</span>
-              <p className="text-xs font-bold text-gray-500">Align customer live receipt digital QR inside viewfinder</p>
-              
-              {/* Optional fast-manual text input fallback option to query testing strings */}
-              <input 
-                type="text"
-                placeholder="Paste scanned raw JSON/ID string here"
-                className="mt-4 w-full bg-white border-[2px] border-black text-xs font-mono p-2 rounded-xl"
-                onChange={(e) => {
-                  try {
-                    // Automatically extract ID if whole payload JSON string gets passed or look up raw id text input
-                    const parsed = JSON.parse(e.target.value);
-                    if (parsed.orderId) handleScanReceiptCode(parsed.orderId);
-                  } catch {
-                    if (e.target.value.length > 5) handleScanReceiptCode(e.target.value);
-                  }
-                }}
-              />
-            </div>
+        <ConfirmQRScanner 
+          onClose={() => { 
+            setShowScanner(false); 
+            setScanResultMsg(null); 
+          }} 
+          onCrosscheck={(data) => {
+            // Passes the text straight to your verification handler
+            handleScanReceiptCode(data);
+          }} 
+        />
+      )}
 
-            {scanResultMsg && (
-              <div className={`border-[3px] border-black rounded-2xl p-3 text-center font-black text-sm uppercase ${scanResultMsg.type === 'success' ? 'bg-lime-200 text-lime-900' : 'bg-red-200 text-red-900'}`}>
-                {scanResultMsg.text}
-              </div>
-            )}
-          </div>
+      {/* --- ALERT BANNER ALIGNMENT --- */}
+      {scanResultMsg && (
+        <div className={`w-full max-w-2xl mx-auto mt-2 border-[3px] border-black rounded-2xl p-4 text-center font-black text-sm uppercase shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] tracking-wide animate-fadeIn ${
+          scanResultMsg.type === 'success' ? 'bg-lime-300 text-black' : 'bg-red-300 text-black'
+        }`}>
+          {scanResultMsg.text}
         </div>
       )}
 
