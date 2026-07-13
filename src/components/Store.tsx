@@ -72,7 +72,8 @@ export const StoreFrontend: React.FC = () => {
   const [isOrdersOpen, setIsOrdersOpen] = useState(false);
 
   // Checkout Form State
-  const [customerName, setCustomerName] = useState('');
+  // --- Adjust State Initialization ---
+  const [customerName, setCustomerName] = useState(location.state?.orderPayload?.customerName || '');
   const [pickupTime, setPickupTime] = useState('');
   const [currentStatus, setCurrentStatus] = useState('home');
   const [tableNumber, setTableNumber] = useState('');
@@ -465,7 +466,8 @@ export const StoreFrontend: React.FC = () => {
                     <small>{order.pickupTime}</small>
                   </div>
 
-                  {order.status !== 'pending' && (
+                  {/* 🟢 CHANGE THIS: Allow receipts to show for pending or all orders */}
+                  {(order.status === 'pending' || order.status !== 'finished') && (
                     <div style={{ marginTop: '12px', borderTop: '1px dashed #ccc', paddingTop: '12px' }}>
                       <strong>Digital Receipt Token</strong>
                       <p style={{ margin: '4px 0', fontSize: '13px' }}>Customer: {order.customerName}</p>
@@ -473,13 +475,7 @@ export const StoreFrontend: React.FC = () => {
                         Code: {order.fourDigitCode || '####'}
                       </p>
                       
-                      <div
-                        style={{
-                          display: "flex",
-                          justify: "center",
-                          marginTop: "10px",
-                        }}
-                      >
+                      <div style={{ display: "flex", justifyContent: "center", marginTop: "10px" }}>
                         {receiptQrs[order.id] && (
                           <img
                             src={receiptQrs[order.id]}
