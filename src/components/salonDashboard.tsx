@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { firestore as db } from '../firebase'; 
 import { auth } from "../firebase"; 
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { 
   doc, 
   getDoc, 
@@ -56,6 +57,10 @@ export default function SalonDashboard() {
   const { balance, currency } = useBusinessWallet();
   const [salon, setSalon] = useState<SalonData | null>(null);
   const [incomingAppointments, setIncomingAppointments] = useState<LiveAppointment[]>([]);
+
+  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+  const [pinInput, setPinInput] = useState('');
+  const [isProcessingPayout, setIsProcessingPayout] = useState(false);
 
   // Form States
   const [formName, setFormName] = useState('');
@@ -292,13 +297,64 @@ export default function SalonDashboard() {
     setFormOffDays(prev => prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]);
   };
 
+  /*** 1. Initiates the payout flow by validating prerequisites 
+   * and opening the secure PIN overlay.
+   */
   const handleWithdrawProfit = () => {
     if (!salon || salon.walletBalance <= 0) {
       alert("No profits available to withdraw.");
       return;
     }
-    if (window.confirm(`Withdraw current balance of $${salon.walletBalance}?`)) {
-      showToast("Withdrawal request initiated successfully!");
+    
+    // Clear any leftover PIN inputs from previous sessions
+    setPinInput(''); 
+    setIsPinModalOpen(true);
+  };
+
+  /**
+   * 2. Validates the entered PIN and signs/transports the request 
+   * securely to the Firebase Cloud backend.
+   */
+  const handleConfirmPayout = async () => {
+    // Client-side safety guards
+    if (!salon || salon.walletBalance <= 0) {
+      alert("No balance available to withdraw.");
+      setIsPinModalOpen(false);
+      return;
+    }
+
+    if (pinInput.length !== 4 || isNaN(Number(pinInput))) {
+      alert("Invalid PIN format. Must be a 4-digit number.");
+      return;
+    }
+
+    setIsProcessingPayout(true);
+    showToast("Processing security clearing... Please wait.");
+
+    try {
+      // Dynamic import to keep initial bundle size light
+      const { getFunctions, httpsCallable } = await import('firebase/functions');
+      const functions = getFunctions();
+      const requestPayout = httpsCallable(functions, 'requestPayout');
+
+      // Fire payload securely over HTTPS
+      const response: any = await requestPayout({
+        amount: salon.walletBalance,
+        pin: pinInput,
+        merchantType: "salon" 
+      });
+
+      if (response.data?.success) {
+        alert(`🎉 Success! ${response.data.message}`);
+        setIsPinModalOpen(false);
+      }
+    } catch (error: any) {
+      console.error("Payout initiation failed:", error);
+      alert(`❌ Withdrawal Failed:\n${error.message || "Internal server settlement ledger error."}`);
+    } finally {
+      // SECURITY BEST PRACTICE: Zero-out the PIN state from browser memory immediately 
+      setIsProcessingPayout(false);
+      setPinInput(''); 
     }
   };
 
@@ -577,6 +633,42 @@ export default function SalonDashboard() {
                   Store Details &rarr;
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {isPinModalOpen && (
+        <div className={styles.modalOverlay} style={{ zIndex: 2000 }}>
+          <div className={styles.modalContent} style={{ maxWidth: '360px', textAlign: 'center' }}>
+            <h3>Authorize Payout</h3>
+            <p style={{ color: '#aaa', fontSize: '14px' }}>Enter your 4-digit security PIN to withdraw {currency}{salon.walletBalance.toFixed(2)}</p>
+            
+            <input 
+              type="password" 
+              maxLength={4}
+              value={pinInput}
+              onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ''))}
+              style={{ background: '#111', color: '#fff', border: '1px solid #222', padding: '12px', borderRadius: '8px', width: '100px', fontSize: '20px', letterSpacing: '6px', textAlign: 'center', margin: '16px 0' }}
+              disabled={isProcessingPayout}
+            />
+
+            <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
+              <button 
+                className={styles.glassButtonSecondary} 
+                onClick={() => setIsPinModalOpen(false)}
+                disabled={isProcessingPayout}
+                style={{ flex: 1 }}
+              >
+                Cancel
+              </button>
+              <button 
+                className={styles.glassButtonPrimary} 
+                onClick={handleConfirmPayout}
+                disabled={isProcessingPayout || pinInput.length !== 4}
+                style={{ flex: 1 }}
+              >
+                {isProcessingPayout ? "Verifying..." : "Confirm"}
+              </button>
             </div>
           </div>
         </div>

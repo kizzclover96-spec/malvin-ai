@@ -295,3 +295,126 @@ export const processPayment = onCall({ cors: true }, async (request) => {
     throw new HttpsError("internal", "The ledger settlement failed to complete.");
   }
 });
+
+import * as crypto from "crypto"; // Built-in Node.js module for hashing
+
+/*
+=====================================
+7. SECURE ACCOUNT WITHDRAWAL (PAYOUT)
+=====================================
+*/
+export const requestPayout = onCall(
+  { secrets: ["SECURE_STRIPE_KEY"] },
+  async (request) => {
+    // 1. Ensure Stripe Secret Key is present
+    if (!process.env.SECURE_STRIPE_KEY) {
+      throw new HttpsError("failed-precondition", "Stripe secret key is missing on the server.");
+    }
+
+    // 2. Validate user authentication
+    const uid = request.auth?.uid;
+    if (!uid) {
+      throw new HttpsError("unauthenticated", "Authentication is required to initiate a payout.");
+    }
+
+    const { amount, pin, merchantType } = request.data;
+
+    // 3. Validate input parameters
+    if (!amount || typeof amount !== "number" || amount <= 0) {
+      throw new HttpsError("invalid-argument", "A valid positive withdrawal amount is required.");
+    }
+    if (!pin || typeof pin !== "string" || pin.length !== 4) {
+      throw new HttpsError("invalid-argument", "A valid 4-digit PIN is required.");
+    }
+
+    const stripe = getStripe();
+    const db = getDb();
+    const { FieldValue, Transaction } = require("firebase-admin/firestore");
+
+    // Dynamic collection selection based on merchant type
+    const isFood = merchantType === "food";
+    const targetCollection = isFood ? "restaurantprofile" : "salons";
+    const businessDocRef = db.collection(targetCollection).doc(uid);
+
+    // Hash the incoming PIN to compare with the stored hash
+    const incomingPinHash = crypto.createHash("sha256").update(pin).digest("hex");
+
+    try {
+      // Execute within an atomic transaction to prevent double-spending / race conditions
+      const result = await db.runTransaction(async (transaction: typeof Transaction) => {
+        const docSnap = await transaction.get(businessDocRef);
+
+        if (!docSnap.exists) {
+          throw new HttpsError("not-found", "Business profile not found.");
+        }
+
+        const data = docSnap.data();
+        const currentBalance = data?.walletBalance ?? 0;
+        const stripeAccountId = data?.stripeAccountId;
+        const payoutsEnabled = data?.payoutsEnabled ?? data?.payouts_enabled;
+        const storedPinHash = data?.pinHash; // Secure hashed PIN stored in DB
+
+        // Guard: Verify PIN
+        if (!storedPinHash || incomingPinHash !== storedPinHash) {
+          throw new HttpsError("permission-denied", "Incorrect secret PIN.");
+        }
+
+        // Guard: Verify Stripe Onboarding
+        if (!stripeAccountId || !payoutsEnabled) {
+          throw new HttpsError("failed-precondition", "Stripe payout account is not fully set up or onboarded.");
+        }
+
+        // Guard: Verify funds
+        if (currentBalance < amount) {
+          throw new HttpsError("failed-precondition", "Insufficient funds in your wallet.");
+        }
+
+        // Return validated variables to execute the API call outside the transaction
+        return { stripeAccountId, currentBalance };
+      });
+
+      // 4. Trigger Stripe Transfer / Payout
+      // Since funds are stored in your platform's balance, we transfer them to the Express Account
+      const amountInCents = Math.round(amount * 100);
+      
+      const transfer = await stripe.transfers.create({
+        amount: amountInCents,
+        currency: "eur",
+        destination: result.stripeAccountId,
+        description: `Payout withdrawal for UID: ${uid}`,
+      });
+
+      // 5. Update Firestore Ledger
+      const batch = db.batch();
+      
+      // Deduct balance from the business
+      batch.update(businessDocRef, {
+        walletBalance: FieldValue.increment(-amount),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+
+      // Create a record in their transaction history
+      const txRef = businessDocRef.collection("walletTransactions").doc();
+      batch.set(txRef, {
+        storeName: "Wallet Withdrawal",
+        amount: amount,
+        type: "payout",
+        stripeTransferId: transfer.id,
+        timestamp: FieldValue.serverTimestamp(),
+      });
+
+      await batch.commit();
+
+      return { 
+        success: true, 
+        message: `Successfully transferred €${amount} to your bank account.`,
+        transferId: transfer.id 
+      };
+
+    } catch (error: any) {
+      console.error("Payout transaction failure trace:", error);
+      if (error instanceof HttpsError) throw error;
+      throw new HttpsError("internal", error.message || "An error occurred while settling the payout.");
+    }
+  }
+);
