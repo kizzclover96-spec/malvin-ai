@@ -17,6 +17,14 @@
   z-index: 0;
 }
 
+.icon-button {
+  all: unset;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
 .blob {
   position: absolute;
   border-radius: 50%;

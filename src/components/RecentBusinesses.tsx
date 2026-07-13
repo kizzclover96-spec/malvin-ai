@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-// 🟢 Fixed typo: replaced 'deleteDo' with 'deleteDoc' and added 'setDoc'
 import { collection, onSnapshot, query, orderBy, doc, deleteDoc, setDoc } from 'firebase/firestore';
 import { firestore as db } from '../firebase'; 
 import { auth } from "../firebase";  
-import { MapPin, ArrowRight, Loader2, Store, Trash2 } from 'lucide-react';
+import { ArrowRight, Loader2, Store, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface RecentBusinessItem {
@@ -32,10 +31,11 @@ export const RecentBusinesses: React.FC<RecentBusinessesProps> = ({ onSelectBusi
   const isLongPressActive = useRef(false);
 
   const handleRenameSave = async (id: string) => {
-    if (!user?.uid || !newName.trim()) {
+    if (!user?.uid) {
         setEditingId(null);
         return;
     }
+    
     try {
         const docRef = doc(db, 'customers', user.uid, 'recentBusinesses', id);
         await setDoc(docRef, { customName: newName.trim() }, { merge: true });
@@ -45,7 +45,7 @@ export const RecentBusinesses: React.FC<RecentBusinessesProps> = ({ onSelectBusi
         setEditingId(null);
         setNewName('');
     }
- };
+  };
 
   useEffect(() => {
     if (!user?.uid) {
@@ -56,7 +56,7 @@ export const RecentBusinesses: React.FC<RecentBusinessesProps> = ({ onSelectBusi
     const recentRef = collection(db, 'customers', user.uid, 'recentBusinesses');
     const q = query(recentRef, orderBy('lastVisited', 'desc'));
 
-    const unsubscribe = onSnapshot(q, async (snapshot) => {
+    const unsubscribe = onSnapshot(q, (snapshot) => {
       const hasRecords = !snapshot.empty;
       setHasRecentItems(hasRecords);
 
@@ -70,12 +70,13 @@ export const RecentBusinesses: React.FC<RecentBusinessesProps> = ({ onSelectBusi
         const data = docSnapshot.data();
         return {
           id: docSnapshot.id,
+          // Fallback directly to document ID to keep tracking keys unique
           businessUid: data.businessUid || docSnapshot.id,
           customName: data.customName || '', 
-          storeName: data.customName || data.storeName || 'Unnamed Store', 
+          storeName: data.storeName || 'Unnamed Store', 
           logoUrl: data.logoUrl || '',
           bio: data.bio || 'Hold down to copy link address.',
-          address: data.address || 'Saved Location Matrix',
+          address: data.address || '',
         };
       });
 
@@ -131,7 +132,8 @@ export const RecentBusinesses: React.FC<RecentBusinessesProps> = ({ onSelectBusi
                     onTouchEnd={handleTouchEnd}
                     onMouseDown={() => handleTouchStart(item.businessUid)}
                     onMouseUp={handleTouchEnd}
-                    onClick={() => {
+                    onClick={(e) => {
+                      // Target the click precisely to open the business route
                       if (!isLongPressActive.current && editingId !== item.id) {
                           onSelectBusiness(item.businessUid);
                       }
@@ -141,7 +143,7 @@ export const RecentBusinesses: React.FC<RecentBusinessesProps> = ({ onSelectBusi
                     <div className="flex items-center gap-3.5 flex-1 min-w-0 pr-2">
                       <div className="w-12 h-12 rounded-2xl overflow-hidden bg-white border border-neutral-100 flex-shrink-0 flex items-center justify-center">
                           {item.logoUrl ? (
-                          <img src={item.logoUrl} alt={item.storeName} className="w-full h-full object-cover" />
+                          <img src={item.logoUrl} alt={item.customName || item.storeName} className="w-full h-full object-cover" />
                           ) : (
                           <Store className="w-5 h-5 text-neutral-400" />
                           )}
@@ -160,28 +162,27 @@ export const RecentBusinesses: React.FC<RecentBusinessesProps> = ({ onSelectBusi
                               autoFocus
                           />
                           ) : (
-                          <div className="flex items-center gap-2 group/title">
-                              <h4 className="text-xs font-black text-neutral-900 truncate leading-tight">
-                              {item.storeName}
+                          <div 
+                            className="inline-block cursor-text"
+                            onClick={(e) => {
+                                // Intercept row click to start editing inline smoothly on touch screens
+                                e.stopPropagation(); 
+                                setEditingId(item.id);
+                                setNewName(item.customName || item.storeName);
+                            }}
+                          >
+                              <h4 className="text-xs font-black text-neutral-900 truncate leading-tight hover:underline">
+                              {item.customName ? item.customName : item.storeName}
                               </h4>
-                              <span 
-                              onClick={(e) => {
-                                  e.stopPropagation(); 
-                                  setEditingId(item.id);
-                                  setNewName(item.customName || item.storeName);
-                              }}
-                              className="text-[10px] text-[#E53935] font-bold opacity-0 group-hover/title:opacity-100 cursor-pointer px-1 hover:underline"
-                              >
-                              (Edit)
-                              </span>
                           </div>
                           )}
                           
                           <p className="text-[11px] font-semibold text-neutral-400 truncate mt-0.5">{item.bio}</p>
-                          <div className="flex items-center gap-1 text-[10px] font-bold text-neutral-400 uppercase tracking-wide mt-1.5">
-                            <MapPin className="w-3 h-3 text-[#E53935]" />
-                            <span className="truncate">{item.address}</span>
-                          </div>
+                          
+                          {/* Instructions help footer block */}
+                          <p className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider mt-1">
+                            Tap name to edit • Hold to copy link
+                          </p>
                       </div>
                     </div>
 

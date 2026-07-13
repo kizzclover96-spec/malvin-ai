@@ -183,7 +183,7 @@ export const Front: React.FC = () => {
       >
         <motion.button 
           whileTap={{ scale: 0.92 }}
-          className="p-3 hover:bg-neutral-100 rounded-full transition-colors text-[#E53935]"
+           className="icon-button p-3 hover:bg-neutral-100 rounded-full transition-colors text-[#E53935]"
         >
           <Menu className="w-6 h-6" />
         </motion.button>
@@ -196,7 +196,7 @@ export const Front: React.FC = () => {
         <motion.button 
           whileTap={{ scale: 0.92 }}
           onClick={() => setIsSettingsOpen(true)}
-          className="p-3 hover:bg-neutral-100 rounded-full transition-colors text-[#E53935]"
+           className="icon-button p-3 hover:bg-neutral-100 rounded-full transition-colors text-[#E53935]"
         >
           <Settings className="w-6 h-6" />
         </motion.button>
@@ -270,14 +270,14 @@ export const Front: React.FC = () => {
           
           <button
             onClick={() => setActiveTab('home')}
-            className={`p-3.5 rounded-full transition-all flex items-center justify-center ${activeTab === 'home' ? 'bg-white shadow-sm text-[#E53935]' : 'text-neutral-400 hover:text-neutral-600'}`}
+            className={`icon-button p-3.5 rounded-full transition-all flex items-center justify-center ${activeTab === 'home' ? 'bg-white shadow-sm text-[#E53935]' : 'text-neutral-400 hover:text-neutral-600'}`}
           >
             <Home className="w-5 h-5" />
           </button>
           
           <button
             onClick={() => setActiveTab('wallet')}
-            className={`p-3.5 rounded-full transition-all flex items-center justify-center ${activeTab === 'wallet' ? 'bg-white shadow-sm text-[#E53935]' : 'text-neutral-400 hover:text-neutral-600'}`}
+            className={`icon-button p-3.5 rounded-full transition-all flex items-center justify-center ${activeTab === 'wallet' ? 'bg-white shadow-sm text-[#E53935]' : 'text-neutral-400 hover:text-neutral-600'}`}
           >
             <WalletIcon className="w-5 h-5" />
           </button>
@@ -287,7 +287,7 @@ export const Front: React.FC = () => {
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={() => setIsScannerOpen(true)}
-          className="w-14 h-14 bg-[#E53935] hover:bg-[#d32f2f] rounded-full flex items-center justify-center text-white shadow-[0_12px_28px_rgba(229,57,53,0.3)] hover:shadow-[0_16px_32px_rgba(229,57,53,0.4)] transition-all"
+          className="icon-button w-14 h-14 bg-[#E53935] hover:bg-[#d32f2f] rounded-full flex items-center justify-center text-white shadow-[0_12px_28px_rgba(229,57,53,0.3)] hover:shadow-[0_16px_32px_rgba(229,57,53,0.4)] transition-all"
         >
           <QrCode className="w-6 h-6" />
         </motion.button>
@@ -333,7 +333,7 @@ export const Front: React.FC = () => {
                 <motion.button
                   whileTap={{ scale: 0.9 }}
                   onClick={() => setIsSettingsOpen(false)}
-                  className="p-2.5 bg-white border border-neutral-200 hover:bg-neutral-100 rounded-full text-neutral-500 transition-colors"
+                  className="icon-button p-2.5 bg-white border border-neutral-200 hover:bg-neutral-100 rounded-full text-neutral-500 transition-colors"
                 >
                   <X className="w-5 h-5" />
                 </motion.button>
@@ -342,14 +342,14 @@ export const Front: React.FC = () => {
               <div className="mt-6 bg-white border border-neutral-200/80 rounded-[1.75rem] p-5 shadow-[0_8px_24px_rgba(0,0,0,0.01)]">
                 <button 
                   onClick={() => setIsPersonalDetailsModalOpen(true)}
-                  className="w-full flex items-center justify-between text-left group"
+                  className="icon-button w-full flex items-center justify-between text-left group"
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-xl bg-rose-50 flex items-center justify-center text-[#E53935]">
                       <User className="w-4 h-4" />
                     </div>
                     <div>
-                      <h4 className="text-xs font-black uppercase tracking-wider text-neutral-800">Personal Details</h4>
+                      <h4 className="icon-buttontext-xs font-black uppercase tracking-wider text-neutral-800">Personal Details</h4>
                       <p className="text-[10px] text-neutral-400 font-medium mt-0.5">Manage identity, locations, contact assets</p>
                     </div>
                   </div>
@@ -392,7 +392,7 @@ export const Front: React.FC = () => {
                 <motion.button
                   whileTap={{ scale: 0.98 }}
                   onClick={handleLogout}
-                  className="w-full bg-[#E53935]/5 border border-[#E53935]/10 hover:bg-[#E53935] text-[#E53935] hover:text-white rounded-xl py-3.5 font-bold transition-all flex items-center justify-center gap-2 group"
+                  className="icon-button w-full bg-[#E53935]/5 border border-[#E53935]/10 hover:bg-[#E53935] text-[#E53935] hover:text-white rounded-xl py-3.5 font-bold transition-all flex items-center justify-center gap-2 group"
                 >
                   <LogOut className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
                   <span>Log Out of Session</span>
@@ -430,7 +430,7 @@ export const Front: React.FC = () => {
                   </div>
                   <button 
                     onClick={() => setIsPersonalDetailsModalOpen(false)}
-                    className="p-1.5 bg-neutral-50 hover:bg-neutral-100 rounded-full border border-neutral-200 text-neutral-500 transition-colors"
+                    className="icon-button p-1.5 bg-neutral-50 hover:bg-neutral-100 rounded-full border border-neutral-200 text-neutral-500 transition-colors"
                   >
                     <X className="w-4 h-4" />
                   </button>

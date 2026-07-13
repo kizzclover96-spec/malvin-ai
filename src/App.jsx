@@ -42,6 +42,7 @@ import { MalvinSystemDashboard } from "./components/MalvinSystemDashboard";
 import { MalvinAiPersonnelSystem } from "./components/MalvinAiPersonnelSystem";
 import { Front } from './pages/Front';
 import TicketCheckout from "./pages/Ticket";
+import Premium from "./components/Premium";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -225,6 +226,7 @@ function App() {
     if (type === "fashion") { setFlowStep("device"); return; }
     if (type === "explore") { setFlowStep("SalonDashboard"); return; }
     if (type === "records") { setFlowStep("recordsDashboard"); return; }
+    if (type === "premium") { setFlowStep("premiumView"); return; }
   };
 
   return (
@@ -302,6 +304,8 @@ function App() {
                     setFlowStep("done");
                   }}
                 />
+              ) : flowStep === "premiumView" ? (
+                <Premium />
               ) : uiMode === "mobile" ? (
                 <MobileView brandId={user.uid} />
               ) : (
@@ -314,7 +318,7 @@ function App() {
         </Routes>
       </div>
 
-      {user && !isAdmin && !isStorefrontPath && flowStep !== "front" && (
+      {user && !isAdmin && !isStorefrontPath && flowStep !== "front" && flowStep !== "options" && (
         <FloatingTeamHub managerUid={isWorker ? assignedManagerUid : user.uid} />
       )}
 

@@ -8,6 +8,14 @@
   background-color: #050505; 
 }
 
+.icon-button {
+  all: unset;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
 /* This is the magic "Moving Blend" layer */
 .main-full-ui::before {
   content: "";
