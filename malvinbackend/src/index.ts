@@ -498,3 +498,43 @@ export const confirmPinReset = onCall(async (request) => {
 
   return { success: true, message: "Security PIN updated successfully!" };
 });
+
+/*
+=====================================
+10. INITIALIZE MERCHANT PIN (V2)
+=====================================
+*/
+export const initializeMerchantPin = onCall(async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) {
+    throw new HttpsError("unauthenticated", "Authentication context is missing.");
+  }
+
+  const { pin, merchantType } = request.data;
+  if (!pin || typeof pin !== "string" || pin.length !== 4) {
+    throw new HttpsError("invalid-argument", "A valid 4-digit numeric PIN is required.");
+  }
+
+  const targetCollection = merchantType === "food" ? "restaurantprofile" : "salons";
+  const db = getDb();
+  const securityRef = db.collection(targetCollection).doc(uid).collection("private").doc("security");
+
+  // Safety Check: Prevent bypassing the proper reset process if a PIN already exists
+  const securitySnap = await securityRef.get();
+  if (securitySnap.exists() && securitySnap.data()?.hashedPin) {
+    throw new HttpsError("already-exists", "A security PIN is already established for this account.");
+  }
+
+  // Generate secure salt and compute the PBKDF2 hash using your helper
+  const salt = crypto.randomBytes(16).toString("hex");
+  const hashedPin = hashPin(pin, salt);
+
+  await securityRef.set({
+    hashedPin,
+    salt,
+    resetToken: null,
+    tokenExpires: null
+  }, { merge: true });
+
+  return { success: true, message: "Security PIN initialized successfully!" };
+});

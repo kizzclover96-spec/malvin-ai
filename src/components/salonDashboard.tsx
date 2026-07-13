@@ -412,7 +412,6 @@ export default function SalonDashboard() {
    * securely to the Firebase Cloud backend.
    */
   const handleConfirmPayout = async () => {
-    // Client-side safety guards
     if (!salon || salon.walletBalance <= 0) {
       alert("No balance available to withdraw.");
       setIsPinModalOpen(false);
@@ -428,12 +427,10 @@ export default function SalonDashboard() {
     showToast("Processing security clearing... Please wait.");
 
     try {
-      // Dynamic import to keep initial bundle size light
       const { getFunctions, httpsCallable } = await import('firebase/functions');
       const functions = getFunctions();
       const requestPayout = httpsCallable(functions, 'requestPayout');
 
-      // Fire payload securely over HTTPS
       const response: any = await requestPayout({
         amount: salon.walletBalance,
         pin: pinInput,
@@ -446,9 +443,17 @@ export default function SalonDashboard() {
       }
     } catch (error: any) {
       console.error("Payout initiation failed:", error);
-      alert(`❌ Withdrawal Failed:\n${error.message || "Internal server settlement ledger error."}`);
+      
+      // Catch the specific incomplete error from your logs and route to setup
+      if (error.message?.includes("incomplete") || error.message?.includes("not found")) {
+        setIsPinModalOpen(false);
+        setSetupPin('');
+        setConfirmSetupPin('');
+        setIsPinSetupModalOpen(true);
+      } else {
+        alert(`❌ Withdrawal Failed:\n${error.message || "Internal server settlement error."}`);
+      }
     } finally {
-      // SECURITY BEST PRACTICE: Zero-out the PIN state from browser memory immediately 
       setIsProcessingPayout(false);
       setPinInput(''); 
     }
@@ -718,9 +723,25 @@ export default function SalonDashboard() {
                 <div className={styles.metaRow}><strong>UID:</strong> <span className={styles.codeText}>{uid}</span></div>
                 <div className={styles.metaRow}><strong>Status:</strong> <span>{salon.status}</span></div>
                 <div className={styles.metaRow}><strong>VIN Wallet Balance:</strong> <span>{currency} {(salon.walletBalance || balance).toFixed(2)}</span></div>
-                <button type="button" className={styles.glassButtonPrimary} style={{ marginTop: '12px' }} onClick={handleWithdrawProfit}>
-                  Withdraw Profit
-                </button>
+                
+                <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
+                  {/* Explicit setup button */}
+                  <button 
+                    type="button" 
+                    className={styles.glassButtonSecondary} 
+                    onClick={() => {
+                      setSetupPin('');
+                      setConfirmSetupPin('');
+                      setIsPinSetupModalOpen(true);
+                    }}
+                  >
+                    Setup Security PIN
+                  </button>
+
+                  <button type="button" className={styles.glassButtonPrimary} onClick={handleWithdrawProfit}>
+                    Withdraw Profit
+                  </button>
+                </div>
               </div>
 
               <div className={styles.glassCard}>
