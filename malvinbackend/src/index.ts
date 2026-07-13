@@ -519,9 +519,9 @@ export const initializeMerchantPin = onCall(async (request) => {
   const db = getDb();
   const securityRef = db.collection(targetCollection).doc(uid).collection("private").doc("security");
 
-  // Safety Check: Prevent bypassing the proper reset process if a PIN already exists
+  // FIX: changed exists() to exists
   const securitySnap = await securityRef.get();
-  if (securitySnap.exists() && securitySnap.data()?.hashedPin) {
+  if (securitySnap.exists && securitySnap.data()?.hashedPin) {
     throw new HttpsError("already-exists", "A security PIN is already established for this account.");
   }
 
