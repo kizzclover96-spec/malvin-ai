@@ -61,6 +61,51 @@ export default function SalonDashboard() {
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [pinInput, setPinInput] = useState('');
   const [isProcessingPayout, setIsProcessingPayout] = useState(false);
+  const [isPinSetupModalOpen, setIsPinSetupModalOpen] = useState(false);
+  const [isForgotPinOpen, setIsForgotPinOpen] = useState(false);
+  const [resetCode, setResetCode] = useState('');
+  const [newPin, setNewPin] = useState('');
+  const handleForgotPinRequest = async () => {
+    try {
+      const { getFunctions, httpsCallable } = await import('firebase/functions');
+      const requestReset = httpsCallable(getFunctions(), 'requestPinReset');
+      
+      showToast("Sending verification email...");
+      await requestReset();
+      
+      setIsPinModalOpen(false); // Close payout modal
+      setIsForgotPinOpen(true); // Open reset verification form
+      showToast("Check your email for the recovery code!");
+    } catch (error: any) {
+      alert(`Failed to send code: ${error.message}`);
+    }
+  };
+
+  // 🛠️ Verifies email code and overwrites with the new PIN
+  const handleConfirmNewPin = async () => {
+    if (newPin.length !== 4 || resetCode.length !== 6) {
+      alert("Please enter a 6-digit email code and a new 4-digit PIN.");
+      return;
+    }
+
+    try {
+      const { getFunctions, httpsCallable } = await import('firebase/functions');
+      const confirmReset = httpsCallable(getFunctions(), 'confirmPinReset');
+
+      showToast("Applying security modifications...");
+      await confirmReset({
+        resetToken: resetCode,
+        newPin: newPin
+      });
+
+      alert("🎉 Security PIN successfully reset! You can now resume payouts.");
+      setIsForgotPinOpen(false);
+      setResetCode('');
+      setNewPin('');
+    } catch (error: any) {
+      alert(`Reset Failed: ${error.message}`);
+    }
+  };
 
   // Form States
   const [formName, setFormName] = useState('');
@@ -637,6 +682,47 @@ export default function SalonDashboard() {
           </div>
         </div>
       )}
+
+      {/* FORGOT PIN & RESET OVERLAY */}
+      {isForgotPinOpen && (
+        <div className={styles.modalOverlay} style={{ zIndex: 3000 }}>
+          <div className={styles.modalContent} style={{ maxWidth: '380px', textAlign: 'center' }}>
+            <h3>Reset Security PIN</h3>
+            <p style={{ color: '#aaa', fontSize: '13px' }}>We sent a secure validation token to your registered merchant email. Enter it below to wipe and replace your current PIN.</p>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', margin: '20px 0' }}>
+              <div>
+                <label style={{ fontSize: '11px', textTransform: 'uppercase', color: '#666', display: 'block', marginBottom: '6px' }}>6-Digit Email Code</label>
+                <input 
+                  type="text" 
+                  maxLength={6}
+                  placeholder="000000"
+                  value={resetCode}
+                  onChange={(e) => setResetCode(e.target.value.replace(/\D/g, ''))}
+                  style={{ background: '#111', color: '#fff', border: '1px solid #222', padding: '10px', borderRadius: '8px', width: '140px', fontSize: '18px', textAlign: 'center', letterSpacing: '2px' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '11px', textTransform: 'uppercase', color: '#666', display: 'block', marginBottom: '6px' }}>Define New 4-Digit PIN</label>
+                <input 
+                  type="password" 
+                  maxLength={4}
+                  placeholder="••••"
+                  value={newPin}
+                  onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ''))}
+                  style={{ background: '#111', color: '#fff', border: '1px solid #222', padding: '10px', borderRadius: '8px', width: '110px', fontSize: '18px', textAlign: 'center', letterSpacing: '4px' }}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button className={styles.glassButtonSecondary} onClick={() => setIsForgotPinOpen(false)} style={{ flex: 1 }}>Cancel</button>
+              <button className={styles.glassButtonPrimary} onClick={handleConfirmNewPin} style={{ flex: 1 }}>Reset PIN</button>
+            </div>
+          </div>
+        </div>
+      )}
       {isPinModalOpen && (
         <div className={styles.modalOverlay} style={{ zIndex: 2000 }}>
           <div className={styles.modalContent} style={{ maxWidth: '360px', textAlign: 'center' }}>
@@ -668,6 +754,13 @@ export default function SalonDashboard() {
                 style={{ flex: 1 }}
               >
                 {isProcessingPayout ? "Verifying..." : "Confirm"}
+              </button>
+              <button 
+                type="button" 
+                onClick={handleForgotPinRequest}
+                style={{ background: 'none', border: 'none', color: '#E53935', fontSize: '11px', cursor: 'pointer', marginTop: '8px', textDecoration: 'underline' }}
+              >
+                Forgot PIN?
               </button>
             </div>
           </div>
