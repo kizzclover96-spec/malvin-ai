@@ -28,6 +28,7 @@ interface RestaurantData {
   openingTime: string;
   closingTime: string;
   shareLink: string;
+  walletBalance?: number;
   onlineStatus: boolean;
   createdAt: Timestamp | null;
   updatedAt: Timestamp | null;
@@ -96,13 +97,15 @@ export default function FoodDashboard() {
   const [activeTab, setActiveTab] = useState<"orders" | "analytics">("orders");
 
   const handleWithdrawProfit = () => {
-    if (!salon || salon.walletBalance <= 0) {
+    const currentBalance = profile?.walletBalance || 0;
+
+    if (currentBalance <= 0) {
       alert("No profits available to withdraw.");
       return;
     }
-    const confirmWithdraw = window.confirm(`Are you sure you want to withdraw your current balance of $${salon.walletBalance}?`);
+    const confirmWithdraw = window.confirm(`Are you sure you want to withdraw your current balance of €${currentBalance.toFixed(2)}?`);
     if (confirmWithdraw) {
-      showToast("Withdrawal request initiated successfully!");
+      alert("Withdrawal request initiated successfully!");
     }
   };
 
@@ -239,6 +242,7 @@ export default function FoodDashboard() {
             closingTime: '22:00',
             shareLink: `${window.location.origin}/food/${uid}`,
             onlineStatus: true,
+            walletBalance: 0, // Initialize balance structure
             createdAt: serverTimestamp() as unknown as Timestamp,
             updatedAt: serverTimestamp() as unknown as Timestamp,
           };
@@ -519,16 +523,16 @@ export default function FoodDashboard() {
       {dropdownOpen && (
         <div className="absolute top-20 left-4 right-4 max-w-xs z-50 bg-white/70 backdrop-blur-md border-[3px] border-black rounded-2xl overflow-hidden transition-all duration-300 animate-fadeIn origin-top">
           <ul className="flex flex-col divide-y-[2.5px] divide-black font-bold">
-            <li className="p-3 hover:bg-lime-300 cursor-pointer transition-colors"  onClick={() => {  setActiveTab("orders"); setDropdownOpen(false); }}>Orders ({incomingOrders.filter(o => o.status !== "accepted" && o.status !== "rejected").length})</li>
-            <li className="p-3 hover:bg-lime-300 cursor-pointer transition-colors"  onClick={() => { setActiveTab("analytics"); setDropdownOpen(false); }}>Analysis</li>
+            <li className="p-3 hover:bg-lime-300 cursor-pointer transition-colors" onClick={() => { setActiveTab("orders"); setDropdownOpen(false); }}>Orders ({incomingOrders.filter(o => o.status !== "accepted" && o.status !== "rejected").length})</li>
+            <li className="p-3 hover:bg-lime-300 cursor-pointer transition-colors" onClick={() => { setActiveTab("analytics"); setDropdownOpen(false); }}>Analysis</li>
           </ul>
         </div>
       )}
 
-      {/* --- PREMIUM DASHBOARD & SETTINGS PANEL --- */}
+      {/* --- MAIN INTERFACE PANELS --- */}
       <main className="max-w-2xl mx-auto mt-8 space-y-6">
         
-        {!settingsOpen && activeTab !== "orders" && (
+        {!settingsOpen && activeTab !== "orders" && activeTab !== "analytics" && (
           <div className="text-center py-12 animate-fadeIn">
             <h1 className="text-4xl font-black uppercase tracking-tight mb-2">Welcome Back.</h1>
             <p className="text-sm font-medium text-gray-600 max-w-xs mx-auto">Tap the gear icon on the top right to deploy and manage your premium SaaS configurations.</p>
@@ -654,142 +658,137 @@ export default function FoodDashboard() {
                 ))}
               </div>
             </section>
+
+            {/* CARD 4: VIN WALLET */}
             <section className="bg-white/75 backdrop-blur-md border-[3px] border-black rounded-3xl p-5">
-              <div className={styles.metaRow}><strong>VIN Wallet Balance:</strong> <span>{currency} {balance.toFixed(2)}</span></div>
+              <div className={styles.metaRow}>
+                <strong>VIN Wallet Balance:</strong> 
+                <span> € {(profile?.walletBalance || 0).toFixed(2)}</span>
+              </div>
               <button type="button" className={styles.glassButtonPrimary} style={{ marginTop: '12px' }} onClick={handleWithdrawProfit}>
                 Withdraw Profit
               </button>
             </section>
 
-            {/* CARD 4: CATALOGUE */}
+            {/* CARD 5: CATALOGUE */}
             <section className="bg-white/75 backdrop-blur-md border-[3px] border-black rounded-3xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h2 className="text-lg font-black uppercase tracking-wider">Catalogue</h2>
-                    <div className="flex items-center gap-3 mt-1.5 text-xs font-bold">
-                    <span 
-                        style={{ backgroundColor: "#bef264" }} 
-                        className="border-[1px] border-black px-2 py-0.5 rounded-md"
-                    >
-                        Status: Active
+                  <h2 className="text-lg font-black uppercase tracking-wider">Catalogue</h2>
+                  <div className="flex items-center gap-3 mt-1.5 text-xs font-bold">
+                    <span style={{ backgroundColor: "#bef264" }} className="border-[1px] border-black px-2 py-0.5 rounded-md">
+                      Status: Active
                     </span>
                     <span>•</span>
                     <span>{catalogueCount} Products Live</span>
-                    </div>
+                  </div>
                 </div>
-                
                 <button
                     onClick={() => setPage('catalogue')}
                     style={{ backgroundColor: "#bef264" }}
                     className="py-2.5 px-4 border-[1px] border-black rounded-xl text-xs font-black uppercase active:translate-y-0.5 transition-all whitespace-nowrap self-stretch sm:self-center text-center"
                 >
-                Manage Items →
+                  Manage Items →
                 </button>
             </section>
           </div>
         )}
 
         {/* --- ORDERS STREAM CONTAINER --- */}
-        {activeTab === "orders" && incomingOrders.filter(order => order.status !== "accepted" && order.status !== "rejected").length > 0 && (
-            <section className="space-y-4 max-w-2xl mx-auto mt-6 animate-fadeIn">
-                <h2 className="text-xl font-black">
-                  Incoming Orders {!isVerified && <span className="text-xs font-normal text-gray-500">(Daily Cap: {incomingOrders.length}/10)</span>}
-                </h2>
+        {!settingsOpen && activeTab === "orders" && (
+          <section className="space-y-4 max-w-2xl mx-auto mt-6 animate-fadeIn">
+            <h2 className="text-xl font-black">
+              Incoming Orders {!isVerified && <span className="text-xs font-normal text-gray-500">(Daily Cap: {incomingOrders.filter(o => o.status !== "accepted" && o.status !== "rejected").length}/10)</span>}
+            </h2>
 
-                {incomingOrders
+            {incomingOrders.filter(order => order.status !== "accepted" && order.status !== "rejected").length === 0 ? (
+              <p className="text-center font-bold text-gray-500 py-6">No incoming orders right now.</p>
+            ) : (
+              incomingOrders
                 .filter((order) => order.status !== "accepted" && order.status !== "rejected")
                 .map((order) => (
-                <div
-                    key={order.id}
-                    className={`border-[3px] border-black rounded-3xl p-4 animate-fadeIn transition-all duration-300 ${
-                      order.status === 'accepted' ? 'bg-lime-300 scale-95 opacity-0' : 'bg-white'
-                    }`}
-                >
-                    <div className="flex justify-between items-start mb-3">
-                        <div className="flex-1">
-                            <h3 className="font-black text-lg">
-                            {order.customerName}
-                            </h3>
-                            <p className="text-sm mt-1">
-                            Pickup: {order.pickupTime}
-                            </p>
-                            <p className="text-sm mt-1">
-                            Status: {order.status}
-                            </p>
-                            
-                            {/* 📱 DYNAMIC STATUS CONTEXT DISPLAY */}
-                            {order.userMobilityStatus && (
-                              <p className="text-xs font-black uppercase tracking-wide mt-1.5 px-2 py-0.5 rounded-md border border-black bg-amber-100 inline-block">
-                                Context: {order.userMobilityStatus} 
-                                {order.userMobilityStatus === 'in store' && order.tableNumber && ` (Table ${order.tableNumber})`}
+                  <div
+                      key={order.id}
+                      className="border-[3px] border-black rounded-3xl p-4 bg-white dynamic-neubrutalism-card transition-all duration-300"
+                  >
+                      <div className="flex justify-between items-start mb-3">
+                          <div className="flex-1">
+                              <h3 className="font-black text-lg">{order.customerName}</h3>
+                              <p className="text-sm mt-1">Pickup: {order.pickupTime}</p>
+                              <p className="text-sm mt-1">Status: {order.status}</p>
+                              
+                              {order.userMobilityStatus && (
+                                <p className="text-xs font-black uppercase tracking-wide mt-1.5 px-2 py-0.5 rounded-md border border-black bg-amber-100 inline-block">
+                                  Context: {order.userMobilityStatus} 
+                                  {order.userMobilityStatus === 'in store' && order.tableNumber && ` (Table ${order.tableNumber})`}
+                                </p>
+                              )}
+                          </div>
+
+                          <div className="flex flex-col items-center mx-4 min-w-[90px]">
+                              <p className="text-sm font-black text-lime-600 mb-1">
+                                {order.fourDigitCode || "----"}
                               </p>
-                            )}
-                        </div>
+                              {orderQrCodes?.[order.id] && (
+                                <img
+                                    src={orderQrCodes[order.id]}
+                                    alt="Order QR"
+                                    className="w-16 h-16 border-2 border-black rounded-lg p-1 bg-white"
+                                />
+                              )}
+                          </div>
 
-                        <div className="flex flex-col items-center mx-4 min-w-[90px]">
-                            <p className="text-sm font-black text-lime-600 mb-1">
-                            {order.fourDigitCode || "----"}
-                            </p>
-                            {orderQrCodes[order.id] && (
-                            <img
-                                src={orderQrCodes[order.id]}
-                                alt="Order QR"
-                                className="w-16 h-16 border-2 border-black rounded-lg p-1 bg-white"
-                            />
-                            )}
-                        </div>
+                          <div className="flex gap-2">
+                              <button
+                                onClick={() => handleRejectOrder(order.id)}
+                                className="w-10 h-10 border-2 border-black rounded-xl bg-red-200 font-bold hover:bg-red-300 transition-colors"
+                              >
+                                ✕
+                              </button>
+                              <button
+                                onClick={() => handleAcceptOrder(order.id)}
+                                className="w-10 h-10 border-2 border-black rounded-xl bg-lime-300 font-bold hover:bg-lime-400 transition-colors"
+                              >
+                                ✓
+                              </button>
+                          </div>
+                      </div>
 
-                        <div className="flex gap-2">
-                            <button
-                            onClick={() => handleRejectOrder(order.id)}
-                            className="w-10 h-10 border-2 border-black rounded-xl bg-red-200"
-                            >
-                            ✕
-                            </button>
-                            <button
-                            onClick={() => handleAcceptOrder(order.id)}
-                            className="w-10 h-10 border-2 border-black rounded-xl bg-lime-300"
-                            >
-                            ✓
-                            </button>
-                        </div>
-                    </div>
-
-                    <div className="space-y-2">
-                    {order.items.map((item, index) => (
-                        <div key={index} className="flex justify-between">
-                        <span>
-                            {item.quantity}x {item.name}
-                        </span>
-                        <span>€{(item.price * item.quantity).toFixed(2)}</span>
-                        </div>
-                    ))}
-                    </div>
-                </div>
-                ))}
-            </section>
+                      <div className="space-y-2 border-t border-black/10 pt-2">
+                        {order.items.map((item, index) => (
+                            <div key={index} className="flex justify-between text-sm">
+                              <span>{item.quantity}x {item.name}</span>
+                              <span>€{(item.price * item.quantity).toFixed(2)}</span>
+                            </div>
+                        ))}
+                      </div>
+                  </div>
+                ))
+            )}
+          </section>
         )}
 
-        {activeTab === "analytics" && (
+        {/* --- ANALYTICS WORKSPACE --- */}
+        {!settingsOpen && activeTab === "analytics" && (
             <section className="max-w-2xl mx-auto mt-6 bg-white border-[3px] border-black rounded-3xl p-5 space-y-3 animate-fadeIn">
                 <h2 className="text-lg font-black uppercase">Analytics Workspace</h2>
                 <div className="grid grid-cols-2 gap-3 text-sm font-bold">
-                <div className="p-3 border-[2px] border-black rounded-xl bg-gray-50">
-                    Total Orders: {analytics.totalOrders}
-                </div>
-                <div className="p-3 border-[2px] border-black rounded-xl bg-lime-50 text-lime-700">
-                    Accepted Total: {analytics.acceptedOrders}
-                </div>
-                <div className="p-3 border-[2px] border-black rounded-xl bg-red-50 text-red-700">
-                    Rejected Total: {analytics.rejectedOrders}
-                </div>
-                
-                <div className="p-3 border-[2px] border-black rounded-xl col-span-2 bg-lime-100/50">
-                    🔥 Most Accepted Item: <span className="font-black">{analytics.mostAcceptedItem}</span> ({analytics.mostAcceptedCount} units)
-                </div>
+                  <div className="p-3 border-[2px] border-black rounded-xl bg-gray-50">
+                      Total Orders: {analytics?.totalOrders || 0}
+                  </div>
+                  <div className="p-3 border-[2px] border-black rounded-xl bg-lime-50 text-lime-700">
+                      Accepted Total: {analytics?.acceptedOrders || 0}
+                  </div>
+                  <div className="p-3 border-[2px] border-black rounded-xl bg-red-50 text-red-700">
+                      Rejected Total: {analytics?.rejectedOrders || 0}
+                  </div>
+                  
+                  <div className="p-3 border-[2px] border-black rounded-xl col-span-2 bg-lime-100/50">
+                      🔥 Most Accepted Item: <span className="font-black">{analytics?.mostAcceptedItem || "N/A"}</span> ({analytics?.mostAcceptedCount || 0} units)
+                  </div>
 
-                <div className="p-3 border-[2px] border-black rounded-xl col-span-2 bg-red-100/50">
-                    ⚠️ Most Rejected Item: <span className="font-black">{analytics.mostRejectedItem}</span> ({analytics.mostRejectedCount} units)
-                </div>
+                  <div className="p-3 border-[2px] border-black rounded-xl col-span-2 bg-red-100/50">
+                      ⚠️ Most Rejected Item: <span className="font-black">{analytics?.mostRejectedItem || "N/A"}</span> ({analytics?.mostRejectedCount || 0} units)
+                  </div>
                 </div>
             </section>
         )}
