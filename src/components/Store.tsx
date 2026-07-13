@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { firestore as db } from '../firebase'; // Ensure your firebase configuration is exported here
-import { doc, onSnapshot, collection, addDoc, query, where, deleteDoc } from 'firebase/firestore';
+import { doc, onSnapshot, collection, addDoc, query, where } from 'firebase/firestore';
 import styles from './store.module.css';
 import { useParams, useNavigate, useLocation } from "react-router-dom"; // 👈 Restored all required routing hooks
 import QRCode from "qrcode";
@@ -71,13 +71,16 @@ export const StoreFrontend: React.FC = () => {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isOrdersOpen, setIsOrdersOpen] = useState(false);
 
-  // Checkout Form State
-  // --- Adjust State Initialization ---
-  const [customerName, setCustomerName] = useState(location.state?.orderPayload?.customerName || '');
+  // Checkout Form State — Hydrates immediately from localStorage if user re-enters store
+  const [customerName, setCustomerName] = useState<string>(() => {
+    return localStorage.getItem('saved_customer_name') || location.state?.orderPayload?.customerName || '';
+  });
   const [pickupTime, setPickupTime] = useState('');
   const [currentStatus, setCurrentStatus] = useState('home');
   const [tableNumber, setTableNumber] = useState('');
-  const [guestId, setGuestId] = useState<string>('');
+  const [guestId, setGuestId] = useState<string>(() => {
+    return localStorage.getItem('guest_id') || '';
+  });
   
   // Code generation state variables
   const [receiptQrs, setReceiptQrs] = useState<Record<string, string>>({});
@@ -98,14 +101,15 @@ export const StoreFrontend: React.FC = () => {
   useEffect(() => {
     if (auth.currentUser?.uid) {
       setGuestId(auth.currentUser.uid);
+      localStorage.setItem('guest_id', auth.currentUser.uid);
       return;
     }
 
     const handleIdentityMessage = (event: MessageEvent) => {
-      // 🟢 Fix: Align type filter string with your system's postMessage type
       if ((event.data?.type === "MALVIN_IDENTITY" || event.data?.type === "MALVIN_USER") && event.data?.uid) {
         console.log("StoreFrontend caught real context identity:", event.data.uid);
         setGuestId(event.data.uid);
+        localStorage.setItem('guest_id', event.data.uid);
       }
     };
 
@@ -118,6 +122,13 @@ export const StoreFrontend: React.FC = () => {
 
     return () => window.removeEventListener("message", handleIdentityMessage);
   }, []);
+
+  // Update localStorage cache records whenever user adjusts name selection inside input paths
+  useEffect(() => {
+    if (customerName.trim()) {
+      localStorage.setItem('saved_customer_name', customerName.trim());
+    }
+  }, [customerName]);
 
   // 2. Real-time Subscription: Product Catalog
   useEffect(() => {
@@ -180,9 +191,9 @@ export const StoreFrontend: React.FC = () => {
       generateQrs();
     }
   }, [userOrders]);
-  // Add this inside StoreFrontend in store.tsx:
+
+  // Handshake Frame Sync Hook
   useEffect(() => {
-    // Ping the parent wrapper using the name it expects
     window.parent.postMessage(
       {
         type: "SALON_READY", 
@@ -201,6 +212,9 @@ export const StoreFrontend: React.FC = () => {
       const commitOrderToDatabase = async () => {
         try {
           const fourDigitPin = Math.floor(1000 + Math.random() * 9000).toString();
+          
+          setCustomerName(confirmedData.customerName);
+          localStorage.setItem('saved_customer_name', confirmedData.customerName);
           
           await addDoc(collection(db, 'orders'), {
             restaurantUid: restaurantUid,
@@ -280,20 +294,6 @@ export const StoreFrontend: React.FC = () => {
     setCart([]);
     setIsCheckoutOpen(false);
     navigate("/ticket-checkout", { state: checkoutPayload });
-  };
-
-  const handleCancelOrder = async (orderId: string) => {
-    const confirmCancel = window.confirm("Are you sure you want to cancel this order?");
-    if (!confirmCancel) return;
-
-    try {
-      const orderDocRef = doc(db, 'orders', orderId);
-      await deleteDoc(orderDocRef);
-      alert("Order cancelled successfully.");
-    } catch (error) {
-      console.error("Error cancelling order: ", error);
-      alert("Failed to cancel order. Please try again.");
-    }
   };
 
   const filteredProducts = products.filter(p =>
@@ -445,23 +445,6 @@ export const StoreFrontend: React.FC = () => {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
                       <span className={`${styles.statusBadge} ${styles[order.status]}`}>{order.status}</span>
-                      {order.status === 'pending' && (
-                        <button 
-                          onClick={() => handleCancelOrder(order.id)}
-                          style={{
-                            marginLeft: '10px',
-                            padding: '4px 8px',
-                            background: '#ef4444',
-                            color: '#fff',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                            fontSize: '12px'
-                          }}
-                        >
-                          Cancel Order
-                        </button>
-                      )}
                     </div>
                     <small>{order.pickupTime}</small>
                   </div>
