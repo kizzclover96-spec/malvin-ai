@@ -71,8 +71,8 @@ export const createStripeOnboardingLink = onCall(async (request) => {
 
   const link = await stripe.accountLinks.create({
     account: stripeAccountId,
-    refresh_url: "http://localhost:5173/stripe-success",
-    return_url: "http://localhost:5173/stripe-success",
+    refresh_url: "http://malvinai.com/stripe-success",
+    return_url: "http://malvinai.com/stripe-success",
     type: "account_onboarding"
   });
 
@@ -148,8 +148,8 @@ export const createWalletTopUpSession = onCall(
       ],
       mode: "payment",
       metadata: { userId: userId, type: "wallet_topup" },
-      success_url: "http://localhost:5173/wallet?status=success",
-      cancel_url: "http://localhost:5173/wallet?status=cancel",
+      success_url: "http://malvinai.com/wallet?status=success",
+      cancel_url: "http://malvinai.com/wallet?status=cancel",
     });
 
     return { url: session.url };
