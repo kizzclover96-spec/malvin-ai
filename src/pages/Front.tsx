@@ -264,32 +264,42 @@ export const Front: React.FC = () => {
         </div>
 
       {/* NAVIGATION PILL */}
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-4">
-        <div className="bg-neutral-50/70 border border-neutral-200/50 backdrop-blur-xl px-2.5 py-2 rounded-[2rem] flex items-center gap-2 shadow-[0_12px_32px_rgba(0,0,0,0.04)] relative overflow-hidden">
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-5">
+        {/* PILL CONTAINER (SCALED UP) */}
+        <div className="bg-neutral-50/70 border border-neutral-200/50 backdrop-blur-xl px-4 py-3 rounded-[2.5rem] flex items-center gap-3 shadow-[0_16px_36px_rgba(0,0,0,0.06)] relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-transparent pointer-events-none" />
           
           <button
             onClick={() => setActiveTab('home')}
-            className={`icon-button p-3.5 rounded-full transition-all flex items-center justify-center ${activeTab === 'home' ? 'bg-white shadow-sm text-[#E53935]' : 'text-neutral-400 hover:text-neutral-600'}`}
+            className={`icon-button p-4 rounded-full transition-all flex items-center justify-center ${
+              activeTab === 'home' 
+                ? 'bg-white shadow-md text-[#E53935]' 
+                : 'text-neutral-400 hover:text-neutral-600'
+            }`}
           >
-            <Home className="w-5 h-5" />
+            <Home className="w-6 h-6" />
           </button>
           
           <button
             onClick={() => setActiveTab('wallet')}
-            className={`icon-button p-3.5 rounded-full transition-all flex items-center justify-center ${activeTab === 'wallet' ? 'bg-white shadow-sm text-[#E53935]' : 'text-neutral-400 hover:text-neutral-600'}`}
+            className={`icon-button p-4 rounded-full transition-all flex items-center justify-center ${
+              activeTab === 'wallet' 
+                ? 'bg-white shadow-md text-[#E53935]' 
+                : 'text-neutral-400 hover:text-neutral-600'
+            }`}
           >
-            <WalletIcon className="w-5 h-5" />
+            <WalletIcon className="w-6 h-6" />
           </button>
         </div>
 
+        {/* SCANNER BUTTON (SCALED UP) */}
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={() => setIsScannerOpen(true)}
-          className="icon-button w-14 h-14 bg-[#E53935] hover:bg-[#d32f2f] rounded-full flex items-center justify-center text-white shadow-[0_12px_28px_rgba(229,57,53,0.3)] hover:shadow-[0_16px_32px_rgba(229,57,53,0.4)] transition-all"
+          className="icon-button w-16 h-16 bg-[#E53935] hover:bg-[#d32f2f] rounded-full flex items-center justify-center text-white shadow-[0_14px_32px_rgba(229,57,53,0.35)] hover:shadow-[0_18px_36px_rgba(229,57,53,0.45)] transition-all"
         >
-          <QrCode className="w-6 h-6" />
+          <QrCode className="w-7 h-7" />
         </motion.button>
       </div>
 

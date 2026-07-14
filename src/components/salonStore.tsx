@@ -4,8 +4,6 @@ import { firestore as db } from '../firebase';
 import { doc, getDoc, collection, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
 import styles from './salonStore.module.css';
 
-
-
 // --- Types & Interfaces ---
 interface SalonProfile {
   salonName: string;
@@ -14,6 +12,7 @@ interface SalonProfile {
   openingTime: string; // HH:MM
   closingTime: string; // HH:MM
   offDays: string[];   // ['Sunday', 'Monday']
+  isVerified?: boolean; // 👈 Added verification field tracking
 }
 
 interface Service {
@@ -44,6 +43,19 @@ interface Appointment {
 interface SalonStoreProps {
   onExecuteWalletPayment: (amount: number, targetBusinessUid: string,  userUid: string ) => Promise<void>;
 }
+
+// 🔵 Verified Badge Component
+const VerifiedBadge = () => (
+    <svg 
+        width="14" 
+        height="14" 
+        viewBox="0 0 24 24" 
+        fill="#007fff" 
+        style={{ display: 'inline-block', marginLeft: '6px', verticalAlign: 'middle' }}
+    >
+        <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+    </svg>
+);
 
 export default function SalonStore() {
   const { uid } = useParams<{ uid: string }>();
@@ -98,22 +110,18 @@ export default function SalonStore() {
   const [generatedRefId, setGeneratedRefId] = useState('');
 
   const receiveUserIdentity = (event: MessageEvent) => {
-
     console.log("Salon received:", event.data);
-
     if (event.data?.type === "MALVIN_USER") {
-
       console.log("Received Malvin customer UID:", event.data.uid);
-
       setCustomerUid(event.data.uid);
     }
   };
-
 
   const triggerToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 4000);
   };
+  
   useEffect(() => {
     console.log("SalonStore mounted");
     console.log("customerUid:", customerUid);
@@ -131,28 +139,20 @@ export default function SalonStore() {
   }, []);
 
   useEffect(() => {
-
     const receiveUserIdentity = (event: MessageEvent) => {
-
       if(event.data?.type === "MALVIN_USER"){
-
         console.log(
           "Received Malvin customer UID:",
           event.data.uid
         );
-
         setCustomerUid(event.data.uid);
-
       }
-
     };
-
 
     window.addEventListener(
       "message",
       receiveUserIdentity
     );
-
 
     return () => {
       window.removeEventListener(
@@ -160,11 +160,7 @@ export default function SalonStore() {
         receiveUserIdentity
       );
     };
-
-
   }, []);
-  
-
 
   // Data Aggregation & Real-time Synchronization Loop
   useEffect(() => {
@@ -234,9 +230,6 @@ export default function SalonStore() {
     };
   }, [uid]);
 
-
-  
-
   // --- Computed Variables / State Aggregations ---
   const totalDuration = useMemo(() => 
     selectedServices.reduce((acc, s) => acc + Number(s.duration || 0), 0), 
@@ -247,6 +240,14 @@ export default function SalonStore() {
     selectedServices.reduce((acc, s) => acc + Number(s.price || 0), 0), 
     [selectedServices]
   );
+
+  // 🔴 Daily Cooldown Evaluation Check
+  const isDayInCooldown = useMemo(() => {
+    if (!selectedDate) return false;
+    const appointmentsForDay = existingBookings.filter(b => b.date === selectedDate).length;
+    // Check if the business is unverified and has hit the 10-booking limit for that date
+    return !profile?.isVerified && appointmentsForDay >= 10;
+  }, [existingBookings, selectedDate, profile]);
 
   const parseTimeToMinutes = (t: string) => {
     const [h, m] = t.split(':').map(Number);
@@ -282,7 +283,7 @@ export default function SalonStore() {
   }, [profile]);
 
   const computedTimeSlots = useMemo(() => {
-    if (!profile || !selectedDate || totalDuration === 0) return [];
+    if (!profile || !selectedDate || totalDuration === 0 || isDayInCooldown) return [];
 
     const slots = [];
     const startMin = parseTimeToMinutes(profile.openingTime);
@@ -313,7 +314,7 @@ export default function SalonStore() {
       });
     }
     return slots;
-  }, [profile, selectedDate, totalDuration, selectedWorkerId, existingBookings]);
+  }, [profile, selectedDate, totalDuration, selectedWorkerId, existingBookings, isDayInCooldown]);
 
   const toggleService = (service: Service) => {
     setSelectedServices(prev => 
@@ -329,6 +330,10 @@ export default function SalonStore() {
     
     if (!uid || !customerName.trim() || !selectedDate || !selectedTime || selectedServices.length === 0) {
       triggerToast("Missing required scheduling credentials.");
+      return;
+    }
+    if (isDayInCooldown) {
+      triggerToast("This day is locked under global cooldown limits.");
       return;
     }
     if (!customerUid) {
@@ -410,7 +415,7 @@ export default function SalonStore() {
             </div>
 
             <div className={styles.receiptDetails}>
-              <h3>{profile?.salonName}</h3>
+              <h3>{profile?.salonName} {profile?.isVerified && <VerifiedBadge />}</h3>
               <p>👤 Client Name: <strong>{customerName}</strong></p>
               {customerPhone && <p>📞 Phone: {customerPhone}</p>}
               <p>📅 Schedule: {selectedDate} at <strong>{selectedTime}</strong></p>
@@ -450,7 +455,7 @@ export default function SalonStore() {
       {step === 1 && profile && (
         <section className={styles.heroBanner}>
           <div className={styles.heroGlassDetails}>
-            <h1>{profile.salonName}</h1>
+            <h1>{profile.salonName} {profile.isVerified && <VerifiedBadge />}</h1>
             <p className={styles.salonBio}>{profile.bio}</p>
             <p className={styles.salonAddress}>📍 {profile.address}</p>
             <p className={styles.salonHours}>🕒 Open daily: {profile.openingTime} - {profile.closingTime}</p>
@@ -562,23 +567,29 @@ export default function SalonStore() {
             </div>
 
             {selectedDate ? (
-              <div className={styles.timeSlotsAdaptiveGrid}>
-                {computedTimeSlots.map(slot => (
-                  <button
-                    key={slot.time}
-                    type="button"
-                    disabled={slot.disabled}
-                    className={`${styles.timeSlotInteractiveButton} ${selectedTime === slot.time ? styles.timeSelected : ''} ${slot.isPopular ? styles.popularTimeHighlight : ''}`}
-                    onClick={() => setSelectedTime(slot.time)}
-                  >
-                    {slot.time}
-                    {slot.isPopular && <span className={styles.popularMiniTag}>Popular</span>}
-                  </button>
-                ))}
-                {computedTimeSlots.length === 0 && (
-                  <p className={styles.emptyPromptText}>No slots match the calculated criteria boundaries.</p>
-                )}
-              </div>
+              isDayInCooldown ? (
+                <div style={{ padding: "24px", background: "rgba(229,57,53,0.1)", border: "1px solid #E53935", borderRadius: "16px", color: "#E53935", textAlign: "center", fontWeight: "bold", margin: "24px 0", fontSize: "14px" }}>
+                  ⚠️ Store Currently in Cooldown for this selected day due to booking limits. Please choose a different date.
+                </div>
+              ) : (
+                <div className={styles.timeSlotsAdaptiveGrid}>
+                  {computedTimeSlots.map(slot => (
+                    <button
+                      key={slot.time}
+                      type="button"
+                      disabled={slot.disabled}
+                      className={`${styles.timeSlotInteractiveButton} ${selectedTime === slot.time ? styles.timeSelected : ''} ${slot.isPopular ? styles.popularTimeHighlight : ''}`}
+                      onClick={() => setSelectedTime(slot.time)}
+                    >
+                      {slot.time}
+                      {slot.isPopular && <span className={styles.popularMiniTag}>Popular</span>}
+                    </button>
+                  ))}
+                  {computedTimeSlots.length === 0 && (
+                    <p className={styles.emptyPromptText}>No slots match the calculated criteria boundaries.</p>
+                  )}
+                </div>
+              )
             ) : (
               <p className={styles.emptyPromptText}>Please select a date from the slider to see available time slots.</p>
             )}
@@ -632,7 +643,7 @@ export default function SalonStore() {
           <div className={styles.stepViewport}>
             <h2 className={styles.stepTitleHeading}>Confirm & Pay with Wallet</h2>
             <div className={styles.luxurySummaryDisplayCard}>
-              <h3>{profile?.salonName}</h3>
+              <h3>{profile?.salonName} {profile?.isVerified && <VerifiedBadge />}</h3>
               <p className={styles.summaryLocationText}>📍 {profile?.address}</p>
               
               <div className={styles.summaryDividerLine} />
@@ -698,6 +709,7 @@ export default function SalonStore() {
               onClick={() => {
                 if (step === 1 && selectedServices.length === 0) return triggerToast("Please select at least one service.");
                 if (step === 3 && (!selectedDate || !selectedTime)) return triggerToast("Please specify calendar date and time targets.");
+                if (step === 3 && isDayInCooldown) return triggerToast("This date is currently locked under limit cooldown.");
                 if (step === 4 && !customerName.trim()) return triggerToast("Your client profile requires an assignment name identifier.");
                 setStep(prev => (typeof prev === 'number' ? prev + 1 : 1) as any);
               }}

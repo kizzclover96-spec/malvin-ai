@@ -304,7 +304,7 @@ export const processPayment = onCall({ cors: true }, async (request) => {
 
 /*
 =====================================
-7. SECURE ACCOUNT WITHDRAWAL (PAYOUT)
+7. SECURE ACCOUNT WITHDRAWAL (PAYOUT) - DEV BYPASS VERSION
 =====================================
 */
 export const requestPayout = onCall(
@@ -336,7 +336,6 @@ export const requestPayout = onCall(
     const targetCollection = isFood ? "restaurantprofile" : "salons";
     
     const businessDocRef = db.collection(targetCollection).doc(uid);
-    // Unified: Point to the private subcollection instead of root document properties
     const securityRef = businessDocRef.collection("private").doc("security");
 
     try {
@@ -355,8 +354,9 @@ export const requestPayout = onCall(
         const securityData = securitySnap.data();
 
         const currentBalance = data?.walletBalance ?? 0;
-        const stripeAccountId = data?.stripeAccountId;
-        const payoutsEnabled = data?.payoutsEnabled ?? data?.payouts_enabled;
+        
+        // 1. Still retrieve the stripeAccountId from database
+        const stripeAccountId = data?.stripeAccountId; 
         
         // Unified Hash Verification
         const { hashedPin, salt } = securityData!;
@@ -366,24 +366,29 @@ export const requestPayout = onCall(
           throw new HttpsError("permission-denied", "Incorrect secret PIN.");
         }
 
-        if (!stripeAccountId || !payoutsEnabled) {
-          throw new HttpsError("failed-precondition", "Stripe payout account is not fully setup.");
-        }
-
         if (currentBalance < amount) {
           throw new HttpsError("failed-precondition", "Insufficient funds in your wallet.");
         }
 
-        return { stripeAccountId };
+        // 2. Return it safely. If it doesn't exist in dev, we return a dummy string placeholder to avoid a crash.
+        return { stripeAccountId: stripeAccountId || "acct_dev_bypass_placeholder" };
       });
 
       const amountInCents = Math.round(amount * 100);
-      const transfer = await stripe.transfers.create({
-        amount: amountInCents,
-        currency: "eur",
-        destination: result.stripeAccountId,
-        description: `Payout withdrawal for UID: ${uid}`,
-      });
+
+      // 3. Prevent Stripe API calls from running if you are using the bypass placeholder
+      let transferId = "dev_bypass_transfer_id";
+      if (result.stripeAccountId && result.stripeAccountId !== "acct_dev_bypass_placeholder") {
+        const transfer = await stripe.transfers.create({
+          amount: amountInCents,
+          currency: "eur",
+          destination: result.stripeAccountId,
+          description: `Payout withdrawal for UID: ${uid}`,
+        });
+        transferId = transfer.id;
+      } else {
+        console.log("⚠️ Dev Bypass Active: Stripe Transfer API call skipped because no genuine connected account was linked.");
+      }
 
       const batch = db.batch();
       batch.update(businessDocRef, {
@@ -396,7 +401,7 @@ export const requestPayout = onCall(
         storeName: "Wallet Withdrawal",
         amount: amount,
         type: "payout",
-        stripeTransferId: transfer.id,
+        stripeTransferId: transferId,
         timestamp: FieldValue.serverTimestamp(),
       });
 
@@ -404,8 +409,8 @@ export const requestPayout = onCall(
 
       return { 
         success: true, 
-        message: `Successfully transferred €${amount} to your bank account.`,
-        transferId: transfer.id 
+        message: `Successfully transferred €${amount} to your bank account. (Dev Bypass Active)`,
+        transferId: transferId
       };
 
     } catch (error: any) {
@@ -415,7 +420,6 @@ export const requestPayout = onCall(
     }
   }
 );
-
 /*
 =====================================
 8. REQUEST PIN RESET (V2)

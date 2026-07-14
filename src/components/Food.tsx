@@ -11,7 +11,8 @@ import {
   collection,
   query,
   where,
-  updateDoc
+  updateDoc,
+  deleteDoc
 } from 'firebase/firestore';
 import QRCode from 'qrcode';
 import RestaurantCatalogue from './OrderStoreCatalogue';
@@ -33,6 +34,7 @@ interface RestaurantData {
   onlineStatus: boolean;
   createdAt: Timestamp | null;
   updatedAt: Timestamp | null;
+  hasPinConfigured?: boolean;
 }
 interface IncomingOrder {
   id: string;
@@ -97,6 +99,101 @@ export default function FoodDashboard() {
 
   const [activeTab, setActiveTab] = useState<"orders" | "analytics">("orders");
 
+  const showToast = (msg: string) => console.log(`[Toast Notification]: ${msg}`);
+
+  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+  const [pinInput, setPinInput] = useState('');
+  const [isProcessingPayout, setIsProcessingPayout] = useState(false);
+  const [isPinSetupModalOpen, setIsPinSetupModalOpen] = useState(false);
+  const [isForgotPinOpen, setIsForgotPinOpen] = useState(false);
+  const [resetCode, setResetCode] = useState('');
+  const [newPin, setNewPin] = useState('');
+  // First-Time Pin Setup States
+  const [setupPin, setSetupPin] = useState('');
+  const [confirmSetupPin, setConfirmSetupPin] = useState('');
+  const [isRegisteringPin, setIsRegisteringPin] = useState(false);
+  const handleForgotPinRequest = async () => {
+    try {
+      const { getFunctions, httpsCallable } = await import('firebase/functions');
+      const requestReset = httpsCallable(getFunctions(), 'requestPinReset');
+      
+      showToast("Sending verification email...");
+      await requestReset();
+      
+      setIsPinModalOpen(false); // Close payout modal
+      setIsForgotPinOpen(true); // Open reset verification form
+      showToast("Check your email for the recovery code!");
+    } catch (error: any) {
+      alert(`Failed to send code: ${error.message}`);
+    }
+  };
+
+  // 🛠️ Verifies email code and overwrites with the new PIN
+  const handleConfirmNewPin = async () => {
+    if (newPin.length !== 4 || resetCode.length !== 6) {
+      alert("Please enter a 6-digit email code and a new 4-digit PIN.");
+      return;
+    }
+
+    try {
+      const { getFunctions, httpsCallable } = await import('firebase/functions');
+      const confirmReset = httpsCallable(getFunctions(), 'confirmPinReset');
+
+      showToast("Applying security modifications...");
+      await confirmReset({
+        resetToken: resetCode,
+        newPin: newPin
+      });
+
+      alert("🎉 Security PIN successfully reset! You can now resume payouts.");
+      setIsForgotPinOpen(false);
+      setResetCode('');
+      setNewPin('');
+    } catch (error: any) {
+      alert(`Reset Failed: ${error.message}`);
+    }
+  };
+
+  // INITIAL SETUP: Generates a new merchant PIN on the backend
+  // INITIAL SETUP: Generates a new merchant PIN on the backend
+  const handleRegisterSetupPin = async () => {
+    if (setupPin.length !== 4 || confirmSetupPin.length !== 4) {
+      alert("PIN must be exactly 4 digits.");
+      return;
+    }
+
+    if (setupPin !== confirmSetupPin) {
+      alert("PINs do not match. Please verify.");
+      return;
+    }
+
+    setIsRegisteringPin(true);
+    alert("Registering your secure PIN..."); // Replaced showToast with alert for now
+
+    try {
+      const { getFunctions, httpsCallable } = await import('firebase/functions');
+      const setupPinFn = httpsCallable(getFunctions(), 'initializeMerchantPin');
+
+      await setupPinFn({
+        pin: setupPin,
+        merchantType: "food"
+      });
+
+      alert("🎉 Security PIN successfully established! You can now withdraw funds securely.");
+      
+      // FIX: Update local profile state instead of non-existent "food"
+      if (profile) setProfile({ ...profile, hasPinConfigured: true });
+      
+      setIsPinSetupModalOpen(false);
+    } catch (error: any) {
+      alert(`Setup Failed: ${error.message}`);
+    } finally {
+      setIsRegisteringPin(false);
+      setSetupPin('');
+      setConfirmSetupPin('');
+    }
+  };
+
   const handleWithdrawProfit = () => {
     const currentBalance = profile?.walletBalance || 0;
 
@@ -104,11 +201,69 @@ export default function FoodDashboard() {
       alert("No profits available to withdraw.");
       return;
     }
-    const confirmWithdraw = window.confirm(`Are you sure you want to withdraw your current balance of €${currentBalance.toFixed(2)}?`);
-    if (confirmWithdraw) {
-      alert("Withdrawal request initiated successfully!");
+    
+    // FIX: Read from profile instead of food
+    if (profile?.hasPinConfigured === false) {
+      setSetupPin('');
+      setConfirmSetupPin('');
+      setIsPinSetupModalOpen(true);
+      return;
+    }
+
+    setPinInput(''); 
+    setIsPinModalOpen(true);
+  };
+
+  const handleConfirmPayout = async () => {
+    // FIX: Read from profile instead of food
+    if (!profile || (profile?.walletBalance || 0) <= 0) {
+      alert("No balance available to withdraw.");
+      setIsPinModalOpen(false);
+      return;
+    }
+
+    if (pinInput.length !== 4 || isNaN(Number(pinInput))) {
+      alert("Invalid PIN format. Must be a 4-digit number.");
+      return;
+    }
+
+    setIsProcessingPayout(true);
+    alert("Processing security clearing... Please wait.");
+
+    try {
+      const { getFunctions, httpsCallable } = await import('firebase/functions');
+      const functions = getFunctions();
+      const requestPayout = httpsCallable(functions, 'requestPayout');
+
+      const response: any = await requestPayout({
+        amount: profile.walletBalance,
+        pin: pinInput,
+        merchantType: "food" 
+      });
+
+      if (response.data?.success) {
+        alert(`🎉 Success! ${response.data.message}`);
+        setIsPinModalOpen(false);
+      }
+    } catch (error: any) {
+      console.error("Payout initiation failed:", error);
+      
+      if (error.message?.includes("incomplete") || error.message?.includes("not found")) {
+        setIsPinModalOpen(false);
+        setSetupPin('');
+        setConfirmSetupPin('');
+        setIsPinSetupModalOpen(true);
+      } else {
+        alert(`❌ Withdrawal Failed:\n${error.message || "Internal server settlement error."}`);
+      }
+    } finally {
+      setIsProcessingPayout(false);
+      setPinInput(''); 
     }
   };
+
+  
+  
 
   const handleLogout = async () => {
     try {
@@ -317,7 +472,7 @@ export default function FoodDashboard() {
         }
   }, [incomingOrders]);
 
-  // --- Order Snapshot listener with Daily Limit Logic ---
+  // --- Order Snapshot listener with Daily Limit Logic & Firestore Sync ---
   useEffect(() => {
         if (!uid) return;
 
@@ -326,7 +481,7 @@ export default function FoodDashboard() {
             where("restaurantUid", "==", uid)
         );
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
+        const unsubscribe = onSnapshot(q, async (snapshot) => {
             const orders: IncomingOrder[] = [];
             snapshot.forEach((doc) => {
                 orders.push({
@@ -348,7 +503,21 @@ export default function FoodDashboard() {
             previousOrderCount.current = orders.length;
             calculateAnalytics(orders);
 
-            if (!isVerified && orders.length >= 10) {
+            // Determine if the limit is reached
+            const limitReached = !isVerified && orders.length >= 10;
+
+            // 🌟 SYNC COOLDOWN STATE TO THE PUBLIC RESTAURANT PROFILE
+            try {
+              const profileDocRef = doc(db, 'restaurantprofile', uid);
+              await updateDoc(profileDocRef, {
+                orderLimitReached: limitReached,
+                isVerified: isVerified
+              });
+            } catch (error) {
+              console.error("Failed to sync limit state to Firestore:", error);
+            }
+
+            if (limitReached) {
               setIncomingOrders(orders.slice(0, 10));
               setShowPremiumPopup(true);
             } else {
@@ -886,7 +1055,138 @@ export default function FoodDashboard() {
           </span>
         </button>
       </div>
+      {/* FORGOT PIN & RESET OVERLAY */}
+      {isForgotPinOpen && (
+        <div className={styles.modalOverlay} style={{ zIndex: 3000 }}>
+          <div className={styles.modalContent} style={{ maxWidth: '380px', textAlign: 'center' }}>
+            <h3>Reset Security PIN</h3>
+            <p style={{ color: '#aaa', fontSize: '13px' }}>We sent a secure validation token to your registered merchant email. Enter it below to wipe and replace your current PIN.</p>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', margin: '20px 0' }}>
+              <div>
+                <label style={{ fontSize: '11px', textTransform: 'uppercase', color: '#666', display: 'block', marginBottom: '6px' }}>6-Digit Email Code</label>
+                <input 
+                  type="text" 
+                  maxLength={6}
+                  placeholder="000000"
+                  value={resetCode}
+                  onChange={(e) => setResetCode(e.target.value.replace(/\D/g, ''))}
+                  style={{ background: '#111', color: '#fff', border: '1px solid #222', padding: '10px', borderRadius: '8px', width: '140px', fontSize: '18px', textAlign: 'center', letterSpacing: '2px' }}
+                />
+              </div>
 
+              <div>
+                <label style={{ fontSize: '11px', textTransform: 'uppercase', color: '#666', display: 'block', marginBottom: '6px' }}>Define New 4-Digit PIN</label>
+                <input 
+                  type="password" 
+                  maxLength={4}
+                  placeholder="••••"
+                  value={newPin}
+                  onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ''))}
+                  style={{ background: '#111', color: '#fff', border: '1px solid #222', padding: '10px', borderRadius: '8px', width: '110px', fontSize: '18px', textAlign: 'center', letterSpacing: '4px' }}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button className={styles.glassButtonSecondary} onClick={() => setIsForgotPinOpen(false)} style={{ flex: 1 }}>Cancel</button>
+              <button className={styles.glassButtonPrimary} onClick={handleConfirmNewPin} style={{ flex: 1 }}>Reset PIN</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {isPinModalOpen && (
+        <div className={styles.modalOverlay} style={{ zIndex: 2000 }}>
+          <div className={styles.modalContent} style={{ maxWidth: '360px', textAlign: 'center' }}>
+            <h3>Authorize Payout</h3>
+            <p style={{ color: '#aaa', fontSize: '14px' }}>Enter your 4-digit security PIN to withdraw {currency}{profile.walletBalance.toFixed(2)}</p>
+            
+            <input 
+              type="password" 
+              maxLength={4}
+              value={pinInput}
+              onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ''))}
+              style={{ background: '#111', color: '#fff', border: '1px solid #222', padding: '12px', borderRadius: '8px', width: '100px', fontSize: '20px', letterSpacing: '6px', textAlign: 'center', margin: '16px 0' }}
+              disabled={isProcessingPayout}
+            />
+
+            <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
+              <button 
+                className={styles.glassButtonSecondary} 
+                onClick={() => setIsPinModalOpen(false)}
+                disabled={isProcessingPayout}
+                style={{ flex: 1 }}
+              >
+                Cancel
+              </button>
+              <button 
+                className={styles.glassButtonPrimary} 
+                onClick={handleConfirmPayout}
+                disabled={isProcessingPayout || pinInput.length !== 4}
+                style={{ flex: 1 }}
+              >
+                {isProcessingPayout ? "Verifying..." : "Confirm"}
+              </button>
+              <button 
+                type="button" 
+                onClick={handleForgotPinRequest}
+                style={{ background: 'none', border: 'none', color: '#E53935', fontSize: '11px', cursor: 'pointer', marginTop: '8px', textDecoration: 'underline' }}
+              >
+                Forgot PIN?
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* FIRST-TIME PIN SETUP OVERLAY */}
+      {isPinSetupModalOpen && (
+        <div className={styles.modalOverlay} style={{ zIndex: 2700 }}>
+          <div className={styles.modalContent} style={{ maxWidth: '380px', textAlign: 'center' }}>
+            <h3>Initialize Security PIN</h3>
+            <p style={{ color: '#aaa', fontSize: '13px' }}>You haven't configured a secure PIN yet. Setup a numeric 4-digit PIN to secure future withdrawals.</p>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', margin: '20px 0', alignItems: 'center' }}>
+              <div>
+                <label style={{ fontSize: '11px', textTransform: 'uppercase', color: '#666', display: 'block', marginBottom: '6px' }}>Choose PIN</label>
+                <input 
+                  type="password" 
+                  maxLength={4}
+                  placeholder="••••"
+                  value={setupPin}
+                  disabled={isRegisteringPin}
+                  onChange={(e) => setSetupPin(e.target.value.replace(/\D/g, ''))}
+                  style={{ background: '#111', color: '#fff', border: '1px solid #222', padding: '10px', borderRadius: '8px', width: '110px', fontSize: '18px', textAlign: 'center', letterSpacing: '4px' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '11px', textTransform: 'uppercase', color: '#666', display: 'block', marginBottom: '6px' }}>Confirm PIN</label>
+                <input 
+                  type="password" 
+                  maxLength={4}
+                  placeholder="••••"
+                  value={confirmSetupPin}
+                  disabled={isRegisteringPin}
+                  onChange={(e) => setConfirmSetupPin(e.target.value.replace(/\D/g, ''))}
+                  style={{ background: '#111', color: '#fff', border: '1px solid #222', padding: '10px', borderRadius: '8px', width: '110px', fontSize: '18px', textAlign: 'center', letterSpacing: '4px' }}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button className={styles.glassButtonSecondary} disabled={isRegisteringPin} onClick={() => setIsPinSetupModalOpen(false)} style={{ flex: 1 }}>Cancel</button>
+              <button 
+                className={styles.glassButtonPrimary} 
+                disabled={isRegisteringPin || setupPin.length !== 4 || setupPin !== confirmSetupPin} 
+                onClick={handleRegisterSetupPin} 
+                style={{ flex: 1 }}
+              >
+                {isRegisteringPin ? "Saving..." : "Set PIN"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

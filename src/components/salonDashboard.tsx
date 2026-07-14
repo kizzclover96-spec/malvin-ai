@@ -70,6 +70,7 @@ export default function SalonDashboard() {
   const [setupPin, setSetupPin] = useState('');
   const [confirmSetupPin, setConfirmSetupPin] = useState('');
   const [isRegisteringPin, setIsRegisteringPin] = useState(false);
+  
   const handleForgotPinRequest = async () => {
     try {
       const { getFunctions, httpsCallable } = await import('firebase/functions');
@@ -725,19 +726,6 @@ export default function SalonDashboard() {
                 <div className={styles.metaRow}><strong>VIN Wallet Balance:</strong> <span>{currency} {(salon.walletBalance || balance).toFixed(2)}</span></div>
                 
                 <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
-                  {/* Explicit setup button */}
-                  <button 
-                    type="button" 
-                    className={styles.glassButtonSecondary} 
-                    onClick={() => {
-                      setSetupPin('');
-                      setConfirmSetupPin('');
-                      setIsPinSetupModalOpen(true);
-                    }}
-                  >
-                    Setup Security PIN
-                  </button>
-
                   <button type="button" className={styles.glassButtonPrimary} onClick={handleWithdrawProfit}>
                     Withdraw Profit
                   </button>
@@ -795,6 +783,7 @@ export default function SalonDashboard() {
           </div>
         </div>
       )}
+      
       {isPinModalOpen && (
         <div className={styles.modalOverlay} style={{ zIndex: 2000 }}>
           <div className={styles.modalContent} style={{ maxWidth: '360px', textAlign: 'center' }}>
@@ -838,6 +827,7 @@ export default function SalonDashboard() {
           </div>
         </div>
       )}
+      
       {/* FIRST-TIME PIN SETUP OVERLAY */}
       {isPinSetupModalOpen && (
         <div className={styles.modalOverlay} style={{ zIndex: 2700 }}>

@@ -12,6 +12,8 @@ interface RestaurantProfile {
   brandBio: string;
   address?: string; 
   onlineStatus: boolean;
+  orderLimitReached?: boolean; // 👈 Add this
+  isVerified?: boolean;        // 👈 Add this
 }
 
 interface Product {
@@ -140,6 +142,17 @@ export const StoreFrontend: React.FC = () => {
         items.push({ id: doc.id, ...doc.data() } as Product);
       });
       setProducts(items);
+    });
+    return () => unsubscribe();
+  }, [restaurantUid]);
+
+  useEffect(() => {
+    if (!restaurantUid) return;
+    const docRef = doc(db, 'restaurantprofile', restaurantUid);
+    const unsubscribe = onSnapshot(docRef, (docSnap) => {
+      if (docSnap.exists()) {
+        setProfile(docSnap.data() as RestaurantProfile);
+      }
     });
     return () => unsubscribe();
   }, [restaurantUid]);
@@ -299,6 +312,29 @@ export const StoreFrontend: React.FC = () => {
   const filteredProducts = products.filter(p =>
     p.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  // ----------------------------------------------------
+  // ⏳ COOLDOWN COOLDOWN BLOCKER
+  // ----------------------------------------------------
+  if (profile?.orderLimitReached) {
+    return (
+      <div className="min-h-screen bg-neutral-950 text-white flex flex-col items-center justify-center p-6 text-center font-sans">
+        <div 
+          className="w-20 h-20 bg-red-500/10 border-2 border-red-500 text-red-500 rounded-full flex items-center justify-center text-3xl mb-6 animate-pulse"
+          style={{ boxShadow: '0 0 20px rgba(239, 68, 68, 0.2)' }}
+        >
+          ⏳
+        </div>
+        <h1 className="text-3xl font-black uppercase tracking-tight mb-2">Store on Cooldown</h1>
+        <p className="text-neutral-400 max-w-sm text-sm mb-6 leading-relaxed">
+          This store has temporarily reached its daily capacity limit. Please check back in the next 24 hours!
+        </p>
+        <div className="text-xs text-neutral-500 uppercase tracking-widest font-bold">
+          Powered by Malvin Platform
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.appContainer}>
