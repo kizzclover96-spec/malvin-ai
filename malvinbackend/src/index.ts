@@ -217,7 +217,6 @@ export const stripeWebhook = onRequest(
 =====================================
 */
 export const processPayment = onCall({ cors: true }, async (request) => {
-  // 1. 🟢 Destructure merchantType along with the other payload items
   const { targetBusinessUid, amount, fallbackCustomerUid, appointmentDetails, merchantType } = request.data;
   
   const customerUid = request.auth?.uid || fallbackCustomerUid;
@@ -236,18 +235,21 @@ export const processPayment = onCall({ cors: true }, async (request) => {
   const userRef = db.collection("users").doc(customerUid);
   const txRef = userRef.collection("walletTransactions").doc();
   
-  // 2. 🟢 Explicitly choose collections based on the incoming storefront variant flag
   const isFood = merchantType === "food";
   const targetCollection = isFood ? "restaurantprofile" : "salons";
-  const appointmentCollection = isFood ? "foodOrders" : "salonAppointments"; // Adjust "foodOrders" to your actual restaurant order collection name
+  const appointmentCollection = isFood ? "foodOrders" : "salonAppointments";
 
   const businessRef = db.collection(targetCollection).doc(targetBusinessUid);
   const ticketId = isFood 
     ? `FOOD-${Math.floor(100000 + Math.random() * 900000)}` 
     : `SAL-${Math.floor(100000 + Math.random() * 900000)}`;
 
-  // Move this inside or dynamically resolve the collection reference path
   const appointmentRef = db.collection(appointmentCollection).doc(customerUid).collection("appointments").doc();
+
+  // --- Calculate 2% Application Fee Deduction ---
+  const companyCommissionRate = 0.02; // 2% 
+  const appFeeAmount = parseFloat((amount * companyCommissionRate).toFixed(2));
+  const merchantCreditAmount = parseFloat((amount - appFeeAmount).toFixed(2));
 
   try {
     await db.runTransaction(async (transaction: typeof Transaction) => {
@@ -265,13 +267,23 @@ export const processPayment = onCall({ cors: true }, async (request) => {
         throw new HttpsError("failed-precondition", "Insufficient client wallet funds available.");
       }
 
-      // 3. Deduct from customer wallet
+      // 1. Deduct full payment amount from customer wallet
       transaction.update(userRef, { "wallet.balance": FieldValue.increment(-amount) });
       
-      // 4. Update balance directly on the cleanly dynamically routed business node
-      transaction.update(businessRef, { walletBalance: FieldValue.increment(amount) });
+      // 2. Add remaining 98% balance to the business wallet account
+      transaction.update(businessRef, { walletBalance: FieldValue.increment(merchantCreditAmount) });
 
-      // 5. Save user transaction statement logs with accurate fallback metadata strings
+      // 3. Optional: Record platform fee metrics inside an admin ledger
+      const platformEarningsRef = db.collection("platformFees").doc();
+      transaction.set(platformEarningsRef, {
+        sourceBusinessId: targetBusinessUid,
+        sourceCustomerId: customerUid,
+        originalAmount: amount,
+        feeCharged: appFeeAmount,
+        timestamp: FieldValue.serverTimestamp()
+      });
+
+      // 4. Save user transaction statement logs with accurate details
       transaction.set(txRef, {
         storeName: businessDoc.data()?.brandName || businessDoc.data()?.name || businessDoc.data()?.salonName || "Malvin Storefront Platform",
         amount: amount,
@@ -279,7 +291,7 @@ export const processPayment = onCall({ cors: true }, async (request) => {
         timestamp: FieldValue.serverTimestamp(),
       });
 
-      // 6. 🟢 SECURE DYNAMIC TICKET CREATION
+      // 5. Secure ticket generation
       transaction.set(appointmentRef, {
         ticketId: ticketId,
         businessId: targetBusinessUid,
@@ -301,10 +313,9 @@ export const processPayment = onCall({ cors: true }, async (request) => {
   }
 });
 
-
 /*
 =====================================
-7. SECURE ACCOUNT WITHDRAWAL (PAYOUT) - DEV BYPASS VERSION
+7. SECURE ACCOUNT WITHDRAWAL (PAYOUT)
 =====================================
 */
 export const requestPayout = onCall(
@@ -354,11 +365,9 @@ export const requestPayout = onCall(
         const securityData = securitySnap.data();
 
         const currentBalance = data?.walletBalance ?? 0;
+        const stripeAccountId = data?.stripeAccountId;
+        const payoutsEnabled = data?.payoutsEnabled ?? data?.payouts_enabled;
         
-        // 1. Still retrieve the stripeAccountId from database
-        const stripeAccountId = data?.stripeAccountId; 
-        
-        // Unified Hash Verification
         const { hashedPin, salt } = securityData!;
         const incomingPinHash = hashPin(pin, salt);
 
@@ -366,29 +375,25 @@ export const requestPayout = onCall(
           throw new HttpsError("permission-denied", "Incorrect secret PIN.");
         }
 
+        if (!stripeAccountId || !payoutsEnabled) {
+          throw new HttpsError("failed-precondition", "Stripe payout account is not fully setup.");
+        }
+
         if (currentBalance < amount) {
           throw new HttpsError("failed-precondition", "Insufficient funds in your wallet.");
         }
 
-        // 2. Return it safely. If it doesn't exist in dev, we return a dummy string placeholder to avoid a crash.
-        return { stripeAccountId: stripeAccountId || "acct_dev_bypass_placeholder" };
+        return { stripeAccountId };
       });
 
+      // Transfer authorized balance to their Stripe Connect account
       const amountInCents = Math.round(amount * 100);
-
-      // 3. Prevent Stripe API calls from running if you are using the bypass placeholder
-      let transferId = "dev_bypass_transfer_id";
-      if (result.stripeAccountId && result.stripeAccountId !== "acct_dev_bypass_placeholder") {
-        const transfer = await stripe.transfers.create({
-          amount: amountInCents,
-          currency: "eur",
-          destination: result.stripeAccountId,
-          description: `Payout withdrawal for UID: ${uid}`,
-        });
-        transferId = transfer.id;
-      } else {
-        console.log("⚠️ Dev Bypass Active: Stripe Transfer API call skipped because no genuine connected account was linked.");
-      }
+      const transfer = await stripe.transfers.create({
+        amount: amountInCents,
+        currency: "eur",
+        destination: result.stripeAccountId,
+        description: `Payout withdrawal for UID: ${uid}`,
+      });
 
       const batch = db.batch();
       batch.update(businessDocRef, {
@@ -401,7 +406,7 @@ export const requestPayout = onCall(
         storeName: "Wallet Withdrawal",
         amount: amount,
         type: "payout",
-        stripeTransferId: transferId,
+        stripeTransferId: transfer.id,
         timestamp: FieldValue.serverTimestamp(),
       });
 
@@ -409,8 +414,8 @@ export const requestPayout = onCall(
 
       return { 
         success: true, 
-        message: `Successfully transferred €${amount} to your bank account. (Dev Bypass Active)`,
-        transferId: transferId
+        message: `Successfully transferred €${amount} to your bank account.`,
+        transferId: transfer.id 
       };
 
     } catch (error: any) {
@@ -420,6 +425,7 @@ export const requestPayout = onCall(
     }
   }
 );
+
 /*
 =====================================
 8. REQUEST PIN RESET (V2)
@@ -431,7 +437,6 @@ export const requestPinReset = onCall(async (request) => {
     throw new HttpsError("unauthenticated", "Authentication context is missing.");
   }
 
-  // Support multi-merchant routing
   const { merchantType } = request.data;
   const targetCollection = merchantType === "food" ? "restaurantprofile" : "salons";
 
@@ -453,7 +458,6 @@ export const requestPinReset = onCall(async (request) => {
     tokenExpires: expiresAt
   }, { merge: true });
 
-  // TODO: Implement email sending logic here (SendGrid/Nodemailer)
   console.log(`Reset token for ${email}: ${resetToken}`);
 
   return { success: true, message: "A secure reset code has been sent to your email." };
@@ -523,13 +527,11 @@ export const initializeMerchantPin = onCall(async (request) => {
   const db = getDb();
   const securityRef = db.collection(targetCollection).doc(uid).collection("private").doc("security");
 
-  // FIX: changed exists() to exists
   const securitySnap = await securityRef.get();
   if (securitySnap.exists && securitySnap.data()?.hashedPin) {
     throw new HttpsError("already-exists", "A security PIN is already established for this account.");
   }
 
-  // Generate secure salt and compute the PBKDF2 hash using your helper
   const salt = crypto.randomBytes(16).toString("hex");
   const hashedPin = hashPin(pin, salt);
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { collection, onSnapshot, query, orderBy, doc, deleteDoc, setDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, doc, deleteDoc, setDoc, limit } from 'firebase/firestore';
 import { firestore as db } from '../firebase'; 
 import { auth } from "../firebase";  
 import { ArrowRight, Loader2, Store, Trash2 } from 'lucide-react';
@@ -54,7 +54,7 @@ export const RecentBusinesses: React.FC<RecentBusinessesProps> = ({ onSelectBusi
     }
 
     const recentRef = collection(db, 'customers', user.uid, 'recentBusinesses');
-    const q = query(recentRef, orderBy('lastVisited', 'desc'));
+    const q = query(recentRef, orderBy('lastVisited', 'desc'), limit(10));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const hasRecords = !snapshot.empty;
