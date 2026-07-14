@@ -318,9 +318,11 @@ function App() {
         </Routes>
       </div>
 
-      {user && !isAdmin && !isStorefrontPath && flowStep !== "welcome" && flowStep !== "front" && flowStep !== "options" && (
+      {user && !isAdmin && !isStorefrontPath && (isWorker || (flowStep !== "welcome" && flowStep !== "front" && flowStep !== "options")) && (
         <FloatingTeamHub managerUid={isWorker ? assignedManagerUid : user.uid} />
       )}
+
+      <CookieBanner />
 
       <CookieBanner />
     </>
