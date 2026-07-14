@@ -21,7 +21,7 @@ import styles from './salonDashboard.module.css';
 import SalonStation from './salonStation';
 import QRCode from 'qrcode';
 import { useBusinessWallet } from "../hooks/useBusinessWallet";
-import { Bell, Sparkles, Clock, User, QrCode } from 'lucide-react';
+import { Bell, Sparkles, Clock, User, QrCode, CheckCircle } from 'lucide-react';
 import ConfirmQRScanner from './ConfirmQRScanner'; // Imported custom validation scanner
 
 interface SalonData {
@@ -40,6 +40,7 @@ interface SalonData {
 
 interface LiveAppointment {
   id: string;
+  path: string; // 🔒 Store the absolute database document path for precise deletion
   ticketId: string;
   services: Array<{ serviceName?: string; name?: string; price: number }>;
   stylist: string;
@@ -58,6 +59,9 @@ export default function SalonDashboard() {
   const { balance, currency } = useBusinessWallet();
   const [salon, setSalon] = useState<SalonData | null>(null);
   const [incomingAppointments, setIncomingAppointments] = useState<LiveAppointment[]>([]);
+
+  // Verification Details Modal State
+  const [scannedResult, setScannedResult] = useState<LiveAppointment | null>(null);
 
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [pinInput, setPinInput] = useState('');
@@ -130,7 +134,7 @@ export default function SalonDashboard() {
 
     try {
       const { getFunctions, httpsCallable } = await import('firebase/functions');
-      const setupPinFn = httpsCallable(getFunctions(), 'initializeMerchantPin'); // Ensure this matches your cloud function setup name
+      const setupPinFn = httpsCallable(getFunctions(), 'initializeMerchantPin'); 
 
       await setupPinFn({
         pin: setupPin,
@@ -139,7 +143,6 @@ export default function SalonDashboard() {
 
       alert("🎉 Security PIN successfully established! You can now withdraw funds securely.");
       
-      // Update local state to reflect the setup completion
       if (salon) setSalon({ ...salon, hasPinConfigured: true });
       
       setIsPinSetupModalOpen(false);
@@ -254,8 +257,21 @@ export default function SalonDashboard() {
 
       snapshot.forEach((doc) => {
         const data = doc.data();
+
+        // 🛡️ 1. SCREEN OUT FOOD ORDERS FROM SALON WORKSPACE
+        if (
+          data.orderType === 'food' || 
+          data.category === 'food' || 
+          data.type === 'food' || 
+          data.isFoodOrder || 
+          (data.items && !data.services)
+        ) {
+          return; 
+        }
+
         bookings.push({
           id: doc.id,
+          path: doc.ref.path, // 🔒 Save the exact Firestore database path
           ticketId: data.ticketId || "SAL-000000",
           services: data.services || [],
           stylist: data.stylist || "Any Available",
@@ -291,27 +307,47 @@ export default function SalonDashboard() {
 
   // Anti-Fraud Core Process Engine (Immediate Removal Strategy)
   const handleVerifyTicketId = async (idToVerify: string) => {
-    const cleanedId = idToVerify.trim().toLowerCase();
+    let cleanedId = idToVerify.trim().toLowerCase();
+    
+    // Automatically parse URLs to support scanning from phone cameras
+    if (cleanedId.includes('/') || cleanedId.startsWith('http://') || cleanedId.startsWith('https://')) {
+      try {
+        const urlSegments = cleanedId.split('/').filter(Boolean);
+        if (urlSegments.length > 0) {
+          cleanedId = urlSegments[urlSegments.length - 1]; 
+        }
+      } catch (err) {
+        console.error("URL parsing fallback failed:", err);
+      }
+    }
     
     const matchedAppointment = incomingAppointments.find(
       app => app.ticketId.toLowerCase() === cleanedId || app.id.toLowerCase() === cleanedId
     );
 
     if (matchedAppointment) {
-      // 1. Instantly drop item from local UI array queue state
-      setIncomingAppointments(prev => prev.filter(item => item.id !== matchedAppointment.id));
-      showToast("Confirmed! Appointment matched and verified.");
-
-      // 2. Perform background targeted document removal clean up task 
-      try {
-        await deleteDoc(doc(db, "salons", uid!, "appointments", matchedAppointment.id));
-        alert(`🔒 CONFIRMED:\nTicket ID "${matchedAppointment.ticketId}" has been verified. Fraud checks passed. Record removed from database.`);
-      } catch (err) {
-        console.warn("Firestore collection mismatch. View item auto-cleared cleanly locally.");
-      }
+      // Open the validation popup containing details of the appointment
+      setScannedResult(matchedAppointment);
       setShowScannerInput(false);
     } else {
-      alert("❌ FRAUD DETECTED:\nNo appointment registered for this user.");
+      alert(`❌ FRAUD DETECTED:\nNo appointment registered for: "${cleanedId}"`);
+    }
+  };
+
+  // Triggers the deletion of the verified appointment once reviewed
+  const handleCompleteVerifiedAppointment = async (appointment: LiveAppointment) => {
+    // 1. Instantly drop item from local UI array state
+    setIncomingAppointments(prev => prev.filter(item => item.id !== appointment.id));
+    setScannedResult(null); // Close detail modal
+    showToast("Cleared! Appointment processed and verified.");
+
+    // 2. Perform backend targeted database removal using the exact path
+    try {
+      await deleteDoc(doc(db, appointment.path));
+      alert(`🔒 CONFIRMED:\nTicket ID "${appointment.ticketId}" has been verified. Record successfully cleared from the database.`);
+    } catch (err) {
+      console.error("Error deleting document:", err);
+      alert("⚠️ Local view cleared, but failed to remove from database. Please verify connections.");
     }
   };
 
@@ -387,16 +423,12 @@ export default function SalonDashboard() {
     setFormOffDays(prev => prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]);
   };
 
-  /*** 1. Initiates the payout flow by validating prerequisites 
-   * and opening the secure PIN overlay.
-   */
   const handleWithdrawProfit = () => {
     if (!salon || salon.walletBalance <= 0) {
       alert("No profits available to withdraw.");
       return;
     }
     
-    // If the database states we haven't set up a PIN, force initialization
     if (salon.hasPinConfigured === false) {
       setSetupPin('');
       setConfirmSetupPin('');
@@ -408,10 +440,6 @@ export default function SalonDashboard() {
     setIsPinModalOpen(true);
   };
 
-  /**
-   * 2. Validates the entered PIN and signs/transports the request 
-   * securely to the Firebase Cloud backend.
-   */
   const handleConfirmPayout = async () => {
     if (!salon || salon.walletBalance <= 0) {
       alert("No balance available to withdraw.");
@@ -445,7 +473,6 @@ export default function SalonDashboard() {
     } catch (error: any) {
       console.error("Payout initiation failed:", error);
       
-      // Catch the specific incomplete error from your logs and route to setup
       if (error.message?.includes("incomplete") || error.message?.includes("not found")) {
         setIsPinModalOpen(false);
         setSetupPin('');
@@ -496,17 +523,15 @@ export default function SalonDashboard() {
   }
 
   return (
-    /* REMOVED MAX WIDTH AND BOUNDS FROM CONTAINER TO ENSURE FLUID ULTRA-WIDE SCREEN EXPANSION */
     <div className={styles.dashboardContainer} style={{ background: "#050505", minHeight: "100%", color: "#fff", fontFamily: "sans-serif", width: "100%", display: "flex", flexDirection: "column", boxSizing: "border-box", overflowX: "hidden" }}>
       {toast && <div className={styles.toast}>{toast}</div>}
 
-      {/* FULL WIDTH FLUID SCREEN HEADER */}
+      {/* HEADER */}
       <header className={styles.header} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 32px", background: "#0c0c0c", borderBottom: "1px solid #1a1a1a", width: "100%", boxSizing: "border-box" }}>
         <button className={styles.iconButton} onClick={() => setIsDrawerOpen(true)} style={{ background: "none", border: "none", color: "#fff", cursor: "pointer" }}>
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
         </button>
 
-        {/* Header Management Icons Column Section */}
         <div style={{ display: "flex", alignItems: "center", gap: "24px" }}>
           <button 
             title="Scan Verification Ticket"
@@ -522,7 +547,7 @@ export default function SalonDashboard() {
         </div>
       </header>
 
-      {/* RENDERED IMPORTED SCANNER PANEL */}
+      {/* SCANNER PANEL */}
       {showScannerInput && (
         <ConfirmQRScanner 
           onCrosscheck={handleVerifyTicketId} 
@@ -530,7 +555,7 @@ export default function SalonDashboard() {
         />
       )}
 
-      {/* FULL EDGE TO EDGE LAYOUT CONTENT WRAPPER */}
+      {/* LAYOUT CONTENT WRAPPER */}
       <main className={styles.mainContent} style={{ padding: "32px", width: "100%", boxSizing: "border-box", flex: 1 }}>
         
         {/* HERO BANNER BLOCK */}
@@ -622,7 +647,77 @@ export default function SalonDashboard() {
         </div>
       </main>
 
-      {/* Navigation Drawer Component Overlay */}
+      {/* ==========================================
+          🆕 SCAN SUCCESS: APPOINTMENT DETAILS OVERLAY
+          ========================================== */}
+      {scannedResult && (
+        <div className={styles.modalOverlay} style={{ zIndex: 4000, padding: '20px', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.85)' }}>
+          <div className={styles.modalContent} style={{ width: '100%', maxWidth: '420px', borderRadius: '24px', padding: '28px', border: '1px solid #333', textAlign: 'left', background: '#0e0e0e', boxSizing: 'border-box' }}>
+            
+            <div style={{ display: 'flex', flexWrap: 'nowrap', alignItems: 'center', gap: '10px', marginBottom: '18px', borderBottom: '1px solid #222', paddingBottom: '16px' }}>
+              <CheckCircle size={26} color="#4BB543" style={{ flexShrink: 0 }} />
+              <div>
+                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 900, color: '#fff' }}>Ticket Verified Successfully</h3>
+                <span style={{ fontSize: '12px', color: '#888' }}>Authentication & payment checked safely</span>
+              </div>
+            </div>
+
+            <div style={{ background: '#141414', padding: '16px', borderRadius: '16px', border: '1px solid #1e1e1e', display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '24px' }}>
+              <div>
+                <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#666', display: 'block', fontWeight: 'bold' }}>Ticket Reference</span>
+                <span style={{ fontSize: '16px', color: '#fff', fontWeight: 900 }}>{scannedResult.ticketId}</span>
+              </div>
+
+              <div>
+                <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#666', display: 'block', fontWeight: 'bold' }}>Assigned Stylist</span>
+                <span style={{ fontSize: '14px', color: '#ddd', fontWeight: 'bold' }}>{scannedResult.stylist}</span>
+              </div>
+
+              <div>
+                <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#666', display: 'block', fontWeight: 'bold', marginBottom: '6px' }}>Selected Treatment Services</span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {scannedResult.services.map((svc, i) => (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                      <span style={{ color: '#aaa' }}>• {svc.serviceName || svc.name}</span>
+                      <span style={{ color: '#4BB543', fontWeight: 'bold' }}>{currency}{svc.price}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #222', paddingTop: '12px', marginTop: '6px' }}>
+                <div>
+                  <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#666', display: 'block' }}>Total Paid</span>
+                  <span style={{ fontSize: '18px', color: '#4BB543', fontWeight: 900 }}>{currency}{scannedResult.totalPaid.toFixed(2)}</span>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#666', display: 'block' }}>Est. Duration</span>
+                  <span style={{ fontSize: '16px', color: '#fff', fontWeight: 'bold' }}>{scannedResult.duration} mins</span>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button 
+                className={styles.glassButtonSecondary} 
+                onClick={() => setScannedResult(null)} 
+                style={{ flex: 1, padding: '12px', borderRadius: '12px', fontSize: '13px', cursor: 'pointer', background: 'transparent', border: '1px solid #333', color: '#fff' }}
+              >
+                Keep in Queue
+              </button>
+              <button 
+                className={styles.glassButtonPrimary} 
+                onClick={() => handleCompleteVerifiedAppointment(scannedResult)} 
+                style={{ flex: 2, padding: '12px', borderRadius: '12px', background: '#E53935', color: '#fff', border: 'none', fontWeight: 'bold', fontSize: '13px', cursor: 'pointer' }}
+              >
+                Accept & Dismiss Row
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DRAWER */}
       {isDrawerOpen && <div className={styles.drawerOverlay} onClick={() => setIsDrawerOpen(false)} />}
       <nav className={`${styles.drawer} ${isDrawerOpen ? styles.drawerOpen : ''}`}>
         <div className={styles.drawerHeader}>
@@ -635,7 +730,7 @@ export default function SalonDashboard() {
         </ul>
       </nav>
 
-      {/* Settings Configuration Modal */}
+      {/* SETTINGS MODAL */}
       {isModalOpen && (
         <div className={styles.modalOverlay}>
           <div className={styles.modalContent}>
@@ -743,7 +838,7 @@ export default function SalonDashboard() {
         </div>
       )}
 
-      {/* FORGOT PIN & RESET OVERLAY */}
+      {/* RESET PIN */}
       {isForgotPinOpen && (
         <div className={styles.modalOverlay} style={{ zIndex: 3000 }}>
           <div className={styles.modalContent} style={{ maxWidth: '380px', textAlign: 'center' }}>
@@ -783,7 +878,8 @@ export default function SalonDashboard() {
           </div>
         </div>
       )}
-      
+
+      {/* WITHDRAW PIN AUTH */}
       {isPinModalOpen && (
         <div className={styles.modalOverlay} style={{ zIndex: 2000 }}>
           <div className={styles.modalContent} style={{ maxWidth: '360px', textAlign: 'center' }}>
@@ -827,8 +923,8 @@ export default function SalonDashboard() {
           </div>
         </div>
       )}
-      
-      {/* FIRST-TIME PIN SETUP OVERLAY */}
+
+      {/* PIN SETUP OVERLAY */}
       {isPinSetupModalOpen && (
         <div className={styles.modalOverlay} style={{ zIndex: 2700 }}>
           <div className={styles.modalContent} style={{ maxWidth: '380px', textAlign: 'center' }}>
