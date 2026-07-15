@@ -106,6 +106,7 @@ export const Front: React.FC = () => {
   }, [user]);
 
   // Sync user active receipts / booking tickets in real-time
+  // Sync user active receipts / booking tickets in real-time
   useEffect(() => {
     if (!user?.uid) return;
 
@@ -122,13 +123,16 @@ export const Front: React.FC = () => {
       });
       
       // 🟢 Filter appointments where paymentStatus is true OR status is 'paid'
-      const activeOnly = appointments.filter(app => app.paymentStatus === true || app.status === 'paid');
+      const activeOnly = appointments.filter(
+        app => app.paymentStatus === true || app.status === 'paid'
+      );
       setActiveReceipts(activeOnly);
 
       // Generate local QR codes for the active receipts
       const qrMap: Record<string, string> = {};
       for (const app of activeOnly) {
-        const refId = app.referenceId || app.id;
+        // Handle both referenceId patterns
+        const refId = app.referenceId || app.ticketId || app.id;
         if (refId) {
           try {
             // Generate QR containing key scan details
@@ -136,7 +140,7 @@ export const Front: React.FC = () => {
               JSON.stringify({ 
                 ticketId: app.id,
                 referenceId: refId, 
-                businessUid: app.targetBusinessUid || ""
+                businessUid: app.targetBusinessUid || app.businessId || ""
               })
             );
           } catch (err) {
@@ -149,7 +153,6 @@ export const Front: React.FC = () => {
 
     return () => unsubscribe();
   }, [user]);
-
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user?.uid) return;
@@ -341,7 +344,7 @@ export const Front: React.FC = () => {
                                       Active Ticket
                                     </span>
                                     <span className="text-xs font-bold text-neutral-800 flex items-center gap-0.5">
-                                      €{receipt.totalPrice}
+                                      €{receipt.totalPrice || receipt.totalPaid}
                                     </span>
                                   </div>
                                   <h5 className="text-xs font-bold text-neutral-900 truncate">
