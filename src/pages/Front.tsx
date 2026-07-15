@@ -115,7 +115,7 @@ export const Front: React.FC = () => {
     if (!user?.uid) return;
 
     // 🟢 FIXED: Query the user's personal appointments subcollection directly
-    const ticketsCollectionRef = collection(db, 'salonAppointments', user.uid, 'appointments');
+    const ticketsCollectionRef = collection(db, 'customers', user.uid, 'appointments');
 
     const unsubscribe = onSnapshot(ticketsCollectionRef, async (snapshot) => {
       const appointments: any[] = [];
