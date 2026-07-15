@@ -113,13 +113,7 @@ export default function SalonStore() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [generatedRefId, setGeneratedRefId] = useState('');
 
-  const receiveUserIdentity = (event: MessageEvent) => {
-    console.log("Salon received:", event.data);
-    if (event.data?.type === "MALVIN_USER") {
-      console.log("Received Malvin customer UID:", event.data.uid);
-      setCustomerUid(event.data.uid);
-    }
-  };
+  
 
   const triggerToast = (msg: string) => {
     setToast(msg);
