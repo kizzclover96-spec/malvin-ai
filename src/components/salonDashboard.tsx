@@ -885,15 +885,29 @@ export default function SalonDashboard() {
                       <p style={{ color: '#888', fontSize: '12px', margin: '0 0 12px 0' }}>
                         Connect your Stripe Account to receive card payments directly from customers.
                       </p>
-                      <button 
-                        type="button" 
-                        className={styles.glassButtonPrimary} 
-                        onClick={handleConnectStripe}
-                        disabled={isSettingUpStripe}
-                        style={{ background: '#635BFF', color: '#fff', border: 'none' }}
-                      >
-                        {isSettingUpStripe ? "Connecting..." : "Link Stripe Account"}
-                      </button>
+                      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                        <button 
+                          type="button" 
+                          className={styles.glassButtonPrimary} 
+                          onClick={handleConnectStripe}
+                          disabled={isSettingUpStripe}
+                          style={{ background: '#635BFF', color: '#fff', border: 'none' }}
+                        >
+                          {isSettingUpStripe ? "Connecting..." : "Link Stripe Account"}
+                        </button>
+
+                        {/* 🟢 NEW: Check connection status if an account ID exists but onboarding isn't marked complete yet */}
+                        {(salon as any)?.stripeAccountId && (
+                          <button
+                            type="button"
+                            className={styles.glassButtonSecondary}
+                            onClick={handleCheckStripeStatus}
+                            disabled={stripeLoading}
+                          >
+                            {stripeLoading ? "Verifying..." : "Verify Connection"}
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ) : (
                     <div>

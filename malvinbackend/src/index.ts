@@ -164,8 +164,10 @@ export const createDirectPaymentSession = onCall(
 
     const businessData = businessDoc.data();
     const stripeAccountId = businessData?.stripeAccountId;
+    // Fallback check to let you accept payments in test mode as long as an ID exists
+    const isMerchantReady = businessData?.stripeOnboarded || (stripeAccountId && process.env.SECURE_STRIPE_KEY?.startsWith("sk_test"));
 
-    if (!stripeAccountId || !businessData?.stripeOnboarded) {
+    if (!stripeAccountId || !isMerchantReady) {
       throw new HttpsError("failed-precondition", "This merchant is not ready to accept payments yet.");
     }
 

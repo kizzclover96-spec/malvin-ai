@@ -43,6 +43,7 @@ import { MalvinAiPersonnelSystem } from "./components/MalvinAiPersonnelSystem";
 import { Front } from './pages/Front';
 import TicketCheckout from "./pages/Ticket";
 import Premium from "./components/Premium";
+import StripeSuccessPage from "./components/StripeSuccess";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -247,6 +248,7 @@ function App() {
           <Route path="/about" element={<About />} />
           <Route path="/verify" element={<MalvinAiPersonnelSystem userEmail={user?.email || ""} currentUserId={user?.uid || ""} />} />
           <Route path="/ticket-checkout" element={<TicketCheckout onExecuteWalletPayment={handleWalletPaymentExecution} />} />
+          <Route path="/stripe-success" element={<StripeSuccessPage />} />
           
           <Route path="/customerchat" element={<MarketFront />} />
 
