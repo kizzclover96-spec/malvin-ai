@@ -10,10 +10,10 @@ setGlobalOptions({
   maxInstances: 10,
 });
 
-// Helper functions to defer loading heavy SDKs until actual execution
+// Always read from SECURE_STRIPE_KEY which will be bound via Firebase Secrets
 const getStripe = () => {
   const Stripe = require("stripe");
-  return new Stripe(process.env.STRIPE_SECRET_KEY || "");
+  return new Stripe(process.env.SECURE_STRIPE_KEY || "");
 };
 
 const getDb = () => {
@@ -21,95 +21,114 @@ const getDb = () => {
   return getFirestore();
 };
 
-// Helper function to hash PINs securely
 function hashPin(pin: string, salt: string): string {
   return crypto.pbkdf2Sync(pin, salt, 1000, 64, "sha512").toString("hex");
 }
+
 /*
 =====================================
 1. CREATE STRIPE CONNECT ACCOUNT
 =====================================
 */
-export const createBusinessStripeAccount = onCall(async (request) => {
-  if (!process.env.STRIPE_SECRET_KEY) {
-    throw new HttpsError("failed-precondition", "Stripe secret key is missing on the server.");
+export const createBusinessStripeAccount = onCall(
+  { secrets: ["SECURE_STRIPE_KEY"] }, // 🟢 Added secure secret binding
+  async (request) => {
+    if (!process.env.SECURE_STRIPE_KEY) {
+      throw new HttpsError("failed-precondition", "Stripe secret key is missing on the server.");
+    }
+    const stripe = getStripe();
+    const db = getDb();
+
+    const { email, businessId, merchantType } = request.data;
+    if (!email || !businessId || !merchantType) { 
+      throw new HttpsError("invalid-argument", "Email, businessId, and merchantType are required"); 
+    }
+
+    // Determine the correct database collection dynamically
+    const targetCollection = merchantType === "food" ? "restaurantprofile" : "salons";
+
+    const account = await stripe.accounts.create({
+      type: "express",
+      country: "DE",
+      email,
+      capabilities: { card_payments: { requested: true }, transfers: { requested: true } }
+    });
+
+    // 🟢 Update the actual salon or restaurant document, NOT a generic "businesses" collection
+    await db.collection(targetCollection).doc(businessId).update({
+      stripeAccountId: account.id,
+      stripeOnboarded: false,
+      charges_enabled: false, // Maintain alignment with direct payments validator
+      payouts_enabled: false,
+    });
+
+    return { stripeAccountId: account.id };
   }
-  const stripe = getStripe();
-  const db = getDb();
-
-  const { email, businessId } = request.data;
-  if (!email || !businessId) { throw new HttpsError("invalid-argument", "Email and businessId required"); }
-
-  const account = await stripe.accounts.create({
-    type: "express",
-    country: "DE",
-    email,
-    capabilities: { card_payments: { requested: true }, transfers: { requested: true } }
-  });
-
-  await db.collection("businesses").doc(businessId).update({
-    stripeAccountId: account.id,
-    stripeOnboarded: false,
-  });
-
-  return { stripeAccountId: account.id };
-});
+);
 
 /*
 =====================================
 2. CREATE ONBOARDING LINK
 =====================================
 */
-export const createStripeOnboardingLink = onCall(async (request) => {
-  if (!process.env.STRIPE_SECRET_KEY) {
-    throw new HttpsError("failed-precondition", "Stripe secret key is missing on the server.");
+export const createStripeOnboardingLink = onCall(
+  { secrets: ["SECURE_STRIPE_KEY"] }, // 🟢 Added secure secret binding
+  async (request) => {
+    if (!process.env.SECURE_STRIPE_KEY) {
+      throw new HttpsError("failed-precondition", "Stripe secret key is missing on the server.");
+    }
+    const stripe = getStripe();
+
+    const { stripeAccountId } = request.data;
+    if (!stripeAccountId) { throw new HttpsError("invalid-argument", "Stripe account missing"); }
+
+    const link = await stripe.accountLinks.create({
+      account: stripeAccountId,
+      refresh_url: "http://malvinai.com/stripe-success",
+      return_url: "http://malvinai.com/stripe-success",
+      type: "account_onboarding"
+    });
+
+    return { url: link.url };
   }
-  const stripe = getStripe();
-
-  const { stripeAccountId } = request.data;
-  if (!stripeAccountId) { throw new HttpsError("invalid-argument", "Stripe account missing"); }
-
-  const link = await stripe.accountLinks.create({
-    account: stripeAccountId,
-    refresh_url: "http://malvinai.com/stripe-success",
-    return_url: "http://malvinai.com/stripe-success",
-    type: "account_onboarding"
-  });
-
-  return { url: link.url };
-});
+);
 
 /*
 =====================================
 3. CHECK ACCOUNT STATUS
 =====================================
 */
-export const checkStripeAccount = onCall(async (request) => {
-  if (!process.env.STRIPE_SECRET_KEY) {
-    throw new HttpsError("failed-precondition", "Stripe secret key is missing on the server.");
+export const checkStripeAccount = onCall(
+  { secrets: ["SECURE_STRIPE_KEY"] }, // 🟢 Added secure secret binding
+  async (request) => {
+    if (!process.env.SECURE_STRIPE_KEY) {
+      throw new HttpsError("failed-precondition", "Stripe secret key is missing on the server.");
+    }
+    const stripe = getStripe();
+    const db = getDb();
+
+    const { stripeAccountId, businessId, merchantType } = request.data;
+    if (!stripeAccountId || !businessId || !merchantType) {
+      throw new HttpsError("invalid-argument", "Stripe account ID, Business ID, and Merchant Type are required.");
+    }
+
+    const account = await stripe.accounts.retrieve(stripeAccountId);
+    const targetCollection = merchantType === "food" ? "restaurantprofile" : "salons";
+
+    // 🟢 Keep database keys perfectly aligned with createDirectPaymentSession validator (snake_case)
+    await db.collection(targetCollection).doc(businessId).update({
+      stripeOnboarded: account.details_submitted,
+      charges_enabled: account.charges_enabled,
+      payouts_enabled: account.payouts_enabled
+    });
+
+    return {
+      detailsSubmitted: account.details_submitted,
+      chargesEnabled: account.charges_enabled,
+      payoutsEnabled: account.payouts_enabled
+    };
   }
-  const stripe = getStripe();
-  const db = getDb();
-
-  const { stripeAccountId, businessId } = request.data;
-  if (!stripeAccountId || !businessId) {
-    throw new HttpsError("invalid-argument", "Stripe account ID and Business ID are required.");
-  }
-
-  const account = await stripe.accounts.retrieve(stripeAccountId);
-
-  await db.collection("businesses").doc(businessId).update({
-    stripeOnboarded: account.details_submitted,
-    chargesEnabled: account.charges_enabled,
-    payoutsEnabled: account.payouts_enabled
-  });
-
-  return {
-    detailsSubmitted: account.details_submitted,
-    chargesEnabled: account.charges_enabled,
-    payoutsEnabled: account.payouts_enabled
-  };
-});
+);
 
 /*
 =====================================
@@ -135,7 +154,6 @@ export const createDirectPaymentSession = onCall(
       throw new HttpsError("invalid-argument", "Missing required transaction parameters.");
     }
 
-    // 1. Fetch the business's Stripe Account ID from Firestore
     const isFood = merchantType === "food";
     const targetCollection = isFood ? "restaurantprofile" : "salons";
     const businessDoc = await db.collection(targetCollection).doc(targetBusinessUid).get();
@@ -151,11 +169,9 @@ export const createDirectPaymentSession = onCall(
       throw new HttpsError("failed-precondition", "This merchant is not ready to accept payments yet.");
     }
 
-    // 2. Calculate your 2% Application Fee
     const amountInCents = Math.round(amount * 100);
     const applicationFeeInCents = Math.round(amountInCents * 0.02); // Your 2% cut
 
-    // 3. Create Stripe Checkout Session pointing to the merchant's Stripe account
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       line_items: [
@@ -163,7 +179,7 @@ export const createDirectPaymentSession = onCall(
           price_data: {
             currency: "eur",
             product_data: {
-              name: businessData?.brandName || businessData?.name || "Malvin Service Payment",
+              name: businessData?.brandName || businessData?.name || businessData?.salonName || "Malvin Service Payment",
               description: `Direct payment via Malvin App`,
             },
             unit_amount: amountInCents,
@@ -172,14 +188,12 @@ export const createDirectPaymentSession = onCall(
         },
       ],
       mode: "payment",
-      // Stripe routes the money directly to the merchant and collects your fee
       payment_intent_data: {
         application_fee_amount: applicationFeeInCents,
         transfer_data: {
           destination: stripeAccountId,
         },
       },
-      // Pass appointment data in metadata so our webhook knows what to create upon successful payment
       metadata: {
         userId: customerUid,
         businessId: targetBusinessUid,
@@ -195,6 +209,7 @@ export const createDirectPaymentSession = onCall(
     return { url: session.url };
   }
 );
+
 
 
 /*

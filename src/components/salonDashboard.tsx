@@ -422,6 +422,62 @@ export default function SalonDashboard() {
     setHasChanges(true);
     setFormOffDays(prev => prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]);
   };
+  
+  const [isSettingUpStripe, setIsSettingUpStripe] = useState(false);
+  const [stripeLoading, setStripeLoading] = useState(false);
+
+  const handleConnectStripe = async () => {
+    setIsSettingUpStripe(true);
+    try {
+      const functions = getFunctions();
+      
+      // 1. Create the Stripe Connect Account
+      const createAccount = httpsCallable(functions, 'createBusinessStripeAccount');
+      const accountRes: any = await createAccount({ 
+        email: auth.currentUser?.email || "", 
+        businessId: uid, 
+        merchantType: "salon" // 👈 Set to "salon"
+      });
+      
+      const { stripeAccountId } = accountRes.data;
+
+      // 2. Generate the Onboarding Link
+      const createLink = httpsCallable(functions, 'createStripeOnboardingLink');
+      const linkRes: any = await createLink({ stripeAccountId });
+      
+      if (linkRes.data?.url) {
+        // Redirect them to Stripe's onboarding portal
+        window.location.href = linkRes.data.url;
+      } else {
+        alert("Failed to get onboarding link.");
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert(`Stripe Connection Error: ${err.message}`);
+    } finally {
+      setIsSettingUpStripe(false);
+    }
+  };
+
+  const handleCheckStripeStatus = async () => {
+    if (!salon?.stripeAccountId) return;
+    setStripeLoading(true);
+    try {
+      const functions = getFunctions();
+      const checkStatus = httpsCallable(functions, 'checkStripeAccount');
+      await checkStatus({
+        stripeAccountId: salon.stripeAccountId,
+        businessId: uid,
+        merchantType: "salon"
+      });
+      alert("Stripe account status updated successfully!");
+    } catch (err: any) {
+      console.error(err);
+      alert(`Failed to check status: ${err.message}`);
+    } finally {
+      setStripeLoading(false);
+    }
+  };
 
   const handleWithdrawProfit = () => {
     if (!salon || salon.walletBalance <= 0) {
@@ -820,7 +876,43 @@ export default function SalonDashboard() {
                 <div className={styles.metaRow}><strong>Status:</strong> <span>{salon.status}</span></div>
                 <div className={styles.metaRow}><strong>VIN Wallet Balance:</strong> <span>{currency} {(salon.walletBalance || balance).toFixed(2)}</span></div>
                 
-                <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
+                {/* Stripe Connector Sub-section */}
+                <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #222' }}>
+                  <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#fff' }}>Direct Credit Card Payments</h4>
+                  
+                  {!(salon as any)?.stripeOnboarded ? (
+                    <div>
+                      <p style={{ color: '#888', fontSize: '12px', margin: '0 0 12px 0' }}>
+                        Connect your Stripe Account to receive card payments directly from customers.
+                      </p>
+                      <button 
+                        type="button" 
+                        className={styles.glassButtonPrimary} 
+                        onClick={handleConnectStripe}
+                        disabled={isSettingUpStripe}
+                        style={{ background: '#635BFF', color: '#fff', border: 'none' }}
+                      >
+                        {isSettingUpStripe ? "Connecting..." : "Link Stripe Account"}
+                      </button>
+                    </div>
+                  ) : (
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#4BB543', fontSize: '13px', fontWeight: 'bold', marginBottom: '8px' }}>
+                        <CheckCircle size={16} /> Direct Payments Enabled
+                      </div>
+                      <button
+                        type="button"
+                        className={styles.glassButtonSecondary}
+                        onClick={handleCheckStripeStatus}
+                        disabled={stripeLoading}
+                      >
+                        {stripeLoading ? "Checking..." : "Refresh Status"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
                   <button type="button" className={styles.glassButtonPrimary} onClick={handleWithdrawProfit}>
                     Withdraw Profit
                   </button>
