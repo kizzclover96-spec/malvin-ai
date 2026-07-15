@@ -16,6 +16,23 @@ export const ReceiptsDrawer: React.FC<ReceiptsDrawerProps> = ({
   activeReceipts,
   receiptQrs,
 }) => {
+  // Sort receipts so that the newest ones always appear at the top
+  const sortedReceipts = [...activeReceipts].sort((a, b) => {
+    const timeA = a.createdAt?.seconds 
+      ? a.createdAt.seconds * 1000 
+      : a.createdAt 
+        ? new Date(a.createdAt).getTime() 
+        : 0;
+        
+    const timeB = b.createdAt?.seconds 
+      ? b.createdAt.seconds * 1000 
+      : b.createdAt 
+        ? new Date(b.createdAt).getTime() 
+        : 0;
+
+    return timeB - timeA; // Descending order (newest first)
+  });
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -58,7 +75,7 @@ export const ReceiptsDrawer: React.FC<ReceiptsDrawerProps> = ({
 
             {/* Scrollable Appointment Receipt List */}
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
-              {activeReceipts.length === 0 ? (
+              {sortedReceipts.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-center px-4 py-12">
                   <div className="w-12 h-12 rounded-full bg-neutral-50 flex items-center justify-center text-neutral-300 mb-3">
                     <QrCode className="w-6 h-6" />
@@ -69,7 +86,7 @@ export const ReceiptsDrawer: React.FC<ReceiptsDrawerProps> = ({
                   </p>
                 </div>
               ) : (
-                activeReceipts.map((receipt) => {
+                sortedReceipts.map((receipt) => {
                   const refId = receipt.referenceId || receipt.ticketId || receipt.id;
                   const qrSrc = receiptQrs[refId];
                   
