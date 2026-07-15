@@ -204,8 +204,14 @@ function App() {
 
   useEffect(() => {
     if (!user || isWorker) return;
-    setFlowStep("welcome");
-  }, [user, isWorker]);
+
+    // 🟢 Check if we were redirected with a specific flow step state (e.g. from Ticket.tsx)
+    if (location.state?.flowStep) {
+      setFlowStep(location.state.flowStep);
+    } else {
+      setFlowStep("welcome"); // Keeps your default startup screen
+    }
+  }, [user, isWorker, location.state]);
 
   if (loading) {
     return <div style={{ backgroundColor: '#000', height: '100vh' }} />;

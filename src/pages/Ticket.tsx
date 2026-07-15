@@ -51,16 +51,15 @@ export default function TicketCheckout() {
 
           if (customerUid && appointmentId) {
             const appointmentDocRef = doc(db, 'customers', customerUid, 'appointments', appointmentId);
-            await updateDoc(appointmentDocRef, { paymentStatus: true });
+            await updateDoc(appointmentDocRef, { paymentStatus: true, status: "paid" });
           }
         } catch (error) {
           console.error("Failed to update appointment payment status in Firestore:", error);
         } finally {
           // Navigate back to the salon store and trigger its local database write + receipt screen!
-          navigate(`/salon/${payload.targetBusinessUid}`, {
+          navigate("/", {
             state: {
-              paymentConfirmed: true,
-              orderPayload: payload
+              flowStep: "front"
             }
           });
         }
