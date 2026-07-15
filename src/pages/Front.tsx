@@ -45,7 +45,6 @@ export const Front: React.FC = () => {
   // Active booking receipts state
   const [activeReceipts, setActiveReceipts] = useState<any[]>([]);
   const [receiptQrs, setReceiptQrs] = useState<Record<string, string>>({});
-  const [isReceiptsDropdownOpen, setIsReceiptsDropdownOpen] = useState(false);
 
   // Toast State
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -303,111 +302,7 @@ export const Front: React.FC = () => {
               </div>
 
               {/* 🟢 ACTIVE TICKETS / RECEIPTS DROPDOWN ACCORDION */}
-              {activeReceipts.length > 0 && (
-                <div className="w-full max-w-md bg-neutral-50 border border-neutral-200/80 rounded-[1.75rem] overflow-hidden mb-6 shadow-sm transition-all">
-                  <button
-                    onClick={() => setIsReceiptsDropdownOpen(!isReceiptsDropdownOpen)}
-                    className="w-full flex items-center justify-between px-5 py-4 hover:bg-neutral-100/50 transition-colors"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-lg bg-rose-50 flex items-center justify-center text-[#E53935]">
-                        <QrCode className="w-4 h-4" />
-                      </div>
-                      <span className="text-xs font-bold text-neutral-800 tracking-tight">
-                        Active Booking Receipts ({activeReceipts.length})
-                      </span>
-                    </div>
-                    <motion.div
-                      animate={{ rotate: isReceiptsDropdownOpen ? 180 : 0 }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      <ChevronDown className="w-4 h-4 text-neutral-400" />
-                    </motion.div>
-                  </button>
-
-                  <AnimatePresence>
-                    {isReceiptsDropdownOpen && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.25, ease: 'easeInOut' }}
-                        className="border-t border-neutral-200 overflow-hidden"
-                      >
-                        <div className="p-4 space-y-4 max-h-[420px] overflow-y-auto">
-                          {activeReceipts.map((receipt) => {
-                            const refId = receipt.referenceId || receipt.id;
-                            const qrData = receiptQrs[refId];
-                            return (
-                              <div 
-                                key={receipt.id} 
-                                className="bg-white border border-neutral-100 rounded-2xl p-4 flex flex-col items-center sm:flex-row sm:items-start justify-between gap-4 shadow-sm"
-                              >
-                                <div className="text-left space-y-1.5 flex-1 w-full">
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-[10px] font-black uppercase tracking-wider text-rose-500 bg-rose-50 px-2 py-0.5 rounded">
-                                      Active Ticket
-                                    </span>
-                                    <span className="text-xs font-bold text-neutral-800 flex items-center gap-0.5">
-                                      €{receipt.totalPrice || receipt.totalPaid}
-                                    </span>
-                                  </div>
-                                  <h5 className="text-xs font-bold text-neutral-900 truncate">
-                                    Client: {receipt.customerName || 'Anonymous'}
-                                  </h5>
-                                  <p className="text-[10px] text-neutral-400 font-medium">
-                                    Ref ID: <code className="text-neutral-600 font-mono">{refId}</code>
-                                  </p>
-
-                                  {/* List Selected Services dynamically inside receipt card */}
-                                  <h5 className="text-xs font-bold text-neutral-900 truncate">
-                                    Client: {receipt.customerName || 'Anonymous'}
-                                  </h5>
-                                  <p className="text-[10px] text-neutral-400 font-medium">
-                                    Ref ID: <code className="text-neutral-600 font-mono">{refId}</code>
-                                  </p>
-
-                                  {/* 🟢 PLACE THE NEW COMPATIBLE SERVICES RENDERER RIGHT HERE: */}
-                                  {((receipt.selectedServices || receipt.services) && (receipt.selectedServices || receipt.services).length > 0) && (
-                                    <div className="mt-2 space-y-1">
-                                      <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block">Services Selected:</span>
-                                      {(receipt.selectedServices || receipt.services).map((service: any, sIdx: number) => (
-                                        <div key={sIdx} className="flex justify-between items-center text-[11px] text-neutral-600 bg-neutral-50 px-2 py-1 rounded">
-                                          <span className="truncate max-w-[120px]">{service.serviceName || service.name}</span>
-                                          <span className="font-bold flex-shrink-0">€{service.price}</span>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  )}
-
-                                  {(receipt.date || receipt.time) && (
-                                    <div className="flex items-center gap-1.5 text-[10px] text-neutral-400 font-semibold mt-2.5">
-                                      <Calendar className="w-3 h-3 text-neutral-400" />
-                                      <span>{receipt.date} at {receipt.time}</span>
-                                    </div>
-                                  )}
-                                </div>
-                                {qrData ? (
-                                  <div className="flex-shrink-0 bg-neutral-50 p-2 rounded-xl border border-neutral-100 flex flex-col items-center">
-                                    <img 
-                                      src={qrData} 
-                                      alt="Booking Ticket QR" 
-                                      className="w-20 h-20"
-                                    />
-                                    <span className="text-[8px] font-black uppercase tracking-widest text-neutral-400 mt-1">Scan At Desk</span>
-                                  </div>
-                                ) : (
-                                  <div className="w-20 h-20 bg-neutral-100 animate-pulse rounded-xl" />
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              )}
+              
             </motion.main>
 
             {/* HISTORICAL COMPONENT RENDERING ROW */}
@@ -663,10 +558,10 @@ export const Front: React.FC = () => {
         )}
       </AnimatePresence>
       <ReceiptsDrawer 
-        isOpen={isDrawerOpen} 
-        onClose={() => setIsDrawerOpen(false)} 
-        activeReceipts={activeReceipts} 
-        receiptQrs={receiptQrs} 
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        activeReceipts={activeReceipts}
+        receiptQrs={receiptQrs}
       />
 
     </div>
