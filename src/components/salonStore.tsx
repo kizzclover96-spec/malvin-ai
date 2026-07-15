@@ -130,6 +130,7 @@ export default function SalonStore() {
       referenceId: referenceId,
       businessId: uid, // Crucial for collectionGroup queries to work safely
       customerName: customerName.trim(),
+      customerUid: customerUid,
       customerPhone: customerPhone.trim(),
       note: customerNote.trim(),
       customerUid: customerUid,
@@ -260,6 +261,7 @@ export default function SalonStore() {
         businessId: uid,
         customerName: customerName.trim(),
         customerPhone: customerPhone.trim(),
+        customerUid: customerUid,
         note: customerNote.trim(),
         selectedServices: selectedServices.map(s => ({ serviceId: s.serviceId, serviceName: s.serviceName, price: s.price })),
         selectedWorker: selectedWorkerId,
