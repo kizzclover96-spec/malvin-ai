@@ -12,10 +12,19 @@ export default function TicketCheckout() {
   const [errorMessage, setErrorMessage] = useState("");
   const [ticketDetails, setTicketDetails] = useState<any>(null);
 
-  const payload = location.state;
+  // 🟢 State Recovery logic: Check location state first. If empty, check localStorage.
+  const payload = location.state || (() => {
+    const saved = localStorage.getItem("pending_checkout_payload");
+    return saved ? JSON.parse(saved) : null;
+  })();
+  
   const paymentTriggered = useRef(false);
 
   useEffect(() => {
+    // Check if we came back from a successful Stripe session in the URL query params
+    const urlParams = new URLSearchParams(window.location.search);
+    const stripeSuccess = urlParams.get("redirect_status") === "succeeded" || urlParams.get("session_id") !== null;
+
     if (!payload || !payload.targetBusinessUid) {
       setPaymentStatus("error");
       setErrorMessage("No active checkout details found.");
@@ -24,6 +33,13 @@ export default function TicketCheckout() {
 
     setTicketDetails(payload);
 
+    // If Stripe success is detected in URL, instantly display the receipt and clear local storage
+    if (stripeSuccess) {
+      setPaymentStatus("success");
+      localStorage.removeItem("pending_checkout_payload");
+      return;
+    }
+
     // 1. Delegate Payment Request to Parent
     const delegatePaymentToParent = () => {
       if (paymentTriggered.current) return;
@@ -31,6 +47,9 @@ export default function TicketCheckout() {
 
       setPaymentStatus("redirecting");
       console.log("Delegating secure payment session creation to parent container...");
+
+      // 🟢 Save the payload to localStorage right before leaving the app for Stripe
+      localStorage.setItem("pending_checkout_payload", JSON.stringify(payload));
 
       const inferredMerchantType = payload.fromStore ? "food" : "salon";
 
@@ -57,6 +76,7 @@ export default function TicketCheckout() {
       if (event.data?.type === "DIRECT_PAYMENT_FAILURE") {
         setPaymentStatus("error");
         setErrorMessage(event.data.error || "An error occurred starting checkout.");
+        localStorage.removeItem("pending_checkout_payload"); // Clean up on failure
         paymentTriggered.current = false; // allow retry
       }
     };
