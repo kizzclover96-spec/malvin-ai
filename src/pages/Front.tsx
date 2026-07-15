@@ -113,7 +113,7 @@ export const Front: React.FC = () => {
   // Sync user active receipts / booking tickets in real-time
   useEffect(() => {
     if (!user?.uid) return;
-
+    console.log("Logged in user:", user.uid);
     // 🟢 FIXED: Query the user's personal appointments subcollection directly
     const ticketsCollectionRef = collection(db, 'salonAppointments', user.uid, 'appointments');
 
