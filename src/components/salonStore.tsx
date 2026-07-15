@@ -113,6 +113,17 @@ export default function SalonStore() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [generatedRefId, setGeneratedRefId] = useState('');
 
+  // --- Computed Variables / State Aggregations ---
+  const totalDuration = useMemo(() => 
+    selectedServices.reduce((acc, s) => acc + Number(s.duration || 0), 0), 
+    [selectedServices]
+  );
+  
+  const totalPrice = useMemo(() => 
+    selectedServices.reduce((acc, s) => acc + Number(s.price || 0), 0), 
+    [selectedServices]
+  );
+
   
 
   const triggerToast = (msg: string) => {
@@ -313,16 +324,7 @@ export default function SalonStore() {
     };
   }, [uid]);
 
-  // --- Computed Variables / State Aggregations ---
-  const totalDuration = useMemo(() => 
-    selectedServices.reduce((acc, s) => acc + Number(s.duration || 0), 0), 
-    [selectedServices]
-  );
   
-  const totalPrice = useMemo(() => 
-    selectedServices.reduce((acc, s) => acc + Number(s.price || 0), 0), 
-    [selectedServices]
-  );
 
   // 🔴 Daily Cooldown Evaluation Check
   const isDayInCooldown = useMemo(() => {
