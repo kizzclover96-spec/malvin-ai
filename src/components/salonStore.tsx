@@ -4,6 +4,7 @@ import { firestore as db } from '../firebase';
 import { doc, getDoc, collection, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
 import styles from './salonStore.module.css';
 import QRCode from 'qrcode';
+
 // --- Types & Interfaces ---
 interface SalonProfile {
   salonName: string;
@@ -12,7 +13,7 @@ interface SalonProfile {
   openingTime: string; // HH:MM
   closingTime: string; // HH:MM
   offDays: string[];   // ['Sunday', 'Monday']
-  isVerified?: boolean; // 👈 Added verification field tracking
+  isVerified?: boolean; 
 }
 
 interface Service {
@@ -39,12 +40,10 @@ interface Appointment {
   duration: number;
 }
 
-// 1. Accept the atomic wallet payment prop passed down from App.jsx
 interface SalonStoreProps {
-  onExecuteWalletPayment: (amount: number, targetBusinessUid: string,  userUid: string ) => Promise<void>;
+  onExecuteWalletPayment: (amount: number, targetBusinessUid: string, userUid: string) => Promise<void>;
 }
 
-// 🔵 Verified Badge Component
 const VerifiedBadge = () => (
     <svg 
         width="14" 
@@ -61,16 +60,13 @@ export default function SalonStore() {
   const { uid } = useParams<{ uid: string }>();
   const navigate = useNavigate();
 
-  // This is the merchant business ID from the URL
-
   const handleProceedToCheckout = () => {
     const checkoutPayload = {
       targetBusinessUid: uid,
       totalPrice: totalPrice, 
-      // 🟢 Map these keys to the exact state variables tracked in your wizard:
-      services: selectedServices,   // Maps your Step 1 selections array
-      stylist: selectedWorkerId,    // Maps your Step 2 state variable string
-      duration: totalDuration,      // Maps your useMemo duration computation
+      services: selectedServices,   
+      stylist: selectedWorkerId,    
+      duration: totalDuration,      
       date: selectedDate,           
       time: selectedTime,           
       customerName: customerName.trim(),
@@ -84,7 +80,6 @@ export default function SalonStore() {
     navigate("/ticket-checkout", { state: checkoutPayload });
   };
 
-  // Loading & Hydration
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<SalonProfile | null>(null);
   const [services, setServices] = useState<Service[]>([]);
@@ -92,28 +87,22 @@ export default function SalonStore() {
   const [existingBookings, setExistingBookings] = useState<Appointment[]>([]);
   const [toast, setToast] = useState<string | null>(null);
 
-  // Wizard Framework State
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5 | 'success'>(1);
 
   const location = useLocation();
-  const [userActiveBookings, setUserActiveBookings] = useState<any[]>([]);
   const [receiptQrs, setReceiptQrs] = useState<Record<string, string>>({});
-
-  //auth
   const [customerUid, setCustomerUid] = useState<string | null>(null);
 
-  // Booking Selection State
   const [selectedServices, setSelectedServices] = useState<Service[]>([]);
-  const [selectedWorkerId, setSelectedWorkerId] = useState<string>('any'); // 'any' or workerId
-  const [selectedDate, setSelectedDate] = useState<string>(''); // YYYY-MM-DD
-  const [selectedTime, setSelectedTime] = useState<string>(''); // HH:MM
+  const [selectedWorkerId, setSelectedWorkerId] = useState<string>('any'); 
+  const [selectedDate, setSelectedDate] = useState<string>(''); 
+  const [selectedTime, setSelectedTime] = useState<string>(''); 
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerNote, setCustomerNote] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [generatedRefId, setGeneratedRefId] = useState('');
 
-  // --- Computed Variables / State Aggregations ---
   const totalDuration = useMemo(() => 
     selectedServices.reduce((acc, s) => acc + Number(s.duration || 0), 0), 
     [selectedServices]
@@ -124,8 +113,6 @@ export default function SalonStore() {
     [selectedServices]
   );
 
-  
-
   const triggerToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 4000);
@@ -133,48 +120,24 @@ export default function SalonStore() {
   
   useEffect(() => {
     console.log("SalonStore mounted");
-    console.log("customerUid:", customerUid);
-  }, [customerUid]);
+  }, []);
 
   useEffect(() => {
-    window.parent.postMessage(
-      {
-        type: "SALON_READY",
-      },
-      "*"
-    );
-
-    console.log("Sent SALON_READY to parent");
+    window.parent.postMessage({ type: "SALON_READY" }, "*");
   }, []);
 
   useEffect(() => {
     const receiveUserIdentity = (event: MessageEvent) => {
       if(event.data?.type === "MALVIN_USER"){
-        console.log(
-          "Received Malvin customer UID:",
-          event.data.uid
-        );
         setCustomerUid(event.data.uid);
       }
     };
-
-    window.addEventListener(
-      "message",
-      receiveUserIdentity
-    );
-
-    return () => {
-      window.removeEventListener(
-        "message",
-        receiveUserIdentity
-      );
-    };
+    window.addEventListener("message", receiveUserIdentity);
+    return () => window.removeEventListener("message", receiveUserIdentity);
   }, []);
 
-  // 🟢 Catch Incoming Stripe Redirect Successful Payments
+  // 🟢 Catch Stripe Redirect and Save Double Records
   useEffect(() => {
-    // Check if navigating back with confirmed state, or read from query parameters:
-    // e.g., if redirected with ?paymentConfirmed=true
     const queryParams = new URLSearchParams(location.search);
     const paymentConfirmed = location.state?.paymentConfirmed || queryParams.get("paymentConfirmed") === "true";
     const orderPayload = location.state?.orderPayload;
@@ -185,7 +148,10 @@ export default function SalonStore() {
         try {
           const referenceId = `SAL-${Math.floor(100000 + Math.random() * 900000)}`;
           const appointmentId = `app_${Date.now()}`;
-          const docRef = doc(db, 'salonAppointments', uid!, 'appointments', appointmentId);
+          const activeUid = orderPayload.customerUid || customerUid;
+
+          // 1. Merchant Record Reference
+          const merchantDocRef = doc(db, 'salonAppointments', uid!, 'appointments', appointmentId);
 
           const payload = {
             customerName: orderPayload.customerName,
@@ -201,36 +167,50 @@ export default function SalonStore() {
             time: orderPayload.time,
             totalPrice: orderPayload.totalPrice,
             totalDuration: orderPayload.duration,
-            status: "paid", // status verified as paid
+            status: "paid", 
             referenceId: referenceId,
-            customerUid: orderPayload.customerUid || customerUid,
+            customerUid: activeUid,
             createdAt: serverTimestamp()
           };
 
-          await setDoc(docRef, payload);
+          // Save to salon collections
+          await setDoc(merchantDocRef, payload);
+
+          // 2. Save copy to the User's Personal Collection for Dashboard synchronization
+          if (activeUid) {
+            const userTicketDocRef = doc(db, 'users', activeUid, 'tickets', appointmentId);
+            await setDoc(userTicketDocRef, {
+              ...payload,
+              ticketId: referenceId,
+              salonName: profile?.salonName || "Salon Appointment",
+              targetBusinessUid: uid,
+              stylist: orderPayload.stylist === 'any' ? 'Any Stylist' : orderPayload.stylist,
+              duration: orderPayload.duration,
+              services: orderPayload.services
+            });
+          }
+
           setGeneratedRefId(referenceId);
-          
-          // Hydrate local UI states so success screen reads correct information
           setCustomerName(orderPayload.customerName);
           setSelectedDate(orderPayload.date);
           setSelectedTime(orderPayload.time);
           setSelectedServices(orderPayload.services);
           setSelectedWorkerId(orderPayload.stylist);
 
-          setStep('success'); // Immediately show the local success receipt layout!
-
-          // Clear query/location state pointers to prevent duplicate records on manual page-refresh
+          setStep('success'); 
           navigate(location.pathname, { replace: true, state: {} });
         } catch (err) {
-          console.error("Failed saving confirmed Stripe appointment to database:", err);
+          console.error("Failed saving confirmed Stripe appointment:", err);
         } finally {
           setIsSubmitting(false);
         }
       };
 
-      commitAppointmentToDatabase();
+      if (profile) { // Wait until profile loads to ensure salon name is active
+        commitAppointmentToDatabase();
+      }
     }
-  }, [location, uid, navigate, customerUid]);
+  }, [location, uid, navigate, customerUid, profile]);
 
   useEffect(() => {
     const generateQrs = async () => {
@@ -256,7 +236,6 @@ export default function SalonStore() {
     generateQrs();
   }, [generatedRefId, customerName, uid, selectedWorkerId, totalPrice]);
 
-  // Data Aggregation & Real-time Synchronization Loop
   useEffect(() => {
     if (!uid) return;
 
@@ -324,13 +303,9 @@ export default function SalonStore() {
     };
   }, [uid]);
 
-  
-
-  // 🔴 Daily Cooldown Evaluation Check
   const isDayInCooldown = useMemo(() => {
     if (!selectedDate) return false;
     const appointmentsForDay = existingBookings.filter(b => b.date === selectedDate).length;
-    // Check if the business is unverified and has hit the 10-booking limit for that date
     return !profile?.isVerified && appointmentsForDay >= 10;
   }, [existingBookings, selectedDate, profile]);
 
@@ -409,10 +384,8 @@ export default function SalonStore() {
     );
   };
 
-  // 2. Modified Booking Handler incorporating the payment phase
+  // 🟢 Live-Write on atomic wallet settlement
   const executeFinalBookingSubmit = async () => {
-    console.log("customerUid:", customerUid);
-    
     if (!uid || !customerName.trim() || !selectedDate || !selectedTime || selectedServices.length === 0) {
       triggerToast("Missing required scheduling credentials.");
       return;
@@ -425,18 +398,20 @@ export default function SalonStore() {
       alert("Waiting for Malvin identity...");
       return;
     }
-    console.log("customerUid:", customerUid);
 
     setIsSubmitting(true);
     try {
-      // Phase A: Atomic wallet deduction step
+      // Phase A: Wallet Deduction
       triggerToast("Processing checkout ledger deduction...");
-      await onExecuteWalletPayment( totalPrice, uid, customerUid );
+      // @ts-ignore
+      await onExecuteWalletPayment(totalPrice, uid, customerUid);
 
-      // Phase B: Write booking context after successful payment settlement
+      // Phase B: Document commit phase
       const referenceId = `SAL-${Math.floor(100000 + Math.random() * 900000)}`;
       const appointmentId = `app_${Date.now()}`;
-      const docRef = doc(db, 'salonAppointments', uid, 'appointments', appointmentId);
+      
+      // 1. Merchant Record
+      const merchantDocRef = doc(db, 'salonAppointments', uid, 'appointments', appointmentId);
 
       const payload = {
         customerName: customerName.trim(),
@@ -448,16 +423,28 @@ export default function SalonStore() {
         time: selectedTime,
         totalPrice: totalPrice,
         totalDuration: totalDuration,
-        status: "paid", // status updated to paid
+        status: "paid", 
         referenceId: referenceId,
+        customerUid: customerUid,
         createdAt: serverTimestamp()
       };
 
-      await setDoc(docRef, payload);
+      await setDoc(merchantDocRef, payload);
+
+      // 2. Dashboard User Ticket Sync
+      const userTicketDocRef = doc(db, 'users', customerUid, 'tickets', appointmentId);
+      await setDoc(userTicketDocRef, {
+        ...payload,
+        ticketId: referenceId,
+        salonName: profile?.salonName || "Salon Appointment",
+        targetBusinessUid: uid,
+        stylist: selectedWorkerId === 'any' ? 'Any Stylist' : selectedWorkerId,
+        duration: totalDuration,
+        services: selectedServices
+      });
+
       setGeneratedRefId(referenceId);
       setStep('success');
-
-      console.log("customerUid:", customerUid);
       
     } catch (err: any) {
       console.error(err);
@@ -477,7 +464,6 @@ export default function SalonStore() {
     );
   }
 
-  // --- Success Screen Presentation ---
   if (step === 'success') {
     return (
       <div className={styles.storeContainer}>
@@ -784,7 +770,6 @@ export default function SalonStore() {
 
       </main>
 
-      {/* --- STICKY FOOTER NAVIGATION CONTROLS --- */}
       <footer className={styles.stickyActionControlFooter}>
         <div className={styles.summaryOverlayLabelInfo}>
           <div>Selected: <strong>{selectedServices.length} items</strong></div>
