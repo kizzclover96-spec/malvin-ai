@@ -16,6 +16,7 @@ import { Wallet } from '../components/Wallet';
 import { QRScannerView } from '../components/QRScannerView';
 import { StoreFront } from '../components/StoreFront';
 import { RecentBusinesses } from '../components/RecentBusinesses';
+import { ReceiptsDrawer } from '../components/ReceiptsDrawer';
 
 export const Front: React.FC = () => {
   const user = auth.currentUser;
@@ -37,6 +38,9 @@ export const Front: React.FC = () => {
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+
+
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   // Active booking receipts state
   const [activeReceipts, setActiveReceipts] = useState<any[]>([]);
@@ -237,6 +241,7 @@ export const Front: React.FC = () => {
       >
         <motion.button 
           whileTap={{ scale: 0.92 }}
+          onClick={() => setIsDrawerOpen(true)}
           className="icon-button p-3 hover:bg-neutral-100 rounded-full transition-colors text-[#E53935]"
         >
           <Menu className="w-6 h-6" />
@@ -657,6 +662,12 @@ export const Front: React.FC = () => {
           </>
         )}
       </AnimatePresence>
+      <ReceiptsDrawer 
+        isOpen={isDrawerOpen} 
+        onClose={() => setIsDrawerOpen(false)} 
+        activeReceipts={activeReceipts} 
+        receiptQrs={receiptQrs} 
+      />
 
     </div>
   );
