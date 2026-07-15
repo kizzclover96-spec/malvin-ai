@@ -14,7 +14,6 @@
       https://apis.google.com
       https://app.lemonsqueezy.com
       https://js.stripe.com
-      https://*.firebaseio.com
       https://*.firebaseapp.com;
 
       connect-src 'self'
@@ -23,15 +22,20 @@
       https://connect-js.stripe.com
       https://identitytoolkit.googleapis.com
       https://securetoken.googleapis.com
+      https://firestore.googleapis.com
+      https://firebasestorage.googleapis.com
       https://*.firebaseio.com
       https://*.firebaseapp.com
       wss://*.firebaseio.com;
 
-      worker-src 'self' blob:;
-
-      img-src 'self' data: https://*.firebaseusercontent.com https://images.unsplash.com;
+      img-src 'self' data:
+      https:
+      https://*.firebaseusercontent.com
+      https://images.unsplash.com;
 
       style-src 'self' 'unsafe-inline';
+
+      worker-src 'self' blob:;
     ">
     <title>Malvin AI</title>
     <link rel="manifest" href="/market-manifest.json" />
