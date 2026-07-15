@@ -111,12 +111,11 @@ export const Front: React.FC = () => {
   // Sync user active receipts / booking tickets in real-time
   // Sync user active receipts / booking tickets in real-time
   // Sync user active receipts / booking tickets in real-time
-  // Sync user active receipts / booking tickets in real-time
   useEffect(() => {
     if (!user?.uid) return;
 
-    // 🟢 FIXED: Change 'salonAppointments' to 'customers' to match your security rules!
-    const ticketsCollectionRef = collection(db, 'customers', user.uid, 'appointments');
+    // 🟢 FIXED: Query the user's personal appointments subcollection directly
+    const ticketsCollectionRef = collection(db, 'salonAppointments', user.uid, 'appointments');
 
     const unsubscribe = onSnapshot(ticketsCollectionRef, async (snapshot) => {
       const appointments: any[] = [];
