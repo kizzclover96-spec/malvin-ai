@@ -3,12 +3,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Menu, Settings, Search, Home, Wallet as WalletIcon, QrCode, X, 
   User, Save, Mail, Loader2, CheckCircle2, AlertCircle,
-  Clock, Heart, Bell, Moon, Globe, LogOut, ChevronRight 
+  Clock, Heart, Bell, Moon, Globe, LogOut, ChevronRight, ChevronDown, Calendar, DollarSign
 } from 'lucide-react';
-import { doc, getDoc, setDoc, collection } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, collectionGroup, query, where, onSnapshot } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { firestore as db } from '../firebase'; 
 import { auth } from "../firebase"; 
+import QRCode from 'qrcode'; // Add QRCode to render the scan-ready ticket receipts
 
 // --- MODULAR FLOW COMPONENT IMPORTS ---
 import { Wallet } from '../components/Wallet';
@@ -37,6 +38,11 @@ export const Front: React.FC = () => {
   const [address, setAddress] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
+  // Active booking receipts state
+  const [activeReceipts, setActiveReceipts] = useState<any[]>([]);
+  const [receiptQrs, setReceiptQrs] = useState<Record<string, string>>({});
+  const [isReceiptsDropdownOpen, setIsReceiptsDropdownOpen] = useState(false);
+
   // Toast State
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
@@ -45,39 +51,39 @@ export const Front: React.FC = () => {
     setTimeout(() => setToast(null), 3500);
   };
 
-    const handleBusinessVisit = async (inputUidOrUrl: string) => {
-        if (!user?.uid) return;
+  const handleBusinessVisit = async (inputUidOrUrl: string) => {
+    if (!user?.uid) return;
 
-        const rawInput = inputUidOrUrl.trim();
-        let cleanUid = rawInput;
+    const rawInput = inputUidOrUrl.trim();
+    let cleanUid = rawInput;
 
-        if (cleanUid.includes('/')) {
-            const segments = cleanUid.split('/');
-            cleanUid = segments.filter(Boolean).pop() || cleanUid;
-        }
+    if (cleanUid.includes('/')) {
+        const segments = cleanUid.split('/');
+        cleanUid = segments.filter(Boolean).pop() || cleanUid;
+    }
 
-        const storefrontTarget = rawInput.includes('http') 
-            ? rawInput 
-            : `https://malvinai.com/salon/${rawInput}`;
+    const storefrontTarget = rawInput.includes('http') 
+        ? rawInput 
+        : `https://malvinai.com/salon/${rawInput}`;
 
-        setActiveStoreUid(storefrontTarget);
+    setActiveStoreUid(storefrontTarget);
 
-        try {
-            const recentDocRef = doc(db, 'customers', user.uid, 'recentBusinesses', cleanUid);
-            const docSnap = await getDoc(recentDocRef);
-            
-            // 🟢 Save cleanly without blocking prompt modals
-            await setDoc(recentDocRef, {
-            businessUid: storefrontTarget,
-            lastVisited: new Date().toISOString(),
-            // Keep existing customName if it's already there, otherwise default to 'Saved Store'
-            customName: docSnap.exists() ? (docSnap.data().customName || 'Saved Store') : 'Saved Store'
-            }, { merge: true });
+    try {
+        const recentDocRef = doc(db, 'customers', user.uid, 'recentBusinesses', cleanUid);
+        const docSnap = await getDoc(recentDocRef);
+        
+        // 🟢 Save cleanly without blocking prompt modals
+        await setDoc(recentDocRef, {
+        businessUid: storefrontTarget,
+        lastVisited: new Date().toISOString(),
+        // Keep existing customName if it's already there, otherwise default to 'Saved Store'
+        customName: docSnap.exists() ? (docSnap.data().customName || 'Saved Store') : 'Saved Store'
+        }, { merge: true });
 
-        } catch (err) {
-            console.error("Failed to log business visit history item:", err);
-        }
-    };
+    } catch (err) {
+        console.error("Failed to log business visit history item:", err);
+    }
+  };
 
   // Profile data synchronization
   useEffect(() => {
@@ -97,6 +103,49 @@ export const Front: React.FC = () => {
       }
     };
     fetchUserProfile();
+  }, [user]);
+
+  // Sync user active receipts / booking tickets in real-time
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    // We query all subcollections named 'appointments' where customerUid matches the user's uid
+    const ticketsQuery = query(
+      collectionGroup(db, 'appointments'),
+      where('customerUid', '==', user.uid)
+    );
+
+    const unsubscribe = onSnapshot(ticketsQuery, async (snapshot) => {
+      const appointments: any[] = [];
+      snapshot.forEach((doc) => {
+        appointments.push({ id: doc.id, ...doc.data() });
+      });
+      
+      // Sort active or paid ones first
+      const activeOnly = appointments.filter(app => app.status === 'paid');
+      setActiveReceipts(activeOnly);
+
+      // Generate local QR codes for the active receipts
+      const qrMap: Record<string, string> = {};
+      for (const app of activeOnly) {
+        if (app.referenceId) {
+          try {
+            qrMap[app.referenceId] = await QRCode.toDataURL(
+              JSON.stringify({ 
+                referenceId: app.referenceId, 
+                customer: app.customerName, 
+                price: app.totalPrice 
+              })
+            );
+          } catch (err) {
+            console.error("Failed to generate ticket QR:", err);
+          }
+        }
+      }
+      setReceiptQrs(qrMap);
+    });
+
+    return () => unsubscribe();
   }, [user]);
 
   const handleSaveProfile = async (e: React.FormEvent) => {
@@ -183,7 +232,7 @@ export const Front: React.FC = () => {
       >
         <motion.button 
           whileTap={{ scale: 0.92 }}
-           className="icon-button p-3 hover:bg-neutral-100 rounded-full transition-colors text-[#E53935]"
+          className="icon-button p-3 hover:bg-neutral-100 rounded-full transition-colors text-[#E53935]"
         >
           <Menu className="w-6 h-6" />
         </motion.button>
@@ -196,72 +245,155 @@ export const Front: React.FC = () => {
         <motion.button 
           whileTap={{ scale: 0.92 }}
           onClick={() => setIsSettingsOpen(true)}
-           className="icon-button p-3 hover:bg-neutral-100 rounded-full transition-colors text-[#E53935]"
+          className="icon-button p-3 hover:bg-neutral-100 rounded-full transition-colors text-[#E53935]"
         >
           <Settings className="w-6 h-6" />
         </motion.button>
       </motion.header>
 
       {/* BODY WORKSPACE CONTAINER */}
-      {/* BODY WORKSPACE CONTAINER */}
-        <div className="flex-grow flex flex-col justify-start pt-12 w-full">
-            {activeTab === 'home' ? (
-                <motion.div
-                    key="home-view"
-                    initial={{ opacity: 0, scale: 0.99 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="w-full flex flex-col items-center"
+      <div className="flex-grow flex flex-col justify-start pt-12 w-full">
+        {activeTab === 'home' ? (
+          <motion.div
+            key="home-view"
+            initial={{ opacity: 0, scale: 0.99 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="w-full flex flex-col items-center"
+          >
+            <motion.main 
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+              className="w-full max-w-md mx-auto flex flex-col items-center text-center px-4"
+            >
+              {/* 🟢 HIDES SCAN BANNER ELEMENT IF ITEMS EXIST IN HISTORICAL LAYER */}
+              {!hasRecentItems && (
+                <h1 className="text-2xl font-black text-neutral-900 tracking-tight leading-snug mb-8">
+                  Scan a VINQR or input <br />
+                  <span className="text-[#E53935]">VINLIKE</span> to continue.
+                </h1>
+              )}
+
+              <div className="w-full relative shadow-[0_16px_40px_rgba(0,0,0,0.02)] group mb-6">
+                <input
+                  type="text"
+                  placeholder="Enter VINLIKE..."
+                  value={vinQuery}
+                  onChange={(e) => setVinQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleQueryLaunch()}
+                  className="w-full bg-neutral-50 border border-neutral-200 rounded-[2rem] pl-6 pr-14 py-4.5 text-sm font-medium text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-[#E53935] focus:bg-white focus:ring-4 focus:ring-[#E53935]/5 transition-all"
+                />
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  onClick={handleQueryLaunch}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-3 bg-neutral-100 hover:bg-[#E53935] text-neutral-500 hover:text-white rounded-full transition-all"
                 >
-                    <motion.main 
-                        initial={{ opacity: 0, y: 30 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.7, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-                        className="w-full max-w-md mx-auto flex flex-col items-center text-center px-4"
+                  <Search className="w-4 h-4" />
+                </motion.button>
+              </div>
+
+              {/* 🟢 ACTIVE TICKETS / RECEIPTS DROPDOWN ACCORDION */}
+              {activeReceipts.length > 0 && (
+                <div className="w-full max-w-md bg-neutral-50 border border-neutral-200/80 rounded-[1.75rem] overflow-hidden mb-6 shadow-sm transition-all">
+                  <button
+                    onClick={() => setIsReceiptsDropdownOpen(!isReceiptsDropdownOpen)}
+                    className="w-full flex items-center justify-between px-5 py-4 hover:bg-neutral-100/50 transition-colors"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-lg bg-rose-50 flex items-center justify-center text-[#E53935]">
+                        <QrCode className="w-4 h-4" />
+                      </div>
+                      <span className="text-xs font-bold text-neutral-800 tracking-tight">
+                        Active Booking Receipts ({activeReceipts.length})
+                      </span>
+                    </div>
+                    <motion.div
+                      animate={{ rotate: isReceiptsDropdownOpen ? 180 : 0 }}
+                      transition={{ duration: 0.2 }}
                     >
-                        {/* 🟢 HIDES SCAN BANNER ELEMENT IF ITEMS EXIST IN HISTORICAL LAYER */}
-                        {!hasRecentItems && (
-                        <h1 className="text-2xl font-black text-neutral-900 tracking-tight leading-snug mb-8">
-                            Scan a VINQR or input <br />
-                            <span className="text-[#E53935]">VINLIKE</span> to continue.
-                        </h1>
-                        )}
+                      <ChevronDown className="w-4 h-4 text-neutral-400" />
+                    </motion.div>
+                  </button>
 
-                        <div className="w-full relative shadow-[0_16px_40px_rgba(0,0,0,0.02)] group mb-4">
-                        <input
-                            type="text"
-                            placeholder="Enter VINLIKE..."
-                            value={vinQuery}
-                            onChange={(e) => setVinQuery(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleQueryLaunch()}
-                            className="w-full bg-neutral-50 border border-neutral-200 rounded-[2rem] pl-6 pr-14 py-4.5 text-sm font-medium text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-[#E53935] focus:bg-white focus:ring-4 focus:ring-[#E53935]/5 transition-all"
-                        />
-                        <motion.button
-                            whileTap={{ scale: 0.95 }}
-                            onClick={handleQueryLaunch}
-                            className="absolute right-2.5 top-1/2 -translate-y-1/2 p-3 bg-neutral-100 hover:bg-[#E53935] text-neutral-500 hover:text-white rounded-full transition-all"
-                        >
-                            <Search className="w-4 h-4" />
-                        </motion.button>
+                  <AnimatePresence>
+                    {isReceiptsDropdownOpen && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.25, ease: 'easeInOut' }}
+                        className="border-t border-neutral-200 overflow-hidden"
+                      >
+                        <div className="p-4 space-y-4 max-h-[320px] overflow-y-auto">
+                          {activeReceipts.map((receipt) => {
+                            const qrData = receiptQrs[receipt.referenceId];
+                            return (
+                              <div 
+                                key={receipt.id} 
+                                className="bg-white border border-neutral-100 rounded-2xl p-4 flex flex-col items-center sm:flex-row sm:items-start justify-between gap-4 shadow-sm"
+                              >
+                                <div className="text-left space-y-1.5 flex-1 w-full">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-[10px] font-black uppercase tracking-wider text-rose-500 bg-rose-50 px-2 py-0.5 rounded">
+                                      Active Ticket
+                                    </span>
+                                    <span className="text-xs font-bold text-neutral-800 flex items-center gap-1">
+                                      <DollarSign className="w-3.5 h-3.5 text-neutral-400" />
+                                      {receipt.totalPrice}
+                                    </span>
+                                  </div>
+                                  <h5 className="text-xs font-bold text-neutral-900 truncate">
+                                    Client: {receipt.customerName || 'Anonymous'}
+                                  </h5>
+                                  <p className="text-[10px] text-neutral-400 font-medium">
+                                    Ref ID: <code className="text-neutral-600 font-mono">{receipt.referenceId || receipt.id}</code>
+                                  </p>
+                                  {(receipt.date || receipt.time) && (
+                                    <div className="flex items-center gap-1.5 text-[10px] text-neutral-400 font-semibold mt-1">
+                                      <Calendar className="w-3 h-3 text-neutral-400" />
+                                      <span>{receipt.date} at {receipt.time}</span>
+                                    </div>
+                                  )}
+                                </div>
+                                {qrData ? (
+                                  <div className="flex-shrink-0 bg-neutral-50 p-2 rounded-xl border border-neutral-100">
+                                    <img 
+                                      src={qrData} 
+                                      alt="Booking Ticket QR" 
+                                      className="w-20 h-20"
+                                    />
+                                  </div>
+                                ) : (
+                                  <div className="w-20 h-20 bg-neutral-100 animate-pulse rounded-xl" />
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
-                    </motion.main>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              )}
+            </motion.main>
 
-                    {/* HISTORICAL COMPONENT RENDERING ROW */}
-                    <RecentBusinesses 
-                        onSelectBusiness={(uid) => handleBusinessVisit(uid)} // 🟢 Changed from setActiveStoreUid
-                        setHasRecentItems={setHasRecentItems}
-                    />
-                </motion.div>
-            ) : (
-                <motion.div
-                key="wallet-view"
-                initial={{ opacity: 0, scale: 0.99 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="w-full"
-                >
-                <Wallet onNavigateToHome={() => setActiveTab('home')} />
-                </motion.div>
-            )}
-        </div>
+            {/* HISTORICAL COMPONENT RENDERING ROW */}
+            <RecentBusinesses 
+              onSelectBusiness={(uid) => handleBusinessVisit(uid)} // 🟢 Changed from setActiveStoreUid
+              setHasRecentItems={setHasRecentItems}
+            />
+          </motion.div>
+        ) : (
+          <motion.div
+            key="wallet-view"
+            initial={{ opacity: 0, scale: 0.99 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="w-full"
+          >
+            <Wallet onNavigateToHome={() => setActiveTab('home')} />
+          </motion.div>
+        )}
+      </div>
 
       {/* NAVIGATION PILL */}
       <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-5">
