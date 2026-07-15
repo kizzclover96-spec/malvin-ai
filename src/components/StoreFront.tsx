@@ -1,58 +1,85 @@
 import React, { useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
+import { getFunctions, httpsCallable } from 'firebase/functions'; // 👈 Added Firebase imports
 
 interface StoreFrontProps {
   businessUid: string;
   userUid: string;
   userWalletBalance: number;
   onExecutePayment: (
-    amount:number,
-    businessId:string
+    amount: number,
+    businessId: string
   ) => Promise<void>;
   onExit: () => void;
 }
-export const StoreFront: React.FC<StoreFrontProps> = ({  businessUid, userUid, onExit }) => {
-  // Fallback check to ensure we have a valid absolute URL string
-  const targetUrl = businessUid.startsWith('http://') || businessUid.startsWith('https://') ? businessUid : `https://${businessUid}`;
 
+export const StoreFront: React.FC<StoreFrontProps> = ({ businessUid, userUid, onExit }) => {
+  const targetUrl = businessUid.startsWith('http://') || businessUid.startsWith('https://') ? businessUid : `https://${businessUid}`;
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
  
   useEffect(() => {
+    const listener = async (event: MessageEvent) => {
+      // 1. Identity handshake when the iframe loaded is ready
+      if (event.data?.type === "SALON_READY") {
+        iframeRef.current?.contentWindow?.postMessage(
+          {
+            type: "MALVIN_USER",
+            uid: userUid
+          },
+          "*"
+        );
+        console.log("Salon requested identity:", userUid);
+      }
 
-    const listener = (event: MessageEvent) => {
+      // 2. 🔐 SECURE PARENT PAYMENT DELEGATION (Option C)
+      if (event.data?.type === "REQUEST_DIRECT_PAYMENT") {
+        console.log("Parent received payment request. Creating secure session under authenticated shell...");
+        const payload = event.data.payload;
 
-        if (event.data?.type === "SALON_READY") {
+        try {
+          const functions = getFunctions();
+          const createDirectPaymentSession = httpsCallable(functions, 'createDirectPaymentSession');
 
-            iframeRef.current?.contentWindow?.postMessage(
-                {
-                    type: "MALVIN_USER",
-                    uid: userUid
-                },
-                "*"
-            );
+          // Run function securely from parent shell. 
+          // Firebase SDK automatically propagates user session headers safely!
+          const response = await createDirectPaymentSession({
+            amount: payload.amount,
+            targetBusinessUid: payload.targetBusinessUid,
+            merchantType: payload.merchantType,
+            appointmentDetails: payload.appointmentDetails
+          });
 
-            console.log(
-                "Salon requested identity:",
-                userUid
-            );
+          const resultData = response.data as any;
+
+          if (resultData && resultData.url) {
+            console.log("Stripe Session successfully created. Redirecting top-level screen...");
+            // Redirect the top-level viewport to Stripe to bypass frame restriction headers
+            window.top!.location.href = resultData.url;
+          } else {
+            throw new Error("Invalid payment gateway URL returned.");
+          }
+        } catch (error: any) {
+          console.error("Parent payment setup failure:", error);
+          
+          // Send error response back down to iframe to render checkout error states
+          iframeRef.current?.contentWindow?.postMessage({
+            type: "DIRECT_PAYMENT_FAILURE",
+            error: error.message || "An error occurred starting checkout."
+          }, "*");
         }
-
+      }
     };
 
     window.addEventListener("message", listener);
-
     return () => window.removeEventListener("message", listener);
-
   }, [userUid]);
 
- 
   return (
     <motion.div 
       initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 15 }}
-      // h-[100dvh] ensures full coverage on mobile browsers ignoring address bar heights
       className="fixed inset-0 w-screen h-[100dvh] bg-white text-black font-sans z-50 flex flex-col overflow-hidden overscroll-y-contain"
     >
       {/* MINIMAL MOBILE TOP HEADER BAR */}
@@ -64,8 +91,6 @@ export const StoreFront: React.FC<StoreFrontProps> = ({  businessUid, userUid, o
         >
           <ArrowLeft className="w-5 h-5 stroke-[2.5]" />
         </button>
-        
-        {/* Dynamic empty spacer layer to balance flex positioning grids */}
         <div className="w-10 h-10" />
       </div>
 
@@ -76,8 +101,7 @@ export const StoreFront: React.FC<StoreFrontProps> = ({  businessUid, userUid, o
             src={targetUrl}
             title="In-App Store Webview Content"
             className="w-full h-full border-none m-0 p-0"
-            // 🟢 Expanded permissions to make sure third-party checkout scripts don't break
-            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-top-navigation-by-user-activation"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-top-navigation allow-top-navigation-by-user-activation"
             allow="clipboard-write; camera; microphone; geolocation"
         />
       </div>

@@ -1,7 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { auth } from "../firebase";
-import { getFunctions, httpsCallable } from 'firebase/functions';
 import { QRCodeSVG } from 'qrcode.react'; 
 import { Download, ArrowLeft, CheckCircle, RefreshCw } from 'lucide-react'; 
 
@@ -26,29 +24,20 @@ export default function TicketCheckout() {
 
     setTicketDetails(payload);
 
-    const processDirectPayment = async () => {
+    // 1. Delegate Payment Request to Parent
+    const delegatePaymentToParent = () => {
       if (paymentTriggered.current) return;
       paymentTriggered.current = true;
 
-      try {
-        const activeUid = auth.currentUser?.uid || payload?.customerUid;
+      setPaymentStatus("redirecting");
+      console.log("Delegating secure payment session creation to parent container...");
 
-        if (!activeUid) {
-          setPaymentStatus("error");
-          setErrorMessage("Payment failed: Customer identity verification missing.");
-          return;
-        }
+      const inferredMerchantType = payload.fromStore ? "food" : "salon";
 
-        setPaymentStatus("redirecting");
-        console.log("Creating secure direct payment session...");
-
-        const functions = getFunctions();
-        // 1. Call our new Direct Payment function
-        const createDirectPaymentSession = httpsCallable(functions, 'createDirectPaymentSession');
-        
-        const inferredMerchantType = payload.fromStore ? "food" : "salon";
-
-        const response = await createDirectPaymentSession({
+      // Post payload securely up to the Parent Shell
+      window.parent.postMessage({
+        type: "REQUEST_DIRECT_PAYMENT",
+        payload: {
           amount: payload.totalPrice,
           targetBusinessUid: payload.targetBusinessUid,
           merchantType: inferredMerchantType,
@@ -59,26 +48,36 @@ export default function TicketCheckout() {
             pickupTime: payload.pickupTime || "",
             tableNumber: payload.tableNumber || ""
           }
-        });
-
-        const resultData = response.data as any;
-
-        // 2. Redirect user directly to the secure Stripe Checkout Page!
-        if (resultData && resultData.url) {
-          window.location.href = resultData.url;
-        } else {
-          throw new Error("Failed to retrieve a valid payment gateway URL.");
         }
+      }, "*");
+    };
 
-      } catch (error: any) {
-        console.error("Payment setup failure:", error);
+    // 2. Listen for Parent-side errors
+    const handleParentResponse = (event: MessageEvent) => {
+      if (event.data?.type === "DIRECT_PAYMENT_FAILURE") {
         setPaymentStatus("error");
-        setErrorMessage(error.message || "An error occurred starting checkout.");
+        setErrorMessage(event.data.error || "An error occurred starting checkout.");
+        paymentTriggered.current = false; // allow retry
       }
     };
 
-    processDirectPayment();
+    window.addEventListener("message", handleParentResponse);
+    delegatePaymentToParent();
+
+    return () => window.removeEventListener("message", handleParentResponse);
   }, [payload]);
+
+  // Helper QR string function
+  const getQrCodeDataString = () => {
+    return JSON.stringify({
+      ticketId: ticketDetails?.ticketId,
+      businessUid: ticketDetails?.targetBusinessUid
+    });
+  };
+
+  const handleDownloadReceipt = () => {
+    // Implement your download code here
+  };
 
   // If redirecting, show a clean loading screen
   if (paymentStatus === "redirecting" || paymentStatus === "processing") {
@@ -90,7 +89,6 @@ export default function TicketCheckout() {
       </div>
     );
   }
-
 
   if (paymentStatus === "error") {
     return (
@@ -106,9 +104,7 @@ export default function TicketCheckout() {
 
   return (
     <div style={{ padding: "24px 16px", background: "#050505", color: "#fff", minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", fontFamily: "sans-serif" }}>
-      
       <div ref={receiptRef} style={{ border: "1px solid #222", padding: "clamp(16px, 5vw, 32px)", borderRadius: "24px", width: "95%", maxWidth: "460px", background: "#0c0c0c", boxShadow: "0 20px 40px rgba(0,0,0,0.5)", boxSizing: "border-box" }}>
-        
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: "24px" }}>
           <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "rgba(75,181,67,0.1)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "12px" }}>
             <CheckCircle color="#4BB543" size={24} />
@@ -168,7 +164,6 @@ export default function TicketCheckout() {
             Return to Home
           </button>
         </div>
-
       </div>
       
       <style>{`
