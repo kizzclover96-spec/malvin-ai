@@ -3,6 +3,10 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { QRCodeSVG } from 'qrcode.react'; 
 import { Download, ArrowLeft, CheckCircle, RefreshCw } from 'lucide-react'; 
 
+// 1. IMPORT FIRESTORE DEPENDENCIES
+import { doc, updateDoc } from "firebase/firestore";
+import { firestore as db } from "../firebase"; // Adjust path to match your configuration
+
 export default function TicketCheckout() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -34,15 +38,37 @@ export default function TicketCheckout() {
     setTicketDetails(payload);
 
     // 🟢 STRIPE REDIRECT SUCCESS HANDOFF:
-    // Instead of rendering a ticket here, navigate back to the salon store and trigger its local database write + receipt screen!
     if (stripeSuccess) {
       localStorage.removeItem("pending_checkout_payload");
-      navigate(`/salon/${payload.targetBusinessUid}`, {
-        state: {
-          paymentConfirmed: true,
-          orderPayload: payload
+
+      // 2. RUN FIRESTORE PAYMENT STATUS UPDATE UPON STRIPE SUCCESS
+      const confirmPaymentInFirestore = async () => {
+        try {
+          // Verify we have the required document references inside our payload
+          const customerUid = payload.customerUid || payload.userUid;
+          const appointmentId = payload.appointmentId || payload.ticketId;
+
+          if (customerUid && appointmentId) {
+            const appointmentDocRef = doc(db, 'customers', customerUid, 'appointments', appointmentId);
+            await updateDoc(appointmentDocRef, {
+              paymentStatus: true
+            });
+            console.log("Firestore paymentStatus updated to true successfully.");
+          }
+        } catch (error) {
+          console.error("Failed to update appointment payment status in Firestore:", error);
+        } finally {
+          // Navigate back to the salon store and trigger its local database write + receipt screen!
+          navigate(`/salon/${payload.targetBusinessUid}`, {
+            state: {
+              paymentConfirmed: true,
+              orderPayload: payload
+            }
+          });
         }
-      });
+      };
+
+      confirmPaymentInFirestore();
       return;
     }
 

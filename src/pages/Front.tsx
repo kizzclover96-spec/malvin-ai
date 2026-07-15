@@ -121,20 +121,22 @@ export const Front: React.FC = () => {
         appointments.push({ id: doc.id, ...doc.data() });
       });
       
-      // Sort active or paid ones first
-      const activeOnly = appointments.filter(app => app.status === 'paid');
+      // 🟢 Filter appointments where paymentStatus is true OR status is 'paid'
+      const activeOnly = appointments.filter(app => app.paymentStatus === true || app.status === 'paid');
       setActiveReceipts(activeOnly);
 
       // Generate local QR codes for the active receipts
       const qrMap: Record<string, string> = {};
       for (const app of activeOnly) {
-        if (app.referenceId) {
+        const refId = app.referenceId || app.id;
+        if (refId) {
           try {
-            qrMap[app.referenceId] = await QRCode.toDataURL(
+            // Generate QR containing key scan details
+            qrMap[refId] = await QRCode.toDataURL(
               JSON.stringify({ 
-                referenceId: app.referenceId, 
-                customer: app.customerName, 
-                price: app.totalPrice 
+                ticketId: app.id,
+                referenceId: refId, 
+                businessUid: app.targetBusinessUid || ""
               })
             );
           } catch (err) {
@@ -324,9 +326,10 @@ export const Front: React.FC = () => {
                         transition={{ duration: 0.25, ease: 'easeInOut' }}
                         className="border-t border-neutral-200 overflow-hidden"
                       >
-                        <div className="p-4 space-y-4 max-h-[320px] overflow-y-auto">
+                        <div className="p-4 space-y-4 max-h-[420px] overflow-y-auto">
                           {activeReceipts.map((receipt) => {
-                            const qrData = receiptQrs[receipt.referenceId];
+                            const refId = receipt.referenceId || receipt.id;
+                            const qrData = receiptQrs[refId];
                             return (
                               <div 
                                 key={receipt.id} 
@@ -337,31 +340,45 @@ export const Front: React.FC = () => {
                                     <span className="text-[10px] font-black uppercase tracking-wider text-rose-500 bg-rose-50 px-2 py-0.5 rounded">
                                       Active Ticket
                                     </span>
-                                    <span className="text-xs font-bold text-neutral-800 flex items-center gap-1">
-                                      <DollarSign className="w-3.5 h-3.5 text-neutral-400" />
-                                      {receipt.totalPrice}
+                                    <span className="text-xs font-bold text-neutral-800 flex items-center gap-0.5">
+                                      €{receipt.totalPrice}
                                     </span>
                                   </div>
                                   <h5 className="text-xs font-bold text-neutral-900 truncate">
                                     Client: {receipt.customerName || 'Anonymous'}
                                   </h5>
                                   <p className="text-[10px] text-neutral-400 font-medium">
-                                    Ref ID: <code className="text-neutral-600 font-mono">{receipt.referenceId || receipt.id}</code>
+                                    Ref ID: <code className="text-neutral-600 font-mono">{refId}</code>
                                   </p>
+
+                                  {/* List Selected Services dynamically inside receipt card */}
+                                  {receipt.services && receipt.services.length > 0 && (
+                                    <div className="mt-2 space-y-1">
+                                      <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block">Services Selected:</span>
+                                      {receipt.services.map((service: any, sIdx: number) => (
+                                        <div key={sIdx} className="flex justify-between items-center text-[11px] text-neutral-600 bg-neutral-50 px-2 py-1 rounded">
+                                          <span className="truncate max-w-[120px]">{service.serviceName || service.name}</span>
+                                          <span className="font-bold flex-shrink-0">€{service.price}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+
                                   {(receipt.date || receipt.time) && (
-                                    <div className="flex items-center gap-1.5 text-[10px] text-neutral-400 font-semibold mt-1">
+                                    <div className="flex items-center gap-1.5 text-[10px] text-neutral-400 font-semibold mt-2.5">
                                       <Calendar className="w-3 h-3 text-neutral-400" />
                                       <span>{receipt.date} at {receipt.time}</span>
                                     </div>
                                   )}
                                 </div>
                                 {qrData ? (
-                                  <div className="flex-shrink-0 bg-neutral-50 p-2 rounded-xl border border-neutral-100">
+                                  <div className="flex-shrink-0 bg-neutral-50 p-2 rounded-xl border border-neutral-100 flex flex-col items-center">
                                     <img 
                                       src={qrData} 
                                       alt="Booking Ticket QR" 
                                       className="w-20 h-20"
                                     />
+                                    <span className="text-[8px] font-black uppercase tracking-widest text-neutral-400 mt-1">Scan At Desk</span>
                                   </div>
                                 ) : (
                                   <div className="w-20 h-20 bg-neutral-100 animate-pulse rounded-xl" />
