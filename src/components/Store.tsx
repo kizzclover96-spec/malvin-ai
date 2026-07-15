@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { firestore as db } from '../firebase'; // Ensure your firebase configuration is exported here
 import { doc, onSnapshot, collection, addDoc, query, where } from 'firebase/firestore';
 import styles from './store.module.css';
-import { useParams, useNavigate, useLocation } from "react-router-dom"; // 👈 Restored all required routing hooks
+import { useParams, useNavigate, useLocation } from "react-router-dom"; 
 import QRCode from "qrcode";
 import { auth } from '../firebase';
 
@@ -12,8 +12,8 @@ interface RestaurantProfile {
   brandBio: string;
   address?: string; 
   onlineStatus: boolean;
-  orderLimitReached?: boolean; // 👈 Add this
-  isVerified?: boolean;        // 👈 Add this
+  orderLimitReached?: boolean; 
+  isVerified?: boolean;        
 }
 
 interface Product {
@@ -73,7 +73,7 @@ export const StoreFrontend: React.FC = () => {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isOrdersOpen, setIsOrdersOpen] = useState(false);
 
-  // Checkout Form State — Hydrates immediately from localStorage if user re-enters store
+  // Checkout Form State
   const [customerName, setCustomerName] = useState<string>(() => {
     return localStorage.getItem('saved_customer_name') || location.state?.orderPayload?.customerName || '';
   });
@@ -125,7 +125,7 @@ export const StoreFrontend: React.FC = () => {
     return () => window.removeEventListener("message", handleIdentityMessage);
   }, []);
 
-  // Update localStorage cache records whenever user adjusts name selection inside input paths
+  // Update localStorage cache records
   useEffect(() => {
     if (customerName.trim()) {
       localStorage.setItem('saved_customer_name', customerName.trim());
@@ -142,17 +142,6 @@ export const StoreFrontend: React.FC = () => {
         items.push({ id: doc.id, ...doc.data() } as Product);
       });
       setProducts(items);
-    });
-    return () => unsubscribe();
-  }, [restaurantUid]);
-
-  useEffect(() => {
-    if (!restaurantUid) return;
-    const docRef = doc(db, 'restaurantprofile', restaurantUid);
-    const unsubscribe = onSnapshot(docRef, (docSnap) => {
-      if (docSnap.exists()) {
-        setProfile(docSnap.data() as RestaurantProfile);
-      }
     });
     return () => unsubscribe();
   }, [restaurantUid]);
@@ -248,10 +237,10 @@ export const StoreFrontend: React.FC = () => {
             createdAt: new Date().toISOString()
           });
 
-          // Open up the tickets side drawer so they see the live QR code right away
+          // Open up the tracking drawer immediately
           setIsOrdersOpen(true);
           
-          // Clear router configuration memory state pointers to prevent duplicate records on page refresh actions
+          // Clear router configuration state pointers to prevent duplicate records on page refresh
           navigate(location.pathname, { replace: true, state: {} });
         } catch (err) {
           console.error("Failed writing verified order log:", err);
@@ -299,9 +288,9 @@ export const StoreFrontend: React.FC = () => {
       customerName: customerName.trim(),
       userMobilityStatus: currentStatus,
       tableNumber: currentStatus === 'in store' ? tableNumber : '',
-      customerUid: finalUid, // 👈 Ensures the active ID goes straight through
-      fromStore: true ,
-      merchantType: "food"
+      customerUid: finalUid, 
+      fromStore: true, // Let checkout target identify it originates from food
+      merchantType: "food" // Explicit type definition
     };
 
     setCart([]);
@@ -341,10 +330,9 @@ export const StoreFrontend: React.FC = () => {
       {/* Top Bar */}
       <header className={styles.topBar}>
         <div className={styles.brandInfo}>
-          <h1>{profile?.brandName || 'Loading...'}</h1>
+          <h1>{profile?.brandName || 'Loading...'} {profile?.isVerified && <VerifiedBadge />}</h1>
           <p className={styles.brandBio}>{profile?.brandBio || 'Connecting to store...'}</p>
           
-          {/* Added Brand Location Layout Placement */}
           {profile?.address && (
             <p className={styles.brandLocation} style={{ fontSize: '13px', color: '#666', marginTop: '4px' }}>
               📍 {profile.address}
@@ -458,7 +446,7 @@ export const StoreFrontend: React.FC = () => {
               )}
 
               <button type="submit" className={styles.ordersBtn} style={{ width: '100%', padding: '16px', background: '#10b981', marginTop: '16px' }}>
-                Confirm Order Base
+                Proceed to Secure Payment
               </button>
             </form>
           </div>
@@ -485,7 +473,6 @@ export const StoreFrontend: React.FC = () => {
                     <small>{order.pickupTime}</small>
                   </div>
 
-                  {/* 🟢 CHANGE THIS: Allow receipts to show for pending or all orders */}
                   {(order.status === 'pending' || order.status !== 'finished') && (
                     <div style={{ marginTop: '12px', borderTop: '1px dashed #ccc', paddingTop: '12px' }}>
                       <strong>Digital Receipt Token</strong>

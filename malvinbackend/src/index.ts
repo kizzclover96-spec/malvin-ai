@@ -113,24 +113,49 @@ export const checkStripeAccount = onCall(async (request) => {
 
 /*
 =====================================
-4. CREATE WALLET TOP-UP SESSION
+4. CREATE DIRECT PAYMENT SESSION
 =====================================
 */
-export const createWalletTopUpSession = onCall(
+export const createDirectPaymentSession = onCall(
   { secrets: ["SECURE_STRIPE_KEY"] }, 
   async (request) => {
     if (!process.env.SECURE_STRIPE_KEY) {
       throw new HttpsError("failed-precondition", "Stripe secret key is missing on the server.");
     }
     const stripe = getStripe();
+    const db = getDb();
 
-    const { amount, userId } = request.data;
-    if (!amount || amount <= 0 || !userId) {
-      throw new HttpsError("invalid-argument", "Valid amount and userId are required.");
+    const { amount, targetBusinessUid, merchantType, appointmentDetails } = request.data;
+    const customerUid = request.auth?.uid;
+
+    if (!customerUid) {
+      throw new HttpsError("unauthenticated", "Authentication required.");
+    }
+    if (!amount || amount <= 0 || !targetBusinessUid || !merchantType) {
+      throw new HttpsError("invalid-argument", "Missing required transaction parameters.");
     }
 
-    const amountInCents = Math.round(amount * 100);
+    // 1. Fetch the business's Stripe Account ID from Firestore
+    const isFood = merchantType === "food";
+    const targetCollection = isFood ? "restaurantprofile" : "salons";
+    const businessDoc = await db.collection(targetCollection).doc(targetBusinessUid).get();
 
+    if (!businessDoc.exists) {
+      throw new HttpsError("not-found", "Business profile not found.");
+    }
+
+    const businessData = businessDoc.data();
+    const stripeAccountId = businessData?.stripeAccountId;
+
+    if (!stripeAccountId || !businessData?.stripeOnboarded) {
+      throw new HttpsError("failed-precondition", "This merchant is not ready to accept payments yet.");
+    }
+
+    // 2. Calculate your 2% Application Fee
+    const amountInCents = Math.round(amount * 100);
+    const applicationFeeInCents = Math.round(amountInCents * 0.02); // Your 2% cut
+
+    // 3. Create Stripe Checkout Session pointing to the merchant's Stripe account
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       line_items: [
@@ -138,8 +163,8 @@ export const createWalletTopUpSession = onCall(
           price_data: {
             currency: "eur",
             product_data: {
-              name: "Wallet Balance Top-up",
-              description: "Funds added securely to your Malvin account balance.",
+              name: businessData?.brandName || businessData?.name || "Malvin Service Payment",
+              description: `Direct payment via Malvin App`,
             },
             unit_amount: amountInCents,
           },
@@ -147,18 +172,34 @@ export const createWalletTopUpSession = onCall(
         },
       ],
       mode: "payment",
-      metadata: { userId: userId, type: "wallet_topup" },
-      success_url: "http://malvinai.com/wallet?status=success",
-      cancel_url: "http://malvinai.com/wallet?status=cancel",
+      // Stripe routes the money directly to the merchant and collects your fee
+      payment_intent_data: {
+        application_fee_amount: applicationFeeInCents,
+        transfer_data: {
+          destination: stripeAccountId,
+        },
+      },
+      // Pass appointment data in metadata so our webhook knows what to create upon successful payment
+      metadata: {
+        userId: customerUid,
+        businessId: targetBusinessUid,
+        merchantType: merchantType,
+        amount: amount.toString(),
+        appointmentDetails: JSON.stringify(appointmentDetails || {}),
+        type: "direct_payment"
+      },
+      success_url: "https://malvinai.com/payment-success?status=success",
+      cancel_url: "https://malvinai.com/payment-success?status=cancel",
     });
 
     return { url: session.url };
   }
 );
 
+
 /*
 =====================================
-5. STRIPE WEBHOOK LISTENER
+5. STRIPE WEBHOOK LISTENER (DIRECT PAYMENTS)
 =====================================
 */
 export const stripeWebhook = onRequest(
@@ -183,33 +224,60 @@ export const stripeWebhook = onRequest(
 
     if (event.type === "checkout.session.completed") {
       const session = event.data.object;
-      const userId = session.metadata?.userId;
       const type = session.metadata?.type;
-      const amountInCents = session.amount_total;
 
-      if (type === "wallet_topup" && userId && amountInCents) {
-        const amountInEuro = amountInCents / 100;
-        const batch = db.batch();
+      if (type === "direct_payment") {
+        const userId = session.metadata?.userId;
+        const businessId = session.metadata?.businessId;
+        const merchantType = session.metadata?.merchantType;
+        const amount = parseFloat(session.metadata?.amount || "0");
+        const appointmentDetails = JSON.parse(session.metadata?.appointmentDetails || "{}");
 
-        const userDocRef = db.collection("users").doc(userId);
-        batch.update(userDocRef, { "wallet.balance": FieldValue.increment(amountInEuro) });
+        if (userId && businessId && merchantType && amount > 0) {
+          const isFood = merchantType === "food";
+          const appointmentCollection = isFood ? "foodOrders" : "salonAppointments";
+          
+          const ticketId = isFood 
+            ? `FOOD-${Math.floor(100000 + Math.random() * 900000)}` 
+            : `SAL-${Math.floor(100000 + Math.random() * 900000)}`;
 
-        const txRef = db.collection("users").doc(userId).collection("walletTransactions").doc();
-        batch.set(txRef, {
-          storeName: "Wallet Top-up",
-          amount: amountInEuro,
-          type: "received",
-          timestamp: FieldValue.serverTimestamp()
-        });
+          const appointmentRef = db.collection(appointmentCollection).doc(userId).collection("appointments").doc();
+          const userDocRef = db.collection("users").doc(userId);
 
-        await batch.commit();
-        console.log(`Successfully credited €${amountInEuro} to user ${userId}`);
+          const batch = db.batch();
+
+          // 1. Create the secure appointment/ticket
+          batch.set(appointmentRef, {
+            ticketId: ticketId,
+            businessId: businessId,
+            services: appointmentDetails?.services || [],
+            stylist: appointmentDetails?.stylist || "Any available",
+            duration: appointmentDetails?.duration || 0,
+            totalPaid: amount,
+            status: "paid",
+            merchantType: merchantType,
+            createdAt: FieldValue.serverTimestamp()
+          });
+
+          // 2. Log payment transaction inside the user's history
+          const txRef = userDocRef.collection("walletTransactions").doc();
+          batch.set(txRef, {
+            storeName: "Direct Payment",
+            amount: amount,
+            type: "spent",
+            timestamp: FieldValue.serverTimestamp()
+          });
+
+          await batch.commit();
+          console.log(`Successfully processed direct payment of €${amount} for user ${userId}`);
+        }
       }
     }
 
     res.json({ received: true });
   }
 );
+
 
 /*
 =====================================

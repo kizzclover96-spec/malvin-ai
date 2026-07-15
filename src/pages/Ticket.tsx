@@ -15,7 +15,6 @@ export default function TicketCheckout() {
   const [ticketDetails, setTicketDetails] = useState<any>(null);
 
   const payload = location.state;
-  // 🛑 GUARD AGAINST DOUBLE MOUNT INJECTIONS:
   const paymentTriggered = useRef(false);
 
   useEffect(() => {
@@ -27,120 +26,71 @@ export default function TicketCheckout() {
 
     setTicketDetails(payload);
 
-    const processAutoPayment = async () => {
-      // Prevent subsequent parallel execution calls
+    const processDirectPayment = async () => {
       if (paymentTriggered.current) return;
       paymentTriggered.current = true;
 
       try {
-        // Enforce pulling the authentic context UID from the active session loop
-        // Simplified safety check: just ensure it is a non-empty string
-        const activeUid = auth.currentUser?.uid || payload?.customerUid || payload?.userUid;
+        const activeUid = auth.currentUser?.uid || payload?.customerUid;
 
-        if (!activeUid || typeof activeUid !== 'string' || activeUid.trim() === '') {
-            setPaymentStatus("error");
-            setErrorMessage("Payment failed: Customer identity verification missing.");
-            return;
+        if (!activeUid) {
+          setPaymentStatus("error");
+          setErrorMessage("Payment failed: Customer identity verification missing.");
+          return;
         }
 
-        console.log(`Identity verified: ${activeUid}. Triggering function...`);
-        
-        const functions = getFunctions();
-        const processPayment = httpsCallable(functions, 'processPayment');
+        setPaymentStatus("redirecting");
+        console.log("Creating secure direct payment session...");
 
+        const functions = getFunctions();
+        // 1. Call our new Direct Payment function
+        const createDirectPaymentSession = httpsCallable(functions, 'createDirectPaymentSession');
+        
         const inferredMerchantType = payload.fromStore ? "food" : "salon";
 
-        const response = await processPayment({
-            targetBusinessUid: payload.targetBusinessUid,
-            amount: payload.totalPrice,
-            fallbackCustomerUid: activeUid, 
-            merchantType: inferredMerchantType, // 🟢 Add this line to pass it to the cloud function
-            appointmentDetails: {
-                services: payload.services,
-                stylist: payload.stylist,
-                duration: payload.duration
-            }
+        const response = await createDirectPaymentSession({
+          amount: payload.totalPrice,
+          targetBusinessUid: payload.targetBusinessUid,
+          merchantType: inferredMerchantType,
+          appointmentDetails: {
+            services: payload.services || [],
+            stylist: payload.stylist || "any",
+            duration: payload.duration || 0,
+            pickupTime: payload.pickupTime || "",
+            tableNumber: payload.tableNumber || ""
+          }
         });
 
         const resultData = response.data as any;
 
-        // Inside the transaction success block of TicketCheckout (ticket.tsx):
-        if (resultData && resultData.success) {
-            if (payload.fromStore) {
-                // 🟢 Fix: Change "/store/" to "/food/" to align with App.tsx routing table parameters
-                navigate(`/food/${payload.targetBusinessUid}`, { 
-                state: { paymentConfirmed: true, orderPayload: payload },
-                replace: true 
-                });
-            } else {
-                setTicketDetails((prev: any) => ({ ...prev, ticketId: resultData.ticketId }));
-                setPaymentStatus("success");
-            }
-
-            } else {
-            setPaymentStatus("error");
-            setErrorMessage("Wallet payment processing was rejected by the server ledger.");
-            }
-        } catch (error: any) {
-            setPaymentStatus("error");
-            setErrorMessage(error.message || "An unexpected error occurred during checkout.");
+        // 2. Redirect user directly to the secure Stripe Checkout Page!
+        if (resultData && resultData.url) {
+          window.location.href = resultData.url;
+        } else {
+          throw new Error("Failed to retrieve a valid payment gateway URL.");
         }
+
+      } catch (error: any) {
+        console.error("Payment setup failure:", error);
+        setPaymentStatus("error");
+        setErrorMessage(error.message || "An error occurred starting checkout.");
+      }
     };
 
-    processAutoPayment();
-  }, [payload, navigate]);
+    processDirectPayment();
+  }, [payload]);
 
-  const handleDownloadReceipt = () => {
-    if (!ticketDetails) return;
-
-    const receiptText = `
-========================================
-         MALVIN APPOINTMENT PASS        
-========================================
-Ticket ID: ${ticketDetails.ticketId || "N/A"}
-Stylist: ${ticketDetails.stylist || "Any Available"}
-Duration: ${ticketDetails.duration} mins
-Total Paid: €${ticketDetails.totalPrice}
-
-SERVICES CHOSEN:
-${ticketDetails.services?.map((s: any) => `- ${s.serviceName || s.name} (€${s.price})`).join("\n")}
-
-----------------------------------------
-Scan the QR code on your app frame at 
-the store reception front desk to check-in.
-========================================
-    `;
-
-    const blob = new Blob([receiptText], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `Malvin-Ticket-${ticketDetails.ticketId || "Receipt"}.txt`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
-
-  const getQrCodeDataString = () => {
-    if (!ticketDetails) return "";
-    return JSON.stringify({
-      tId: ticketDetails.ticketId,
-      bId: ticketDetails.targetBusinessUid,
-      cId: auth.currentUser?.uid || ticketDetails.customerUid,
-      stylist: ticketDetails.stylist,
-      price: ticketDetails.totalPrice
-    });
-  };
-
-  if (paymentStatus === "processing") {
+  // If redirecting, show a clean loading screen
+  if (paymentStatus === "redirecting" || paymentStatus === "processing") {
     return (
-      <div style={{ background: "#050505", height: "100vh", color: "#fff", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: "sans-serif" }}>
-        <RefreshCw style={{ animation: "spin 2s linear infinite", marginBottom: "16px", color: "#E53935" }} size={32} />
-        <h2 style={{ fontSize: "16px", fontWeight: 700 }}>Processing settlement ledger...</h2>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100vh", background: "#000", color: "#fff" }}>
+        <RefreshCw className="animate-spin" size={40} style={{ marginBottom: "16px" }} />
+        <h2>Redirecting to Secure Payment...</h2>
+        <p style={{ color: "#888" }}>We are launching Stripe to safely process your payment.</p>
       </div>
     );
   }
+
 
   if (paymentStatus === "error") {
     return (

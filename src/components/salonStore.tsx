@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation  } from 'react-router-dom';
 import { firestore as db } from '../firebase';
 import { doc, getDoc, collection, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
 import styles from './salonStore.module.css';
-
+import QRCode from 'qrcode';
 // --- Types & Interfaces ---
 interface SalonProfile {
   salonName: string;
@@ -95,6 +95,10 @@ export default function SalonStore() {
   // Wizard Framework State
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5 | 'success'>(1);
 
+  const location = useLocation();
+  const [userActiveBookings, setUserActiveBookings] = useState<any[]>([]);
+  const [receiptQrs, setReceiptQrs] = useState<Record<string, string>>({});
+
   //auth
   const [customerUid, setCustomerUid] = useState<string | null>(null);
 
@@ -161,6 +165,91 @@ export default function SalonStore() {
       );
     };
   }, []);
+
+  // 🟢 Catch Incoming Stripe Redirect Successful Payments
+  useEffect(() => {
+    // Check if navigating back with confirmed state, or read from query parameters:
+    // e.g., if redirected with ?paymentConfirmed=true
+    const queryParams = new URLSearchParams(location.search);
+    const paymentConfirmed = location.state?.paymentConfirmed || queryParams.get("paymentConfirmed") === "true";
+    const orderPayload = location.state?.orderPayload;
+
+    if (paymentConfirmed && orderPayload) {
+      const commitAppointmentToDatabase = async () => {
+        setIsSubmitting(true);
+        try {
+          const referenceId = `SAL-${Math.floor(100000 + Math.random() * 900000)}`;
+          const appointmentId = `app_${Date.now()}`;
+          const docRef = doc(db, 'salonAppointments', uid!, 'appointments', appointmentId);
+
+          const payload = {
+            customerName: orderPayload.customerName,
+            customerPhone: orderPayload.customerPhone || "",
+            note: orderPayload.customerNote || "",
+            selectedServices: orderPayload.services.map((s: any) => ({
+              serviceId: s.serviceId,
+              serviceName: s.serviceName,
+              price: s.price
+            })),
+            selectedWorker: orderPayload.stylist,
+            date: orderPayload.date,
+            time: orderPayload.time,
+            totalPrice: orderPayload.totalPrice,
+            totalDuration: orderPayload.duration,
+            status: "paid", // status verified as paid
+            referenceId: referenceId,
+            customerUid: orderPayload.customerUid || customerUid,
+            createdAt: serverTimestamp()
+          };
+
+          await setDoc(docRef, payload);
+          setGeneratedRefId(referenceId);
+          
+          // Hydrate local UI states so success screen reads correct information
+          setCustomerName(orderPayload.customerName);
+          setSelectedDate(orderPayload.date);
+          setSelectedTime(orderPayload.time);
+          setSelectedServices(orderPayload.services);
+          setSelectedWorkerId(orderPayload.stylist);
+
+          setStep('success'); // Immediately show the local success receipt layout!
+
+          // Clear query/location state pointers to prevent duplicate records on manual page-refresh
+          navigate(location.pathname, { replace: true, state: {} });
+        } catch (err) {
+          console.error("Failed saving confirmed Stripe appointment to database:", err);
+        } finally {
+          setIsSubmitting(false);
+        }
+      };
+
+      commitAppointmentToDatabase();
+    }
+  }, [location, uid, navigate, customerUid]);
+
+  useEffect(() => {
+    const generateQrs = async () => {
+      const qrMap: Record<string, string> = {};
+      if (generatedRefId) {
+        try {
+          qrMap[generatedRefId] = await QRCode.toDataURL(
+            JSON.stringify({
+              referenceId: generatedRefId,
+              customer: customerName,
+              salonId: uid,
+              stylist: selectedWorkerId,
+              price: totalPrice
+            })
+          );
+        } catch (err) {
+          console.error("Failed generating appointment QR code:", err);
+        }
+      }
+      setReceiptQrs(qrMap);
+    };
+
+    generateQrs();
+  }, [generatedRefId, customerName, uid, selectedWorkerId, totalPrice]);
 
   // Data Aggregation & Real-time Synchronization Loop
   useEffect(() => {
@@ -409,8 +498,23 @@ export default function SalonStore() {
 
             <div className={styles.qrPlaceholder}>
               <div className={styles.qrInner}>
-                <div className={styles.qrBlock} />
-                <span>Scan Ticket At Check-in</span>
+                {receiptQrs[generatedRefId] ? (
+                  <img 
+                    src={receiptQrs[generatedRefId]} 
+                    alt="Appointment QR" 
+                    style={{
+                      width: "140px",
+                      height: "140px",
+                      borderRadius: "12px",
+                      border: "2px solid #fff",
+                      padding: "6px",
+                      background: "#fff"
+                    }}
+                  />
+                ) : (
+                  <div className={styles.qrBlock} />
+                )}
+                <span style={{ marginTop: "8px", fontSize: "12px", color: "#aaa" }}>Scan Ticket At Check-in</span>
               </div>
             </div>
 
@@ -720,10 +824,9 @@ export default function SalonStore() {
             <button 
               type="button" 
               className={styles.footerSubmitBookingButton} 
-              disabled={isSubmitting}
               onClick={handleProceedToCheckout}
             >
-              {isSubmitting ? "Processing Wallet Payment..." : "Pay & Book Appointment"}
+              Proceed to Checkout
             </button>
           )}
         </div>

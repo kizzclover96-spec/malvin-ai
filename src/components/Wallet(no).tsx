@@ -27,7 +27,7 @@ export const Wallet: React.FC<WalletProps> = () => {
   const [balance, setBalance] = useState<number>(0.00);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [topUpAmount, setTopUpAmount] = useState<string>(''); 
+  const [topUpAmount, setTopUpAmount] = useState<string>(''); // 👈 New state for custom input field
   const [isProcessingTopUp, setIsProcessingTopUp] = useState<boolean>(false);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
@@ -90,8 +90,11 @@ export const Wallet: React.FC<WalletProps> = () => {
 
   const handleTopUp = async () => {
     if (!user?.uid) return;
+
+    // Convert the text input value safely into a float
     const parsedAmount = parseFloat(topUpAmount);
 
+    // Frontend validation guardrails
     if (isNaN(parsedAmount) || parsedAmount <= 0) {
       showToast('error', 'Please enter a valid deposit amount greater than €0.');
       return;
@@ -148,25 +151,8 @@ export const Wallet: React.FC<WalletProps> = () => {
   }
 
   return (
-    <div className="w-full max-w-md mx-auto h-full overflow-hidden flex flex-col box-border select-none relative">
+    <div className="w-full max-w-md mx-auto h-full overflow-hidden flex flex-col box-border select-none">
       
-      {/* 🔴 Coming Soon Blur Overlay */}
-      <div className="absolute inset-0 z-40 bg-white/40 backdrop-blur-[6px] flex flex-col items-center justify-center p-6 text-center">
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="bg-white border border-neutral-200/80 p-8 rounded-[2rem] shadow-2xl max-w-[280px]"
-        >
-          <div className="w-12 h-12 rounded-2xl bg-rose-50 text-[#E53935] flex items-center justify-center mx-auto mb-4">
-            <WalletIcon className="w-6 h-6" />
-          </div>
-          <h2 className="text-xl font-black text-neutral-900 tracking-tight mb-2">Coming Soon</h2>
-          <p className="text-xs font-semibold text-neutral-500 leading-relaxed">
-            We are working hard on polishing our wallet & checkout infrastructure. Stay tuned!
-          </p>
-        </motion.div>
-      </div>
-
       <AnimatePresence>
         {toast && (
           <motion.div
@@ -195,7 +181,7 @@ export const Wallet: React.FC<WalletProps> = () => {
         </div>
       </motion.div>
 
-      <div className="w-full flex-grow flex flex-col gap-4 overflow-hidden justify-start pointer-events-none opacity-50">
+      <div className="w-full flex-grow flex flex-col gap-4 overflow-hidden justify-start">
         
         <motion.div
           initial={{ opacity: 0, scale: 0.98, y: 10 }}
@@ -209,6 +195,7 @@ export const Wallet: React.FC<WalletProps> = () => {
             </h2>
           </div>
 
+          {/* 📲 CUSTOM INPUT BOX ADDED HERE */}
           <div className="mt-5 relative">
             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-black text-neutral-400">€</span>
             <input
@@ -218,17 +205,23 @@ export const Wallet: React.FC<WalletProps> = () => {
               min="5"
               value={topUpAmount}
               onChange={(e) => setTopUpAmount(e.target.value)}
-              disabled={true}
-              className="w-full pl-8 pr-4 py-3 bg-white border border-neutral-200 text-neutral-900 placeholder-neutral-300 rounded-xl text-sm font-bold outline-none transition-all"
+              disabled={isProcessingTopUp}
+              className="w-full pl-8 pr-4 py-3 bg-white border border-neutral-200 text-neutral-900 placeholder-neutral-300 rounded-xl text-sm font-bold outline-none transition-all focus:border-neutral-400 disabled:opacity-60"
             />
           </div>
 
           <motion.button
-            disabled={true}
-            className="w-full mt-3 bg-[#E53935] text-white text-xs font-black rounded-xl py-3.5 flex items-center justify-center gap-2 outline-none opacity-40"
+            whileTap={{ scale: 0.97 }}
+            onClick={handleTopUp}
+            disabled={isProcessingTopUp || !topUpAmount}
+            className="w-full mt-3 bg-[#E53935] hover:bg-[#d32f2f] text-white text-xs font-black rounded-xl py-3.5 transition-all shadow-[0_8px_20px_rgba(229,57,53,0.15)] flex items-center justify-center gap-2 outline-none disabled:opacity-40"
           >
-            <Plus className="w-4 h-4" />
-            <span>Add Money</span>
+            {isProcessingTopUp ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Plus className="w-4 h-4" />
+            )}
+            <span>{isProcessingTopUp ? 'Connecting...' : 'Add Money'}</span>
           </motion.button>
         </motion.div>
 
@@ -265,7 +258,9 @@ export const Wallet: React.FC<WalletProps> = () => {
                     className="bg-white border border-neutral-200/60 rounded-2xl p-3 flex items-center justify-between shadow-[0_2px_8px_rgba(0,0,0,0.01)] shrink-0"
                   >
                     <div className="flex items-center gap-3 min-w-[60%] truncate">
-                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 bg-neutral-50 text-neutral-700`}>
+                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                        tx.type === 'received' ? 'bg-emerald-50 text-emerald-600' : 'bg-neutral-50 text-neutral-700'
+                      }`}>
                         {tx.type === 'received' ? <ArrowDownLeft className="w-3.5 h-3.5" /> : <ArrowUpRight className="w-3.5 h-3.5" />}
                       </div>
                       <div className="truncate">
@@ -275,7 +270,9 @@ export const Wallet: React.FC<WalletProps> = () => {
                     </div>
 
                     <div className="text-right flex-shrink-0 pl-2">
-                      <span className="text-xs font-black tracking-tight text-neutral-900">
+                      <span className={`text-xs font-black tracking-tight ${
+                        tx.type === 'received' ? 'text-emerald-600' : 'text-neutral-900'
+                      }`}>
                         {tx.type === 'received' ? '+' : '-'}€{tx.amount.toFixed(2)}
                       </span>
                     </div>
