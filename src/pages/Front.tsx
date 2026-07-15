@@ -352,10 +352,18 @@ export const Front: React.FC = () => {
                                   </p>
 
                                   {/* List Selected Services dynamically inside receipt card */}
-                                  {receipt.services && receipt.services.length > 0 && (
+                                  <h5 className="text-xs font-bold text-neutral-900 truncate">
+                                    Client: {receipt.customerName || 'Anonymous'}
+                                  </h5>
+                                  <p className="text-[10px] text-neutral-400 font-medium">
+                                    Ref ID: <code className="text-neutral-600 font-mono">{refId}</code>
+                                  </p>
+
+                                  {/* 🟢 PLACE THE NEW COMPATIBLE SERVICES RENDERER RIGHT HERE: */}
+                                  {((receipt.selectedServices || receipt.services) && (receipt.selectedServices || receipt.services).length > 0) && (
                                     <div className="mt-2 space-y-1">
                                       <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block">Services Selected:</span>
-                                      {receipt.services.map((service: any, sIdx: number) => (
+                                      {(receipt.selectedServices || receipt.services).map((service: any, sIdx: number) => (
                                         <div key={sIdx} className="flex justify-between items-center text-[11px] text-neutral-600 bg-neutral-50 px-2 py-1 rounded">
                                           <span className="truncate max-w-[120px]">{service.serviceName || service.name}</span>
                                           <span className="font-bold flex-shrink-0">€{service.price}</span>
