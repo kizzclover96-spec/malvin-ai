@@ -110,40 +110,36 @@ export const Front: React.FC = () => {
 
   // Sync user active receipts / booking tickets in real-time
   // Sync user active receipts / booking tickets in real-time
+  // Sync user active receipts / booking tickets in real-time
   useEffect(() => {
     if (!user?.uid) return;
 
-    // We query all subcollections named 'appointments' where customerUid matches the user's uid
-    const ticketsQuery = query(
-      collectionGroup(db, 'appointments'),
-      where('customerUid', '==', user.uid)
-    );
+    // 🟢 FIXED: Query the user's personal appointments subcollection directly
+    const ticketsCollectionRef = collection(db, 'salonAppointments', user.uid, 'appointments');
 
-    const unsubscribe = onSnapshot(ticketsQuery, async (snapshot) => {
+    const unsubscribe = onSnapshot(ticketsCollectionRef, async (snapshot) => {
       const appointments: any[] = [];
       snapshot.forEach((doc) => {
         appointments.push({ id: doc.id, ...doc.data() });
       });
       
-      // 🟢 Filter appointments where paymentStatus is true OR status is 'paid'
+      // Filter appointments where status is 'paid' or paymentStatus is true
       const activeOnly = appointments.filter(
-        app => app.paymentStatus === true || app.status === 'paid'
+        app => app.status === 'paid' || app.paymentStatus === true
       );
       setActiveReceipts(activeOnly);
 
       // Generate local QR codes for the active receipts
       const qrMap: Record<string, string> = {};
       for (const app of activeOnly) {
-        // Handle both referenceId patterns
         const refId = app.referenceId || app.ticketId || app.id;
         if (refId) {
           try {
-            // Generate QR containing key scan details
             qrMap[refId] = await QRCode.toDataURL(
               JSON.stringify({ 
                 ticketId: app.id,
                 referenceId: refId, 
-                businessUid: app.targetBusinessUid || app.businessId || ""
+                businessUid: app.businessId || app.targetBusinessUid || ""
               })
             );
           } catch (err) {
