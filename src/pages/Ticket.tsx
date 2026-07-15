@@ -45,15 +45,13 @@ export default function TicketCheckout() {
       const confirmPaymentInFirestore = async () => {
         try {
           // Verify we have the required document references inside our payload
+          // Ticket.tsx
           const customerUid = payload.customerUid || payload.userUid;
           const appointmentId = payload.appointmentId || payload.ticketId;
 
           if (customerUid && appointmentId) {
             const appointmentDocRef = doc(db, 'customers', customerUid, 'appointments', appointmentId);
-            await updateDoc(appointmentDocRef, {
-              paymentStatus: true
-            });
-            console.log("Firestore paymentStatus updated to true successfully.");
+            await updateDoc(appointmentDocRef, { paymentStatus: true });
           }
         } catch (error) {
           console.error("Failed to update appointment payment status in Firestore:", error);

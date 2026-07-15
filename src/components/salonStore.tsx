@@ -132,6 +132,7 @@ export default function SalonStore() {
       customerName: customerName.trim(),
       customerPhone: customerPhone.trim(),
       note: customerNote.trim(),
+      customerUid: customerUid,
       selectedServices: selectedServices.map(s => ({ 
         serviceId: s.serviceId, 
         serviceName: s.serviceName, 
