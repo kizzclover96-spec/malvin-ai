@@ -12,7 +12,7 @@ export default function TicketCheckout() {
   const [errorMessage, setErrorMessage] = useState("");
   const [ticketDetails, setTicketDetails] = useState<any>(null);
 
-  // 🟢 State Recovery logic: Check location state first. If empty, check localStorage.
+  // 🟢 State Recovery: Check location state first. If empty, check localStorage.
   const payload = location.state || (() => {
     const saved = localStorage.getItem("pending_checkout_payload");
     return saved ? JSON.parse(saved) : null;
@@ -33,14 +33,20 @@ export default function TicketCheckout() {
 
     setTicketDetails(payload);
 
-    // If Stripe success is detected in URL, instantly display the receipt and clear local storage
+    // 🟢 STRIPE REDIRECT SUCCESS HANDOFF:
+    // Instead of rendering a ticket here, navigate back to the salon store and trigger its local database write + receipt screen!
     if (stripeSuccess) {
-      setPaymentStatus("success");
       localStorage.removeItem("pending_checkout_payload");
+      navigate(`/salon/${payload.targetBusinessUid}`, {
+        state: {
+          paymentConfirmed: true,
+          orderPayload: payload
+        }
+      });
       return;
     }
 
-    // 1. Delegate Payment Request to Parent
+    // 1. Delegate Payment Request to Parent (Iframe setup)
     const delegatePaymentToParent = () => {
       if (paymentTriggered.current) return;
       paymentTriggered.current = true;
@@ -48,7 +54,7 @@ export default function TicketCheckout() {
       setPaymentStatus("redirecting");
       console.log("Delegating secure payment session creation to parent container...");
 
-      // 🟢 Save the payload to localStorage right before leaving the app for Stripe
+      // Save the payload to localStorage right before leaving the app for Stripe
       localStorage.setItem("pending_checkout_payload", JSON.stringify(payload));
 
       const inferredMerchantType = payload.fromStore ? "food" : "salon";
@@ -76,8 +82,8 @@ export default function TicketCheckout() {
       if (event.data?.type === "DIRECT_PAYMENT_FAILURE") {
         setPaymentStatus("error");
         setErrorMessage(event.data.error || "An error occurred starting checkout.");
-        localStorage.removeItem("pending_checkout_payload"); // Clean up on failure
-        paymentTriggered.current = false; // allow retry
+        localStorage.removeItem("pending_checkout_payload"); 
+        paymentTriggered.current = false; 
       }
     };
 
@@ -85,7 +91,7 @@ export default function TicketCheckout() {
     delegatePaymentToParent();
 
     return () => window.removeEventListener("message", handleParentResponse);
-  }, [payload]);
+  }, [payload, navigate]);
 
   // Helper QR string function
   const getQrCodeDataString = () => {
@@ -99,7 +105,6 @@ export default function TicketCheckout() {
     // Implement your download code here
   };
 
-  // If redirecting, show a clean loading screen
   if (paymentStatus === "redirecting" || paymentStatus === "processing") {
     return (
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100vh", background: "#000", color: "#fff" }}>
