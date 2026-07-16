@@ -629,3 +629,60 @@ export const initializeMerchantPin = onCall(async (request) => {
 
   return { success: true, message: "Security PIN initialized successfully!" };
 });
+
+
+/*
+=====================================
+11. GET LIVE STRIPE ACCOUNT BALANCE
+=====================================
+*/
+export const getStripeAccountBalance = onCall(
+  { secrets: ["SECURE_STRIPE_KEY"] },
+  async (request) => {
+    if (!process.env.SECURE_STRIPE_KEY) {
+      throw new HttpsError("failed-precondition", "Stripe secret key is missing on the server.");
+    }
+    const uid = request.auth?.uid;
+    if (!uid) {
+      throw new HttpsError("unauthenticated", "Authentication is required.");
+    }
+
+    const { merchantType } = request.data;
+    const stripe = getStripe();
+    const db = getDb();
+
+    const targetCollection = merchantType === "food" ? "restaurantprofile" : "salons";
+    const businessDoc = await db.collection(targetCollection).doc(uid).get();
+
+    if (!businessDoc.exists) {
+      throw new HttpsError("not-found", "Business profile not found.");
+    }
+
+    const businessData = businessDoc.data();
+    const stripeAccountId = businessData?.stripeAccountId;
+
+    if (!stripeAccountId) {
+      return { availableBalance: 0, pendingBalance: 0, totalBalance: 0 };
+    }
+
+    try {
+      // Ask Stripe for the balances specifically matching the connected merchant's account
+      const balance = await stripe.balance.retrieve({
+        stripe_account: stripeAccountId,
+      });
+
+      // Sum up the active balances (Stripe returns amounts in cents, so we divide by 100)
+      const availableBalance = balance.available.reduce((sum: number, b: any) => sum + b.amount, 0) / 100;
+      const pendingBalance = balance.pending.reduce((sum: number, b: any) => sum + b.amount, 0) / 100;
+
+      return {
+        availableBalance,
+        pendingBalance,
+        totalBalance: availableBalance + pendingBalance,
+      };
+    } catch (err: any) {
+      console.error("Error retrieving Stripe balance:", err);
+      throw new HttpsError("internal", `Failed to retrieve Stripe balance: ${err.message}`);
+    }
+  }
+);
