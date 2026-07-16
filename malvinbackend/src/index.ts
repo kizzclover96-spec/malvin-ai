@@ -252,34 +252,55 @@ export const stripeWebhook = onRequest(
 
         if (userId && businessId && merchantType && amount > 0) {
           const isFood = merchantType === "food";
-          const appointmentCollection = isFood ? "foodOrders" : "salonAppointments";
-          
-          const ticketId = isFood 
-            ? `FOOD-${Math.floor(100000 + Math.random() * 900000)}` 
-            : `SAL-${Math.floor(100000 + Math.random() * 900000)}`;
-
-          const appointmentRef = db.collection(appointmentCollection).doc(userId).collection("appointments").doc();
           const userDocRef = db.collection("users").doc(userId);
-
           const batch = db.batch();
 
-          // 1. Create the secure appointment/ticket
-          batch.set(appointmentRef, {
-            ticketId: ticketId,
-            businessId: businessId,
-            services: appointmentDetails?.services || [],
-            stylist: appointmentDetails?.stylist || "Any available",
-            duration: appointmentDetails?.duration || 0,
-            totalPaid: amount,
-            status: "paid",
-            merchantType: merchantType,
-            createdAt: FieldValue.serverTimestamp()
-          });
+          if (isFood) {
+            // 🍔 FOOD FLOW: Save order directly in flat root 'orders' collection
+            const orderRef = db.collection("orders").doc();
+            const fourDigitPin = Math.floor(1000 + Math.random() * 9000).toString();
 
-          // 2. Log payment transaction inside the user's history
+            batch.set(orderRef, {
+              restaurantUid: businessId,
+              customerName: appointmentDetails?.customerName || "Customer",
+              pickupTime: appointmentDetails?.pickupTime || "",
+              status: "pending",
+              items: (appointmentDetails?.services || []).map((s: any) => ({
+                name: s.serviceName || s.name,
+                quantity: s.quantity || 1,
+                price: s.price
+              })),
+              fourDigitCode: fourDigitPin,
+              totalPaid: amount,
+              paymentStatus: "paid",
+              userMobilityStatus: appointmentDetails?.userMobilityStatus || "home",
+              tableNumber: appointmentDetails?.tableNumber || "",
+              customerUid: userId,
+              createdAt: new Date().toISOString()
+            });
+
+          } else {
+            // 💇 SALON FLOW: Maintain nested collection flow
+            const appointmentRef = db.collection("salonAppointments").doc(userId).collection("appointments").doc();
+            const ticketId = `SAL-${Math.floor(100000 + Math.random() * 900000)}`;
+
+            batch.set(appointmentRef, {
+              ticketId: ticketId,
+              businessId: businessId,
+              services: appointmentDetails?.services || [],
+              stylist: appointmentDetails?.stylist || "Any available",
+              duration: appointmentDetails?.duration || 0,
+              totalPaid: amount,
+              status: "paid",
+              merchantType: merchantType,
+              createdAt: FieldValue.serverTimestamp()
+            });
+          }
+
+          // Log payment transaction inside the customer's wallet history
           const txRef = userDocRef.collection("walletTransactions").doc();
           batch.set(txRef, {
-            storeName: "Direct Payment",
+            storeName: isFood ? "Food Order" : "Direct Payment",
             amount: amount,
             type: "spent",
             timestamp: FieldValue.serverTimestamp()
@@ -329,8 +350,6 @@ export const processPayment = onCall({ cors: true }, async (request) => {
     ? `FOOD-${Math.floor(100000 + Math.random() * 900000)}` 
     : `SAL-${Math.floor(100000 + Math.random() * 900000)}`;
 
-  const appointmentRef = db.collection(appointmentCollection).doc(customerUid).collection("appointments").doc();
-
   // --- Calculate 2% Application Fee Deduction ---
   const companyCommissionRate = 0.02; // 2% 
   const appFeeAmount = parseFloat((amount * companyCommissionRate).toFixed(2));
@@ -376,18 +395,46 @@ export const processPayment = onCall({ cors: true }, async (request) => {
         timestamp: FieldValue.serverTimestamp(),
       });
 
-      // 5. Secure ticket generation
-      transaction.set(appointmentRef, {
-        ticketId: ticketId,
-        businessId: targetBusinessUid,
-        services: appointmentDetails?.services || [],
-        stylist: appointmentDetails?.stylist || "Any available",
-        duration: appointmentDetails?.duration || 0,
-        totalPaid: amount,
-        status: "paid",
-        merchantType: merchantType,
-        createdAt: FieldValue.serverTimestamp()
-      });
+      // 5. Secure ticket generation / flat order creation
+      if (isFood) {
+        // 🍔 FOOD ORDER: Save directly to the 'orders' root collection
+        const orderRef = db.collection("orders").doc();
+        const fourDigitPin = Math.floor(1000 + Math.random() * 9000).toString();
+
+        transaction.set(orderRef, {
+          restaurantUid: targetBusinessUid,
+          customerName: appointmentDetails?.customerName || userData?.name || "Customer",
+          pickupTime: appointmentDetails?.pickupTime || "",
+          status: "pending",
+          items: (appointmentDetails?.services || []).map((s: any) => ({
+            name: s.serviceName || s.name,
+            quantity: s.quantity || 1,
+            price: s.price
+          })),
+          fourDigitCode: fourDigitPin,
+          totalPaid: amount,
+          paymentStatus: "paid",
+          userMobilityStatus: appointmentDetails?.userMobilityStatus || "home",
+          tableNumber: appointmentDetails?.tableNumber || "",
+          customerUid: customerUid,
+          createdAt: new Date().toISOString()
+        });
+      } else {
+        // 💇 SALON BOOKING: Maintain nested collection flow
+        const appointmentRef = db.collection(appointmentCollection).doc(customerUid).collection("appointments").doc();
+        
+        transaction.set(appointmentRef, {
+          ticketId: ticketId,
+          businessId: targetBusinessUid,
+          services: appointmentDetails?.services || [],
+          stylist: appointmentDetails?.stylist || "Any available",
+          duration: appointmentDetails?.duration || 0,
+          totalPaid: amount,
+          status: "paid",
+          merchantType: merchantType,
+          createdAt: FieldValue.serverTimestamp()
+        });
+      }
     });
 
     return { success: true, ticketId };
