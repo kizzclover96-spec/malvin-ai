@@ -34,6 +34,8 @@ interface RestaurantData {
   onlineStatus: boolean;
   createdAt: Timestamp | null;
   updatedAt: Timestamp | null;
+  orderLimitReached?: boolean;
+  cooldownExpiresAt?: string | null;
   hasPinConfigured?: boolean;
 }
 interface IncomingOrder {
@@ -92,6 +94,8 @@ export default function FoodDashboard() {
 
   const catalogueCount = ""; 
   const [page, setPage] = useState<'dashboard' | 'catalogue'>('dashboard');
+
+  const [cooldownCountdown, setCooldownCountdown] = useState<string | null>(null);
 
   const [incomingOrders, setIncomingOrders] = useState<IncomingOrder[]>([]);
   const [orderQrCodes, setOrderQrCodes] = useState<Record<string, string>>({});
@@ -435,6 +439,33 @@ export default function FoodDashboard() {
     return () => unsubscribeAuth();
   }, []);
 
+  // ⏳ Live countdown timer for the merchant cooldown popup
+  useEffect(() => {
+    if (!profile?.cooldownExpiresAt) {
+      setCooldownCountdown(null);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      const expiryTime = new Date(profile.cooldownExpiresAt!).getTime();
+      const now = new Date().getTime();
+      const distance = expiryTime - now;
+
+      if (distance <= 0) {
+        setCooldownCountdown(null);
+        clearInterval(interval);
+      } else {
+        const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+        
+        setCooldownCountdown(`${hours}h ${minutes}m ${seconds}s`);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [profile?.cooldownExpiresAt]);
+
   // --- Firestore Initialization & Real-Time Sync ---
   useEffect(() => {
     if (authLoading || !uid) return;
@@ -528,6 +559,7 @@ export default function FoodDashboard() {
   }, [incomingOrders]);
 
   // --- Order Snapshot listener with Daily Limit Logic & Firestore Sync ---
+  // --- Order Snapshot listener with Daily Limit Logic & Firestore Sync ---
   useEffect(() => {
         if (!uid) return;
 
@@ -558,21 +590,37 @@ export default function FoodDashboard() {
             previousOrderCount.current = orders.length;
             calculateAnalytics(orders);
 
-            // Determine if the limit is reached
+            // 1. Determine if the unverified limit is reached
             const limitReached = !isVerified && orders.length >= 10;
+
+            // 2. Manage cooldown timestamps
+            let expiresAt = profile?.cooldownExpiresAt || null;
+            const now = new Date();
+
+            if (limitReached && !expiresAt) {
+              // Newly reached limit: Set expiration to 24 hours from now
+              const futureDate = new Date();
+              futureDate.setHours(futureDate.getHours() + 24);
+              expiresAt = futureDate.toISOString();
+            } else if (expiresAt && now > new Date(expiresAt)) {
+              // Timer has naturally expired: reset fields
+              expiresAt = null;
+            }
 
             // 🌟 SYNC COOLDOWN STATE TO THE PUBLIC RESTAURANT PROFILE
             try {
               const profileDocRef = doc(db, 'restaurantprofile', uid);
               await updateDoc(profileDocRef, {
-                orderLimitReached: limitReached,
+                orderLimitReached: expiresAt ? true : false,
+                cooldownExpiresAt: expiresAt,
                 isVerified: isVerified
               });
             } catch (error) {
               console.error("Failed to sync limit state to Firestore:", error);
             }
 
-            if (limitReached) {
+            // If a valid cooldown is in place, cap the stream and alert the merchant
+            if (expiresAt) {
               setIncomingOrders(orders.slice(0, 10));
               setShowPremiumPopup(true);
             } else {
@@ -581,7 +629,7 @@ export default function FoodDashboard() {
         });
 
         return () => unsubscribe();
-  }, [uid, isVerified]);
+  }, [uid, isVerified, profile?.cooldownExpiresAt]);
 
   const handleAcceptOrder = async (orderId: string) => {
         try {
@@ -683,6 +731,7 @@ export default function FoodDashboard() {
     <div className="min-h-screen bg-white text-black font-sans antialiased p-4 relative overflow-x-hidden select-none pb-24">
       
       {/* --- POPUP OVERLAY MODAL --- */}
+      {/* --- POPUP OVERLAY MODAL --- */}
       {showPremiumPopup && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white border-[4px] border-black rounded-3xl p-6 max-w-sm w-full shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] text-center space-y-4 animate-fadeIn">
@@ -693,6 +742,14 @@ export default function FoodDashboard() {
             <p className="text-sm font-bold text-gray-700">
               Unverified accounts are capped at <span className="underline">10 orders a day</span>. Go Premium to unlock infinite incoming streams!
             </p>
+
+            {/* ⏳ RENDERS THE COOLDOWN TIMER FOR THE MERCHANT */}
+            {cooldownCountdown && (
+              <div className="bg-red-100 border-[2px] border-red-500 rounded-xl p-2 text-xs font-black text-red-700 uppercase tracking-wider">
+                Reset Cooldown in: {cooldownCountdown}
+              </div>
+            )}
+
             <div className="bg-lime-200 border-[3px] border-black rounded-2xl p-3 font-black text-lg">
               €10 / month
             </div>

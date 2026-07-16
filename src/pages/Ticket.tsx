@@ -4,7 +4,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { Download, ArrowLeft, CheckCircle, RefreshCw } from 'lucide-react'; 
 
 // 1. IMPORT FIRESTORE DEPENDENCIES
-import { doc, updateDoc } from "firebase/firestore";
+import { doc, updateDoc, getDoc } from "firebase/firestore";
 import { firestore as db } from "../firebase"; // Adjust path to match your configuration
 
 export default function TicketCheckout() {
@@ -74,6 +74,34 @@ export default function TicketCheckout() {
               createdAt: new Date().toISOString()
             });
 
+            // 🍔 FOOD COOLDOWN TRACKING:
+            const restaurantDocRef = doc(db, 'restaurants', payload.targetBusinessUid);
+            const restaurantSnap = await getDoc(restaurantDocRef);
+
+            if (restaurantSnap.exists()) {
+              const restData = restaurantSnap.data();
+              let currentCycleCount = (restData.currentCycleCount || 0) + 1;
+              let cooldownExpiresAt = restData.cooldownExpiresAt || null;
+
+              if (cooldownExpiresAt && new Date() > new Date(cooldownExpiresAt)) {
+                currentCycleCount = 1; 
+                cooldownExpiresAt = null;
+              }
+
+              // Cooldown starts on the 10th order
+              if (currentCycleCount >= 10 && !cooldownExpiresAt) {
+                const tomorrow = new Date();
+                tomorrow.setHours(tomorrow.getHours() + 24);
+                cooldownExpiresAt = tomorrow.toISOString();
+              }
+
+              await updateDoc(restaurantDocRef, {
+                currentCycleCount: currentCycleCount,
+                cooldownExpiresAt: cooldownExpiresAt,
+                orderLimitReached: currentCycleCount >= 10
+              });
+            }
+
           } else {
             // 💇 SALON FLOW: Update the existing, pre-staged appointment document status to paid
             const customerUid = payload.customerUid || payload.userUid;
@@ -82,6 +110,35 @@ export default function TicketCheckout() {
             if (customerUid && appointmentId) {
               const appointmentDocRef = doc(db, 'customers', customerUid, 'appointments', appointmentId);
               await updateDoc(appointmentDocRef, { paymentStatus: true, status: "paid" });
+            }
+
+            // 💇 SALON COOLDOWN TRACKING:
+            const salonDocRef = doc(db, 'salons', payload.targetBusinessUid);
+            const salonSnap = await getDoc(salonDocRef);
+
+            if (salonSnap.exists()) {
+              const salonData = salonSnap.data();
+              let currentCycleCount = (salonData.currentCycleCount || 0) + 1;
+              let cooldownExpiresAt = salonData.cooldownExpiresAt || null;
+
+              // Check if active cooldown has already finished
+              if (cooldownExpiresAt && new Date() > new Date(cooldownExpiresAt)) {
+                currentCycleCount = 1;
+                cooldownExpiresAt = null;
+              }
+
+              // Cooldown starts on the 10th order/appointment
+              if (currentCycleCount >= 10 && !cooldownExpiresAt) {
+                const tomorrow = new Date();
+                tomorrow.setHours(tomorrow.getHours() + 24);
+                cooldownExpiresAt = tomorrow.toISOString();
+              }
+
+              await updateDoc(salonDocRef, {
+                currentCycleCount: currentCycleCount,
+                cooldownExpiresAt: cooldownExpiresAt,
+                appointmentLimitReached: currentCycleCount >= 10 // Aligns with salon UI blocks
+              });
             }
           }
         } catch (error) {

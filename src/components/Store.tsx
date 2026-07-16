@@ -13,6 +13,7 @@ interface RestaurantProfile {
   address?: string; 
   onlineStatus: boolean;
   orderLimitReached?: boolean; 
+  cooldownExpiresAt?: string | null;
   isVerified?: boolean;        
 }
 
@@ -80,6 +81,9 @@ export const StoreFrontend: React.FC = () => {
   const [pickupTime, setPickupTime] = useState('');
   const [currentStatus, setCurrentStatus] = useState('home');
   const [tableNumber, setTableNumber] = useState('');
+
+  const [timeRemaining, setTimeRemaining] = useState<string | null>(null);
+
   const [guestId, setGuestId] = useState<string>(() => {
     return localStorage.getItem('guest_id') || '';
   });
@@ -88,16 +92,74 @@ export const StoreFrontend: React.FC = () => {
   const [receiptQrs, setReceiptQrs] = useState<Record<string, string>>({});
 
   // 1. Real-time Subscription: Restaurant Profile
+  // 1. Real-time Subscription: Restaurant Profile
   useEffect(() => {
     if (!restaurantUid) return;
-    const docRef = doc(db, 'restaurantprofile', restaurantUid);
-    const unsubscribe = onSnapshot(docRef, (docSnap) => {
+    const docRef = doc(db, 'restaurantprofile', restaurantUid); // Listening to restaurantprofile collection
+    
+    const unsubscribe = onSnapshot(docRef, async (docSnap) => {
       if (docSnap.exists()) {
-        setProfile(docSnap.data() as RestaurantProfile);
+        const data = docSnap.data() as RestaurantProfile;
+        const now = new Date();
+        const expiresAt = data.cooldownExpiresAt ? new Date(data.cooldownExpiresAt) : null;
+
+        // 🟢 Check if the 24-hour cooldown timer has expired
+        if (expiresAt && now > expiresAt) {
+          try {
+            // Import updateDoc function dynamically to avoid load-time bloat
+            const { updateDoc } = await import('firebase/firestore');
+            
+            // Clear the cooldown flags in the Firestore database
+            await updateDoc(docRef, {
+              orderLimitReached: false,
+              cooldownExpiresAt: null,
+              currentCycleCount: 0 // Reset daily order count counter
+            });
+
+            // Optimistically update local state to resume ordering immediately
+            setProfile({
+              ...data,
+              orderLimitReached: false,
+              cooldownExpiresAt: null
+            });
+          } catch (error) {
+            console.error("Failed to automatically clear store cooldown expiration:", error);
+            setProfile(data);
+          }
+        } else {
+          // Keep enforcing standard profile metadata rules
+          setProfile(data);
+        }
       }
     });
     return () => unsubscribe();
   }, [restaurantUid]);
+
+  useEffect(() => {
+    if (!profile?.cooldownExpiresAt) {
+      setTimeRemaining(null);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      const expiryTime = new Date(profile.cooldownExpiresAt!).getTime();
+      const now = new Date().getTime();
+      const distance = expiryTime - now;
+
+      if (distance <= 0) {
+        setTimeRemaining(null);
+        clearInterval(interval);
+      } else {
+        const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+        
+        setTimeRemaining(`${hours}h ${minutes}m ${seconds}s`);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [profile?.cooldownExpiresAt]);
 
   // Guest Session setup
   useEffect(() => {
@@ -323,7 +385,12 @@ export const StoreFrontend: React.FC = () => {
         </div>
         <h1 className="text-3xl font-black uppercase tracking-tight mb-2">Store on Cooldown</h1>
         <p className="text-neutral-400 max-w-sm text-sm mb-6 leading-relaxed">
-          This store has temporarily reached its daily capacity limit. Please check back in the next 24 hours!
+          This store has temporarily reached its daily capacity limit. 
+          {timeRemaining ? (
+            <> Please check back in <strong style={{ color: '#ef4444' }}>{timeRemaining}</strong>!</>
+          ) : (
+            " Please check back in the next 24 hours!"
+          )}
         </p>
         <div className="text-xs text-neutral-500 uppercase tracking-widest font-bold">
           Powered by Malvin Platform
