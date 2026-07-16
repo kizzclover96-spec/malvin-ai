@@ -209,11 +209,19 @@ export const StoreFrontend: React.FC = () => {
   }, [restaurantUid]);
 
   // 3. Real-time Subscription: Track Orders
+  // 3. Real-time Subscription: Track Orders (Scoped securely by UID and Business ID)
   useEffect(() => {
-    if (!customerName) return;
+    const finalUid = auth.currentUser?.uid || guestId;
+    if (!finalUid || !restaurantUid) return;
 
     const colRef = collection(db, 'orders');
-    const q = query(colRef, where('customerName', '==', customerName.trim()));
+    
+    // Scoped to the unique user ID AND the current restaurant to avoid cross-store leakage
+    const q = query(
+      colRef, 
+      where('customerUid', '==', finalUid),
+      where('targetBusinessUid', '==', restaurantUid)
+    );
 
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const ordersList: Order[] = [];
@@ -224,10 +232,12 @@ export const StoreFrontend: React.FC = () => {
         } as Order);
       });
       setUserOrders(ordersList);
+    }, (error) => {
+      console.error("Error fetching scoped user orders: ", error);
     });
 
     return () => unsubscribe();
-  }, [customerName]);
+  }, [guestId, restaurantUid]); // Depend on guestId/auth changes and current restaurant instead of name
 
   // 4. Live Tracking QR Generation Lookups
   useEffect(() => {
