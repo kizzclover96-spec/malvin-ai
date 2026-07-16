@@ -109,48 +109,71 @@ export const Front: React.FC = () => {
   }, [user]);
 
   // Sync user active receipts / booking tickets in real-time
-  // Sync user active receipts / booking tickets in real-time
-  // Sync user active receipts / booking tickets in real-time
+  // 🟢 SYNC BOTH SALON & FOOD RECEIPTS IN REAL-TIME
   useEffect(() => {
     if (!user?.uid) return;
-    console.log("Logged in user:", user.uid);
-    // 🟢 FIXED: Query the user's personal appointments subcollection directly
-    const ticketsCollectionRef = collection(db, 'salonAppointments', user.uid, 'appointments');
+    console.log("Listening to receipts for customer:", user.uid);
 
-    const unsubscribe = onSnapshot(ticketsCollectionRef, async (snapshot) => {
-      const appointments: any[] = [];
-      snapshot.forEach((doc) => {
-        appointments.push({ id: doc.id, ...doc.data() });
-      });
+    // 1. Listen to Salon Appointments Subcollection
+    const salonAppointmentsRef = collection(db, 'salonAppointments', user.uid, 'appointments');
+    const unsubscribeSalon = onSnapshot(salonAppointmentsRef, async (snapshot) => {
+      const salonList = snapshot.docs.map(doc => ({
+        id: doc.id,
+        receiptType: 'salon',
+        ...doc.data()
+      })).filter((app: any) => app.status === 'paid' || app.paymentStatus === true);
+
+      updateUnifiedReceipts(salonList, 'salon');
+    });
+
+    // 2. Listen to Food Orders Collection
+    // Querying the main 'orders' collection where customerUid matches current user
+    const ordersCollectionRef = collection(db, 'orders');
+    const foodQuery = query(ordersCollectionRef, where('customerUid', '==', user.uid));
+    const unsubscribeFood = onSnapshot(foodQuery, async (snapshot) => {
+      const foodList = snapshot.docs.map(doc => ({
+        id: doc.id,
+        receiptType: 'food',
+        ...doc.data()
+      })).filter((ord: any) => ord.paymentStatus === 'paid' || ord.status !== 'finished'); // show active orders
+
+      updateUnifiedReceipts(foodList, 'food');
+    });
+
+    // Unified state compiler
+    const rawReceiptsRef = { salon: [] as any[], food: [] as any[] };
+    const updateUnifiedReceipts = async (newList: any[], type: 'salon' | 'food') => {
+      rawReceiptsRef[type] = newList;
+      const combined = [...rawReceiptsRef.salon, ...rawReceiptsRef.food];
       
-      // Filter appointments where status is 'paid' or paymentStatus is true
-      const activeOnly = appointments.filter(
-        app => app.status === 'paid' || app.paymentStatus === true
-      );
-      setActiveReceipts(activeOnly);
+      setActiveReceipts(combined);
 
-      // Generate local QR codes for the active receipts
+      // Generate local QR codes for both salon and food tickets
       const qrMap: Record<string, string> = {};
-      for (const app of activeOnly) {
-        const refId = app.referenceId || app.ticketId || app.id;
+      for (const item of combined) {
+        const refId = item.referenceId || item.ticketId || item.fourDigitCode || item.id;
         if (refId) {
           try {
-            qrMap[refId] = await QRCode.toDataURL(
+            qrMap[item.id] = await QRCode.toDataURL(
               JSON.stringify({ 
-                ticketId: app.id,
+                ticketId: item.id,
                 referenceId: refId, 
-                businessUid: app.businessId || app.targetBusinessUid || ""
+                businessUid: item.businessId || item.targetBusinessUid || item.restaurantUid || "",
+                receiptType: item.receiptType
               })
             );
           } catch (err) {
-            console.error("Failed to generate ticket QR:", err);
+            console.error("Failed to generate unified ticket QR:", err);
           }
         }
       }
-      setReceiptQrs(qrMap);
-    });
+      setReceiptQrs(prevQrs => ({ ...prevQrs, ...qrMap }));
+    };
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribeSalon();
+      unsubscribeFood();
+    };
   }, [user]);
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();

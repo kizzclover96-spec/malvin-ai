@@ -41,25 +41,57 @@ export default function TicketCheckout() {
     if (stripeSuccess) {
       localStorage.removeItem("pending_checkout_payload");
 
-      // 2. RUN FIRESTORE PAYMENT STATUS UPDATE UPON STRIPE SUCCESS
       const confirmPaymentInFirestore = async () => {
         try {
-          // Verify we have the required document references inside our payload
-          // Ticket.tsx
-          const customerUid = payload.customerUid || payload.userUid;
-          const appointmentId = payload.appointmentId || payload.ticketId;
+          const isFoodStore = payload.fromStore === true || payload.merchantType === "food";
 
-          if (customerUid && appointmentId) {
-            const appointmentDocRef = doc(db, 'customers', customerUid, 'appointments', appointmentId);
-            await updateDoc(appointmentDocRef, { paymentStatus: true, status: "paid" });
+          if (isFoodStore) {
+            // 🍔 FOOD STOREFLOW: Write the food order directly to the 'orders' database collection
+            const { collection, addDoc } = await import("firebase/firestore");
+            const fourDigitPin = Math.floor(1000 + Math.random() * 9000).toString();
+            
+            // Cache customer name locally so they can track their active orders on next load
+            if (payload.customerName) {
+              localStorage.setItem('saved_customer_name', payload.customerName.trim());
+            }
+
+            await addDoc(collection(db, 'orders'), {
+              restaurantUid: payload.targetBusinessUid,
+              customerName: payload.customerName,
+              pickupTime: payload.time || payload.pickupTime || "",
+              status: 'pending',
+              items: (payload.services || []).map((s: any) => ({
+                name: s.serviceName || s.name,
+                quantity: s.quantity || 1,
+                price: s.price
+              })),
+              fourDigitCode: fourDigitPin,
+              totalPaid: payload.totalPrice || payload.amount,
+              paymentStatus: 'paid',
+              userMobilityStatus: payload.userMobilityStatus || "home",
+              tableNumber: payload.tableNumber || "",
+              customerUid: payload.customerUid,
+              createdAt: new Date().toISOString()
+            });
+
+          } else {
+            // 💇 SALON FLOW: Update the existing, pre-staged appointment document status to paid
+            const customerUid = payload.customerUid || payload.userUid;
+            const appointmentId = payload.appointmentId || payload.ticketId;
+
+            if (customerUid && appointmentId) {
+              const appointmentDocRef = doc(db, 'customers', customerUid, 'appointments', appointmentId);
+              await updateDoc(appointmentDocRef, { paymentStatus: true, status: "paid" });
+            }
           }
         } catch (error) {
-          console.error("Failed to update appointment payment status in Firestore:", error);
+          console.error("Failed to write/update checkout logs in Firestore:", error);
         } finally {
-          // Navigate back to the salon store and trigger its local database write + receipt screen!
+          // 🏠 Navigate back to Front.tsx ("/") immediately after database operations complete
           navigate("/", {
             state: {
-              flowStep: "front"
+              flowStep: "front",
+              paymentConfirmed: true
             }
           });
         }
@@ -68,7 +100,6 @@ export default function TicketCheckout() {
       confirmPaymentInFirestore();
       return;
     }
-
     // 1. Delegate Payment Request to Parent (Iframe setup)
     const delegatePaymentToParent = () => {
       if (paymentTriggered.current) return;

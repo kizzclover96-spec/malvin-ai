@@ -206,50 +206,17 @@ export const StoreFrontend: React.FC = () => {
     console.log("Sent STORE_READY frame handshake from StoreFrontend to parent wrapper");
   }, []);
 
-  // 5. Catch Incoming Auto-Bounce Payments from ticket.tsx
   useEffect(() => {
     if (location.state?.paymentConfirmed && location.state?.orderPayload) {
       const confirmedData = location.state.orderPayload;
-      
-      const commitOrderToDatabase = async () => {
-        try {
-          const fourDigitPin = Math.floor(1000 + Math.random() * 9000).toString();
-          
-          setCustomerName(confirmedData.customerName);
-          localStorage.setItem('saved_customer_name', confirmedData.customerName);
-          
-          await addDoc(collection(db, 'orders'), {
-            restaurantUid: restaurantUid,
-            customerName: confirmedData.customerName,
-            pickupTime: confirmedData.time,
-            status: 'pending',
-            items: confirmedData.services.map((s: any) => ({
-              name: s.serviceName,
-              quantity: s.quantity,
-              price: s.price
-            })),
-            fourDigitCode: fourDigitPin,
-            totalPaid: confirmedData.totalPrice,
-            paymentStatus: 'paid',
-            userMobilityStatus: confirmedData.userMobilityStatus,
-            tableNumber: confirmedData.tableNumber,
-            customerUid: confirmedData.customerUid,
-            createdAt: new Date().toISOString()
-          });
+      setCustomerName(confirmedData.customerName);
+      localStorage.setItem('saved_customer_name', confirmedData.customerName);
+      setIsOrdersOpen(true); // Open the orders panel to track live cook times
 
-          // Open up the tracking drawer immediately
-          setIsOrdersOpen(true);
-          
-          // Clear router configuration state pointers to prevent duplicate records on page refresh
-          navigate(location.pathname, { replace: true, state: {} });
-        } catch (err) {
-          console.error("Failed writing verified order log:", err);
-        }
-      };
-
-      commitOrderToDatabase();
+      // Reset routing pointer context
+      navigate(location.pathname, { replace: true, state: {} });
     }
-  }, [location.state, restaurantUid, navigate, location.pathname]);
+  }, [location.state, navigate, location.pathname]);
 
   const cartTotal = cart.reduce((acc, item) => acc + (item.product.price * item.quantity), 0);
 
@@ -262,9 +229,10 @@ export const StoreFrontend: React.FC = () => {
   };
 
   // Optimized to package details and transition directly to secure checkout without data duplication
-  const handlePlaceOrder = (e: React.FormEvent) => {
+  // Optimized to initiate a live payment session and redirect to Stripe
+  const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (cart.length === 0 || !customerName || !pickupTime) return;
+    if (cart.length === 0 || !customerName.trim() || !pickupTime) return;
 
     const finalUid = auth.currentUser?.uid || guestId;
 
@@ -273,9 +241,10 @@ export const StoreFrontend: React.FC = () => {
       return;
     }
 
+    // 1. Prepare metadata to cache locally so ticket-checkout can reconstruct it
     const checkoutPayload = {
       targetBusinessUid: restaurantUid,
-      totalPrice: cartTotal, 
+      amount: cartTotal, 
       services: cart.map(item => ({
         serviceId: item.product.id,
         serviceName: item.product.name,
@@ -288,16 +257,54 @@ export const StoreFrontend: React.FC = () => {
       customerName: customerName.trim(),
       userMobilityStatus: currentStatus,
       tableNumber: currentStatus === 'in store' ? tableNumber : '',
-      customerUid: finalUid, 
-      fromStore: true, // Let checkout target identify it originates from food
-      merchantType: "food" // Explicit type definition
+      customerUid: finalUid,customerUid,
+      
+      fromStore: true,
+      merchantType: "food"
     };
 
-    setCart([]);
-    setIsCheckoutOpen(false);
-    navigate("/ticket-checkout", { state: checkoutPayload });
-  };
+    // Cache parameters locally to ensure ticket registration triggers on success callback
+    localStorage.setItem("pending_checkout_payload", JSON.stringify(checkoutPayload));
 
+    try {
+      // 2. Import and initialize Firebase cloud function call
+      const { getFunctions, httpsCallable } = await import("firebase/functions");
+      const functions = getFunctions();
+      const createDirectPaymentSession = httpsCallable(functions, "createDirectPaymentSession");
+
+      // 3. Request session creation matching backend schemas
+      const response = await createDirectPaymentSession({
+        amount: cartTotal,
+        targetBusinessUid: restaurantUid,
+        merchantType: "food",
+        appointmentDetails: {
+          services: cart.map(item => ({
+            serviceName: item.product.name,
+            price: item.product.price,
+            quantity: item.quantity
+          })),
+          stylist: pickupTime, // Passing the pickup time through the standard stylist field
+          duration: 0
+        }
+      });
+
+      const data = response.data as { url?: string };
+
+      if (data?.url) {
+        // Clear local cart states now that the transaction is managed by Stripe
+        setCart([]);
+        setIsCheckoutOpen(false);
+        
+        // Redirect the user directly to the Stripe Checkout UI
+        window.location.href = data.url;
+      } else {
+        throw new Error("Stripe gateway returned an empty checkout link.");
+      }
+    } catch (error: any) {
+      console.error("Stripe Checkout initiation failed:", error);
+      alert(`Payment Initialization Failure:\n${error.message || error}`);
+    }
+  };
   const filteredProducts = products.filter(p =>
     p.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
