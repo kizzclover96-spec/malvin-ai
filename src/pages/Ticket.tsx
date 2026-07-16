@@ -55,7 +55,8 @@ export default function TicketCheckout() {
               localStorage.setItem('saved_customer_name', payload.customerName.trim());
             }
 
-            await addDoc(collection(db, 'orders'), {
+            await addDoc(collection(db, 'orders'), {     // Used by Food.tsx (Merchant Dashboard)
+              targetBusinessUid: payload.targetBusinessUid,
               restaurantUid: payload.targetBusinessUid,
               customerName: payload.customerName,
               pickupTime: payload.time || payload.pickupTime || "",
