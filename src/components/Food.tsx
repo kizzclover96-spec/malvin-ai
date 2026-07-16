@@ -298,13 +298,13 @@ export default function FoodDashboard() {
   };
 
   const handleCheckStripeStatus = async () => {
-    if (!(restaurantData as any)?.stripeAccountId) return;
+    if (!(profile as any)?.stripeAccountId) return;
     setStripeLoading(true);
     try {
       const functions = getFunctions();
       const checkStatus = httpsCallable(functions, 'checkStripeAccount');
       await checkStatus({
-        stripeAccountId: (restaurantData as any).stripeAccountId,
+        stripeAccountId: (profile as any).stripeAccountId,
         businessId: uid,
         merchantType: "food"
       });
