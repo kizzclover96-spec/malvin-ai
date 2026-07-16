@@ -74,6 +74,8 @@ export default function SalonDashboard() {
   const [setupPin, setSetupPin] = useState('');
   const [confirmSetupPin, setConfirmSetupPin] = useState('');
   const [isRegisteringPin, setIsRegisteringPin] = useState(false);
+  const [stripeBalance, setStripeBalance] = useState({ available: 0, pending: 0, total: 0 });
+  const [isFetchingBalance, setIsFetchingBalance] = useState(false);
   
   const handleForgotPinRequest = async () => {
     try {
@@ -502,7 +504,8 @@ export default function SalonDashboard() {
   };
 
   const handleWithdrawProfit = () => {
-    if (!salon || salon.walletBalance <= 0) {
+    // 🟢 FIXED: Use stripeBalance.available instead of salon.walletBalance
+    if (stripeBalance.available <= 0) {
       alert("No profits available to withdraw.");
       return;
     }
@@ -519,7 +522,8 @@ export default function SalonDashboard() {
   };
 
   const handleConfirmPayout = async () => {
-    if (!salon || salon.walletBalance <= 0) {
+    // 🟢 FIXED: Use stripeBalance.available instead of salon.walletBalance
+    if (stripeBalance.available <= 0) {
       alert("No balance available to withdraw.");
       setIsPinModalOpen(false);
       return;
@@ -539,7 +543,7 @@ export default function SalonDashboard() {
       const requestPayout = httpsCallable(functions, 'requestPayout');
 
       const response: any = await requestPayout({
-        amount: salon.walletBalance,
+        amount: stripeBalance.available, // 🟢 FIXED: Request Stripe's live available amount
         pin: pinInput,
         merchantType: "salon" 
       });
@@ -547,6 +551,9 @@ export default function SalonDashboard() {
       if (response.data?.success) {
         alert(`🎉 Success! ${response.data.message}`);
         setIsPinModalOpen(false);
+        
+        // Optionally decrease the balance in UI locally immediately
+        setStripeBalance(prev => ({ ...prev, available: 0, total: prev.pending }));
       }
     } catch (error: any) {
       console.error("Payout initiation failed:", error);
@@ -564,6 +571,29 @@ export default function SalonDashboard() {
       setPinInput(''); 
     }
   };
+  useEffect(() => {
+    const fetchBalance = async () => {
+      if (!auth.currentUser) return;
+      setIsFetchingBalance(true);
+      try {
+        const functions = getFunctions();
+        const getStripeAccountBalance = httpsCallable(functions, 'getStripeAccountBalance');
+        const response = await getStripeAccountBalance({ merchantType: 'salon' });
+        const data = response.data as any;
+        setStripeBalance({
+          available: data.availableBalance || 0,
+          pending: data.pendingBalance || 0,
+          total: data.totalBalance || 0
+        });
+      } catch (error) {
+        console.error("Failed to retrieve live balance from Stripe:", error);
+      } finally {
+        setIsFetchingBalance(false);
+      }
+    };
+
+    fetchBalance();
+  }, []);
 
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -896,7 +926,13 @@ export default function SalonDashboard() {
                 <h3>Account & Ledger</h3>
                 <div className={styles.metaRow}><strong>UID:</strong> <span className={styles.codeText}>{uid}</span></div>
                 <div className={styles.metaRow}><strong>Status:</strong> <span>{salon.status}</span></div>
-                <div className={styles.metaRow}><strong>VIN Wallet Balance:</strong> <span>{currency} {typeof salon.walletBalance === 'number' ? salon.walletBalance.toFixed(2) : (balance || 0).toFixed(2)}</span></div>
+                <div className={styles.metaRow}><strong>VIN Wallet Balance:</strong> <span>{currency}{stripeBalance.available.toFixed(2)}</span>
+                  {stripeBalance.pending > 0 && (
+                    <small style={{ opacity: 0.7, display: 'block' }}>
+                      (Pending settlement: EUR {stripeBalance.pending.toFixed(2)})
+                    </small>
+                  )}
+                </div>
                 
                 {/* Stripe Connector Sub-section */}
                 <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #222' }}>
@@ -1012,8 +1048,8 @@ export default function SalonDashboard() {
         <div className={styles.modalOverlay} style={{ zIndex: 2000 }}>
           <div className={styles.modalContent} style={{ maxWidth: '360px', textAlign: 'center' }}>
             <h3>Authorize Payout</h3>
-            <p style={{ color: '#aaa', fontSize: '14px' }}>Enter your 4-digit security PIN to withdraw {currency}{salon.walletBalance.toFixed(2)}</p>
-            
+            {/* 🟢 FIXED: Display stripeBalance.available instead of salon.walletBalance */}
+            <p style={{ color: '#aaa', fontSize: '14px' }}>Enter your 4-digit security PIN to withdraw {currency}{stripeBalance.available.toFixed(2)}</p>
             <input 
               type="password" 
               maxLength={4}
