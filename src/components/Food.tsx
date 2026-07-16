@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { firestore as db } from '../firebase'; 
 import { getAuth, onAuthStateChanged, signOut  } from 'firebase/auth';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { 
   doc, 
   getDoc, 
@@ -118,7 +119,7 @@ export default function FoodDashboard() {
   const [isRegisteringPin, setIsRegisteringPin] = useState(false);
   const handleForgotPinRequest = async () => {
     try {
-      const { getFunctions, httpsCallable } = await import('firebase/functions');
+      // 🟢 Cleaned up inline imports to use the global functions import
       const requestReset = httpsCallable(getFunctions(), 'requestPinReset');
       
       showToast("Sending verification email...");
@@ -140,7 +141,7 @@ export default function FoodDashboard() {
     }
 
     try {
-      const { getFunctions, httpsCallable } = await import('firebase/functions');
+      // 🟢 Cleaned up inline imports to use the global functions import
       const confirmReset = httpsCallable(getFunctions(), 'confirmPinReset');
 
       showToast("Applying security modifications...");
@@ -159,7 +160,6 @@ export default function FoodDashboard() {
   };
 
   // INITIAL SETUP: Generates a new merchant PIN on the backend
-  // INITIAL SETUP: Generates a new merchant PIN on the backend
   const handleRegisterSetupPin = async () => {
     if (setupPin.length !== 4 || confirmSetupPin.length !== 4) {
       alert("PIN must be exactly 4 digits.");
@@ -172,10 +172,10 @@ export default function FoodDashboard() {
     }
 
     setIsRegisteringPin(true);
-    alert("Registering your secure PIN..."); // Replaced showToast with alert for now
+    alert("Registering your secure PIN...");
 
     try {
-      const { getFunctions, httpsCallable } = await import('firebase/functions');
+      // 🟢 Cleaned up inline imports to use the global functions import
       const setupPinFn = httpsCallable(getFunctions(), 'initializeMerchantPin');
 
       await setupPinFn({
@@ -185,7 +185,6 @@ export default function FoodDashboard() {
 
       alert("🎉 Security PIN successfully established! You can now withdraw funds securely.");
       
-      // FIX: Update local profile state instead of non-existent "food"
       if (profile) setProfile({ ...profile, hasPinConfigured: true });
       
       setIsPinSetupModalOpen(false);
