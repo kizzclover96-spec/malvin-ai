@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { firestore as db } from '../firebase'; // Ensure your firebase configuration is exported here
-import { doc, onSnapshot, collection, addDoc, query, where } from 'firebase/firestore';
+import { doc, onSnapshot, collection, query, where, getDoc } from 'firebase/firestore';
 import styles from './store.module.css';
 import { useParams, useNavigate, useLocation } from "react-router-dom"; 
-import QRCode from "qrcode";
 import { auth } from '../firebase';
+import { httpsCallable } from "firebase/functions";
+import { functions } from "../firebase"; // Ensure your functions object is configured and imported
 
-// --- Interfaces ---
+// --- Interfaces ---\r
 interface RestaurantProfile {
   brandName: string;
   brandBio: string;
@@ -31,495 +32,235 @@ interface CartItem {
   quantity: number;
 }
 
-interface Order {
-  id: string;
-  customerName: string;
-  pickupTime: string;
-  status: 'pending' | 'preparing' | 'in queue' | 'ready for pickup' | 'finished';
-  items: { name: string; quantity: number; price: number }[];
-  fourDigitCode: string;
-}
-
 const VerifiedBadge = () => (
     <svg 
         width="14" 
         height="14" 
         viewBox="0 0 24 24" 
-        fill="#007fff" 
-        style={{ display: 'inline-block', marginLeft: '6px', verticalAlign: 'middle' }}
+        fill="none" 
+        xmlns="http://www.w3.org/2000/svg"
+        style={{ marginLeft: '4px', verticalAlign: 'middle' }}
     >
-        <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+        <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="#007FFF"/>
     </svg>
 );
 
-export const StoreFrontend: React.FC = () => {
-  const { Uid } = useParams();
-  const restaurantUid = Uid || "";
-  
-  // Initialize Hooks
+export const Store: React.FC = () => {
+  const { storeUid } = useParams<{ storeUid: string }>();
   const navigate = useNavigate();
-  const location = useLocation();
-
-  // State
+  
   const [profile, setProfile] = useState<RestaurantProfile | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [userOrders, setUserOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [customerName, setCustomerName] = useState("");
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Modals / Drawers UI Control
-  const [activeProduct, setActiveProduct] = useState<Product | null>(null);
-  const [selectedQty, setSelectedQty] = useState(1);
-  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
-  const [isOrdersOpen, setIsOrdersOpen] = useState(false);
-
-  // Checkout Form State
-  const [customerName, setCustomerName] = useState<string>(() => {
-    return localStorage.getItem('saved_customer_name') || location.state?.orderPayload?.customerName || '';
-  });
-  const [pickupTime, setPickupTime] = useState('');
-  const [currentStatus, setCurrentStatus] = useState('home');
-  const [tableNumber, setTableNumber] = useState('');
-  const [guestId, setGuestId] = useState<string>(() => {
-    return localStorage.getItem('guest_id') || '';
-  });
-  
-  // Code generation state variables
-  const [receiptQrs, setReceiptQrs] = useState<Record<string, string>>({});
-
-  // 1. Real-time Subscription: Restaurant Profile
+  // Load restaurant profile and products
   useEffect(() => {
-    if (!restaurantUid) return;
-    const docRef = doc(db, 'restaurantprofile', restaurantUid);
-    const unsubscribe = onSnapshot(docRef, (docSnap) => {
+    if (!storeUid) return;
+
+    const profileRef = doc(db, 'restaurantprofile', storeUid);
+    const unsubscribeProfile = onSnapshot(profileRef, (docSnap) => {
       if (docSnap.exists()) {
         setProfile(docSnap.data() as RestaurantProfile);
       }
+      setLoading(false);
     });
-    return () => unsubscribe();
-  }, [restaurantUid]);
 
-  // Guest Session setup
-  useEffect(() => {
-    if (auth.currentUser?.uid) {
-      setGuestId(auth.currentUser.uid);
-      localStorage.setItem('guest_id', auth.currentUser.uid);
-      return;
-    }
-
-    const handleIdentityMessage = (event: MessageEvent) => {
-      if ((event.data?.type === "MALVIN_IDENTITY" || event.data?.type === "MALVIN_USER") && event.data?.uid) {
-        console.log("StoreFrontend caught real context identity:", event.data.uid);
-        setGuestId(event.data.uid);
-        localStorage.setItem('guest_id', event.data.uid);
-      }
-    };
-
-    window.addEventListener("message", handleIdentityMessage);
-    
-    const realUid = localStorage.getItem('guest_id');
-    if (realUid && !realUid.includes("-")) {
-      setGuestId(realUid);
-    }
-
-    return () => window.removeEventListener("message", handleIdentityMessage);
-  }, []);
-
-  // Update localStorage cache records
-  useEffect(() => {
-    if (customerName.trim()) {
-      localStorage.setItem('saved_customer_name', customerName.trim());
-    }
-  }, [customerName]);
-
-  // 2. Real-time Subscription: Product Catalog
-  useEffect(() => {
-    if (!restaurantUid) return;
-    const colRef = collection(db, 'Restaurantcatalogue', restaurantUid, 'products');
-    const unsubscribe = onSnapshot(colRef, (querySnapshot) => {
-      const items: Product[] = [];
-      querySnapshot.forEach((doc) => {
-        items.push({ id: doc.id, ...doc.data() } as Product);
+    const productsRef = collection(db, 'restaurantprofile', storeUid, 'products');
+    const unsubscribeProducts = onSnapshot(productsRef, (querySnap) => {
+      const prodList: Product[] = [];
+      querySnap.forEach((d) => {
+        prodList.push({ id: d.id, ...d.data() } as Product);
       });
-      setProducts(items);
-    });
-    return () => unsubscribe();
-  }, [restaurantUid]);
-
-  // 3. Real-time Subscription: Track Orders
-  useEffect(() => {
-    if (!customerName) return;
-
-    const colRef = collection(db, 'orders');
-    const q = query(colRef, where('customerName', '==', customerName.trim()));
-
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const ordersList: Order[] = [];
-      querySnapshot.forEach((docSnap) => {
-        ordersList.push({
-          id: docSnap.id,
-          ...docSnap.data()
-        } as Order);
-      });
-      setUserOrders(ordersList);
+      setProducts(prodList);
     });
 
-    return () => unsubscribe();
-  }, [customerName]);
-
-  // 4. Live Tracking QR Generation Lookups
-  useEffect(() => {
-    const generateQrs = async () => {
-      const qrMap: Record<string, string> = {};
-      for (const order of userOrders) {
-        if (order.fourDigitCode) {
-          try {
-            qrMap[order.id] = await QRCode.toDataURL(
-              JSON.stringify({
-                orderId: order.id,
-                code: order.fourDigitCode,
-                customer: order.customerName,
-              })
-            );
-          } catch (err) {
-            console.error("Failed to generate QR string data: ", err);
-          }
-        }
-      }
-      setReceiptQrs(qrMap);
+    return () => {
+      unsubscribeProfile();
+      unsubscribeProducts();
     };
+  }, [storeUid]);
 
-    if (userOrders.length > 0) {
-      generateQrs();
-    }
-  }, [userOrders]);
-
-  // Handshake Frame Sync Hook
-  useEffect(() => {
-    window.parent.postMessage(
-      {
-        type: "SALON_READY", 
-      },
-      "*"
-    );
-
-    console.log("Sent STORE_READY frame handshake from StoreFrontend to parent wrapper");
-  }, []);
-
-  // 5. Catch Incoming Auto-Bounce Payments from ticket.tsx
-  useEffect(() => {
-    if (location.state?.paymentConfirmed && location.state?.orderPayload) {
-      const confirmedData = location.state.orderPayload;
-      
-      const commitOrderToDatabase = async () => {
-        try {
-          const fourDigitPin = Math.floor(1000 + Math.random() * 9000).toString();
-          
-          setCustomerName(confirmedData.customerName);
-          localStorage.setItem('saved_customer_name', confirmedData.customerName);
-          
-          await addDoc(collection(db, 'orders'), {
-            restaurantUid: restaurantUid,
-            customerName: confirmedData.customerName,
-            pickupTime: confirmedData.time,
-            status: 'pending',
-            items: confirmedData.services.map((s: any) => ({
-              name: s.serviceName,
-              quantity: s.quantity,
-              price: s.price
-            })),
-            fourDigitCode: fourDigitPin,
-            totalPaid: confirmedData.totalPrice,
-            paymentStatus: 'paid',
-            userMobilityStatus: confirmedData.userMobilityStatus,
-            tableNumber: confirmedData.tableNumber,
-            customerUid: confirmedData.customerUid,
-            createdAt: new Date().toISOString()
-          });
-
-          // Open up the tracking drawer immediately
-          setIsOrdersOpen(true);
-          
-          // Clear router configuration state pointers to prevent duplicate records on page refresh
-          navigate(location.pathname, { replace: true, state: {} });
-        } catch (err) {
-          console.error("Failed writing verified order log:", err);
-        }
-      };
-
-      commitOrderToDatabase();
-    }
-  }, [location.state, restaurantUid, navigate, location.pathname]);
-
-  const cartTotal = cart.reduce((acc, item) => acc + (item.product.price * item.quantity), 0);
-
-  // Actions
-  const handleAddToCart = () => {
-    if (!activeProduct) return;
-    setCart([...cart, { product: activeProduct, quantity: selectedQty }]);
-    setActiveProduct(null);
-    setSelectedQty(1);
+  const triggerToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3000);
   };
 
-  // Optimized to package details and transition directly to secure checkout without data duplication
-  const handlePlaceOrder = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (cart.length === 0 || !customerName || !pickupTime) return;
+  const addToCart = (product: Product) => {
+    setCart((prev) => {
+      const existing = prev.find((item) => item.product.id === product.id);
+      if (existing) {
+        return prev.map((item) =>
+          item.product.id === product.id
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
+        );
+      }
+      return [...prev, { product, quantity: 1 }];
+    });
+  };
 
-    const finalUid = auth.currentUser?.uid || guestId;
+  const removeFromCart = (productId: string) => {
+    setCart((prev) => {
+      const existing = prev.find((item) => item.product.id === productId);
+      if (existing && existing.quantity > 1) {
+        return prev.map((item) =>
+          item.product.id === productId
+            ? { ...item, quantity: item.quantity - 1 }
+            : item
+        );
+      }
+      return prev.filter((item) => item.product.id !== productId);
+    });
+  };
 
-    if (!finalUid) {
-      alert("Authentication handling is still initializing. Please wait a brief moment...");
+  const totalCartAmount = cart.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
+
+  // --- Handlers matching salonStore Stripe / Direct / Wallet checkout routing ---
+  const handleProceedToCheckout = async (paymentMethod: 'stripe' | 'wallet') => {
+    const user = auth.currentUser;
+    if (!user) {
+      triggerToast("Please log in to make a purchase.");
+      return;
+    }
+    if (!customerName.trim()) {
+      triggerToast("Please enter an identification name for pickup.");
+      return;
+    }
+    if (cart.length === 0) {
+      triggerToast("Your cart is empty.");
       return;
     }
 
+    // Standardize order payload structure for foodOrders
     const checkoutPayload = {
-      targetBusinessUid: restaurantUid,
-      totalPrice: cartTotal, 
-      services: cart.map(item => ({
-        serviceId: item.product.id,
-        serviceName: item.product.name,
-        price: item.product.price,
-        quantity: item.quantity
-      })),
-      duration: 0,
-      date: new Date().toISOString().split('T')[0],
-      time: pickupTime, 
-      customerName: customerName.trim(),
-      userMobilityStatus: currentStatus,
-      tableNumber: currentStatus === 'in store' ? tableNumber : '',
-      customerUid: finalUid, 
-      fromStore: true, // Let checkout target identify it originates from food
-      merchantType: "food" // Explicit type definition
+      targetBusinessUid: storeUid,
+      amount: totalCartAmount,
+      merchantType: "food",
+      appointmentDetails: {
+        services: cart.map(item => ({
+          serviceName: `${item.quantity}x ${item.product.name}`,
+          price: item.product.price,
+          duration: 0, // Not applicable for food
+        })),
+        stylist: customerName, // Overuse stylist parameter for customerName in general payload mapping
+        duration: 0
+      }
     };
 
-    setCart([]);
-    setIsCheckoutOpen(false);
-    navigate("/ticket-checkout", { state: checkoutPayload });
+    if (paymentMethod === 'stripe') {
+      try {
+        // Save state recovery backup locally
+        localStorage.setItem("pending_checkout_payload", JSON.stringify(checkoutPayload));
+        
+        // Hand off to Ticket checkout page with state
+        navigate("/ticket", { state: { ...checkoutPayload, gateway: "stripe" } });
+      } catch (err: any) {
+        triggerToast("Stripe initiation failed: " + err.message);
+      }
+    } else {
+      // Wallet Payment flow routing directly to Ticket
+      navigate("/ticket", { state: { ...checkoutPayload, gateway: "wallet" } });
+    }
   };
 
-  const filteredProducts = products.filter(p =>
-    p.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  if (loading) {
+    return <div className={styles.loading}>Loading Store...</div>;
+  }
 
-  // ----------------------------------------------------
-  // ⏳ COOLDOWN COOLDOWN BLOCKER
-  // ----------------------------------------------------
-  if (profile?.orderLimitReached) {
-    return (
-      <div className="min-h-screen bg-neutral-950 text-white flex flex-col items-center justify-center p-6 text-center font-sans">
-        <div 
-          className="w-20 h-20 bg-red-500/10 border-2 border-red-500 text-red-500 rounded-full flex items-center justify-center text-3xl mb-6 animate-pulse"
-          style={{ boxShadow: '0 0 20px rgba(239, 68, 68, 0.2)' }}
-        >
-          ⏳
-        </div>
-        <h1 className="text-3xl font-black uppercase tracking-tight mb-2">Store on Cooldown</h1>
-        <p className="text-neutral-400 max-w-sm text-sm mb-6 leading-relaxed">
-          This store has temporarily reached its daily capacity limit. Please check back in the next 24 hours!
-        </p>
-        <div className="text-xs text-neutral-500 uppercase tracking-widest font-bold">
-          Powered by Malvin Platform
-        </div>
-      </div>
-    );
+  if (!profile) {
+    return <div className={styles.error}>Store not found.</div>;
   }
 
   return (
-    <div className={styles.appContainer}>
-      {/* Top Bar */}
-      <header className={styles.topBar}>
-        <div className={styles.brandInfo}>
-          <h1>{profile?.brandName || 'Loading...'} {profile?.isVerified && <VerifiedBadge />}</h1>
-          <p className={styles.brandBio}>{profile?.brandBio || 'Connecting to store...'}</p>
-          
-          {profile?.address && (
-            <p className={styles.brandLocation} style={{ fontSize: '13px', color: '#666', marginTop: '4px' }}>
-              📍 {profile.address}
-            </p>
-          )}
+    <div className={styles.container}>
+      {toastMessage && <div className={styles.toast}>{toastMessage}</div>}
+
+      <header className={styles.header}>
+        <button className={styles.backButton} onClick={() => navigate(-1)}>← Back</button>
+        <div className={styles.brandContainer}>
+          <h1 className={styles.brandName}>
+            {profile.brandName}
+            {profile.isVerified && <VerifiedBadge />}
+          </h1>
+          <p className={styles.brandBio}>{profile.brandBio}</p>
+          {profile.address && <p className={styles.address}>{profile.address}</p>}
         </div>
-        <button className={styles.ordersBtn} onClick={() => setIsOrdersOpen(true)}>
-          Orders ({userOrders.length})
-        </button>
       </header>
 
-      {/* Search Bar */}
-      <div className={styles.searchContainer}>
-        <input 
-          type="text" 
-          placeholder="Search items..." 
-          className={styles.searchBar} 
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
+      <div className={styles.storeBody}>
+        {/* Products catalog list */}
+        <section className={styles.productsSection}>
+          <h2>Menu</h2>
+          <div className={styles.productsGrid}>
+            {products.map((product) => (
+              <div key={product.id} className={styles.productCard}>
+                <img src={product.imageUrl || "/placeholder.png"} alt={product.name} className={styles.productImage} />
+                <div className={styles.productInfo}>
+                  <h3>{product.name}</h3>
+                  <p>{product.description}</p>
+                  <span className={styles.price}>€{product.price.toFixed(2)}</span>
+                </div>
+                <button className={styles.addButton} onClick={() => addToCart(product)}>+</button>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Cart overview section */}
+        {cart.length > 0 && (
+          <section className={styles.cartSection}>
+            <h2>Your Order</h2>
+            <div className={styles.cartItems}>
+              {cart.map((item) => (
+                <div key={item.product.id} className={styles.cartItem}>
+                  <span>{item.quantity}x {item.product.name}</span>
+                  <div className={styles.cartItemControls}>
+                    <button onClick={() => removeFromCart(item.product.id)}>-</button>
+                    <span>€{(item.product.price * item.quantity).toFixed(2)}</span>
+                    <button onClick={() => addToCart(item.product)}>+</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className={styles.cartTotal}>
+              <span>Total:</span>
+              <span>€{totalCartAmount.toFixed(2)}</span>
+            </div>
+
+            <div className={styles.customerInputGroup}>
+              <label htmlFor="customerName">Pickup Name:</label>
+              <input
+                id="customerName"
+                type="text"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                placeholder="e.g. John Doe"
+                className={styles.nameInput}
+              />
+            </div>
+
+            <div className={styles.checkoutActions}>
+              <button 
+                onClick={() => handleProceedToCheckout('wallet')} 
+                className={styles.walletPayButton}
+              >
+                Pay with App Wallet
+              </button>
+              <button 
+                onClick={() => handleProceedToCheckout('stripe')} 
+                className={styles.stripePayButton}
+              >
+                Pay with Card (Stripe)
+              </button>
+            </div>
+          </section>
+        )}
       </div>
 
-      {/* Main Grid Product Catalog */}
-      <main className={styles.catalogContainer}>
-        <div className={styles.grid}>
-          {filteredProducts.map((product) => (
-            <div key={product.id} className={styles.productCard} onClick={() => setActiveProduct(product)}>
-              <img src={product.imageUrl || 'https://via.placeholder.com/150'} alt={product.name} className={styles.productImg} />
-              <div className={styles.productDetails}>
-                <h3 className={styles.productName}>{product.name}</h3>
-                <p className={styles.productDesc}>{product.description}</p>
-                <div className={styles.productFooter}>
-                  <span className={styles.price}>{product.currency || '$'}{product.price}</span>
-                  <button className={styles.addBtn}>+</button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </main>
-
-      {/* Sticky Bottom Cart Indicator */}
-      {cart.length > 0 && (
-        <div className={styles.stickyCart} onClick={() => setIsCheckoutOpen(true)}>
-          <span>View Cart ({cart.reduce((a, b) => a + b.quantity, 0)} items)</span>
-          <span>Total: ${cartTotal.toFixed(2)}</span>
-        </div>
-      )}
-
-      {/* Modal: Item Product Configuration */}
-      {activeProduct && (
-        <div className={styles.drawerOverlay}>
-          <div className={styles.drawer}>
-            <div className={styles.drawerHeader}>
-              <h2>{activeProduct.name}</h2>
-              <button className={styles.closeBtn} onClick={() => setActiveProduct(null)}>✕</button>
-            </div>
-            <p>{activeProduct.description}</p>
-            <div className={styles.qtySelector}>
-              <button className={styles.qtyBtn} onClick={() => setSelectedQty(Math.max(1, selectedQty - 1))}>-</button>
-              <span>{selectedQty}</span>
-              <button className={styles.qtyBtn} onClick={() => setSelectedQty(selectedQty + 1)}>+</button>
-            </div>
-            <button className={styles.ordersBtn} style={{ width: '100%', padding: '16px' }} onClick={handleAddToCart}>
-              Add to Basket
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Modal: Checkout Form Panel */}
-      {isCheckoutOpen && (
-        <div className={styles.drawerOverlay}>
-          <div className={styles.drawer}>
-            <div className={styles.drawerHeader}>
-              <h2>Checkout</h2>
-              <button className={styles.closeBtn} onClick={() => setIsCheckoutOpen(false)}>✕</button>
-            </div>
-            <form onSubmit={handlePlaceOrder}>
-              <div className={styles.inputGroup}>
-                <label>Your Name</label>
-                <input type="text" className={styles.input} required value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder="John Doe" />
-              </div>
-              <div className={styles.inputGroup}>
-                <label>Target Pickup Time</label>
-                <input type="time" className={styles.input} required value={pickupTime} onChange={e => setPickupTime(e.target.value)} />
-              </div>
-              <div className={styles.inputGroup}>
-                <label>Current Status Context</label>
-                <select className={styles.input} value={currentStatus} onChange={e => setCurrentStatus(e.target.value)}>
-                  <option value="home">At Home</option>
-                  <option value="on the way">On the Way</option>
-                  <option value="traffic">Stuck in Traffic</option>
-                  <option value="in store">In Store</option>
-                </select>
-              </div>
-
-              {/* Conditional Table Number Input */}
-              {currentStatus === 'in store' && (
-                <div className={styles.inputGroup} style={{ marginTop: '12px', paddingLeft: '10px', borderLeft: '3px solid #10b981' }}>
-                  <label>Table Number</label>
-                  <input 
-                    type="text" 
-                    className={styles.input} 
-                    required 
-                    value={tableNumber} 
-                    onChange={e => setTableNumber(e.target.value)} 
-                    placeholder="e.g., 5" 
-                  />
-                </div>
-              )}
-
-              <button type="submit" className={styles.ordersBtn} style={{ width: '100%', padding: '16px', background: '#10b981', marginTop: '16px' }}>
-                Proceed to Secure Payment
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Drawer: Active Orders Tracking & Live Receipts */}
-      {isOrdersOpen && (
-        <div className={styles.drawerOverlay}>
-          <div className={styles.drawer}>
-            <div className={styles.drawerHeader}>
-              <h2>Your Tracking Desk</h2>
-              <button className={styles.closeBtn} onClick={() => setIsOrdersOpen(false)}>✕</button>
-            </div>
-            {userOrders.length === 0 ? (
-              <p style={{ color: '#aaa', textAlign: 'center' }}>No current transactions mapped.</p>
-            ) : (
-              userOrders.map((order) => (
-                <div key={order.id} className={styles.orderItem}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <span className={`${styles.statusBadge} ${styles[order.status]}`}>{order.status}</span>
-                    </div>
-                    <small>{order.pickupTime}</small>
-                  </div>
-
-                  {(order.status === 'pending' || order.status !== 'finished') && (
-                    <div style={{ marginTop: '12px', borderTop: '1px dashed #ccc', paddingTop: '12px' }}>
-                      <strong>Digital Receipt Token</strong>
-                      <p style={{ margin: '4px 0', fontSize: '13px' }}>Customer: {order.customerName}</p>
-                      <p style={{ fontSize: '20px', fontWeight: 'bold', margin: '4px 0', color: '#111' }}>
-                        Code: {order.fourDigitCode || '####'}
-                      </p>
-                      
-                      <div style={{ display: "flex", justifyContent: "center", marginTop: "10px" }}>
-                        {receiptQrs[order.id] && (
-                          <img
-                            src={receiptQrs[order.id]}
-                            alt="Order QR"
-                            style={{
-                              width: "120px",
-                              height: "120px",
-                              border: "2px solid #000",
-                              borderRadius: "12px",
-                              padding: "4px",
-                              background: "#fff",
-                            }}
-                          />
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  <div style={{ margin: '8px 0' }}>
-                    {order.items?.map((it, idx) => (
-                      <div key={idx} style={{ fontSize: '13px', display: 'flex', justifyContent: 'space-between' }}>
-                        <span>{it.quantity}x {it.name}</span>
-                        <span>${((it.price || 0) * (it.quantity || 1)).toFixed(2)}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  {order.status === 'finished' && (
-                    <div className={styles.completedBadge}>✓ ORDER COMPLETED</div>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      )}
-      
-      {/* Small Blue Watermark */}
       <div className={styles.watermark}>
         Malvinai
       </div>
