@@ -973,7 +973,7 @@ export default function FoodDashboard() {
               <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #222' }}>
                 <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#fff' }}>Direct Credit Card Payments</h4>
                 
-                {!(restaurantData as any)?.stripeOnboarded ? (
+                {!((profile as any)?.stripeOnboarded) ? (
                   <div>
                     <p style={{ color: '#888', fontSize: '12px', margin: '0 0 12px 0' }}>
                       Connect your Stripe Account to receive card payments directly from customers.
