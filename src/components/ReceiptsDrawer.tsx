@@ -111,7 +111,7 @@ export const ReceiptsDrawer: React.FC<ReceiptsDrawerProps> = ({
                 ) : (
                   sortedReceipts.map((receipt) => {
                     const refId = receipt.referenceId || receipt.ticketId || receipt.id;
-                    const qrSrc = receiptQrs[refId];
+                    const qrSrc = receiptQrs[receipt.id]; // Fixed: Look up using receipt.id to match Front.tsx mapping
                     
                     // Safe pricing calculations
                     const displayTotal = receipt.totalPaid || receipt.totalPrice || receipt.price || 0;
@@ -134,21 +134,21 @@ export const ReceiptsDrawer: React.FC<ReceiptsDrawerProps> = ({
                     return (
                       <div 
                         key={receipt.id} 
-                        className="bg-neutral-50/50 border border-neutral-200/60 rounded-2xl p-4 flex flex-col gap-3 shadow-[0_4px_16px_rgba(0,0,0,0.01)] hover:border-neutral-300 transition-colors relative group"
+                        className="bg-neutral-50/50 border border-neutral-200/60 rounded-2xl p-4 flex flex-col gap-3 shadow-[0_4px_16px_rgba(0,0,0,0.01)] hover:border-neutral-300 transition-colors relative"
                       >
-                        {/* Delete Button (Trash Icon) */}
+                        {/* Smaller, Elegant Delete Button in far top-right corner */}
                         <motion.button
                           whileTap={{ scale: 0.9 }}
                           disabled={isDeletingId === receipt.id}
                           onClick={() => handleDelete(receipt.id, isFoodOrder)}
-                          className="absolute top-4 right-4 p-2 text-neutral-400 hover:text-red-500 bg-transparent hover:bg-red-50 rounded-lg transition-colors z-10"
+                          className="absolute top-2 right-2 p-1.5 text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors z-10"
                           title="Delete Ticket"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </motion.button>
 
-                        {/* Top Info Header */}
-                        <div className="flex justify-between items-start gap-4 pr-8">
+                        {/* Top Info Header with extra right padding so text doesn't overlap delete button */}
+                        <div className="flex justify-between items-start gap-3 pr-4">
                           <div className="space-y-1 flex-1 min-w-0">
                             <span className="inline-flex items-center text-[9px] font-black uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">
                               {receipt.status || 'Paid'}
@@ -161,21 +161,21 @@ export const ReceiptsDrawer: React.FC<ReceiptsDrawerProps> = ({
                             </p>
                           </div>
 
-                          {/* Interactive QR Code Thumbnail */}
+                          {/* Interactive QR Code Thumbnail (mt-3 prevents overlap with delete button) */}
                           {qrSrc ? (
                             <motion.button
                               whileHover={{ scale: 1.05 }}
                               whileTap={{ scale: 0.95 }}
                               onClick={() => setSelectedQr({ src: qrSrc, refId, customerName: receipt.customerName || 'Customer' })}
-                              className="bg-white p-1 rounded-xl border border-neutral-100 shadow-sm flex-shrink-0 cursor-zoom-in relative group/qr"
+                              className="bg-white p-1 rounded-xl border border-neutral-100 shadow-sm flex-shrink-0 cursor-zoom-in relative group/qr mt-3"
                             >
-                              <img src={qrSrc} alt="Ticket QR" className="w-14 h-14" />
+                              <img src={qrSrc} alt="Ticket QR" className="w-12 h-12" />
                               <div className="absolute inset-0 bg-black/40 rounded-xl opacity-0 group-hover/qr:opacity-100 transition-opacity flex items-center justify-center">
-                                <Maximize2 className="w-4 h-4 text-white" />
+                                <Maximize2 className="w-3 h-3 text-white" />
                               </div>
                             </motion.button>
                           ) : (
-                            <div className="w-14 h-14 bg-neutral-100 animate-pulse rounded-xl" />
+                            <div className="w-12 h-12 bg-neutral-100 animate-pulse rounded-xl mt-3" />
                           )}
                         </div>
 
