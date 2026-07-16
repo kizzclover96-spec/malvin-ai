@@ -357,8 +357,12 @@ export const StoreFrontend: React.FC = () => {
         setCart([]);
         setIsCheckoutOpen(false);
         
-        // Redirect the user directly to the Stripe Checkout UI
-        window.location.href = data.url;
+        // 🚀 ESCAPE THE IFRAME: Redirect the top-most browser window to Stripe Checkout
+        if (window.top) {
+          window.top.location.href = data.url;
+        } else {
+          window.location.href = data.url;
+        }
       } else {
         throw new Error("Stripe gateway returned an empty checkout link.");
       }
