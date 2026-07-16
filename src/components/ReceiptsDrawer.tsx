@@ -61,7 +61,7 @@ export const ReceiptsDrawer: React.FC<ReceiptsDrawerProps> = ({
                   Active Passes & Receipts
                 </h3>
                 <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mt-0.5">
-                  {activeReceipts.length} Paid Reservation{activeReceipts.length === 1 ? '' : 's'}
+                  {activeReceipts.length} Active Receipt{activeReceipts.length === 1 ? '' : 's'}
                 </p>
               </div>
               <motion.button
@@ -73,7 +73,7 @@ export const ReceiptsDrawer: React.FC<ReceiptsDrawerProps> = ({
               </motion.button>
             </div>
 
-            {/* Scrollable Appointment Receipt List */}
+            {/* Scrollable Receipt List */}
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
               {sortedReceipts.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-center px-4 py-12">
@@ -82,7 +82,7 @@ export const ReceiptsDrawer: React.FC<ReceiptsDrawerProps> = ({
                   </div>
                   <p className="text-xs font-black uppercase tracking-wider text-neutral-400">No active passes</p>
                   <p className="text-[10.5px] mt-1 text-neutral-400/80 leading-relaxed max-w-[200px]">
-                    Successfully paid receipts will instantly appear here as check-in keys.
+                    Successfully completed orders or bookings will appear here instantly.
                   </p>
                 </div>
               ) : (
@@ -95,12 +95,18 @@ export const ReceiptsDrawer: React.FC<ReceiptsDrawerProps> = ({
 
                   // Parse date fallback cleanly using the FireStore Timestamp "createdAt"
                   let displayDate = receipt.date;
-                  let displayTime = receipt.time;
+                  let displayTime = receipt.time || receipt.pickupTime;
                   if (!displayDate && receipt.createdAt) {
                     const jsDate = receipt.createdAt.toDate ? receipt.createdAt.toDate() : new Date(receipt.createdAt);
                     displayDate = jsDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-                    displayTime = jsDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                    if (!displayTime) {
+                      displayTime = jsDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                    }
                   }
+
+                  // Determine if this is a food order or a salon booking
+                  const isFoodOrder = Array.isArray(receipt.items) && receipt.items.length > 0;
+                  const hasSalonServices = (receipt.services || receipt.selectedServices) && (receipt.services || receipt.selectedServices).length > 0;
 
                   return (
                     <div 
@@ -131,8 +137,8 @@ export const ReceiptsDrawer: React.FC<ReceiptsDrawerProps> = ({
                         )}
                       </div>
 
-                      {/* Dynamic Services Renderer Inside Card */}
-                      {((receipt.services || receipt.selectedServices) && (receipt.services || receipt.selectedServices).length > 0) && (
+                      {/* 💇‍♂️ OPTION A: Salon Services Selection */}
+                      {hasSalonServices && (
                         <div className="bg-white border border-neutral-100/80 rounded-xl p-2.5 space-y-1.5">
                           <span className="text-[9px] font-black text-neutral-400 uppercase tracking-wider block">
                             Services Selected:
@@ -150,17 +156,38 @@ export const ReceiptsDrawer: React.FC<ReceiptsDrawerProps> = ({
                         </div>
                       )}
 
+                      {/* 🍔 OPTION B: Food / Store Order Items Selection */}
+                      {isFoodOrder && (
+                        <div className="bg-white border border-neutral-100/80 rounded-xl p-2.5 space-y-1.5">
+                          <span className="text-[9px] font-black text-neutral-400 uppercase tracking-wider block">
+                            Items Ordered:
+                          </span>
+                          {receipt.items.map((item: any, itemIdx: number) => (
+                            <div key={itemIdx} className="flex justify-between items-center text-[10.5px] text-neutral-600">
+                              <span className="truncate max-w-[150px] font-medium">
+                                {item.quantity}x {item.name}
+                              </span>
+                              <span className="font-bold text-neutral-900">
+                                €{((item.price || 0) * (item.quantity || 1)).toFixed(2)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
                       {/* Footer Metadata Blocks (Date/Time & Price Summary) */}
                       <div className="border-t border-neutral-100 pt-2.5 mt-1 flex flex-col gap-1 text-[10px] text-neutral-500 font-bold">
                         {(displayDate || displayTime) && (
                           <div className="flex items-center gap-1.5">
                             <Calendar className="w-3.5 h-3.5 text-neutral-400" />
-                            <span>{displayDate} {displayTime ? `at ${displayTime}` : ''}</span>
+                            <span>
+                              {displayDate} {displayTime ? `(${isFoodOrder ? 'Pickup at' : 'at'} ${displayTime})` : ''}
+                            </span>
                           </div>
                         )}
                         <div className="flex items-center gap-1.5 text-neutral-800 font-extrabold mt-1">
                           <DollarSign className="w-3.5 h-3.5 text-[#E53935]" />
-                          <span>Total Paid: €{displayTotal}</span>
+                          <span>Total Paid: €{Number(displayTotal).toFixed(2)}</span>
                         </div>
                       </div>
                     </div>
