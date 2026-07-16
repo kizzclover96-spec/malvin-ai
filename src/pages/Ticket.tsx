@@ -2,8 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { QRCodeSVG } from 'qrcode.react'; 
 import { Download, ArrowLeft, CheckCircle, RefreshCw } from 'lucide-react'; 
-import { doc, updateDoc, setDoc } from "firebase/firestore";
-import { firestore as db, functions } from "../firebase"; // Adjust path to match your configuration
+import { firestore as db, functions } from "../firebase";
 import { httpsCallable } from "firebase/functions";
 import { auth } from "../firebase";
 
@@ -42,7 +41,6 @@ export default function TicketCheckout() {
         if (!user) throw new Error("Unauthenticated user context.");
 
         if (payload.gateway === "stripe" && !stripeSuccess) {
-          // 1. Call Create Stripe Session Cloud Function
           const createDirectPaymentSession = httpsCallable(functions, "createDirectPaymentSession");
           const res: any = await createDirectPaymentSession({
             amount: payload.amount,
@@ -57,7 +55,6 @@ export default function TicketCheckout() {
             throw new Error("Unable to initialize direct Stripe session.");
           }
         } else if (payload.gateway === "wallet") {
-          // 2. Call Wallet Balance Payment Cloud Function
           const processPaymentFn = httpsCallable(functions, "processPayment");
           const res: any = await processPaymentFn({
             targetBusinessUid: payload.targetBusinessUid,
@@ -77,7 +74,6 @@ export default function TicketCheckout() {
             throw new Error("Wallet execution failed.");
           }
         } else {
-          // If returning from Stripe Redirect Redirect Session Success
           setTicketDetails(payload);
           setPaymentStatus("success");
           localStorage.removeItem("pending_checkout_payload");
@@ -185,4 +181,3 @@ export default function TicketCheckout() {
     </div>
   );
 }
-  

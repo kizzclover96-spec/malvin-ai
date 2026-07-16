@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { firestore as db } from '../firebase'; // Ensure your firebase configuration is exported here
-import { doc, onSnapshot, collection, query, where, getDoc } from 'firebase/firestore';
+import { firestore as db } from '../firebase'; 
+import { doc, onSnapshot, collection } from 'firebase/firestore';
 import styles from './store.module.css';
-import { useParams, useNavigate, useLocation } from "react-router-dom"; 
+import { useParams, useNavigate } from "react-router-dom"; 
 import { auth } from '../firebase';
-import { httpsCallable } from "firebase/functions";
-import { functions } from "../firebase"; // Ensure your functions object is configured and imported
 
-// --- Interfaces ---\r
+// --- Interfaces ---
 interface RestaurantProfile {
   brandName: string;
   brandBio: string;
@@ -45,7 +43,7 @@ const VerifiedBadge = () => (
     </svg>
 );
 
-export const Store: React.FC = () => {
+export const StoreFrontend: React.FC = () => {
   const { storeUid } = useParams<{ storeUid: string }>();
   const navigate = useNavigate();
   
@@ -118,7 +116,7 @@ export const Store: React.FC = () => {
 
   const totalCartAmount = cart.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
 
-  // --- Handlers matching salonStore Stripe / Direct / Wallet checkout routing ---
+  // Unified payment checkout handler routing to /ticket
   const handleProceedToCheckout = async (paymentMethod: 'stripe' | 'wallet') => {
     const user = auth.currentUser;
     if (!user) {
@@ -134,7 +132,6 @@ export const Store: React.FC = () => {
       return;
     }
 
-    // Standardize order payload structure for foodOrders
     const checkoutPayload = {
       targetBusinessUid: storeUid,
       amount: totalCartAmount,
@@ -143,25 +140,18 @@ export const Store: React.FC = () => {
         services: cart.map(item => ({
           serviceName: `${item.quantity}x ${item.product.name}`,
           price: item.product.price,
-          duration: 0, // Not applicable for food
+          duration: 0,
         })),
-        stylist: customerName, // Overuse stylist parameter for customerName in general payload mapping
+        stylist: customerName, // Carry client identification under the generic stylist string key
         duration: 0
       }
     };
 
+    localStorage.setItem("pending_checkout_payload", JSON.stringify(checkoutPayload));
+
     if (paymentMethod === 'stripe') {
-      try {
-        // Save state recovery backup locally
-        localStorage.setItem("pending_checkout_payload", JSON.stringify(checkoutPayload));
-        
-        // Hand off to Ticket checkout page with state
-        navigate("/ticket", { state: { ...checkoutPayload, gateway: "stripe" } });
-      } catch (err: any) {
-        triggerToast("Stripe initiation failed: " + err.message);
-      }
+      navigate("/ticket", { state: { ...checkoutPayload, gateway: "stripe" } });
     } else {
-      // Wallet Payment flow routing directly to Ticket
       navigate("/ticket", { state: { ...checkoutPayload, gateway: "wallet" } });
     }
   };
@@ -182,8 +172,7 @@ export const Store: React.FC = () => {
         <button className={styles.backButton} onClick={() => navigate(-1)}>← Back</button>
         <div className={styles.brandContainer}>
           <h1 className={styles.brandName}>
-            {profile.brandName}
-            {profile.isVerified && <VerifiedBadge />}
+            {profile.brandName} {profile.isVerified && <VerifiedBadge />}
           </h1>
           <p className={styles.brandBio}>{profile.brandBio}</p>
           {profile.address && <p className={styles.address}>{profile.address}</p>}
@@ -191,7 +180,6 @@ export const Store: React.FC = () => {
       </header>
 
       <div className={styles.storeBody}>
-        {/* Products catalog list */}
         <section className={styles.productsSection}>
           <h2>Menu</h2>
           <div className={styles.productsGrid}>
@@ -209,7 +197,6 @@ export const Store: React.FC = () => {
           </div>
         </section>
 
-        {/* Cart overview section */}
         {cart.length > 0 && (
           <section className={styles.cartSection}>
             <h2>Your Order</h2>
