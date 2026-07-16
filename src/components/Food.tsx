@@ -22,6 +22,7 @@ import { useRef } from "react";
 import { useBusinessWallet } from "../hooks/useBusinessWallet";
 import styles from './salonDashboard.module.css';
 import ConfirmQRScanner from './ConfirmQRScanner';
+import { CheckCircle } from 'lucide-react';
 
 // --- Type Definitions ---
 interface RestaurantData {
@@ -1034,19 +1035,36 @@ export default function FoodDashboard() {
                     <p style={{ color: '#888', fontSize: '12px', margin: '0 0 12px 0' }}>
                       Connect your Stripe Account to receive card payments directly from customers.
                     </p>
-                    <button 
-                      type="button" 
-                      className={styles.glassButtonPrimary} 
-                      onClick={handleConnectStripe}
-                      disabled={isSettingUpStripe}
-                      style={{ background: '#635BFF', color: '#fff', border: 'none' }}
-                    >
-                      {isSettingUpStripe ? "Connecting..." : "Link Stripe Account"}
-                    </button>
+                    
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <button 
+                        type="button" 
+                        className={styles.glassButtonPrimary} 
+                        onClick={handleConnectStripe}
+                        disabled={isSettingUpStripe}
+                        style={{ background: '#635BFF', color: '#fff', border: 'none' }}
+                      >
+                        {isSettingUpStripe ? "Connecting..." : "Link Stripe Account"}
+                      </button>
+
+                      {/* 🟢 VERIFY CONNECTION BUTTON FOR UNONBOARDED ACCOUNTS */}
+                      {(profile as any)?.stripeAccountId && (
+                        <button
+                          type="button"
+                          className={styles.glassButtonSecondary}
+                          onClick={handleCheckStripeStatus}
+                          disabled={stripeLoading}
+                          style={{ width: '100%' }}
+                        >
+                          {stripeLoading ? "Verifying Setup..." : "Verify Connection Status"}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ) : (
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#4BB543', fontSize: '13px', fontWeight: 'bold', marginBottom: '8px' }}>
+                      {/* Make sure CheckCircle is imported from 'lucide-react' if not already */}
                       <CheckCircle size={16} /> Direct Payments Enabled
                     </div>
                     <button
@@ -1054,12 +1072,14 @@ export default function FoodDashboard() {
                       className={styles.glassButtonSecondary}
                       onClick={handleCheckStripeStatus}
                       disabled={stripeLoading}
+                      style={{ width: '100%' }}
                     >
                       {stripeLoading ? "Checking..." : "Refresh Status"}
                     </button>
                   </div>
                 )}
               </div>
+
               <button type="button" className={styles.glassButtonPrimary} style={{ marginTop: '12px' }} onClick={handleWithdrawProfit}>
                 Withdraw Profit
               </button>
