@@ -74,7 +74,7 @@ export default function ConfirmQRScanner({ onCrosscheck, onClose }: ConfirmQRSca
         <div style={{ position: "relative", flex: 1 }}>
           <input 
             type="text" 
-            placeholder="Type or Scan Receipt Ticket ID..." 
+            placeholder="Type 4-Digit Code or Scan Receipt ID..." 
             value={ticketInput}
             onChange={(e) => setTicketInput(e.target.value)}
             style={{ 
@@ -116,6 +116,11 @@ export default function ConfirmQRScanner({ onCrosscheck, onClose }: ConfirmQRSca
           Crosscheck
         </button>
       </form>
+
+      {/* Helper label indicating double verification support */}
+      <p style={{ fontSize: '11px', color: '#666', textAlign: 'center', margin: '0' }}>
+        Tip: You can manually type the customer's unique 4-digit code or scan the ticket's QR code.
+      </p>
 
       {/* Camera target mount zone */}
       {isCameraActive && (

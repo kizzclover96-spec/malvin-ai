@@ -677,39 +677,56 @@ export default function FoodDashboard() {
   const [scanResultMsg, setScanResultMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
   // Handler to verify and delete processed receipts 
+  // Handler to verify and delete processed receipts 
   const handleScanReceiptCode = async (scannedOutput: string) => {
     if (!scannedOutput) return;
     
-    let targetOrderId = scannedOutput.trim();
+    let targetIdOrCode = scannedOutput.trim();
 
     // 1. Safe parsing: If a different route gives a full URL link path, extract just the end ID
-    if (targetOrderId.includes('/')) {
-      targetOrderId = targetOrderId.split('/').pop() || targetOrderId;
+    if (targetIdOrCode.includes('/')) {
+      targetIdOrCode = targetIdOrCode.split('/').pop() || targetIdOrCode;
     }
 
-    // 2. Safe parsing: If a different template formats it as an object
+    let parsedOrderId: string | null = null;
+    let parsedFourDigitCode: string | null = null;
+
+    // 2. Safe parsing: If scanned from a JSON QR object, extract the properties
     try {
-      const parsed = JSON.parse(targetOrderId);
-      if (parsed.orderId) targetOrderId = parsed.orderId;
+      const parsed = JSON.parse(targetIdOrCode);
+      parsedOrderId = parsed.orderId || parsed.ticketId || null;
+      parsedFourDigitCode = parsed.code || parsed.referenceId || null;
     } catch (e) {
-      // Keep targetOrderId unchanged if it's a plain text token
+      // scannedOutput is a plain text string (e.g. typed "1234" or typed/scanned orderId)
     }
 
     try {
-      const matchedOrder = incomingOrders.find(o => o.id === targetOrderId);
+      // 3. Robust lookup: Match by Order ID OR by the unique 4-digit code (case-insensitive)
+      const matchedOrder = incomingOrders.find(o => {
+        const orderId = o.id;
+        const fourDigitCode = o.fourDigitCode ? String(o.fourDigitCode).trim().toLowerCase() : null;
+        const searchToken = targetIdOrCode.toLowerCase();
+
+        return (
+          orderId === targetIdOrCode || // exact ID match (typed/scanned)
+          orderId === parsedOrderId ||   // JSON-extracted ID match
+          fourDigitCode === searchToken || // exact 4-digit code match (typed/scanned)
+          (parsedFourDigitCode && fourDigitCode === parsedFourDigitCode.toLowerCase()) // JSON-extracted code match
+        );
+      });
       
       if (matchedOrder) {
-        const orderDocRef = doc(db, 'orders', targetOrderId);
+        const orderDocRef = doc(db, 'orders', matchedOrder.id);
         await deleteDoc(orderDocRef);
         
         setScanResultMsg({ 
           type: 'success', 
-          text: `Order verified for ${matchedOrder.customerName}! Ticket removed.` 
+          text: `Order verified for ${matchedOrder.customerName} (#${matchedOrder.fourDigitCode})! Ticket removed.` 
         });
       } else {
         setScanResultMsg({ 
           type: 'error', 
-          text: "Order doesn't exist or was already cleared." 
+          text: "Ticket/Code doesn't exist or was already cleared." 
         });
       }
     } catch (err) {
