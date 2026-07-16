@@ -319,7 +319,7 @@ export const StoreFrontend: React.FC = () => {
       customerName: customerName.trim(),
       userMobilityStatus: currentStatus,
       tableNumber: currentStatus === 'in store' ? tableNumber : '',
-      customerUid: finalUid,customerUid,
+      customerUid: finalUid,
       
       fromStore: true,
       merchantType: "food"
