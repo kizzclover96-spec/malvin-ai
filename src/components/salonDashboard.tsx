@@ -352,6 +352,7 @@ export default function SalonDashboard() {
   };
 
   // Day Categorizer Engine
+  // Day Categorizer Engine
   const categorizeAppointments = () => {
     const categories: { [key: string]: LiveAppointment[] } = {
       'Yesterday': [],
@@ -370,7 +371,9 @@ export default function SalonDashboard() {
         categories['Today'].push(booking);
         return;
       }
-      const dateMillis = booking.createdAt.seconds ? booking.createdAt.seconds * 1000 : new Date(booking.createdAt).getTime();
+      const dateMillis = booking.createdAt.seconds 
+        ? booking.createdAt.seconds * 1000 
+        : new Date(booking.createdAt).getTime();
       
       if (dateMillis >= startOfToday && dateMillis < startOfToday + oneDayMs) {
         categories['Today'].push(booking);
@@ -383,6 +386,25 @@ export default function SalonDashboard() {
       } else {
         categories['Older'].push(booking);
       }
+    });
+
+    // 🌟 Sort each category so that the newest appointments appear at the top
+    Object.keys(categories).forEach(key => {
+      categories[key].sort((a, b) => {
+        const timeA = a.createdAt?.seconds 
+          ? a.createdAt.seconds * 1000 
+          : a.createdAt 
+            ? new Date(a.createdAt).getTime() 
+            : Date.now(); // Fallback to current time if createdAt is temporarily null/local-cache
+
+        const timeB = b.createdAt?.seconds 
+          ? b.createdAt.seconds * 1000 
+          : b.createdAt 
+            ? new Date(b.createdAt).getTime() 
+            : Date.now();
+
+        return timeB - timeA; // Descending order (newest first)
+      });
     });
 
     return categories;
@@ -874,7 +896,7 @@ export default function SalonDashboard() {
                 <h3>Account & Ledger</h3>
                 <div className={styles.metaRow}><strong>UID:</strong> <span className={styles.codeText}>{uid}</span></div>
                 <div className={styles.metaRow}><strong>Status:</strong> <span>{salon.status}</span></div>
-                <div className={styles.metaRow}><strong>VIN Wallet Balance:</strong> <span>{currency} {(salon.walletBalance || balance).toFixed(2)}</span></div>
+                <div className={styles.metaRow}><strong>VIN Wallet Balance:</strong> <span>{currency} {typeof salon.walletBalance === 'number' ? salon.walletBalance.toFixed(2) : (balance || 0).toFixed(2)}</span></div>
                 
                 {/* Stripe Connector Sub-section */}
                 <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #222' }}>
