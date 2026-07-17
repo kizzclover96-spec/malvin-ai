@@ -246,6 +246,19 @@ const Dashboard = (props: any) => {
     const [isVerified, setIsVerified] = useState(false);
     const [isSavingBio, setIsSavingBio] = useState(false);
 
+    // 1. Add a custom React state hook inside your Dashboard component (near the other states)
+    // to dynamically track if the user is on mobile:
+    const [isMobile, setIsMobile] = useState(false);
+
+    useEffect(() => {
+        const handleResize = () => {
+            setIsMobile(window.innerWidth <= 768);
+        };
+        handleResize(); // run on mount
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
     const videoRef = useRef<HTMLVideoElement>(null);
     const visionInterval = useRef<any>(null);
     const chatEndRef = useRef<HTMLDivElement>(null);
@@ -1052,7 +1065,7 @@ const Dashboard = (props: any) => {
 
                     {/* Header */}
                     <div style={{
-                        ...headerWrapper, 
+                        ...headerWrapper(isMobile),
                         display: 'flex', 
                         justifyContent: 'space-between', 
                         alignItems: 'center', 
@@ -1073,10 +1086,10 @@ const Dashboard = (props: any) => {
                             userEmail={userEmail}
                         />
                         
-                        <div data-tour="nav" style={navPillStyle}>
+                        <div data-tour="nav" style={navPillStyle(isMobile)}>
                             {['Ads', 'Dashboard', 'Payments', 'Chats', 'Catalog'].map(item => (
                                 <div key={item} onClick={() => setActiveTab(item)} style={{
-                                    ...navItemStyle,
+                                    ...navItemStyle(isMobile),
                                     backgroundColor: activeTab === item ? '#C5FF41' : 'transparent',
                                     color: activeTab === item ? 'black' : '#666',
                                 }}>
@@ -1108,7 +1121,7 @@ const Dashboard = (props: any) => {
                         (
                             <div style={bentoGridStyle}>
                                 {/* Upper Bento*/} 
-                                <div style={upperGridStyle}>
+                                <div style={upperGridStyle(isMobile)}>
                                     <DashboardCard>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                                             <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
@@ -1245,7 +1258,7 @@ const Dashboard = (props: any) => {
                                 </div>
 
                                 {/* Lower Grid */} 
-                                <div style={lowerGridStyle}>
+                                <div style={lowerGridStyle(isMobile)}>
                                     <DashboardCard style={{ overflowY: 'auto' }}>
                                         <div style={{ background: '#000', padding: '15px', borderRadius: '12px', border: '1px solid #222', marginBottom: '20px' }}>
                                             <p data-tour="vinlink" style={{ fontSize: '10px', color: '#666', marginBottom: '8px' }}>Vin LINK</p>
@@ -1586,6 +1599,217 @@ const Dashboard = (props: any) => {
 };
 
 // Styles
+// Dynamic Styles depending on isMobile
+const mainContainerStyle: React.CSSProperties = { 
+    backgroundColor: '#000', 
+    height: '100vh', 
+    width: '100%', 
+    color: 'white', 
+    display: 'flex', 
+    flexDirection: 'column', 
+    overflow: 'hidden' 
+};
+
+const headerWrapper = (isMobile: boolean): React.CSSProperties => ({ 
+    width: '100%', 
+    maxWidth: '1400px', 
+    margin: '0 auto', 
+    padding: isMobile ? '12px 16px' : '20px', 
+    display: 'flex', 
+    flexDirection: isMobile ? 'column' : 'row',
+    alignItems: isMobile ? 'stretch' : 'center', 
+    position: 'relative',
+    gap: isMobile ? '12px' : '16px'
+});
+
+const navPillStyle = (isMobile: boolean): React.CSSProperties => ({ 
+    position: isMobile ? 'static' : 'absolute', 
+    left: isMobile ? 'auto' : '50%', 
+    transform: isMobile ? 'none' : 'translateX(-50%)', 
+    background: '#111', 
+    padding: '4px', 
+    borderRadius: '40px', 
+    display: 'flex', 
+    gap: '4px', 
+    border: '1px solid #222',
+    overflowX: isMobile ? 'auto' : 'visible',
+    whiteSpace: 'nowrap',
+    width: isMobile ? '100%' : 'auto',
+    WebkitOverflowScrolling: 'touch' // smooth scrolling on iOS
+});
+
+const navItemStyle = (isMobile: boolean): React.CSSProperties => ({ 
+    position: 'relative', 
+    padding: isMobile ? '8px 16px' : '10px 24px', 
+    borderRadius: '30px', 
+    fontSize: isMobile ? '11px' : '13px', 
+    fontWeight: 600, 
+    cursor: 'pointer', 
+    transition: '0.3s',
+    flexShrink: 0
+});
+
+const unreadDotStyle: React.CSSProperties = { 
+    position: 'absolute', 
+    top: '4px', 
+    right: '8px', 
+    width: '6px', 
+    height: '6px', 
+    borderRadius: '50%', 
+    background: '#FF4141', 
+    border: '2px solid #111' 
+};
+
+const contentWrapper: React.CSSProperties = { 
+    flex: 1, 
+    padding: '0 16px 16px 16px', 
+    overflowY: 'auto', // changed from 'hidden' to let mobile stack-scroll naturally
+    display: 'flex', 
+    flexDirection: 'column' 
+};
+
+const bentoGridStyle: React.CSSProperties = { 
+    flex: 1, 
+    display: 'flex', 
+    flexDirection: 'column', 
+    gap: '16px', 
+    maxWidth: '1400px', 
+    margin: '0 auto', 
+    width: '100%'
+};
+
+const upperGridStyle = (isMobile: boolean): React.CSSProperties => ({ 
+    display: 'grid', 
+    gridTemplateColumns: isMobile ? '1fr' : '1.2fr 1fr', 
+    gap: '16px', 
+    flexShrink: 0 
+});
+
+const lowerGridStyle = (isMobile: boolean): React.CSSProperties => ({ 
+    display: 'grid', 
+    gridTemplateColumns: isMobile ? '1fr' : '400px 1fr', 
+    gap: '16px', 
+    flex: isMobile ? 'none' : 1, 
+    minHeight: 0 
+});
+
+const progressBarStyle: React.CSSProperties = { 
+    height: '8px', 
+    width: '100%', 
+    background: '#222', 
+    borderRadius: '10px', 
+    overflow: 'hidden' 
+};
+
+const actionBtnStyle: React.CSSProperties = { 
+    padding: '12px 20px', 
+    borderRadius: '20px', 
+    background: '#C5FF41', 
+    border: 'none', 
+    fontWeight: 700, 
+    cursor: 'pointer',
+    width: '100%',
+    textAlign: 'center'
+};
+
+const codeStyle: React.CSSProperties = { 
+    color: '#C5FF41', 
+    fontSize: '11px', 
+    wordBreak: 'break-all', 
+    flex: 1 
+};
+
+const qrContainerStyle: React.CSSProperties = { 
+    background: 'rgba(255,255,255,0.02)', 
+    padding: '15px', 
+    borderRadius: '20px', 
+    border: '1px solid #222', 
+    display: 'flex', 
+    flexDirection: 'row',
+    alignItems: 'center', 
+    gap: '15px',
+    justifyContent: 'space-between'
+};
+
+const qrBoxStyle: React.CSSProperties = { 
+    background: '#000', 
+    padding: '8px', 
+    borderRadius: '12px', 
+    border: '1px solid #C5FF41', 
+    lineHeight: 0,
+    flexShrink: 0
+};
+
+const secondaryBtnStyle: React.CSSProperties = { 
+    padding: '8px 12px', 
+    borderRadius: '10px', 
+    background: 'transparent', 
+    color: 'white', 
+    border: '1px solid #333', 
+    fontWeight: 600, 
+    cursor: 'pointer', 
+    fontSize: '11px' 
+};
+
+const toastStyle: React.CSSProperties = { 
+    position: 'fixed', 
+    top: '20px', 
+    left: '50%', 
+    transform: 'translateX(-50%)', 
+    zIndex: 10000, 
+    width: 'calc(100% - 32px)', 
+    maxWidth: '380px', 
+    background: '#1A1A1A', 
+    border: '1px solid #C5FF41', 
+    borderRadius: '20px', 
+    padding: '16px', 
+    display: 'flex', 
+    alignItems: 'center', 
+    gap: '15px', 
+    cursor: 'pointer', 
+    boxShadow: '0 10px 40px rgba(0,0,0,0.5)' 
+};
+
+const aiChatArea: React.CSSProperties = { 
+    flex: 1, 
+    minHeight: '200px', // Prevents collapse on mobile vertical scroll setups
+    background: '#080808', 
+    borderRadius: '24px', 
+    padding: '16px', 
+    overflowY: 'auto', 
+    display: 'flex', 
+    flexDirection: 'column', 
+    gap: '10px' 
+};
+
+const aiInputStyle: React.CSSProperties = { 
+    flex: 1, 
+    background: '#111', 
+    border: '1px solid #333', 
+    borderRadius: '15px', 
+    padding: '12px', 
+    color: '#fff',
+    minWidth: '0px' // fixes input expanding beyond parent card boundary on small screen sizes
+};
+
+const aiSendBtn: React.CSSProperties = { 
+    background: '#C5FF41', 
+    border: 'none', 
+    padding: '0 20px', 
+    borderRadius: '15px', 
+    fontWeight: 700, 
+    cursor: 'pointer' 
+};
+
+const visionBadge: React.CSSProperties = { 
+    padding: '6px 12px', 
+    borderRadius: '12px', 
+    cursor: 'pointer', 
+    fontSize: '9px', 
+    fontWeight: 700, 
+    letterSpacing: '1px' 
+};
+
 const modalOverlayStyle: React.CSSProperties = {
     position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
     backgroundColor: 'rgba(0,0,0,0.9)', zIndex: 20000,
@@ -1593,32 +1817,12 @@ const modalOverlayStyle: React.CSSProperties = {
 };
 
 const calendarCardStyle: React.CSSProperties = {
-    background: '#111', border: '1px solid #1A1A1A', padding: '30px', 
-    borderRadius: '32px', width: '400px', textAlign: 'center', boxShadow: '0 20px 50px rgba(0,0,0,0.5)'
+    background: '#111', border: '1px solid #1A1A1A', padding: '24px', 
+    borderRadius: '32px', width: '90%', maxWidth: '400px', textAlign: 'center', boxShadow: '0 20px 50px rgba(0,0,0,0.5)'
 };
 
 const dateRowStyle: React.CSSProperties = {
     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
     padding: '12px 0', borderBottom: '1px solid #1A1A1A', fontSize: '13px', fontFamily: 'monospace'
 };
-const mainContainerStyle: React.CSSProperties = { backgroundColor: '#000', height: '100vh', width: '100%', color: 'white', display: 'flex', flexDirection: 'column', overflow: 'hidden' };
-const headerWrapper: React.CSSProperties = { width: '100%', maxWidth: '1400px', margin: '0 auto', padding: '20px', display: 'flex', alignItems: 'center', position: 'relative' };
-const navPillStyle: React.CSSProperties = { position: 'absolute', left: '50%', transform: 'translateX(-50%)', background: '#111', padding: '6px', borderRadius: '40px', display: 'flex', gap: '5px', border: '1px solid #222' };
-const navItemStyle: React.CSSProperties = { position: 'relative', padding: '10px 24px', borderRadius: '30px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: '0.3s' };
-const unreadDotStyle: React.CSSProperties = { position: 'absolute', top: '6px', right: '12px', width: '8px', height: '8px', borderRadius: '50%', background: '#FF4141', border: '2px solid #111' };
-const contentWrapper: React.CSSProperties = { flex: 1, padding: '0 20px 20px 20px', overflow: 'hidden', display: 'flex', flexDirection: 'column' };
-const bentoGridStyle: React.CSSProperties = { flex: 1, display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '1400px', margin: '0 auto', width: '100%', overflow: 'hidden' };
-const upperGridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '20px', flexShrink: 0 };
-const lowerGridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: '400px 1fr', gap: '20px', flex: 1, minHeight: 0 };
-const progressBarStyle: React.CSSProperties = { height: '8px', width: '100%', background: '#222', borderRadius: '10px', overflow: 'hidden' };
-const actionBtnStyle: React.CSSProperties = { padding: '16px 24px', borderRadius: '20px', background: '#C5FF41', border: 'none', fontWeight: 700, cursor: 'pointer' };
-const codeStyle: React.CSSProperties = { color: '#C5FF41', fontSize: '11px', wordBreak: 'break-all', flex: 1 };
-const qrContainerStyle: React.CSSProperties = { background: 'rgba(255,255,255,0.02)', padding: '15px', borderRadius: '20px', border: '1px solid #222', display: 'flex', alignItems: 'center', gap: '15px' };
-const qrBoxStyle: React.CSSProperties = { background: '#000', padding: '8px', borderRadius: '12px', border: '1px solid #C5FF41', lineHeight: 0 };
-const secondaryBtnStyle: React.CSSProperties = { padding: '8px 12px', borderRadius: '10px', background: 'transparent', color: 'white', border: '1px solid #333', fontWeight: 600, cursor: 'pointer', fontSize: '11px' };
-const toastStyle: React.CSSProperties = { position: 'fixed', top: '30px', left: '50%', zIndex: 10000, width: '380px', background: '#1A1A1A', border: '1px solid #C5FF41', borderRadius: '20px', padding: '16px', display: 'flex', alignItems: 'center', gap: '15px', cursor: 'pointer', boxShadow: '0 10px 40px rgba(0,0,0,0.5)' };
-const aiChatArea: React.CSSProperties = { flex: 1, background: '#080808', borderRadius: '24px', padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px' };
-const aiInputStyle: React.CSSProperties = { flex: 1, background: '#111', border: '1px solid #333', borderRadius: '15px', padding: '12px', color: '#fff' };
-const aiSendBtn: React.CSSProperties = { background: '#C5FF41', border: 'none', padding: '0 20px', borderRadius: '15px', fontWeight: 700, cursor: 'pointer' };
-const visionBadge: React.CSSProperties = { padding: '8px 16px', borderRadius: '12px', cursor: 'pointer', fontSize: '10px', fontWeight: 700, letterSpacing: '1px' };
 export default Dashboard;
