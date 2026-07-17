@@ -36,6 +36,8 @@ interface SalonData {
   walletBalance: number;
   status: string;
   hasPinConfigured?: boolean;
+  stripeOnboarded?: boolean;
+  stripeAccountId?: string;
 }
 
 interface LiveAppointment {
@@ -354,7 +356,6 @@ export default function SalonDashboard() {
   };
 
   // Day Categorizer Engine
-  // Day Categorizer Engine
   const categorizeAppointments = () => {
     const categories: { [key: string]: LiveAppointment[] } = {
       'Yesterday': [],
@@ -397,7 +398,7 @@ export default function SalonDashboard() {
           ? a.createdAt.seconds * 1000 
           : a.createdAt 
             ? new Date(a.createdAt).getTime() 
-            : Date.now(); // Fallback to current time if createdAt is temporarily null/local-cache
+            : Date.now(); 
 
         const timeB = b.createdAt?.seconds 
           ? b.createdAt.seconds * 1000 
@@ -405,7 +406,7 @@ export default function SalonDashboard() {
             ? new Date(b.createdAt).getTime() 
             : Date.now();
 
-        return timeB - timeA; // Descending order (newest first)
+        return timeB - timeA; 
       });
     });
 
@@ -460,7 +461,7 @@ export default function SalonDashboard() {
       const accountRes: any = await createAccount({ 
         email: auth.currentUser?.email || "", 
         businessId: uid, 
-        merchantType: "salon" // 👈 Set to "salon"
+        merchantType: "salon" 
       });
       
       const { stripeAccountId } = accountRes.data;
@@ -470,7 +471,6 @@ export default function SalonDashboard() {
       const linkRes: any = await createLink({ stripeAccountId });
       
       if (linkRes.data?.url) {
-        // Redirect them to Stripe's onboarding portal
         window.location.href = linkRes.data.url;
       } else {
         alert("Failed to get onboarding link.");
@@ -504,7 +504,6 @@ export default function SalonDashboard() {
   };
 
   const handleWithdrawProfit = () => {
-    // 🟢 FIXED: Use stripeBalance.available instead of salon.walletBalance
     if (stripeBalance.available <= 0) {
       alert("No profits available to withdraw.");
       return;
@@ -522,7 +521,6 @@ export default function SalonDashboard() {
   };
 
   const handleConfirmPayout = async () => {
-    // 🟢 FIXED: Use stripeBalance.available instead of salon.walletBalance
     if (stripeBalance.available <= 0) {
       alert("No balance available to withdraw.");
       setIsPinModalOpen(false);
@@ -543,7 +541,7 @@ export default function SalonDashboard() {
       const requestPayout = httpsCallable(functions, 'requestPayout');
 
       const response: any = await requestPayout({
-        amount: stripeBalance.available, // 🟢 FIXED: Request Stripe's live available amount
+        amount: stripeBalance.available, 
         pin: pinInput,
         merchantType: "salon" 
       });
@@ -551,8 +549,6 @@ export default function SalonDashboard() {
       if (response.data?.success) {
         alert(`🎉 Success! ${response.data.message}`);
         setIsPinModalOpen(false);
-        
-        // Optionally decrease the balance in UI locally immediately
         setStripeBalance(prev => ({ ...prev, available: 0, total: prev.pending }));
       }
     } catch (error: any) {
@@ -571,6 +567,7 @@ export default function SalonDashboard() {
       setPinInput(''); 
     }
   };
+  
   useEffect(() => {
     const fetchBalance = async () => {
       if (!auth.currentUser) return;
@@ -755,9 +752,7 @@ export default function SalonDashboard() {
         </div>
       </main>
 
-      {/* ==========================================
-          🆕 SCAN SUCCESS: APPOINTMENT DETAILS OVERLAY
-          ========================================== */}
+      {/* APPOINTMENT DETAILS OVERLAY */}
       {scannedResult && (
         <div className={styles.modalOverlay} style={{ zIndex: 4000, padding: '20px', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.85)' }}>
           <div className={styles.modalContent} style={{ width: '100%', maxWidth: '420px', borderRadius: '24px', padding: '28px', border: '1px solid #333', textAlign: 'left', background: '#0e0e0e', boxSizing: 'border-box' }}>
@@ -935,13 +930,10 @@ export default function SalonDashboard() {
                 </div>
                 
                 {/* Stripe Connector Sub-section */}
-                {/* CARD 4: STRIPE LIVE EARNINGS */}
-                <div className={styles.card}>
-                  <h2 className={styles.sectionTitle} style={{ borderBottom: '2.5px solid black', paddingBottom: '8px', marginBottom: '16px' }}>
-                    Business Earnings
-                  </h2>
+                <div className={styles.card} style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #222' }}>
+                  <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#fff' }}>Direct Credit Card Payments</h4>
 
-                  {!((profile as any)?.stripeOnboarded) ? (
+                  {!((salon as any)?.stripeOnboarded) ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                       <p style={{ fontSize: '12px', fontWeight: '600', color: '#666', lineHeight: '1.5' }}>
                         Connect your Stripe Account to receive card payments directly from clients and view your live balance.
@@ -970,7 +962,7 @@ export default function SalonDashboard() {
                         </button>
 
                         {/* VERIFY CONNECTION BUTTON FOR UNONBOARDED ACCOUNTS */}
-                        {(profile as any)?.stripeAccountId && (
+                        {(salon as any)?.stripeAccountId && (
                           <button 
                             type="button" 
                             onClick={handleCheckStripeStatus} 
@@ -999,9 +991,9 @@ export default function SalonDashboard() {
                       <div 
                         style={{
                           display: 'flex',
-                          justifyContent: 'between',
+                          justifyContent: 'space-between',
                           alignItems: 'center',
-                          backgroundColor: '#ecfeff', // cyan-50
+                          backgroundColor: '#ecfeff', 
                           padding: '16px',
                           border: '2.5px solid black',
                           borderRadius: '16px',
@@ -1092,7 +1084,6 @@ export default function SalonDashboard() {
         <div className={styles.modalOverlay} style={{ zIndex: 2000 }}>
           <div className={styles.modalContent} style={{ maxWidth: '360px', textAlign: 'center' }}>
             <h3>Authorize Payout</h3>
-            {/* 🟢 FIXED: Display stripeBalance.available instead of salon.walletBalance */}
             <p style={{ color: '#aaa', fontSize: '14px' }}>Enter your 4-digit security PIN to withdraw {currency}{stripeBalance.available.toFixed(2)}</p>
             <input 
               type="password" 
