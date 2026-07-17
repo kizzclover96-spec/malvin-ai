@@ -1266,7 +1266,7 @@ const Dashboard = (props: any) => {
                                                 <code style={codeStyle}>{shareUrl}</code>
                                             </div>
                                         </div>
-                                        <div data-tour="store-qr" style={qrContainerStyle(isMobile)}
+                                        <div data-tour="store-qr" style={qrContainerStyle(isMobile)}>
                                             <div style={{ flex: 1 }}>
                                                 <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '10px' }}>Online Store</div>
                                                 {/* Changed layout to a column to stack the Download button above the Preview button */}
