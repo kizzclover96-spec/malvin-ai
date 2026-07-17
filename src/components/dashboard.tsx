@@ -1337,7 +1337,7 @@ const Dashboard = (props: any) => {
                     )}
                     {showCalendar && (
                         <div style={modalOverlayStyle} onClick={() => { setShowCalendar(false); setShowSettings(false); }}>
-                            <div style={{ ...calendarCardStyle(isMobile)}, maxWidth: '400px', position: 'relative' }} onClick={e => e.stopPropagation()}>
+                            <div style={{ ...calendarCardStyle(isMobile), maxWidth: '400px', position: 'relative' }} onClick={e => e.stopPropagation()}>
                                 
                                 {/* HEADER ROW WITH INTEGRATED SETTINGS TOGGLE */}
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
