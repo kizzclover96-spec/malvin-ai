@@ -482,6 +482,7 @@ export const requestPayout = onCall(
     const securityRef = businessDocRef.collection("private").doc("security");
 
     try {
+      // 1. Validate permissions, credentials, and pull Stripe details securely
       const result = await db.runTransaction(async (transaction: typeof Transaction) => {
         const docSnap = await transaction.get(businessDocRef);
         const securitySnap = await transaction.get(securityRef);
@@ -496,7 +497,6 @@ export const requestPayout = onCall(
         const data = docSnap.data();
         const securityData = securitySnap.data();
 
-        const currentBalance = data?.walletBalance ?? 0;
         const stripeAccountId = data?.stripeAccountId;
         const payoutsEnabled = data?.payoutsEnabled ?? data?.payouts_enabled;
         
@@ -511,14 +511,23 @@ export const requestPayout = onCall(
           throw new HttpsError("failed-precondition", "Stripe payout account is not fully setup.");
         }
 
-        if (currentBalance < amount) {
-          throw new HttpsError("failed-precondition", "Insufficient funds in your wallet.");
-        }
-
         return { stripeAccountId };
       });
 
-      // Transfer authorized balance to their Stripe Connect account
+      // 🟢 2. Fetch the live Stripe available balance instead of trusting Firestore's walletBalance counter
+      const stripeBalance = await stripe.balance.retrieve({}, {
+        stripeAccount: result.stripeAccountId,
+      });
+
+      // Sum up available balance from stripe in Euros (Stripe works in cents)
+      const liveAvailableBalance = stripeBalance.available.reduce((sum: number, b: any) => sum + b.amount, 0) / 100;
+
+      // 🟢 3. Run validation guard against the actual live Stripe balance
+      if (liveAvailableBalance < amount) {
+        throw new HttpsError("failed-precondition", `Insufficient funds in your wallet. Available: €${liveAvailableBalance.toFixed(2)}`);
+      }
+
+      // 4. Transfer authorized balance to their Stripe Connect account
       const amountInCents = Math.round(amount * 100);
       const transfer = await stripe.transfers.create({
         amount: amountInCents,
@@ -527,9 +536,9 @@ export const requestPayout = onCall(
         description: `Payout withdrawal for UID: ${uid}`,
       });
 
+      // 5. Commit state details log batch safely
       const batch = db.batch();
       batch.update(businessDocRef, {
-        walletBalance: FieldValue.increment(-amount),
         updatedAt: FieldValue.serverTimestamp(),
       });
 
