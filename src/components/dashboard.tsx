@@ -1041,7 +1041,7 @@ const Dashboard = (props: any) => {
         return (
             <>
                 {userBrand && ( <BusinessInsightsPopup brandName={userBrand.name} />)}
-                <div style={mainContainerStyle}>
+                <div style={mainContainerStyle(isMobile)}>
                     <style>{`
                         @keyframes slideIn {
                             0% { transform: translateY(-100%) translateX(-50%); opacity: 0; }
@@ -1053,7 +1053,7 @@ const Dashboard = (props: any) => {
                     `}</style>
 
                     {toast.show && (
-                        <div className="notification-toast" onClick={() => setActiveTab('Chats')} style={toastStyle}>
+                        <div className="notification-toast" onClick={() => setActiveTab('Chats')} style={toastStyle(isMobile)}>
                             <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#C5FF41' }} />
                             <div style={{ flex: 1 }}>
                                 <div style={{ fontSize: '10px', color: '#666', fontWeight: 800 }}>NEW MESSAGE</div>
@@ -1113,13 +1113,13 @@ const Dashboard = (props: any) => {
                         <div style={bentoGridStyle}>Dashboard Default View</div>}
                     </div>*/}
                     {/* Content Area */}
-                    <div style={contentWrapper}>
+                    <div style={contentWrapper(isMobile)}>
                         {activeTab === 'Chats' ? <Chats userBrand={userBrand} brandId={userBrand?.id} /> :
                         activeTab === 'Ads' ? <AdsManager userBrand={userBrand} /> :
                         activeTab === 'Catalog' ? <Catalog userBrand={userBrand} /> :
                         activeTab === 'Payments' ? <Payments userBrand={userBrand} /> :
                         (
-                            <div style={bentoGridStyle}>
+                            <div style={bentoGridStyle(isMobile)}>
                                 {/* Upper Bento*/} 
                                 <div style={upperGridStyle(isMobile)}>
                                     <DashboardCard>
@@ -1253,7 +1253,7 @@ const Dashboard = (props: any) => {
                                             </div>
                                             <div style={{ fontSize: '32px', fontWeight: 700 }}>{chatCount}</div>
                                         </div>
-                                        <button onClick={() => setActiveTab('Ads')} style={actionBtnStyle}>+ Add Customers</button>
+                                        <button onClick={() => setActiveTab('Ads')} style={actionBtnStyle(isMobile)}>+ Add Customers</button>
                                     </DashboardCard>
                                 </div>
 
@@ -1266,7 +1266,7 @@ const Dashboard = (props: any) => {
                                                 <code style={codeStyle}>{shareUrl}</code>
                                             </div>
                                         </div>
-                                        <div data-tour="store-qr" style={qrContainerStyle}>
+                                        <div data-tour="store-qr" style={qrContainerStyle(isMobile)}
                                             <div style={{ flex: 1 }}>
                                                 <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '10px' }}>Online Store</div>
                                                 {/* Changed layout to a column to stack the Download button above the Preview button */}
@@ -1337,7 +1337,7 @@ const Dashboard = (props: any) => {
                     )}
                     {showCalendar && (
                         <div style={modalOverlayStyle} onClick={() => { setShowCalendar(false); setShowSettings(false); }}>
-                            <div style={{ ...calendarCardStyle, maxWidth: '400px', position: 'relative' }} onClick={e => e.stopPropagation()}>
+                            <div style={{ ...calendarCardStyle(isMobile)}, maxWidth: '400px', position: 'relative' }} onClick={e => e.stopPropagation()}>
                                 
                                 {/* HEADER ROW WITH INTEGRATED SETTINGS TOGGLE */}
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
@@ -1537,8 +1537,10 @@ const Dashboard = (props: any) => {
                             padding: "16px 20px",
                             borderRadius: "16px",
                             zIndex: 99999,
-                            width: "420px",
-                            boxShadow: "0 10px 40px rgba(0,0,0,0.5)"
+                            width: "calc(100% - 32px)", // Dynamic mobile support
+                            maxWidth: "420px",
+                            boxShadow: "0 10px 40px rgba(0,0,0,0.5)",
+                            boxSizing: 'border-box'
                         }}>
                             <div style={{ fontSize: "12px", fontWeight: 800, color: "#C5FF41", marginBottom: "6px" }}>
                                 VERIFICATION REQUEST RECEIVED
@@ -1600,26 +1602,31 @@ const Dashboard = (props: any) => {
 
 // Styles
 // Dynamic Styles depending on isMobile
-const mainContainerStyle: React.CSSProperties = { 
+// Responsive Dynamic Styles
+const mainContainerStyle = (isMobile: boolean): React.CSSProperties => ({ 
     backgroundColor: '#000', 
-    height: '100vh', 
+    height: isMobile ? 'auto' : '100vh', 
+    minHeight: '100vh',
     width: '100%', 
     color: 'white', 
     display: 'flex', 
     flexDirection: 'column', 
-    overflow: 'hidden' 
-};
+    overflowX: 'hidden',
+    overflowY: isMobile ? 'auto' : 'hidden',
+    boxSizing: 'border-box'
+});
 
 const headerWrapper = (isMobile: boolean): React.CSSProperties => ({ 
     width: '100%', 
     maxWidth: '1400px', 
     margin: '0 auto', 
-    padding: isMobile ? '12px 16px' : '20px', 
+    padding: isMobile ? '16px' : '20px', 
     display: 'flex', 
     flexDirection: isMobile ? 'column' : 'row',
     alignItems: isMobile ? 'stretch' : 'center', 
     position: 'relative',
-    gap: isMobile ? '12px' : '16px'
+    gap: isMobile ? '12px' : '16px',
+    boxSizing: 'border-box'
 });
 
 const navPillStyle = (isMobile: boolean): React.CSSProperties => ({ 
@@ -1635,14 +1642,15 @@ const navPillStyle = (isMobile: boolean): React.CSSProperties => ({
     overflowX: isMobile ? 'auto' : 'visible',
     whiteSpace: 'nowrap',
     width: isMobile ? '100%' : 'auto',
-    WebkitOverflowScrolling: 'touch' // smooth scrolling on iOS
+    WebkitOverflowScrolling: 'touch', // smooth scroll momentum on iOS
+    boxSizing: 'border-box'
 });
 
 const navItemStyle = (isMobile: boolean): React.CSSProperties => ({ 
     position: 'relative', 
     padding: isMobile ? '8px 16px' : '10px 24px', 
     borderRadius: '30px', 
-    fontSize: isMobile ? '11px' : '13px', 
+    fontSize: isMobile ? '12px' : '13px', 
     fontWeight: 600, 
     cursor: 'pointer', 
     transition: '0.3s',
@@ -1660,35 +1668,38 @@ const unreadDotStyle: React.CSSProperties = {
     border: '2px solid #111' 
 };
 
-const contentWrapper: React.CSSProperties = { 
+const contentWrapper = (isMobile: boolean): React.CSSProperties => ({ 
     flex: 1, 
-    padding: '0 16px 16px 16px', 
-    overflowY: 'auto', // changed from 'hidden' to let mobile stack-scroll naturally
+    padding: isMobile ? '0 16px 24px 16px' : '0 20px 20px 20px', 
+    overflowY: isMobile ? 'visible' : 'auto', 
     display: 'flex', 
-    flexDirection: 'column' 
-};
+    flexDirection: 'column',
+    boxSizing: 'border-box'
+});
 
-const bentoGridStyle: React.CSSProperties = { 
+const bentoGridStyle = (isMobile: boolean): React.CSSProperties => ({ 
     flex: 1, 
     display: 'flex', 
     flexDirection: 'column', 
-    gap: '16px', 
+    gap: isMobile ? '16px' : '20px', 
     maxWidth: '1400px', 
     margin: '0 auto', 
-    width: '100%'
-};
+    width: '100%', 
+    overflow: isMobile ? 'visible' : 'hidden',
+    boxSizing: 'border-box'
+});
 
 const upperGridStyle = (isMobile: boolean): React.CSSProperties => ({ 
     display: 'grid', 
     gridTemplateColumns: isMobile ? '1fr' : '1.2fr 1fr', 
-    gap: '16px', 
+    gap: isMobile ? '16px' : '20px', 
     flexShrink: 0 
 });
 
 const lowerGridStyle = (isMobile: boolean): React.CSSProperties => ({ 
     display: 'grid', 
     gridTemplateColumns: isMobile ? '1fr' : '400px 1fr', 
-    gap: '16px', 
+    gap: isMobile ? '16px' : '20px', 
     flex: isMobile ? 'none' : 1, 
     minHeight: 0 
 });
@@ -1701,16 +1712,15 @@ const progressBarStyle: React.CSSProperties = {
     overflow: 'hidden' 
 };
 
-const actionBtnStyle: React.CSSProperties = { 
-    padding: '12px 20px', 
+const actionBtnStyle = (isMobile: boolean): React.CSSProperties => ({ 
+    padding: isMobile ? '12px 18px' : '16px 24px', 
     borderRadius: '20px', 
     background: '#C5FF41', 
     border: 'none', 
     fontWeight: 700, 
     cursor: 'pointer',
-    width: '100%',
-    textAlign: 'center'
-};
+    fontSize: isMobile ? '12px' : '14px'
+});
 
 const codeStyle: React.CSSProperties = { 
     color: '#C5FF41', 
@@ -1719,25 +1729,24 @@ const codeStyle: React.CSSProperties = {
     flex: 1 
 };
 
-const qrContainerStyle: React.CSSProperties = { 
+const qrContainerStyle = (isMobile: boolean): React.CSSProperties => ({ 
     background: 'rgba(255,255,255,0.02)', 
     padding: '15px', 
     borderRadius: '20px', 
     border: '1px solid #222', 
     display: 'flex', 
-    flexDirection: 'row',
+    flexDirection: isMobile ? 'column-reverse' : 'row',
     alignItems: 'center', 
     gap: '15px',
-    justifyContent: 'space-between'
-};
+    boxSizing: 'border-box'
+});
 
 const qrBoxStyle: React.CSSProperties = { 
     background: '#000', 
     padding: '8px', 
     borderRadius: '12px', 
     border: '1px solid #C5FF41', 
-    lineHeight: 0,
-    flexShrink: 0
+    lineHeight: 0 
 };
 
 const secondaryBtnStyle: React.CSSProperties = { 
@@ -1751,14 +1760,13 @@ const secondaryBtnStyle: React.CSSProperties = {
     fontSize: '11px' 
 };
 
-const toastStyle: React.CSSProperties = { 
+const toastStyle = (isMobile: boolean): React.CSSProperties => ({ 
     position: 'fixed', 
     top: '20px', 
     left: '50%', 
     transform: 'translateX(-50%)', 
     zIndex: 10000, 
-    width: 'calc(100% - 32px)', 
-    maxWidth: '380px', 
+    width: isMobile ? 'calc(100% - 32px)' : '380px', 
     background: '#1A1A1A', 
     border: '1px solid #C5FF41', 
     borderRadius: '20px', 
@@ -1767,15 +1775,16 @@ const toastStyle: React.CSSProperties = {
     alignItems: 'center', 
     gap: '15px', 
     cursor: 'pointer', 
-    boxShadow: '0 10px 40px rgba(0,0,0,0.5)' 
-};
+    boxShadow: '0 10px 40px rgba(0,0,0,0.5)',
+    boxSizing: 'border-box'
+});
 
 const aiChatArea: React.CSSProperties = { 
     flex: 1, 
-    minHeight: '200px', // Prevents collapse on mobile vertical scroll setups
+    minHeight: '200px', // Prevents the chat box from shrinking to 0 height on mobile layout stacks
     background: '#080808', 
     borderRadius: '24px', 
-    padding: '16px', 
+    padding: '20px', 
     overflowY: 'auto', 
     display: 'flex', 
     flexDirection: 'column', 
@@ -1789,7 +1798,7 @@ const aiInputStyle: React.CSSProperties = {
     borderRadius: '15px', 
     padding: '12px', 
     color: '#fff',
-    minWidth: '0px' // fixes input expanding beyond parent card boundary on small screen sizes
+    minWidth: 0 // prevents html inputs from breaking flex containers on narrow widths
 };
 
 const aiSendBtn: React.CSSProperties = { 
@@ -1802,10 +1811,10 @@ const aiSendBtn: React.CSSProperties = {
 };
 
 const visionBadge: React.CSSProperties = { 
-    padding: '6px 12px', 
+    padding: '8px 16px', 
     borderRadius: '12px', 
     cursor: 'pointer', 
-    fontSize: '9px', 
+    fontSize: '10px', 
     fontWeight: 700, 
     letterSpacing: '1px' 
 };
@@ -1816,10 +1825,16 @@ const modalOverlayStyle: React.CSSProperties = {
     display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(10px)'
 };
 
-const calendarCardStyle: React.CSSProperties = {
-    background: '#111', border: '1px solid #1A1A1A', padding: '24px', 
-    borderRadius: '32px', width: '90%', maxWidth: '400px', textAlign: 'center', boxShadow: '0 20px 50px rgba(0,0,0,0.5)'
-};
+const calendarCardStyle = (isMobile: boolean): React.CSSProperties => ({
+    background: '#111', 
+    border: '1px solid #1A1A1A', 
+    padding: isMobile ? '20px' : '30px', 
+    borderRadius: '32px', 
+    width: isMobile ? '90%' : '400px', 
+    textAlign: 'center', 
+    boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
+    boxSizing: 'border-box'
+});
 
 const dateRowStyle: React.CSSProperties = {
     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
