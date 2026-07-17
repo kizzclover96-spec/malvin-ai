@@ -424,6 +424,7 @@ export default function FoodDashboard() {
   }, [uid]);
 
   // --- Listen for Auth Changes ---
+  // --- Listen for Auth Changes ---
   useEffect(() => {
     const auth = getAuth();
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
@@ -433,6 +434,9 @@ export default function FoodDashboard() {
       } else {
         setUid('');
         setEmail('');
+        // 🟢 If there is no user, stop loading and redirect to login
+        setLoading(false); 
+        window.location.href = '/login'; 
       }
       setAuthLoading(false);
     });
