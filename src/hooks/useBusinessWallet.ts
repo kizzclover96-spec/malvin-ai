@@ -14,8 +14,8 @@ export function useBusinessWallet({ merchantType }: { merchantType: "food" | "sa
         // Passing merchantType here is critical!
         const response = await getStripeBalance({ merchantType });
         
-        const data = response.data as { availableBalance: number };
-        setBalance(data.availableBalance);
+        const data = response.data as { totalBalance: number };
+        setBalance(data.totalBalance);
       } catch (error) {
         console.error("Error fetching Stripe balance:", error);
       }

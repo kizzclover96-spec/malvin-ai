@@ -1084,7 +1084,7 @@ export default function FoodDashboard() {
                   <div className="flex justify-between items-center bg-cyan-50 p-4 border-[2.5px] border-black rounded-2xl shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
                     <div className="flex flex-col">
                       <span className="text-xs font-black uppercase tracking-wider text-cyan-800">Stripe Live Balance</span>
-                      <span className="text-[10px] font-bold text-cyan-600 uppercase tracking-wide">Available for Payout</span>
+                      <span className="text-[10px] font-bold text-cyan-600 uppercase tracking-wide">Total Sales Balance</span>
                     </div>
                     <span className="font-mono font-black text-xl text-cyan-900">
                       {balance !== null ? `${currency.toUpperCase()} ${balance.toFixed(2)}` : "Loading..."}
