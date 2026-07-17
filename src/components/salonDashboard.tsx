@@ -56,7 +56,7 @@ export default function SalonDashboard() {
   
   const [uid, setUid] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
-  const { balance, currency } = useBusinessWallet();
+  const { balance, currency } = useBusinessWallet({ merchantType: "salon" });
   const [salon, setSalon] = useState<SalonData | null>(null);
   const [incomingAppointments, setIncomingAppointments] = useState<LiveAppointment[]>([]);
 
@@ -935,51 +935,95 @@ export default function SalonDashboard() {
                 </div>
                 
                 {/* Stripe Connector Sub-section */}
-                <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #222' }}>
-                  <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#fff' }}>Direct Credit Card Payments</h4>
-                  
-                  {!(salon as any)?.stripeOnboarded ? (
-                    <div>
-                      <p style={{ color: '#888', fontSize: '12px', margin: '0 0 12px 0' }}>
-                        Connect your Stripe Account to receive card payments directly from customers.
+                {/* CARD 4: STRIPE LIVE EARNINGS */}
+                <div className={styles.card}>
+                  <h2 className={styles.sectionTitle} style={{ borderBottom: '2.5px solid black', paddingBottom: '8px', marginBottom: '16px' }}>
+                    Business Earnings
+                  </h2>
+
+                  {!((profile as any)?.stripeOnboarded) ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <p style={{ fontSize: '12px', fontWeight: '600', color: '#666', lineHeight: '1.5' }}>
+                        Connect your Stripe Account to receive card payments directly from clients and view your live balance.
                       </p>
-                      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                      
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         <button 
                           type="button" 
-                          className={styles.glassButtonPrimary} 
-                          onClick={handleConnectStripe}
-                          disabled={isSettingUpStripe}
-                          style={{ background: '#635BFF', color: '#fff', border: 'none' }}
+                          onClick={handleConnectStripe} 
+                          disabled={isSettingUpStripe} 
+                          style={{
+                            width: '100%',
+                            padding: '12px',
+                            backgroundColor: '#635BFF',
+                            color: 'white',
+                            borderRadius: '12px',
+                            fontSize: '12px',
+                            fontWeight: '900',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.05em',
+                            border: 'none',
+                            cursor: 'pointer'
+                          }}
                         >
                           {isSettingUpStripe ? "Connecting..." : "Link Stripe Account"}
                         </button>
 
-                        {/* 🟢 NEW: Check connection status if an account ID exists but onboarding isn't marked complete yet */}
-                        {(salon as any)?.stripeAccountId && (
-                          <button
-                            type="button"
-                            className={styles.glassButtonSecondary}
-                            onClick={handleCheckStripeStatus}
-                            disabled={stripeLoading}
+                        {/* VERIFY CONNECTION BUTTON FOR UNONBOARDED ACCOUNTS */}
+                        {(profile as any)?.stripeAccountId && (
+                          <button 
+                            type="button" 
+                            onClick={handleCheckStripeStatus} 
+                            disabled={stripeLoading} 
+                            style={{
+                              width: '100%',
+                              padding: '10px',
+                              border: '2.5px solid black',
+                              backgroundColor: 'white',
+                              color: 'black',
+                              borderRadius: '12px',
+                              fontSize: '12px',
+                              fontWeight: '900',
+                              textTransform: 'uppercase',
+                              cursor: 'pointer'
+                            }}
                           >
-                            {stripeLoading ? "Verifying..." : "Verify Connection"}
+                            {stripeLoading ? "Verifying Setup..." : "Verify Connection Status"}
                           </button>
                         )}
                       </div>
                     </div>
                   ) : (
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#4BB543', fontSize: '13px', fontWeight: 'bold', marginBottom: '8px' }}>
-                        <CheckCircle size={16} /> Direct Payments Enabled
-                      </div>
-                      <button
-                        type="button"
-                        className={styles.glassButtonSecondary}
-                        onClick={handleCheckStripeStatus}
-                        disabled={stripeLoading}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      {/* Live Stripe Connect Account Balance */}
+                      <div 
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'between',
+                          alignItems: 'center',
+                          backgroundColor: '#ecfeff', // cyan-50
+                          padding: '16px',
+                          border: '2.5px solid black',
+                          borderRadius: '16px',
+                          boxShadow: '2px 2px 0px 0px rgba(0,0,0,1)'
+                        }}
                       >
-                        {stripeLoading ? "Checking..." : "Refresh Status"}
-                      </button>
+                        <div style={{ display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
+                          <span style={{ fontSize: '12px', fontWeight: '900', textTransform: 'uppercase', tracking: 'wider', color: '#155e75' }}>
+                            Stripe Live Balance
+                          </span>
+                          <span style={{ fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', tracking: 'wide', color: '#0891b2' }}>
+                            Total Sales Balance
+                          </span>
+                        </div>
+                        <span style={{ fontFamily: 'monospace', fontWeight: '900', fontSize: '20px', color: '#164e63' }}>
+                          {balance !== null ? `${currency.toUpperCase()} ${balance.toFixed(2)}` : "Loading..."}
+                        </span>
+                      </div>
+                      
+                      <div style={{ fontSize: '10px', fontWeight: '700', color: '#666', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center', paddingTop: '8px' }}>
+                        Payouts are processed automatically via Stripe Connect.
+                      </div>
                     </div>
                   )}
                 </div>
