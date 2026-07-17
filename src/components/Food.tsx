@@ -85,7 +85,8 @@ export default function FoodDashboard() {
   
   // --- New Premium Modal State ---
   const [showPremiumPopup, setShowPremiumPopup] = useState<boolean>(false);
-  const { balance, currency } = useBusinessWallet();
+  // Find this line in Food.tsx:
+  const { balance, currency } = useBusinessWallet({ merchantType: "food" });
 
   // Editable Form State
   const [formBrandName, setFormBrandName] = useState<string>('');
