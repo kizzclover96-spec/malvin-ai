@@ -504,7 +504,8 @@ export default function SalonDashboard() {
   };
 
   const handleWithdrawProfit = () => {
-    if (stripeBalance.available <= 0) {
+    // 🟢 Fix: Reference the live custom wallet balance value
+    if (!balance || balance <= 0) {
       alert("No profits available to withdraw.");
       return;
     }
@@ -521,7 +522,7 @@ export default function SalonDashboard() {
   };
 
   const handleConfirmPayout = async () => {
-    if (stripeBalance.available <= 0) {
+    if (!balance || balance <= 0) {
       alert("No balance available to withdraw.");
       setIsPinModalOpen(false);
       return;
