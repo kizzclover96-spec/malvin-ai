@@ -714,8 +714,8 @@ export const getStripeAccountBalance = onCall(
 
     try {
       // Ask Stripe for the balances specifically matching the connected merchant's account
-      const balance = await stripe.balance.retrieve({
-        stripe_account: stripeAccountId,
+      const balance = await stripe.balance.retrieve({}, {
+        stripeAccount: stripeAccountId,
       });
 
       // Sum up the active balances (Stripe returns amounts in cents, so we divide by 100)
