@@ -522,6 +522,7 @@ export default function SalonDashboard() {
   };
 
   const handleConfirmPayout = async () => {
+    // 🟢 Fix 1: Check against the live custom hook balance
     if (!balance || balance <= 0) {
       alert("No balance available to withdraw.");
       setIsPinModalOpen(false);
@@ -542,7 +543,7 @@ export default function SalonDashboard() {
       const requestPayout = httpsCallable(functions, 'requestPayout');
 
       const response: any = await requestPayout({
-        amount: stripeBalance.available, 
+        amount: balance, // 🟢 Fix 2: Send the real live balance to the backend!
         pin: pinInput,
         merchantType: "salon" 
       });
@@ -550,6 +551,7 @@ export default function SalonDashboard() {
       if (response.data?.success) {
         alert(`🎉 Success! ${response.data.message}`);
         setIsPinModalOpen(false);
+        // Resetting balance locally
         setStripeBalance(prev => ({ ...prev, available: 0, total: prev.pending }));
       }
     } catch (error: any) {
@@ -1081,11 +1083,15 @@ export default function SalonDashboard() {
       )}
 
       {/* WITHDRAW PIN AUTH */}
+      {/* WITHDRAW PIN AUTH */}
       {isPinModalOpen && (
         <div className={styles.modalOverlay} style={{ zIndex: 2000 }}>
           <div className={styles.modalContent} style={{ maxWidth: '360px', textAlign: 'center' }}>
             <h3>Authorize Payout</h3>
-            <p style={{ color: '#aaa', fontSize: '14px' }}>Enter your 4-digit security PIN to withdraw {currency}{stripeBalance.available.toFixed(2)}</p>
+            {/* 🟢 Fix 3: Use the live balance variable for the display text */}
+            <p style={{ color: '#aaa', fontSize: '14px' }}>
+              Enter your 4-digit security PIN to withdraw {currency}{(balance || 0).toFixed(2)}
+            </p>
             <input 
               type="password" 
               maxLength={4}
