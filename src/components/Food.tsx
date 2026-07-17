@@ -1038,68 +1038,59 @@ export default function FoodDashboard() {
             </section>
 
             {/* CARD 4: VIN WALLET */}
+            {/* CARD 4: STRIPE LIVE EARNINGS */}
             <section className="bg-white/75 backdrop-blur-md border-[3px] border-black rounded-3xl p-5">
-              <div className={styles.metaRow}>
-                <strong>VIN Wallet Balance:</strong> 
-                <span> € {(profile?.walletBalance || 0).toFixed(2)}</span>
-              </div>
-              {/* Stripe Connector Sub-section */}
-              <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #222' }}>
-                <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#fff' }}>Direct Credit Card Payments</h4>
-                
-                {!((profile as any)?.stripeOnboarded) ? (
-                  <div>
-                    <p style={{ color: '#888', fontSize: '12px', margin: '0 0 12px 0' }}>
-                      Connect your Stripe Account to receive card payments directly from customers.
-                    </p>
-                    
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <h2 className="text-lg font-black uppercase tracking-wider mb-4 border-b-[2.5px] border-black pb-2">
+                Business Earnings
+              </h2>
+
+              {!((profile as any)?.stripeOnboarded) ? (
+                <div className="space-y-3">
+                  <p className="text-xs font-semibold text-gray-500 leading-relaxed">
+                    Connect your Stripe Account to receive card payments directly from customers and view your live balance.
+                  </p>
+                  
+                  <div className="space-y-2">
+                    <button 
+                      type="button" 
+                      onClick={handleConnectStripe} 
+                      disabled={isSettingUpStripe} 
+                      className="w-full py-3 bg-[#635BFF] text-white rounded-xl text-xs font-black uppercase tracking-wider hover:bg-[#5b54eb] transition-all"
+                    >
+                      {isSettingUpStripe ? "Connecting..." : "Link Stripe Account"}
+                    </button>
+
+                    {/* VERIFY CONNECTION BUTTON FOR UNONBOARDED ACCOUNTS */}
+                    {(profile as any)?.stripeAccountId && (
                       <button 
                         type="button" 
-                        className={styles.glassButtonPrimary} 
-                        onClick={handleConnectStripe}
-                        disabled={isSettingUpStripe}
-                        style={{ background: '#635BFF', color: '#fff', border: 'none' }}
+                        onClick={handleCheckStripeStatus} 
+                        disabled={stripeLoading} 
+                        className="w-full py-2.5 border-[2.5px] border-black bg-white text-black rounded-xl text-xs font-black uppercase"
                       >
-                        {isSettingUpStripe ? "Connecting..." : "Link Stripe Account"}
+                        {stripeLoading ? "Verifying Setup..." : "Verify Connection Status"}
                       </button>
-
-                      {/* 🟢 VERIFY CONNECTION BUTTON FOR UNONBOARDED ACCOUNTS */}
-                      {(profile as any)?.stripeAccountId && (
-                        <button
-                          type="button"
-                          className={styles.glassButtonSecondary}
-                          onClick={handleCheckStripeStatus}
-                          disabled={stripeLoading}
-                          style={{ width: '100%' }}
-                        >
-                          {stripeLoading ? "Verifying Setup..." : "Verify Connection Status"}
-                        </button>
-                      )}
-                    </div>
+                    )}
                   </div>
-                ) : (
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#4BB543', fontSize: '13px', fontWeight: 'bold', marginBottom: '8px' }}>
-                      {/* Make sure CheckCircle is imported from 'lucide-react' if not already */}
-                      <CheckCircle size={16} /> Direct Payments Enabled
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {/* Live Stripe Connect Account Balance */}
+                  <div className="flex justify-between items-center bg-cyan-50 p-4 border-[2.5px] border-black rounded-2xl shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                    <div className="flex flex-col">
+                      <span className="text-xs font-black uppercase tracking-wider text-cyan-800">Stripe Live Balance</span>
+                      <span className="text-[10px] font-bold text-cyan-600 uppercase tracking-wide">Available for Payout</span>
                     </div>
-                    <button
-                      type="button"
-                      className={styles.glassButtonSecondary}
-                      onClick={handleCheckStripeStatus}
-                      disabled={stripeLoading}
-                      style={{ width: '100%' }}
-                    >
-                      {stripeLoading ? "Checking..." : "Refresh Status"}
-                    </button>
+                    <span className="font-mono font-black text-xl text-cyan-900">
+                      {balance !== null ? `${currency.toUpperCase()} ${balance.toFixed(2)}` : "Loading..."}
+                    </span>
                   </div>
-                )}
-              </div>
-
-              <button type="button" className={styles.glassButtonPrimary} style={{ marginTop: '12px' }} onClick={handleWithdrawProfit}>
-                Withdraw Profit
-              </button>
+                  
+                  <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider text-center pt-2">
+                    Payouts are processed automatically via Stripe Connect.
+                  </div>
+                </div>
+              )}
             </section>
 
             {/* CARD 5: CATALOGUE */}
