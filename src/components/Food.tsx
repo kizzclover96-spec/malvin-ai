@@ -85,8 +85,8 @@ export default function FoodDashboard() {
   
   // --- New Premium Modal State ---
   const [showPremiumPopup, setShowPremiumPopup] = useState<boolean>(false);
-  // Find this line in Food.tsx:
-  const { balance, currency } = useBusinessWallet({ merchantType: "food" });
+  // Find this line in Food.tsx and update it:
+  const { balance, currency, stripeBalance } = useBusinessWallet({ merchantType: "food" });
 
   // Editable Form State
   const [formBrandName, setFormBrandName] = useState<string>('');
@@ -1045,57 +1045,135 @@ export default function FoodDashboard() {
             {/* CARD 4: VIN WALLET */}
             {/* CARD 4: STRIPE LIVE EARNINGS */}
             <section className="bg-white/75 backdrop-blur-md border-[3px] border-black rounded-3xl p-5">
-              <h2 className="text-lg font-black uppercase tracking-wider mb-4 border-b-[2.5px] border-black pb-2">
-                Business Earnings
-              </h2>
+              <div className={styles.glassCard}>
+                <h3>Account & Ledger</h3>
+                <div className={styles.metaRow}><strong>UID:</strong> <span className={styles.codeText}>{uid}</span></div>
+                <div className={styles.metaRow}><strong>Status:</strong> <span>{profile?.status || 'Active'}</span></div>
+                
+                {/* Stripe Connector Sub-section */}
+                <div className={styles.card} style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #222' }}>
+                  <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#fff' }}>Direct Credit Card Payments</h4>
 
-              {!((profile as any)?.stripeOnboarded) ? (
-                <div className="space-y-3">
-                  <p className="text-xs font-semibold text-gray-500 leading-relaxed">
-                    Connect your Stripe Account to receive card payments directly from customers and view your live balance.
-                  </p>
-                  
-                  <div className="space-y-2">
-                    <button 
-                      type="button" 
-                      onClick={handleConnectStripe} 
-                      disabled={isSettingUpStripe} 
-                      className="w-full py-3 bg-[#635BFF] text-white rounded-xl text-xs font-black uppercase tracking-wider hover:bg-[#5b54eb] transition-all"
-                    >
-                      {isSettingUpStripe ? "Connecting..." : "Link Stripe Account"}
-                    </button>
+                  {!((profile as any)?.stripeOnboarded) ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <p style={{ fontSize: '12px', fontWeight: '600', color: '#666', lineHeight: '1.5' }}>
+                        Connect your Stripe Account to receive card payments directly from clients and view your live balance.
+                      </p>
+                      
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <button 
+                          type="button" 
+                          onClick={handleConnectStripe} 
+                          disabled={isSettingUpStripe} 
+                          style={{
+                            width: '100%',
+                            padding: '12px',
+                            backgroundColor: '#635BFF',
+                            color: 'white',
+                            borderRadius: '12px',
+                            fontSize: '12px',
+                            fontWeight: '900',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.05em',
+                            border: 'none',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {isSettingUpStripe ? "Connecting..." : "Link Stripe Account"}
+                        </button>
 
-                    {/* VERIFY CONNECTION BUTTON FOR UNONBOARDED ACCOUNTS */}
-                    {(profile as any)?.stripeAccountId && (
-                      <button 
-                        type="button" 
-                        onClick={handleCheckStripeStatus} 
-                        disabled={stripeLoading} 
-                        className="w-full py-2.5 border-[2.5px] border-black bg-white text-black rounded-xl text-xs font-black uppercase"
-                      >
-                        {stripeLoading ? "Verifying Setup..." : "Verify Connection Status"}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {/* Live Stripe Connect Account Balance */}
-                  <div className="flex justify-between items-center bg-cyan-50 p-4 border-[2.5px] border-black rounded-2xl shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-                    <div className="flex flex-col">
-                      <span className="text-xs font-black uppercase tracking-wider text-cyan-800">Stripe Live Balance</span>
-                      <span className="text-[10px] font-bold text-cyan-600 uppercase tracking-wide">Total Sales Balance</span>
+                        {/* VERIFY CONNECTION BUTTON FOR UNONBOARDED ACCOUNTS */}
+                        {(profile as any)?.stripeAccountId && (
+                          <button 
+                            type="button" 
+                            onClick={handleCheckStripeStatus} 
+                            disabled={stripeLoading} 
+                            style={{
+                              width: '100%',
+                              padding: '10px',
+                              border: '2.5px solid black',
+                              backgroundColor: 'white',
+                              color: 'black',
+                              borderRadius: '12px',
+                              fontSize: '12px',
+                              fontWeight: '900',
+                              textTransform: 'uppercase',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            {stripeLoading ? "Verifying Setup..." : "Verify Connection Status"}
+                          </button>
+                        )}
+                      </div>
                     </div>
-                    <span className="font-mono font-black text-xl text-cyan-900">
-                      {balance !== null ? `${currency.toUpperCase()} ${balance.toFixed(2)}` : "Loading..."}
-                    </span>
-                  </div>
-                  
-                  <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider text-center pt-2">
-                    Payouts are processed automatically via Stripe Connect.
-                  </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      {/* Total Sales Balance Metric Block */}
+                      <div 
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          backgroundColor: '#111', 
+                          padding: '14px 16px',
+                          border: '1px solid #222',
+                          borderRadius: '12px',
+                        }}
+                      >
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          <span style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: '#aaa', letterSpacing: '0.05em' }}>
+                            Total Wallet Balance
+                          </span>
+                        </div>
+                        <span style={{ fontFamily: 'monospace', fontWeight: '900', fontSize: '18px', color: '#fff' }}>
+                          {balance !== null ? `${currency.toUpperCase()} ${balance.toFixed(2)}` : "Loading..."}
+                        </span>
+                      </div>
+
+                      {/* Liquid and Pending Breakdown Section */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '12px', border: '1px solid #1a1a1a' }}>
+                        {/* 1. Liquid Available Balance */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ color: '#22c55e', fontSize: '12px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ width: '6px', height: '6px', background: '#22c55e', borderRadius: '50%' }}></span>
+                            Available to Withdraw:
+                          </span>
+                          <span style={{ fontWeight: '700', color: '#22c55e', fontSize: '13px', fontFamily: 'monospace' }}>
+                            {currency.toUpperCase()} {(stripeBalance?.available || 0).toFixed(2)}
+                          </span>
+                        </div>
+
+                        {/* 2. Pending Clearance Settlement Pool */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '4px', borderTop: '1px solid #222' }}>
+                          <span style={{ color: '#eab308', fontSize: '12px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ width: '6px', height: '6px', background: '#eab308', borderRadius: '50%' }}></span>
+                            Pending Clearance:
+                          </span>
+                          <span style={{ fontWeight: '700', color: '#eab308', fontSize: '13px', fontFamily: 'monospace' }}>
+                            {currency.toUpperCase()} {(stripeBalance?.pending || 0).toFixed(2)}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      {/* Footnote explanation text container regarding clearance windows */}
+                      <p style={{ fontSize: '11px', color: '#555', lineHeight: '1.4', margin: '4px 0 0 0', textAlign: 'left' }}>
+                        ℹ️ Standard card clearing requires 1–3 business days. Pending funds automatically transfer into your available balance pool upon verification settlement.
+                      </p>
+                    </div>
+                  )}
                 </div>
-              )}
+
+                <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
+                  <button 
+                    type="button" 
+                    className={styles.glassButtonPrimary} 
+                    onClick={handleWithdrawProfit}
+                    style={{ width: '100%' }}
+                  >
+                    Withdraw Available Profit
+                  </button>
+                </div>
+              </div>
             </section>
 
             {/* CARD 5: CATALOGUE */}
