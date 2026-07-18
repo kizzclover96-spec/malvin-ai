@@ -504,13 +504,13 @@ export default function SalonDashboard() {
   };
 
   const handleWithdrawProfit = () => {
-    // 🟢 Fix: Reference the live custom wallet balance value
-    if (!balance || balance <= 0) {
-      alert("No profits available to withdraw.");
+    // 🟢 Require that they have liquid available funds to trigger the payout flow
+    if (!stripeBalance || stripeBalance.available <= 0) {
+      alert("You do not have any liquid funds ready to withdraw yet. Check your 'Pending Clearance' balance.");
       return;
     }
     
-    if (salon.hasPinConfigured === false) {
+    if (salon.hasPinConfigured === false) { // For Food.tsx use: restaurant.hasPinConfigured
       setSetupPin('');
       setConfirmSetupPin('');
       setIsPinSetupModalOpen(true);
@@ -924,13 +924,6 @@ export default function SalonDashboard() {
                 <h3>Account & Ledger</h3>
                 <div className={styles.metaRow}><strong>UID:</strong> <span className={styles.codeText}>{uid}</span></div>
                 <div className={styles.metaRow}><strong>Status:</strong> <span>{salon.status}</span></div>
-                <div className={styles.metaRow}><strong>VIN Wallet Balance:</strong> <span>{currency}{stripeBalance.available.toFixed(2)}</span>
-                  {stripeBalance.pending > 0 && (
-                    <small style={{ opacity: 0.7, display: 'block' }}>
-                      (Pending settlement: EUR {stripeBalance.pending.toFixed(2)})
-                    </small>
-                  )}
-                </div>
                 
                 {/* Stripe Connector Sub-section */}
                 <div className={styles.card} style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #222' }}>
@@ -990,42 +983,69 @@ export default function SalonDashboard() {
                     </div>
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      {/* Live Stripe Connect Account Balance */}
+                      {/* Total Sales Balance Metric Block */}
                       <div 
                         style={{
                           display: 'flex',
                           justifyContent: 'space-between',
                           alignItems: 'center',
-                          backgroundColor: '#ecfeff', 
-                          padding: '16px',
-                          border: '2.5px solid black',
-                          borderRadius: '16px',
-                          boxShadow: '2px 2px 0px 0px rgba(0,0,0,1)'
+                          backgroundColor: '#111', 
+                          padding: '14px 16px',
+                          border: '1px solid #222',
+                          borderRadius: '12px',
                         }}
                       >
-                        <div style={{ display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
-                          <span style={{ fontSize: '12px', fontWeight: '900', textTransform: 'uppercase', tracking: 'wider', color: '#155e75' }}>
-                            Stripe Live Balance
-                          </span>
-                          <span style={{ fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', tracking: 'wide', color: '#0891b2' }}>
-                            Total Sales Balance
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          <span style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: '#aaa', letterSpacing: '0.05em' }}>
+                            Total Wallet Balance
                           </span>
                         </div>
-                        <span style={{ fontFamily: 'monospace', fontWeight: '900', fontSize: '20px', color: '#164e63' }}>
+                        <span style={{ fontFamily: 'monospace', fontWeight: '900', fontSize: '18px', color: '#fff' }}>
                           {balance !== null ? `${currency.toUpperCase()} ${balance.toFixed(2)}` : "Loading..."}
                         </span>
                       </div>
-                      
-                      <div style={{ fontSize: '10px', fontWeight: '700', color: '#666', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center', paddingTop: '8px' }}>
-                        Payouts are processed automatically via Stripe Connect.
+
+                      {/* Liquid and Pending Breakdown Section */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '12px', border: '1px solid #1a1a1a' }}>
+                        {/* 1. Liquid Liquid Available Balance */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ color: '#22c55e', fontSize: '12px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ width: '6px', height: '6px', background: '#22c55e', borderRadius: '50%' }}></span>
+                            Available to Withdraw:
+                          </span>
+                          <span style={{ fontWeight: '700', color: '#22c55e', fontSize: '13px', fontFamily: 'monospace' }}>
+                            {currency.toUpperCase()} {(stripeBalance?.available || 0).toFixed(2)}
+                          </span>
+                        </div>
+
+                        {/* 2. Pending Clearance Settlement Pool */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '4px', borderTop: '1px solid #222' }}>
+                          <span style={{ color: '#eab308', fontSize: '12px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ width: '6px', height: '6px', background: '#eab308', borderRadius: '50%' }}></span>
+                            Pending Clearance:
+                          </span>
+                          <span style={{ fontWeight: '700', color: '#eab308', fontSize: '13px', fontFamily: 'monospace' }}>
+                            {currency.toUpperCase()} {(stripeBalance?.pending || 0).toFixed(2)}
+                          </span>
+                        </div>
                       </div>
+                      
+                      {/* Footnote explanation text container regarding clearance windows */}
+                      <p style={{ fontSize: '11px', color: '#555', lineHeight: '1.4', margin: '4px 0 0 0', textAlign: 'left' }}>
+                        ℹ️ Standard card clearing requires 1–3 business days. Pending funds automatically transfer into your available balance pool upon verification settlement.
+                      </p>
                     </div>
                   )}
                 </div>
 
                 <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
-                  <button type="button" className={styles.glassButtonPrimary} onClick={handleWithdrawProfit}>
-                    Withdraw Profit
+                  <button 
+                    type="button" 
+                    className={styles.glassButtonPrimary} 
+                    onClick={handleWithdrawProfit}
+                    style={{ width: '100%' }}
+                  >
+                    Withdraw Available Profit
                   </button>
                 </div>
               </div>
@@ -1088,9 +1108,9 @@ export default function SalonDashboard() {
         <div className={styles.modalOverlay} style={{ zIndex: 2000 }}>
           <div className={styles.modalContent} style={{ maxWidth: '360px', textAlign: 'center' }}>
             <h3>Authorize Payout</h3>
-            {/* 🟢 Fix 3: Use the live balance variable for the display text */}
             <p style={{ color: '#aaa', fontSize: '14px' }}>
-              Enter your 4-digit security PIN to withdraw {currency}{(balance || 0).toFixed(2)}
+              {/* 🟢 Inform them exactly how much liquid available money is moving */}
+              Enter your 4-digit security PIN to withdraw {currency}{(stripeBalance?.available || 0).toFixed(2)}
             </p>
             <input 
               type="password" 
