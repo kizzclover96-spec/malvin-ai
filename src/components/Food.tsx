@@ -200,14 +200,18 @@ export default function FoodDashboard() {
   };
 
   const handleWithdrawProfit = () => {
-    const currentBalance = profile?.walletBalance || 0;
-
-    if (currentBalance <= 0) {
+    // 🟢 Fix: Validate against the actual available liquid balance tracking value
+    if (stripeBalance && typeof stripeBalance.available === 'number' && stripeBalance.available <= 0) {
+      alert("You do not have any liquid funds ready to withdraw yet. Check your 'Pending Clearance' balance.");
+      return;
+    }
+    
+    // Fallback: If stripeBalance fields aren't active yet but total balance is tracked, prevent accidental 0 calls
+    if (!balance || balance <= 0) {
       alert("No profits available to withdraw.");
       return;
     }
     
-    // FIX: Read from profile instead of food
     if (profile?.hasPinConfigured === false) {
       setSetupPin('');
       setConfirmSetupPin('');
@@ -220,8 +224,10 @@ export default function FoodDashboard() {
   };
 
   const handleConfirmPayout = async () => {
-    // FIX: Read from profile instead of food
-    if (!profile || (profile?.walletBalance || 0) <= 0) {
+    // 🟢 Use the live available liquid balance if it exists, otherwise use the verified balance block
+    const withdrawalAmount = (stripeBalance && stripeBalance.available > 0) ? stripeBalance.available : balance;
+
+    if (!withdrawalAmount || withdrawalAmount <= 0) {
       alert("No balance available to withdraw.");
       setIsPinModalOpen(false);
       return;
@@ -233,15 +239,13 @@ export default function FoodDashboard() {
     }
 
     setIsProcessingPayout(true);
-    alert("Processing security clearing... Please wait.");
-
     try {
       const { getFunctions, httpsCallable } = await import('firebase/functions');
       const functions = getFunctions();
       const requestPayout = httpsCallable(functions, 'requestPayout');
 
       const response: any = await requestPayout({
-        amount: profile.walletBalance,
+        amount: withdrawalAmount, // 🟢 Send the calculated active amount value context
         pin: pinInput,
         merchantType: "food" 
       });
@@ -251,16 +255,7 @@ export default function FoodDashboard() {
         setIsPinModalOpen(false);
       }
     } catch (error: any) {
-      console.error("Payout initiation failed:", error);
-      
-      if (error.message?.includes("incomplete") || error.message?.includes("not found")) {
-        setIsPinModalOpen(false);
-        setSetupPin('');
-        setConfirmSetupPin('');
-        setIsPinSetupModalOpen(true);
-      } else {
-        alert(`❌ Withdrawal Failed:\n${error.message || "Internal server settlement error."}`);
-      }
+      alert(`❌ Withdrawal Failed:\n${error.message || "Internal server settlement error."}`);
     } finally {
       setIsProcessingPayout(false);
       setPinInput(''); 
