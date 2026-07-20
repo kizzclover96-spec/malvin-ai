@@ -41,7 +41,21 @@ interface RestaurantCatalogueProps {
   onBack: () => void;
 }
 
-const CURRENCIES = ['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD', 'JPY'];
+// Expanded list of Stripe-supported global and regional currencies
+const CURRENCY_OPTIONS = [
+  { code: 'USD', label: 'USD ($) - US Dollar' },
+  { code: 'EUR', label: 'EUR (€) - Euro' },
+  { code: 'GBP', label: 'GBP (£) - British Pound' },
+  { code: 'NGN', label: 'NGN (₦) - Nigerian Naira' },
+  { code: 'TRY', label: 'TRY (₺) - Turkish Lira' },
+  { code: 'GMD', label: 'GMD (D) - Gambian Dalasi' },
+  { code: 'CAD', label: 'CAD (C$) - Canadian Dollar' },
+  { code: 'AUD', label: 'AUD (A$) - Australian Dollar' },
+  { code: 'JPY', label: 'JPY (¥) - Japanese Yen' },
+  { code: 'INR', label: 'INR (₹) - Indian Rupee' },
+  { code: 'ZAR', label: 'ZAR (R) - South African Rand' },
+  { code: 'AED', label: 'AED (د.إ) - UAE Dirham' }
+];
 
 export default function RestaurantCatalogue({ onBack }: RestaurantCatalogueProps) {
   const [user, setUser] = useState<User | null>(null);
@@ -49,6 +63,9 @@ export default function RestaurantCatalogue({ onBack }: RestaurantCatalogueProps
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   
+  // Global Currency Selector State
+  const [globalCurrency, setGlobalCurrency] = useState<string>('USD');
+
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -141,7 +158,8 @@ export default function RestaurantCatalogue({ onBack }: RestaurantCatalogueProps
     setFormName('');
     setFormDescription('');
     setFormPrice(0);
-    setFormCurrency('USD');
+    // Presets the modal currency selector to match the global layout active choice instantly
+    setFormCurrency(globalCurrency);
     setFormAvailable(true);
     setFormPrepTime('');
     setFormDiscount(0);
@@ -160,7 +178,8 @@ export default function RestaurantCatalogue({ onBack }: RestaurantCatalogueProps
     setFormName(product.name);
     setFormDescription(product.description);
     setFormPrice(product.price);
-    setFormCurrency(product.currency);
+    // Defaults to the global currency selection if chosen, or falls back to its existing database attribute
+    setFormCurrency(globalCurrency || product.currency);
     setFormAvailable(product.available);
     setFormPrepTime(product.preparationTime);
     setFormDiscount(product.discount || 0);
@@ -308,15 +327,36 @@ export default function RestaurantCatalogue({ onBack }: RestaurantCatalogueProps
             </div>
           </div>
 
-          <button
-            onClick={handleOpenCreate}
-            className="w-full md:w-auto active:scale-95 transition-transform duration-150 px-6 py-3.5 bg-gradient-to-r from-amber-500 via-rose-500 to-indigo-600 rounded-2xl font-bold text-white shadow-xl shadow-rose-500/20 hover:shadow-indigo-500/30 flex items-center justify-center gap-2 text-sm sm:text-base group"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 group-hover:rotate-90 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-            </svg>
-            Add New Product
-          </button>
+          {/* Dynamic Global Currency Selection Element Layout */}
+          <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
+            <div className="flex items-center gap-2 bg-slate-950/50 border border-slate-800 rounded-2xl px-4 py-2 w-full sm:w-auto justify-between shadow-inner">
+              <label htmlFor="catalogCurrencySelect" className="text-xs font-bold uppercase tracking-wider text-slate-400 whitespace-nowrap">
+                Active Currency:
+              </label>
+              <select
+                id="catalogCurrencySelect"
+                value={globalCurrency}
+                onChange={(e) => setGlobalCurrency(e.target.value)}
+                className="bg-transparent text-sm font-bold text-amber-400 focus:outline-none cursor-pointer p-1"
+              >
+                {CURRENCY_OPTIONS.map((curr) => (
+                  <option key={curr.code} value={curr.code} className="bg-slate-900 text-slate-200 font-medium">
+                    {curr.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <button
+              onClick={handleOpenCreate}
+              className="w-full sm:w-auto active:scale-95 transition-transform duration-150 px-6 py-3.5 bg-gradient-to-r from-amber-500 via-rose-500 to-indigo-600 rounded-2xl font-bold text-white shadow-xl shadow-rose-500/20 hover:shadow-indigo-500/30 flex items-center justify-center gap-2 text-sm sm:text-base group"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 group-hover:rotate-90 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+              Add New Product
+            </button>
+          </div>
         </div>
       </header>
 
@@ -375,7 +415,8 @@ export default function RestaurantCatalogue({ onBack }: RestaurantCatalogueProps
                       </h3>
                       <div className="text-right shrink-0">
                         <span className="text-xl font-extrabold text-white">
-                          {product.price} <span className="text-xs text-slate-400 font-medium align-middle">{product.currency}</span>
+                          {/* Instantly maps the selected global currency unit mapping logic */}
+                          {product.price} <span className="text-xs text-amber-400 font-bold align-middle">{globalCurrency}</span>
                         </span>
                         {product.discount > 0 && (
                           <p className="text-xs text-rose-400 font-semibold">-{product.discount}% Off</p>
@@ -545,8 +586,8 @@ export default function RestaurantCatalogue({ onBack }: RestaurantCatalogueProps
                     onChange={(e) => setFormCurrency(e.target.value)}
                     className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-slate-200 focus:outline-none focus:border-amber-500 text-sm transition-colors"
                   >
-                    {CURRENCIES.map((cur) => (
-                      <option key={cur} value={cur}>{cur}</option>
+                    {CURRENCY_OPTIONS.map((cur) => (
+                      <option key={cur.code} value={cur.code}>{cur.code}</option>
                     ))}
                   </select>
                 </div>

@@ -44,13 +44,31 @@ interface SalonStationProps {
   onBack: () => void;
 }
 
-// Map of currency symbols for the selector dropdown
+// Map of Stripe-supported global and regional currencies
 const CURRENCIES = [
-  { symbol: '€', label: 'EUR (€)' },
-  { symbol: '$', label: 'USD ($)' },
-  { symbol: '£', label: 'GBP (£)' },
-  { symbol: '¥', label: 'JPY (¥)' },
-  { symbol: '₹', label: 'INR (₹)' }
+  // User Requested Regional Currencies
+  { symbol: '₦', label: 'NGN (₦) - Nigerian Naira' },
+  { symbol: '₺', label: 'TRY (₺) - Turkish Lira' },
+  { symbol: 'D', label: 'GMD (D) - Gambian Dalasi' },
+  
+  // Major Global Currencies
+  { symbol: '$', label: 'USD ($) - US Dollar' },
+  { symbol: '€', label: 'EUR (€) - Euro' },
+  { symbol: '£', label: 'GBP (£) - British Pound' },
+  { symbol: '¥', label: 'JPY (¥) - Japanese Yen' },
+  { symbol: '₹', label: 'INR (₹) - Indian Rupee' },
+  { symbol: 'C$', label: 'CAD (C$) - Canadian Dollar' },
+  { symbol: 'A$', label: 'AUD (A$) - Australian Dollar' },
+  { symbol: 'CHF', label: 'CHF - Swiss Franc' },
+  { symbol: 'R$', label: 'BRL (R$) - Brazilian Real' },
+  { symbol: 'R', label: 'ZAR (R) - South African Rand' },
+  { symbol: 'د.إ', label: 'AED (د.إ) - UAE Dirham' },
+  { symbol: '元', label: 'CNY (元) - Chinese Yuan' },
+  { symbol: 'kr', label: 'SEK (kr) - Swedish Krona' },
+  { symbol: 'NZ$', label: 'NZD (NZ$) - New Zealand Dollar' },
+  { symbol: 'Mex$', label: 'MXN (Mex$) - Mexican Peso' },
+  { symbol: 'S$', label: 'SGD (S$) - Singapore Dollar' },
+  { symbol: '₱', label: 'PHP (₱) - Philippine Peso' }
 ];
 
 export default function SalonStation({ onBack }: SalonStationProps) {
