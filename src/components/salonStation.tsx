@@ -44,6 +44,15 @@ interface SalonStationProps {
   onBack: () => void;
 }
 
+// Map of currency symbols for the selector dropdown
+const CURRENCIES = [
+  { symbol: '€', label: 'EUR (€)' },
+  { symbol: '$', label: 'USD ($)' },
+  { symbol: '£', label: 'GBP (£)' },
+  { symbol: '¥', label: 'JPY (¥)' },
+  { symbol: '₹', label: 'INR (₹)' }
+];
+
 export default function SalonStation({ onBack }: SalonStationProps) {
   const navigate = useNavigate();
 
@@ -51,6 +60,9 @@ export default function SalonStation({ onBack }: SalonStationProps) {
   const [uid, setUid] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [stationData, setStationData] = useState<StationData>({ salonWorkers: [], services: [] });
+
+  // Global Currency State Configuration
+  const [currentCurrency, setCurrentCurrency] = useState<string>('€');
 
   // Operation Actions
   const [isSaving, setIsSaving] = useState<boolean>(false);
@@ -357,6 +369,23 @@ export default function SalonStation({ onBack }: SalonStationProps) {
             <h1 className={styles.mainTitle}>Salon Station</h1>
             <p className={styles.subTitle}>Manage your workers and services</p>
           </div>
+          
+          {/* Global Currency Selection Dropdown Element */}
+          <div className={styles.currencySelectorWrapper} style={{ marginLeft: 'auto' }}>
+            <label htmlFor="globalCurrencySelect" style={{ marginRight: '8px', fontWeight: '500' }}>Currency:</label>
+            <select 
+              id="globalCurrencySelect"
+              value={currentCurrency}
+              onChange={(e) => setCurrentCurrency(e.target.value)}
+              style={{ padding: '6px 12px', borderRadius: '4px', border: '1px solid #ccc' }}
+            >
+              {CURRENCIES.map(curr => (
+                <option key={curr.symbol} value={curr.symbol}>
+                  {curr.label}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </header>
 
@@ -417,7 +446,8 @@ export default function SalonStation({ onBack }: SalonStationProps) {
                 <div key={service.serviceId} className={styles.glassCard}>
                   <div className={styles.serviceHeadline}>
                     <h3>{service.serviceName}</h3>
-                    <span className={styles.servicePriceTag}>€{service.price.toFixed(2)}</span>
+                    {/* The currency symbol updates dynamically here */}
+                    <span className={styles.servicePriceTag}>{currentCurrency}{service.price.toFixed(2)}</span>
                   </div>
                   <div className={styles.serviceMetaRow}>
                     <span className={styles.metaLabel}>⏱ {service.duration} Mins</span>
@@ -524,8 +554,9 @@ export default function SalonStation({ onBack }: SalonStationProps) {
               </div>
 
               <div className={styles.formRowSplit}>
+                {/* Dynamically loads current currency symbol to the input label */}
                 <div className={styles.formField}>
-                  <label>Price (€) *</label>
+                  <label>Price ({currentCurrency}) *</label>
                   <input 
                     type="number" 
                     step="0.01" 
