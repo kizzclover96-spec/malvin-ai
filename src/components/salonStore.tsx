@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useLocation  } from 'react-router-dom';
-import { firestore as db } from '../firebase';
+import { firestore as db, auth } from '../firebase';
 import { doc, getDoc, collection, onSnapshot, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import styles from './salonStore.module.css';
 import QRCode from 'qrcode';
+import Report from "./report";                        // <--- Added
+import { Star, AlertTriangle } from 'lucide-react';    // <--- Added
 
 // --- Types & Interfaces ---
 interface SalonProfile {
@@ -82,6 +84,15 @@ export default function SalonStore() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [generatedRefId, setGeneratedRefId] = useState('');
 
+  // --- Rating & Report States ---
+  const [isReportOpen, setIsReportOpen] = useState(false);
+  const [averageRating, setAverageRating] = useState<number>(0);
+  const [totalRatingsCount, setTotalRatingsCount] = useState<number>(0);
+  const [userRating, setUserRating] = useState<number>(0);
+  const [isSubmittingRating, setIsSubmittingRating] = useState(false);
+  const [hoveredStar, setHoveredStar] = useState<number>(0);
+  const [showRateModal, setShowRateModal] = useState(false);
+
   const totalDuration = useMemo(() => 
     selectedServices.reduce((acc, s) => acc + Number(s.duration || 0), 0), 
     [selectedServices]
@@ -114,6 +125,90 @@ export default function SalonStore() {
     window.addEventListener("message", receiveUserIdentity);
     return () => window.removeEventListener("message", receiveUserIdentity);
   }, []);
+
+  // 1. Listen for store average rating
+  useEffect(() => {
+    if (!uid) return;
+    const ratingDocRef = doc(db, 'store_ratings', uid);
+    const unsub = onSnapshot(ratingDocRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setAverageRating(data.average || 0);
+        setTotalRatingsCount(data.count || 0);
+      } else {
+        setAverageRating(0);
+        setTotalRatingsCount(0);
+      }
+    });
+    return () => unsub();
+  }, [uid]);
+
+  // 2. Fetch current user's rating
+  useEffect(() => {
+    const currentUserId = auth.currentUser?.uid || customerUid || localStorage.getItem('guest_id');
+    if (!uid || !currentUserId) return;
+    const userRatingRef = doc(db, 'store_ratings', uid, 'user_ratings', currentUserId);
+    getDoc(userRatingRef).then((docSnap) => {
+      if (docSnap.exists()) {
+        setUserRating(docSnap.data().stars || 0);
+      }
+    });
+  }, [uid, customerUid]);
+
+  // 3. Rating Submission
+  const handleRateStore = async (stars: number) => {
+    const currentUserId = auth.currentUser?.uid || customerUid || localStorage.getItem('guest_id');
+    if (!currentUserId) {
+      alert("Please log in or establish session to rate this store.");
+      return;
+    }
+    if (!uid || isSubmittingRating) return;
+
+    setIsSubmittingRating(true);
+    try {
+      const userRatingRef = doc(db, 'store_ratings', uid, 'user_ratings', currentUserId);
+      const summaryRef = doc(db, 'store_ratings', uid);
+
+      const oldRatingSnap = await getDoc(userRatingRef);
+      const summarySnap = await getDoc(summaryRef);
+
+      let currentSum = 0;
+      let currentCount = 0;
+
+      if (summarySnap.exists()) {
+        currentSum = summarySnap.data().sum || 0;
+        currentCount = summarySnap.data().count || 0;
+      }
+
+      if (oldRatingSnap.exists()) {
+        const previousStars = oldRatingSnap.data().stars || 0;
+        currentSum = currentSum - previousStars + stars;
+      } else {
+        currentSum += stars;
+        currentCount += 1;
+      }
+
+      const newAverage = currentCount > 0 ? Number((currentSum / currentCount).toFixed(1)) : 0;
+
+      await setDoc(userRatingRef, {
+        stars,
+        updatedAt: new Date().toISOString()
+      });
+
+      await setDoc(summaryRef, {
+        average: newAverage,
+        count: currentCount,
+        sum: currentSum
+      }, { merge: true });
+
+      setUserRating(stars);
+    } catch (err) {
+      console.error("Error rating store:", err);
+      alert("Failed to submit rating.");
+    } finally {
+      setIsSubmittingRating(false);
+    }
+  };
 
   // 1. STAGE UNPAID BOOKING & NAVIGATE TO CHECKOUT
   const handleProceedToCheckout = async () => {
@@ -528,6 +623,60 @@ export default function SalonStore() {
             <p className={styles.salonBio}>{profile.bio}</p>
             <p className={styles.salonAddress}>📍 {profile.address}</p>
             <p className={styles.salonHours}>🕒 Open daily: {profile.openingTime} - {profile.closingTime}</p>
+            {/* RATINGS & REPORT CONTROL ROW */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '8px', marginTop: '10px', marginBottom: '12px' }}>
+              <button
+                type="button"
+                onClick={() => setShowRateModal(!showRateModal)}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.95)',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '12px',
+                  padding: '4px 10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  cursor: 'pointer',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                }}
+              >
+                <Star size={12} fill="#eab308" color="#eab308" />
+                <span style={{ fontSize: '12px', fontWeight: 800, color: '#0f172a' }}>
+                  {averageRating.toFixed(1)}
+                </span>
+                <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>
+                  ({totalRatingsCount})
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const activeUser = auth.currentUser?.uid || customerUid || localStorage.getItem('guest_id');
+                  if (!activeUser) {
+                    alert("Initializing session... please try again in a moment.");
+                    return;
+                  }
+                  setIsReportOpen(true);
+                }}
+                style={{
+                  background: 'rgba(239, 68, 68, 0.12)',
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  color: '#ef4444',
+                  padding: '4px 10px',
+                  borderRadius: '12px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  cursor: 'pointer'
+                }}
+              >
+                <AlertTriangle size={11} />
+                <span>Report</span>
+              </button>
+            </div>
             
             <div className={styles.trustBadgeRow}>
               <span>✓ Instant Wallet Pay</span>
@@ -806,6 +955,98 @@ export default function SalonStore() {
           )}
         </div>
       </footer>
+      {/* REPORT MODAL */}
+      {isReportOpen && uid && (
+        <Report
+          isOpen={isReportOpen}
+          onClose={() => setIsReportOpen(false)}
+          reportedUserUid={uid}
+          currentUserUid={auth.currentUser?.uid || customerUid || localStorage.getItem('guest_id') || 'anonymous_guest'}
+        />
+      )}
+
+      {/* RATING MODAL */}
+      {showRateModal && (
+        <div 
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 2500,
+            padding: '16px'
+          }}
+          onClick={() => setShowRateModal(false)}
+        >
+          <div 
+            style={{
+              background: '#111',
+              color: '#fff',
+              borderRadius: '16px',
+              maxWidth: '320px',
+              width: '100%',
+              textAlign: 'center',
+              padding: '20px',
+              border: '1px solid #333'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <h3 style={{ fontSize: '14px', fontWeight: 800, margin: 0, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Rate This Salon
+              </h3>
+              <button 
+                onClick={() => setShowRateModal(false)}
+                style={{ background: 'none', border: 'none', color: '#aaa', fontSize: '16px', cursor: 'pointer' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <p style={{ fontSize: '12px', color: '#aaa', marginBottom: '16px' }}>
+              {userRating > 0 
+                ? `You previously rated this salon ${userRating} stars. Tap to update:` 
+                : 'Tap a star to leave your rating for this salon:'}
+            </p>
+
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '16px' }}>
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  type="button"
+                  disabled={isSubmittingRating}
+                  onClick={async () => {
+                    await handleRateStore(star);
+                    setShowRateModal(false);
+                  }}
+                  onMouseEnter={() => setHoveredStar(star)}
+                  onMouseLeave={() => setHoveredStar(0)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    padding: '4px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <Star
+                    size={28}
+                    fill={(hoveredStar || userRating) >= star ? "#eab308" : "none"}
+                    color={(hoveredStar || userRating) >= star ? "#eab308" : "#555"}
+                  />
+                </button>
+              ))}
+            </div>
+
+            {userRating > 0 && (
+              <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#10b981' }}>
+                ✓ Current Rating: {userRating} Stars
+              </span>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
