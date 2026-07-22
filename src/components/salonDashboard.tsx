@@ -21,8 +21,9 @@ import styles from './salonDashboard.module.css';
 import SalonStation from './salonStation';
 import QRCode from 'qrcode';
 import { useBusinessWallet } from "../hooks/useBusinessWallet";
-import { Bell, Sparkles, Clock, User, QrCode, CheckCircle } from 'lucide-react';
 import ConfirmQRScanner from './ConfirmQRScanner'; // Imported custom validation scanner
+import { signOut, deleteUser } from 'firebase/auth'; // <--- Added deleteUser
+import { Bell, Sparkles, Clock, User, QrCode, CheckCircle, Download, Trash2, Loader2, LogOut } from 'lucide-react';
 
 interface SalonData {
   salonName: string;
@@ -179,6 +180,12 @@ export default function SalonDashboard() {
   const [page, setPage] = useState<'dashboard' | 'catalogue'>('dashboard');
   const [showScannerInput, setShowScannerInput] = useState(false);
 
+
+  // Data Export & Account Erasure States
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const runtimeQrLink = uid ? `${window.location.origin}/salon/${uid}` : '';
 
   useEffect(() => {
@@ -199,6 +206,71 @@ export default function SalonDashboard() {
     });
     return () => unsubscribe();
   }, [navigate]);
+
+
+  // --- Download Salon Data ---
+  const handleDownloadData = async () => {
+    if (!uid) return;
+    setIsDownloading(true);
+    try {
+      const docRef = doc(db, 'salons', uid);
+      const docSnap = await getDoc(docRef);
+      const profileData = docSnap.exists() ? docSnap.data() : {};
+
+      const exportPayload = {
+        account: {
+          uid,
+          email: auth.currentUser?.email || '',
+          ...profileData
+        },
+        appointments: incomingAppointments,
+        exportedAt: new Date().toISOString()
+      };
+
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportPayload, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `salon-data-${uid}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+
+      showToast("Salon data exported successfully!");
+    } catch (err) {
+      console.error("Download failed:", err);
+      alert("Failed to export salon data.");
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  // --- Delete Account & Salon Data ---
+  const handleDeleteAccountAndData = async () => {
+    if (!uid) return;
+    setIsDeleting(true);
+    try {
+      // 1. Delete salon profile in Firestore
+      await deleteDoc(doc(db, 'salons', uid));
+
+      // 2. Delete Firebase Auth User
+      if (auth.currentUser) {
+        await deleteUser(auth.currentUser);
+      }
+
+      alert("Account and salon profile permanently deleted.");
+      navigate('/login');
+    } catch (err: any) {
+      console.error("Delete failed:", err);
+      if (err?.code === 'auth/requires-recent-login') {
+        alert("Re-authentication required. Please log out and log back in to delete your account.");
+      } else {
+        alert("Failed to delete account. Please try again.");
+      }
+    } finally {
+      setIsDeleting(false);
+      setIsDeleteModalOpen(false);
+    }
+  };
 
   useEffect(() => {
     if (!uid) return;
@@ -1049,6 +1121,91 @@ export default function SalonDashboard() {
                   </button>
                 </div>
               </div>
+              {/* ACCOUNT, DATA & SECURITY ACTIONS */}
+              <div className={styles.glassCard}>
+                <h3>Account & Security Actions</h3>
+                <p style={{ color: '#888', fontSize: '12px', marginBottom: '16px', lineHeight: '1.4' }}>
+                  Manage session security, export salon data logs, or permanently delete your account.
+                </p>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {/* LOGOUT BUTTON */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      signOut(auth);
+                      navigate('/login');
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      padding: '12px',
+                      borderRadius: '12px',
+                      fontSize: '13px',
+                      fontWeight: 'bold',
+                      background: 'rgba(255, 255, 255, 0.06)',
+                      border: '1px solid rgba(255, 255, 255, 0.15)',
+                      color: '#fff',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    <LogOut size={16} />
+                    <span>Log Out of Session</span>
+                  </button>
+
+                  {/* DOWNLOAD DATA BUTTON */}
+                  <button
+                    type="button"
+                    onClick={handleDownloadData}
+                    disabled={isDownloading}
+                    className={styles.glassButtonSecondary}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      padding: '12px',
+                      borderRadius: '12px',
+                      fontSize: '13px',
+                      fontWeight: 'bold',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {isDownloading ? (
+                      <Loader2 size={16} className="spin" style={{ animation: 'spin 1s linear infinite' }} />
+                    ) : (
+                      <Download size={16} />
+                    )}
+                    <span>{isDownloading ? "Exporting Data..." : "Download My Data (JSON)"}</span>
+                  </button>
+
+                  {/* DELETE ACCOUNT BUTTON */}
+                  <button
+                    type="button"
+                    onClick={() => setIsDeleteModalOpen(true)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      padding: '12px',
+                      borderRadius: '12px',
+                      fontSize: '13px',
+                      fontWeight: 'bold',
+                      background: 'rgba(229, 57, 53, 0.12)',
+                      border: '1px solid rgba(229, 57, 53, 0.4)',
+                      color: '#E53935',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <Trash2 size={16} />
+                    <span>Delete Account & Data</span>
+                  </button>
+                </div>
+              </div>
 
               <div className={styles.glassCard}>
                 <h3>Station Configurations</h3>
@@ -1210,6 +1367,57 @@ export default function SalonDashboard() {
           50% { opacity: 0.4; }
         }
       `}</style>
+
+      {/* DELETE ACCOUNT CONFIRMATION MODAL */}
+      {isDeleteModalOpen && (
+        <div className={styles.modalOverlay} style={{ zIndex: 3500, background: 'rgba(0,0,0,0.85)' }}>
+          <div className={styles.modalContent} style={{ maxWidth: '380px', textAlign: 'center', background: '#0e0e0e', border: '1px solid #333', borderRadius: '24px', padding: '24px' }}>
+            <div style={{ width: '48px', height: '48px', background: 'rgba(229,57,53,0.15)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', color: '#E53935' }}>
+              <Trash2 size={24} />
+            </div>
+
+            <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: 900, color: '#fff' }}>Delete Account?</h3>
+            <p style={{ color: '#aaa', fontSize: '12px', lineHeight: '1.5', marginBottom: '20px' }}>
+              Are you sure you want to permanently delete your salon account and data? This action is <strong style={{ color: '#fff' }}>irreversible</strong>.
+            </p>
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                type="button"
+                className={styles.glassButtonSecondary}
+                onClick={() => setIsDeleteModalOpen(false)}
+                disabled={isDeleting}
+                style={{ flex: 1, padding: '12px', borderRadius: '12px', fontSize: '13px' }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteAccountAndData}
+                disabled={isDeleting}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  borderRadius: '12px',
+                  background: '#E53935',
+                  color: '#fff',
+                  border: 'none',
+                  fontWeight: 'bold',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px'
+                }}
+              >
+                {isDeleting && <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />}
+                <span>{isDeleting ? "Deleting..." : "Confirm Delete"}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

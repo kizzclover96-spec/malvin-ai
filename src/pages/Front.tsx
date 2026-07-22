@@ -3,10 +3,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Menu, Settings, Search, Home, Wallet as WalletIcon, QrCode, X, 
   User, Save, Mail, Loader2, CheckCircle2, AlertCircle,
-  Clock, Heart, Bell, Moon, Globe, LogOut, ChevronRight, ChevronDown, Calendar, DollarSign
+  Clock, Heart, Bell, Moon, Globe, LogOut, ChevronRight, ChevronDown, Calendar, DollarSign,  Download, Trash2 
 } from 'lucide-react';
-import { doc, getDoc, setDoc, collection, collectionGroup, query, where, onSnapshot } from 'firebase/firestore';
-import { signOut } from 'firebase/auth';
+import { doc, getDoc, setDoc, deleteDoc,collection, collectionGroup, query, where, onSnapshot } from 'firebase/firestore';
+import { signOut, deleteUser } from 'firebase/auth';
 import { firestore as db } from '../firebase'; 
 import { auth } from "../firebase"; 
 import QRCode from 'qrcode'; // Add QRCode to render the scan-ready ticket receipts
@@ -46,12 +46,81 @@ export const Front: React.FC = () => {
   const [activeReceipts, setActiveReceipts] = useState<any[]>([]);
   const [receiptQrs, setReceiptQrs] = useState<Record<string, string>>({});
 
+  // Data Download and Account Deletion state
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   // Toast State
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const showToast = (type: 'success' | 'error', message: string) => {
     setToast({ type, message });
     setTimeout(() => setToast(null), 3500);
+  };
+
+
+  // Export and Download Data Functionality
+  const handleDownloadData = async () => {
+    if (!user?.uid) return;
+    setIsDownloading(true);
+    try {
+      const customerDocSnap = await getDoc(doc(db, 'customers', user.uid));
+      const customerData = customerDocSnap.exists() ? customerDocSnap.data() : {};
+
+      const exportPayload = {
+        account: {
+          uid: user.uid,
+          email: user.email,
+          fullName,
+          phone,
+          address,
+          ...customerData
+        },
+        activeReceipts,
+        exportedAt: new Date().toISOString()
+      };
+
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportPayload, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `user-data-${user.uid}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+
+      showToast('success', 'Data exported successfully!');
+    } catch (err) {
+      console.error(err);
+      showToast('error', 'Failed to compile data export package.');
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  // Account & Profile Data Erasure Functionality
+  const handleDeleteAccountAndData = async () => {
+    if (!user?.uid) return;
+    setIsDeleting(true);
+    try {
+      // 1. Delete customer document entry in Firestore
+      await deleteDoc(doc(db, 'customers', user.uid));
+
+      // 2. Delete Firebase Authentication User
+      await deleteUser(user);
+
+      showToast('success', 'Account and personal data permanently erased.');
+    } catch (err: any) {
+      console.error(err);
+      if (err?.code === 'auth/requires-recent-login') {
+        showToast('error', 'Re-authentication required. Please log out and back in to proceed with account deletion.');
+      } else {
+        showToast('error', 'Failed to erase user profile data completely.');
+      }
+    } finally {
+      setIsDeleting(false);
+      setIsDeleteModalOpen(false);
+    }
   };
 
   const handleBusinessVisit = async (inputUidOrUrl: string) => {
@@ -477,23 +546,125 @@ export const Front: React.FC = () => {
                 </div>
               </div>
 
-              <div className="mt-4 mb-6 bg-white border border-neutral-200/80 rounded-[1.75rem] p-5 shadow-[0_8px_24px_rgba(0,0,0,0.01)]">
-                <motion.button
-                  whileTap={{ scale: 0.98 }}
-                  onClick={handleLogout}
-                  className="icon-button w-full bg-[#E53935]/5 border border-[#E53935]/10 hover:bg-[#E53935] text-[#E53935] hover:text-white rounded-xl py-3.5 font-bold transition-all flex items-center justify-center gap-2 group"
-                >
-                  <LogOut className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
-                  <span>Log Out of Session</span>
-                </motion.button>
-              </div>
+              {/* LOGOUT & DATA MANAGEMENT OPTIONS */}
+              {/* ACCOUNT & DATA ACTIONS */}
+              <div className="mt-4 mb-6 bg-white border border-neutral-200/80 rounded-[1.75rem] p-4 shadow-[0_8px_24px_rgba(0,0,0,0.01)]">
+                <div className="flex items-center justify-between mb-3 px-1">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-neutral-400">
+                    Account Actions
+                  </span>
+                </div>
 
+                <div className="space-y-2">
+                  {/* LOGOUT BUTTON */}
+                  <motion.button
+                    whileTap={{ scale: 0.98 }}
+                    onClick={handleLogout}
+                    className="icon-button w-full bg-neutral-50 border border-neutral-200/80 hover:bg-neutral-100 text-neutral-800 rounded-2xl py-3 px-4 font-bold transition-all flex items-center justify-between text-xs group"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-1.5 rounded-lg bg-neutral-200/60 text-neutral-600 group-hover:bg-neutral-900 group-hover:text-white transition-colors">
+                        <LogOut className="w-3.5 h-3.5" />
+                      </div>
+                      <span>Log Out</span>
+                    </div>
+                    <ChevronRight className="w-3.5 h-3.5 text-neutral-400 group-hover:translate-x-0.5 transition-transform" />
+                  </motion.button>
+
+                  {/* DOWNLOAD DATA BUTTON */}
+                  <motion.button
+                    whileTap={{ scale: 0.98 }}
+                    onClick={handleDownloadData}
+                    disabled={isDownloading}
+                    className="icon-button w-full bg-neutral-50 border border-neutral-200/80 hover:bg-neutral-100 text-neutral-800 rounded-2xl py-3 px-4 font-bold transition-all flex items-center justify-between text-xs group disabled:opacity-50"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-1.5 rounded-lg bg-sky-50 text-sky-600 group-hover:bg-sky-600 group-hover:text-white transition-colors">
+                        {isDownloading ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Download className="w-3.5 h-3.5" />
+                        )}
+                      </div>
+                      <span>Download My Data</span>
+                    </div>
+                  </motion.button>
+
+                  {/* DELETE ACCOUNT BUTTON */}
+                  <motion.button
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setIsDeleteModalOpen(true)}
+                    className="icon-button w-full bg-rose-50/50 border border-rose-100 hover:bg-rose-50 text-rose-600 rounded-2xl py-3 px-4 font-bold transition-all flex items-center justify-between text-xs group"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-1.5 rounded-lg bg-rose-100/80 text-rose-600 group-hover:bg-rose-600 group-hover:text-white transition-colors">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </div>
+                      <span>Delete Account & Data</span>
+                    </div>
+                    <ChevronRight className="w-3.5 h-3.5 text-rose-400 group-hover:translate-x-0.5 transition-transform" />
+                  </motion.button>
+                </div>
+              </div>
             </motion.div>
           </>
         )}
       </AnimatePresence>
 
       {/* DETAIL MODAL METRICS PROFILE FORM LAYER */}
+      {/* CONFIRMATION MODAL FOR DELETING ACCOUNT & DATA */}
+      <AnimatePresence>
+        {isDeleteModalOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.4 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsDeleteModalOpen(false)}
+              className="fixed inset-0 bg-neutral-900 backdrop-blur-sm z-[80]"
+            />
+            <div className="fixed inset-0 flex items-center justify-center z-[90] p-4 pointer-events-none">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 15 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                className="w-full max-w-sm bg-white border border-neutral-200 rounded-[2rem] p-6 shadow-2xl flex flex-col pointer-events-auto"
+              >
+                <div className="flex items-center gap-3 text-rose-600 mb-3">
+                  <div className="p-2.5 bg-rose-50 rounded-full">
+                    <Trash2 className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-base font-black text-neutral-900 tracking-tight">Delete Account?</h3>
+                </div>
+
+                <p className="text-xs font-medium text-neutral-500 leading-relaxed mb-6">
+                  Are you sure you want to delete your profile and account? This action is <strong className="text-neutral-900">permanent</strong> and will remove all associated user profile data.
+                </p>
+
+                <div className="flex items-center justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsDeleteModalOpen(false)}
+                    className="px-4 py-2.5 rounded-xl border border-neutral-200 font-bold text-xs text-neutral-600 hover:bg-neutral-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleDeleteAccountAndData}
+                    disabled={isDeleting}
+                    className="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 font-bold text-xs text-white transition-colors flex items-center justify-center gap-2 shadow-lg shadow-rose-600/20 disabled:opacity-50"
+                  >
+                    {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                    <span>Confirm Delete</span>
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          </>
+        )}
+      </AnimatePresence>
       <AnimatePresence>
         {isPersonalDetailsModalOpen && (
           <>

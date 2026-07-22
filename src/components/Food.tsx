@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { firestore as db, auth } from '../firebase';
-import { getAuth, onAuthStateChanged, signOut  } from 'firebase/auth';
+import { getAuth, onAuthStateChanged, signOut, deleteUser  } from 'firebase/auth';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { 
   doc, 
@@ -22,7 +22,7 @@ import { useRef } from "react";
 import { useBusinessWallet } from "../hooks/useBusinessWallet";
 import styles from './salonDashboard.module.css';
 import ConfirmQRScanner from './ConfirmQRScanner';
-import { CheckCircle } from 'lucide-react';
+import { CheckCircle, Download, Trash2, Loader2} from 'lucide-react';
 
 // --- Type Definitions ---
 interface RestaurantData {
@@ -115,6 +115,13 @@ export default function FoodDashboard() {
   const [isForgotPinOpen, setIsForgotPinOpen] = useState(false);
   const [resetCode, setResetCode] = useState('');
   const [newPin, setNewPin] = useState('');
+
+
+  // --- Data Management & Account Erasure States ---
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   // First-Time Pin Setup States
   const [setupPin, setSetupPin] = useState('');
   const [confirmSetupPin, setConfirmSetupPin] = useState('');
@@ -132,6 +139,71 @@ export default function FoodDashboard() {
       showToast("Check your email for the recovery code!");
     } catch (error: any) {
       alert(`Failed to send code: ${error.message}`);
+    }
+  };
+
+  // --- Download Restaurant Data ---
+  const handleDownloadData = async () => {
+    if (!uid) return;
+    setIsDownloading(true);
+    try {
+      const docRef = doc(db, 'restaurantprofile', uid);
+      const docSnap = await getDoc(docRef);
+      const profileData = docSnap.exists() ? docSnap.data() : {};
+
+      const exportPayload = {
+        account: {
+          uid,
+          email,
+          ...profileData
+        },
+        incomingOrders,
+        exportedAt: new Date().toISOString()
+      };
+
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportPayload, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `restaurant-data-${uid}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+
+      showToast("Data exported successfully!");
+    } catch (err) {
+      console.error("Download failed:", err);
+      alert("Failed to export store data.");
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  // --- Delete Account & Store Data ---
+  const handleDeleteAccountAndData = async () => {
+    if (!uid) return;
+    setIsDeleting(true);
+    try {
+      // 1. Delete restaurant profile in Firestore
+      await deleteDoc(doc(db, 'restaurantprofile', uid));
+
+      // 2. Delete Firebase Auth User
+      const auth = getAuth();
+      if (auth.currentUser) {
+        await deleteUser(auth.currentUser);
+      }
+
+      alert("Account and store data permanently deleted.");
+      window.location.href = '/login';
+    } catch (err: any) {
+      console.error("Delete failed:", err);
+      if (err?.code === 'auth/requires-recent-login') {
+        alert("Re-authentication required. Please log out and log back in to proceed with account deletion.");
+      } else {
+        alert("Failed to delete store data completely.");
+      }
+    } finally {
+      setIsDeleting(false);
+      setIsDeleteModalOpen(false);
     }
   };
 
@@ -1036,6 +1108,36 @@ export default function FoodDashboard() {
                 ))}
               </div>
             </section>
+            {/* CARD: DATA & ACCOUNT MANAGEMENT */}
+            <section className="bg-white/75 backdrop-blur-md border-[3px] border-black rounded-3xl p-5">
+              <h2 className="text-lg font-black uppercase tracking-wider mb-4 border-b-[2.5px] border-black pb-2">
+                Data & Account Actions
+              </h2>
+              <p className="text-xs font-semibold text-gray-600 mb-4">
+                Export your store parameters and order logs, or permanently delete your account data.
+              </p>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={handleDownloadData}
+                  disabled={isDownloading}
+                  className="py-3 px-4 border-[2.5px] border-black bg-lime-300 hover:bg-lime-400 text-black rounded-2xl text-xs font-black uppercase flex items-center justify-center gap-2 active:translate-y-0.5 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all disabled:opacity-50"
+                >
+                  {isDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                  <span>{isDownloading ? "Exporting..." : "Download My Data"}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsDeleteModalOpen(true)}
+                  className="py-3 px-4 border-[2.5px] border-black bg-red-100 hover:bg-red-200 text-red-700 rounded-2xl text-xs font-black uppercase flex items-center justify-center gap-2 active:translate-y-0.5 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all"
+                >
+                  <Trash2 className="w-4 h-4 text-red-600" />
+                  <span>Delete Account & Data</span>
+                </button>
+              </div>
+            </section>
 
             {/* CARD 4: VIN WALLET */}
             {/* CARD 4: STRIPE LIVE EARNINGS */}
@@ -1434,6 +1536,41 @@ export default function FoodDashboard() {
                 style={{ flex: 1 }}
               >
                 {isRegisteringPin ? "Saving..." : "Set PIN"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* --- DELETE ACCOUNT CONFIRMATION MODAL --- */}
+      {isDeleteModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white border-[4px] border-black rounded-3xl p-6 max-w-sm w-full shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] text-center space-y-4 animate-fadeIn">
+            <div className="w-14 h-14 bg-red-100 border-[3px] border-black rounded-full flex items-center justify-center mx-auto text-red-600">
+              <Trash2 className="w-7 h-7" />
+            </div>
+
+            <h3 className="text-xl font-black uppercase tracking-tight">Delete Account?</h3>
+            
+            <p className="text-xs font-bold text-gray-700 leading-relaxed">
+              Are you sure you want to delete your store profile and account? This action is <strong className="text-black underline">permanent</strong> and cannot be undone.
+            </p>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsDeleteModalOpen(false)}
+                className="flex-1 py-3 border-[2.5px] border-black bg-gray-100 text-black rounded-xl text-xs font-black uppercase hover:bg-gray-200 transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteAccountAndData}
+                disabled={isDeleting}
+                className="flex-1 py-3 border-[2.5px] border-black bg-red-500 text-white rounded-xl text-xs font-black uppercase hover:bg-red-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isDeleting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                <span>{isDeleting ? "Deleting..." : "Confirm Delete"}</span>
               </button>
             </div>
           </div>
