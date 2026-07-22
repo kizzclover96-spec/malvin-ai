@@ -565,30 +565,35 @@ export const StoreFrontend: React.FC = () => {
             </button>
 
             {/* SMALL REPORT BUTTON */}
+            {/* REPORT BUSINESS BUTTON */}
             <button
               type="button"
               onClick={() => {
-                if (!auth.currentUser && !guestId) {
-                  alert("Please establish a session to report a business.");
+                const currentUserId = auth.currentUser?.uid || guestId;
+                if (!currentUserId) {
+                  alert("Please wait a moment for your session to initialize before reporting.");
                   return;
                 }
                 setIsReportOpen(true);
               }}
               style={{
-                background: 'rgba(239, 68, 68, 0.08)',
-                border: '1px solid rgba(239, 68, 68, 0.25)',
+                position: 'absolute',
+                top: '16px',
+                right: '16px',
+                background: 'rgba(239, 68, 68, 0.1)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
                 color: '#ef4444',
-                padding: '4px 10px',
+                padding: '6px 10px',
                 borderRadius: '12px',
                 fontSize: '11px',
-                fontWeight: 700,
+                fontWeight: 'bold',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '4px',
                 cursor: 'pointer'
               }}
             >
-              <AlertTriangle size={11} />
+              <AlertTriangle size={13} />
               <span>Report</span>
             </button>
           </div>
@@ -774,12 +779,12 @@ export const StoreFrontend: React.FC = () => {
         </div>
       )}
       {/* REPORT MODAL OVERLAY */}
-      {isReportOpen && restaurantUid && (auth.currentUser?.uid || guestId) && (
+      {isReportOpen && restaurantUid && (
         <Report
           isOpen={isReportOpen}
           onClose={() => setIsReportOpen(false)}
           reportedUserUid={restaurantUid}
-          currentUserUid={auth.currentUser?.uid || guestId}
+          currentUserUid={auth.currentUser?.uid || guestId || 'guest_anonymous'}
         />
       )}
       {/* INTERACTIVE STAR RATING MODAL (POPS UP WHEN RATINGS ARE CLICKED) */}
