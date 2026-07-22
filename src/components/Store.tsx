@@ -147,8 +147,8 @@ export const StoreFrontend: React.FC = () => {
 
   // --- 1. Fetch Store Average Rating & Ratings Count ---
   useEffect(() => {
-    if (!uid) return;
-    const ratingDocRef = doc(db, 'store_ratings', uid);
+    if (!restaurantUid) return;
+    const ratingDocRef = doc(db, 'store_ratings', restaurantUid);
     const unsub = onSnapshot(ratingDocRef, (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
@@ -160,31 +160,33 @@ export const StoreFrontend: React.FC = () => {
       }
     });
     return () => unsub();
-  }, [uid]);
+  }, [restaurantUid]);
 
   // --- 2. Check current user's existing rating ---
   useEffect(() => {
-    if (!uid || !user?.uid) return;
-    const userRatingRef = doc(db, 'store_ratings', uid, 'user_ratings', user.uid);
+    const currentUserId = auth.currentUser?.uid || guestId;
+    if (!restaurantUid || !currentUserId) return;
+    const userRatingRef = doc(db, 'store_ratings', restaurantUid, 'user_ratings', currentUserId);
     getDoc(userRatingRef).then((docSnap) => {
       if (docSnap.exists()) {
         setUserRating(docSnap.data().stars || 0);
       }
     });
-  }, [uid, user?.uid]);
+  }, [restaurantUid, guestId]);
 
   // --- 3. Handle Star Click (Submit or Update Rating) ---
   const handleRateStore = async (stars: number) => {
-    if (!user) {
-      alert("Please log in to rate this store.");
+    const currentUserId = auth.currentUser?.uid || guestId;
+    if (!currentUserId) {
+      alert("Please log in or establish session to rate this store.");
       return;
     }
-    if (!uid || isSubmittingRating) return;
+    if (!restaurantUid || isSubmittingRating) return;
 
     setIsSubmittingRating(true);
     try {
-      const userRatingRef = doc(db, 'store_ratings', uid, 'user_ratings', user.uid);
-      const summaryRef = doc(db, 'store_ratings', uid);
+      const userRatingRef = doc(db, 'store_ratings', restaurantUid, 'user_ratings', currentUserId);
+      const summaryRef = doc(db, 'store_ratings', restaurantUid);
 
       const oldRatingSnap = await getDoc(userRatingRef);
       const summarySnap = await getDoc(summaryRef);
@@ -198,24 +200,20 @@ export const StoreFrontend: React.FC = () => {
       }
 
       if (oldRatingSnap.exists()) {
-        // User is updating their existing rating
         const previousStars = oldRatingSnap.data().stars || 0;
         currentSum = currentSum - previousStars + stars;
       } else {
-        // New rating entry
         currentSum += stars;
         currentCount += 1;
       }
 
       const newAverage = currentCount > 0 ? Number((currentSum / currentCount).toFixed(1)) : 0;
 
-      // Save user rating
       await setDoc(userRatingRef, {
         stars,
         updatedAt: new Date().toISOString()
       });
 
-      // Save updated store average summary
       await setDoc(summaryRef, {
         average: newAverage,
         count: currentCount,
@@ -230,6 +228,8 @@ export const StoreFrontend: React.FC = () => {
       setIsSubmittingRating(false);
     }
   };
+
+
   useEffect(() => {
     if (!profile?.cooldownExpiresAt) {
       setTimeRemaining(null);
@@ -801,12 +801,12 @@ export const StoreFrontend: React.FC = () => {
       
       
       {/* REPORT MODAL OVERLAY */}
-      {isReportOpen && uid && user && (
+      {isReportOpen && restaurantUid && (auth.currentUser?.uid || guestId) && (
         <Report
           isOpen={isReportOpen}
           onClose={() => setIsReportOpen(false)}
-          reportedUserUid={uid}
-          currentUserUid={user.uid}
+          reportedUserUid={restaurantUid}
+          currentUserUid={auth.currentUser?.uid || guestId}
         />
       )}
       {/* Small Blue Watermark */}
