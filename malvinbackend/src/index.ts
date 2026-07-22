@@ -742,3 +742,39 @@ export const getStripeAccountBalance = onCall(
     }
   }
 );
+
+/*
+=====================================
+12. DELETE STRIPE CONNECT ACCOUNT
+=====================================
+*/
+export const deleteStripeAccount = onCall(
+  { secrets: ["SECURE_STRIPE_KEY"] },
+  async (request) => {
+    if (!process.env.SECURE_STRIPE_KEY) {
+      throw new HttpsError("failed-precondition", "Stripe secret key is missing on the server.");
+    }
+
+    const uid = request.auth?.uid;
+    if (!uid) {
+      throw new HttpsError("unauthenticated", "Authentication is required.");
+    }
+
+    const { stripeAccountId } = request.data;
+    if (!stripeAccountId) {
+      return { success: true, message: "No Stripe account provided." };
+    }
+
+    const stripe = getStripe();
+
+    try {
+      // Permanently delete the connected account from Stripe
+      const deleted = await stripe.accounts.del(stripeAccountId);
+      console.log(`Successfully deleted Stripe Connect account ${stripeAccountId} for user ${uid}`);
+      return { success: true, deleted };
+    } catch (err: any) {
+      console.error("Error deleting Stripe Connect account:", err);
+      throw new HttpsError("internal", `Failed to delete Stripe account: ${err.message}`);
+    }
+  }
+);

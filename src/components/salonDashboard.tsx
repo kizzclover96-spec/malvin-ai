@@ -25,6 +25,8 @@ import ConfirmQRScanner from './ConfirmQRScanner'; // Imported custom validation
 import { signOut, deleteUser } from 'firebase/auth'; // <--- Added deleteUser
 import { Bell, Sparkles, Clock, User, QrCode, CheckCircle, Download, Trash2, Loader2, LogOut } from 'lucide-react';
 
+import { geocodeAddress } from '../utils/geocoding';
+
 interface SalonData {
   salonName: string;
   bio: string;
@@ -39,6 +41,8 @@ interface SalonData {
   hasPinConfigured?: boolean;
   stripeOnboarded?: boolean;
   stripeAccountId?: string;
+  latitude?: number; 
+  longitude?: number;
 }
 
 interface LiveAppointment {
@@ -249,10 +253,21 @@ export default function SalonDashboard() {
     if (!uid) return;
     setIsDeleting(true);
     try {
-      // 1. Delete salon profile in Firestore
+      // 1. Delete Stripe Connect Account if one exists
+      if (salon?.stripeAccountId) {
+        try {
+          const functions = getFunctions();
+          const deleteStripeAcc = httpsCallable(functions, 'deleteStripeAccount');
+          await deleteStripeAcc({ stripeAccountId: salon.stripeAccountId });
+        } catch (stripeErr) {
+          console.error("Failed to delete Stripe account:", stripeErr);
+        }
+      }
+
+      // 2. Delete Salon document in Firestore
       await deleteDoc(doc(db, 'salons', uid));
 
-      // 2. Delete Firebase Auth User
+      // 3. Delete Firebase Auth User
       if (auth.currentUser) {
         await deleteUser(auth.currentUser);
       }
@@ -672,7 +687,11 @@ export default function SalonDashboard() {
     if (!uid) return;
     setIsSaving(true);
     try {
-      await updateDoc(doc(db, "salons", uid), {
+      // 1. Get GPS coordinates automatically from the address typed in
+      const coords = await geocodeAddress(formAddress);
+
+      // 2. Save settings and auto-populated coordinates to Firestore
+      await setDoc(doc(db, "salons", uid), {
         salonName: formName,
         bio: formBio,
         address: formAddress,
@@ -680,13 +699,21 @@ export default function SalonDashboard() {
         closingTime: formClosing,
         offDays: formOffDays,
         appointmentLimit: formLimit,
+        latitude: coords ? coords.latitude : 0,   // Auto-populated GPS Latitude!
+        longitude: coords ? coords.longitude : 0, // Auto-populated GPS Longitude!
         updatedAt: serverTimestamp()
-      });
+      }, { merge: true });
+
       showToast("Settings updated successfully!");
       setHasChanges(false);
       setIsModalOpen(false);
-    } catch { showToast("Error updating settings."); }
-    finally { setIsSaving(false); }
+    } catch (error) { 
+      console.error("Error updating settings:", error);
+      showToast("Error updating settings."); 
+    }
+    finally { 
+      setIsSaving(false); 
+    }
   };
 
   if (loading || !salon) {

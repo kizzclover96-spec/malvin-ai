@@ -137,7 +137,7 @@ export const VinScanner: React.FC = () => {
     console.log(`[VinScanner] 🔍 Querying Firestore for nearby businesses around user position (${userLat}, ${userLng})...`);
     try {
       const fetched: BusinessProfile[] = [];
-      const collections = ['resturantprofile', 'salons'];
+      const collections = ['restaurantprofile', 'salons'];
 
       for (const colName of collections) {
         console.log(`[VinScanner] 📂 Reading collection: '${colName}'`);

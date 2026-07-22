@@ -23,6 +23,7 @@ import { useBusinessWallet } from "../hooks/useBusinessWallet";
 import styles from './salonDashboard.module.css';
 import ConfirmQRScanner from './ConfirmQRScanner';
 import { CheckCircle, Download, Trash2, Loader2} from 'lucide-react';
+import { geocodeAddress } from '../utils/geocoding';
 
 // --- Type Definitions ---
 interface RestaurantData {
@@ -183,10 +184,21 @@ export default function FoodDashboard() {
     if (!uid) return;
     setIsDeleting(true);
     try {
-      // 1. Delete restaurant profile in Firestore
+      // 1. Delete Stripe Connect Account if one exists
+      if ((profile as any)?.stripeAccountId) {
+        try {
+          const functions = getFunctions();
+          const deleteStripeAcc = httpsCallable(functions, 'deleteStripeAccount');
+          await deleteStripeAcc({ stripeAccountId: (profile as any).stripeAccountId });
+        } catch (stripeErr) {
+          console.error("Failed to delete Stripe account:", stripeErr);
+        }
+      }
+
+      // 2. Delete Firestore Document
       await deleteDoc(doc(db, 'restaurantprofile', uid));
 
-      // 2. Delete Firebase Auth User
+      // 3. Delete Auth Account
       const auth = getAuth();
       if (auth.currentUser) {
         await deleteUser(auth.currentUser);
@@ -197,7 +209,7 @@ export default function FoodDashboard() {
     } catch (err: any) {
       console.error("Delete failed:", err);
       if (err?.code === 'auth/requires-recent-login') {
-        alert("Re-authentication required. Please log out and log back in to proceed with account deletion.");
+        alert("Re-authentication required. Please log out and log back in to delete your account.");
       } else {
         alert("Failed to delete store data completely.");
       }
@@ -682,11 +694,11 @@ export default function FoodDashboard() {
             // 🌟 SYNC COOLDOWN STATE TO THE PUBLIC RESTAURANT PROFILE
             try {
               const profileDocRef = doc(db, 'restaurantprofile', uid);
-              await updateDoc(profileDocRef, {
+              await setDoc(profileDocRef, {
                 orderLimitReached: expiresAt ? true : false,
                 cooldownExpiresAt: expiresAt,
                 isVerified: isVerified
-              });
+              }, { merge: true });
             } catch (error) {
               console.error("Failed to sync limit state to Firestore:", error);
             }
@@ -726,6 +738,7 @@ export default function FoodDashboard() {
         try {
             const { doc, setDoc, serverTimestamp } = await import('firebase/firestore');
             const docRef = doc(db, 'restaurantprofile', uid);
+            const coords = await geocodeAddress(formAddress);
             
             await setDoc(docRef, {
               brandName: formBrandName,
@@ -734,6 +747,8 @@ export default function FoodDashboard() {
               openingTime: formOpeningTime,
               closingTime: formClosingTime,
               shareLink: profile.shareLink, 
+              latitude: coords ? coords.latitude : 0, // Auto-populated!
+              longitude: coords ? coords.longitude : 0, // Auto-populated!
               updatedAt: serverTimestamp(),
             }, { merge: true });
 
