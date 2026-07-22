@@ -132,7 +132,7 @@ const Premium: React.FC<PremiumProps> = ({ onBack }) => {
             ...priceHeader,
             borderBottom: isPremium ? '1px solid rgba(0, 242, 255, 0.1)' : '1px solid rgba(255, 215, 0, 0.1)'
           }}>
-            <span style={{ ...priceStyle, color: activeColor }}>$10.99</span>
+            <span style={{ ...priceStyle, color: activeColor }}>€20.99</span>
             <span style={perMonthStyle}>/month</span>
           </div>
           

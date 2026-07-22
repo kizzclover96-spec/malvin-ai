@@ -43,6 +43,8 @@ interface Order {
   fourDigitCode: string;
 }
 
+
+
 const VerifiedBadge = () => (
     <svg 
         width="14" 
@@ -54,6 +56,25 @@ const VerifiedBadge = () => (
         <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
     </svg>
 );
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  USD: '$',
+  EUR: '€',
+  GBP: '£',
+  NGN: '₦',
+  TRY: '₺',
+  GMD: 'D',
+  CAD: 'CA$',
+  AUD: 'A$',
+  JPY: '¥',
+  INR: '₹',
+  ZAR: 'R',
+  AED: 'د.إ'
+};
+
+const getSymbol = (currencyCode?: string): string => {
+  if (!currencyCode) return '$';
+  return CURRENCY_SYMBOLS[currencyCode.toUpperCase()] || currencyCode;
+};
 
 export const StoreFrontend: React.FC = () => {
   const { Uid } = useParams();
@@ -621,7 +642,7 @@ export const StoreFrontend: React.FC = () => {
                 <h3 className={styles.productName}>{product.name}</h3>
                 <p className={styles.productDesc}>{product.description}</p>
                 <div className={styles.productFooter}>
-                  <span className={styles.price}>{product.currency || '$'}{product.price}</span>
+                  <span className={styles.price}>{getSymbol(product.currency)}{product.price}</span>
                   <button className={styles.addBtn}>+</button>
                 </div>
               </div>
@@ -634,7 +655,7 @@ export const StoreFrontend: React.FC = () => {
       {cart.length > 0 && (
         <div className={styles.stickyCart} onClick={() => setIsCheckoutOpen(true)}>
           <span>View Cart ({cart.reduce((a, b) => a + b.quantity, 0)} items)</span>
-          <span>Total: ${cartTotal.toFixed(2)}</span>
+          <span>Total: {getSymbol(cart[0]?.product?.currency)}{cartTotal.toFixed(2)}</span>
         </div>
       )}
 
@@ -760,7 +781,7 @@ export const StoreFrontend: React.FC = () => {
                     {order.items?.map((it, idx) => (
                       <div key={idx} style={{ fontSize: '13px', display: 'flex', justifyContent: 'space-between' }}>
                         <span>{it.quantity}x {it.name}</span>
-                        <span>${((it.price || 0) * (it.quantity || 1)).toFixed(2)}</span>
+                        <span>{getSymbol(products[0]?.currency)}{((it.price || 0) * (it.quantity || 1)).toFixed(2)}</span>
                       </div>
                     ))}
                   </div>

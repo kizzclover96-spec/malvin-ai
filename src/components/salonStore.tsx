@@ -92,6 +92,7 @@ export default function SalonStore() {
   const [isSubmittingRating, setIsSubmittingRating] = useState(false);
   const [hoveredStar, setHoveredStar] = useState<number>(0);
   const [showRateModal, setShowRateModal] = useState(false);
+  const [currency, setCurrency] = useState<string>('€');
 
   const totalDuration = useMemo(() => 
     selectedServices.reduce((acc, s) => acc + Number(s.duration || 0), 0), 
@@ -125,6 +126,20 @@ export default function SalonStore() {
     window.addEventListener("message", receiveUserIdentity);
     return () => window.removeEventListener("message", receiveUserIdentity);
   }, []);
+
+  useEffect(() => {
+    if (!uid) return;
+
+    // Listen to parent document for salon currency
+    const stationDocRef = doc(db, 'salonstation', uid);
+    const unsubscribeCurrency = onSnapshot(stationDocRef, (docSnap) => {
+      if (docSnap.exists() && docSnap.data().currency) {
+        setCurrency(docSnap.data().currency);
+      }
+    });
+
+    return () => unsubscribeCurrency();
+  }, [uid]);
 
   // 1. Listen for store average rating
   useEffect(() => {
@@ -584,7 +599,7 @@ export default function SalonStore() {
               {customerPhone && <p>📞 Phone: {customerPhone}</p>}
               <p>📅 Schedule: {selectedDate} at <strong>{selectedTime}</strong></p>
               <p>⏱ Duration: {totalDuration} Mins</p>
-              <p>💳 Paid: <strong>€{totalPrice.toFixed(2)}</strong></p>
+              <p>💳 Paid: <strong>{currency}{totalPrice.toFixed(2)}</strong></p>
             </div>
           </div>
 
@@ -716,7 +731,7 @@ export default function SalonStore() {
                   >
                     <div className={styles.serviceMainLine}>
                       <h3>{service.serviceName}</h3>
-                      <strong className={styles.priceTagText}>€{service.price.toFixed(2)}</strong>
+                      <strong className={styles.priceTagText}>{currency}{service.price.toFixed(2)}</strong>
                     </div>
                     <div className={styles.serviceDurationLine}>⏱ {service.duration} Mins</div>
                     {service.description && <p className={styles.serviceCardDescription}>{service.description}</p>}
@@ -871,7 +886,7 @@ export default function SalonStore() {
                 {selectedServices.map(s => (
                   <div key={s.serviceId} className={styles.summaryItemRowLine}>
                     <span>{s.serviceName}</span>
-                    <strong>€{s.price.toFixed(2)}</strong>
+                    <strong>{currency}{s.price.toFixed(2)}</strong>
                   </div>
                 ))}
               </div>
@@ -893,7 +908,7 @@ export default function SalonStore() {
                 </div>
                 <div>
                   <h4>Total Due</h4>
-                  <p className={styles.finalTotalEmphasizedText}>€{totalPrice.toFixed(2)}</p>
+                  <p className={styles.finalTotalEmphasizedText}>{currency}{totalPrice.toFixed(2)}</p>
                 </div>
               </div>
 
@@ -905,7 +920,7 @@ export default function SalonStore() {
                 disabled={isSubmitting} 
                 onClick={executeFinalBookingSubmit}
               >
-                {isSubmitting ? "Processing Ledger..." : `Pay €${totalPrice.toFixed(2)} instantly via Wallet`}
+                {isSubmitting ? "Processing Ledger..." : `Pay {currency}${totalPrice.toFixed(2)} instantly via Wallet`}
               </button>
             </div>
           </div>
@@ -916,7 +931,7 @@ export default function SalonStore() {
       <footer className={styles.stickyActionControlFooter}>
         <div className={styles.summaryOverlayLabelInfo}>
           <div>Selected: <strong>{selectedServices.length} items</strong></div>
-          <div className={styles.footerPriceEmphasized}>€{totalPrice.toFixed(2)} <small>({totalDuration}m)</small></div>
+          <div className={styles.footerPriceEmphasized}>{currency}{totalPrice.toFixed(2)} <small>({totalDuration}m)</small></div>
         </div>
 
         <div className={styles.footerActionButtonClusterRow}>

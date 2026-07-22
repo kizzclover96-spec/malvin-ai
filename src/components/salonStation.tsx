@@ -7,7 +7,7 @@ import {
   collection,
   onSnapshot, 
   deleteDoc,
-  serverTimestamp 
+  serverTimestamp, getDoc
 } from 'firebase/firestore';
 import { 
   ref, 
@@ -171,6 +171,36 @@ export default function SalonStation({ onBack }: SalonStationProps) {
     }
     return () => { document.body.style.overflow = ''; };
   }, [workerModalOpen, serviceModalOpen]);
+
+  // Fetch initial currency from Firestore on UID change
+  useEffect(() => {
+    if (!uid) return;
+    const fetchCurrency = async () => {
+      try {
+        const stationDocRef = doc(db, 'salonstation', uid);
+        const docSnap = await getDoc(stationDocRef);
+        if (docSnap.exists() && docSnap.data().currency) {
+          setCurrentCurrency(docSnap.data().currency);
+        }
+      } catch (err) {
+        console.error("Failed to load currency setting:", err);
+      }
+    };
+    fetchCurrency();
+  }, [uid]);
+
+  // Handle currency change and update Firestore
+  const handleCurrencyChange = async (newCurrency: string) => {
+    setCurrentCurrency(newCurrency);
+    if (!uid) return;
+    try {
+      await setDoc(doc(db, 'salonstation', uid), { currency: newCurrency }, { merge: true });
+      triggerToast("Currency setting updated!");
+    } catch (err) {
+      console.error("Failed to save currency:", err);
+      triggerToast("Error saving currency selection.");
+    }
+  };
 
   // --- Helper Routines ---
   const triggerToast = (msg: string) => {
@@ -392,9 +422,9 @@ export default function SalonStation({ onBack }: SalonStationProps) {
           <div className={styles.currencySelectorWrapper} style={{ marginLeft: 'auto' }}>
             <label htmlFor="globalCurrencySelect" style={{ marginRight: '8px', fontWeight: '500' }}>Currency:</label>
             <select 
-              id="globalCurrencySelect"
-              value={currentCurrency}
-              onChange={(e) => setCurrentCurrency(e.target.value)}
+              id="globalCurrencySelect" 
+              value={currentCurrency} 
+              onChange={(e) => handleCurrencyChange(e.target.value)} 
               style={{ padding: '6px 12px', borderRadius: '4px', border: '1px solid #ccc' }}
             >
               {CURRENCIES.map(curr => (
