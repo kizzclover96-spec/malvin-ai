@@ -515,50 +515,56 @@ export const StoreFrontend: React.FC = () => {
       {/* Top Bar */}
       {/* Top Bar */}
       <header className={styles.topBar}>
-        <div className={styles.brandInfo}>
-          <h1 style={{ fontSize: '20px', fontWeight: 900, margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-            {profile?.brandName || 'Loading...'} {profile?.isVerified && <VerifiedBadge />}
+        <div className={styles.brandInfo} style={{ width: '100%', textAlign: 'left', display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+          
+          {/* BRAND NAME & VERIFIED BADGE */}
+          <h1 style={{ fontSize: '24px', fontWeight: 900, margin: '0 0 6px 0', display: 'flex', alignItems: 'center', gap: '6px', color: '#0f172a', letterSpacing: '-0.02em' }}>
+            <span>{profile?.brandName || 'Loading...'}</span>
+            {profile?.isVerified && <VerifiedBadge />}
           </h1>
 
-          <p className={styles.brandBio} style={{ margin: '4px 0', fontSize: '12px', color: '#666' }}>
+          {/* BRAND BIO */}
+          <p className={styles.brandBio} style={{ margin: '0 0 6px 0', fontSize: '14px', fontWeight: 600, color: '#334155', lineHeight: 1.4, maxWidth: '480px' }}>
             {profile?.brandBio || 'Connecting to store...'}
           </p>
           
+          {/* ADDRESS */}
           {profile?.address && (
-            <p className={styles.brandLocation} style={{ fontSize: '11px', color: '#666', margin: '2px 0 6px' }}>
-              📍 {profile.address}
+            <p className={styles.brandLocation} style={{ fontSize: '13px', fontWeight: 700, color: '#475569', margin: '0 0 8px 0', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              📍 <span>{profile.address}</span>
             </p>
           )}
 
-          {/* COMPACT SUB-HEADER ROW: RATINGS & REPORT */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginTop: '6px' }}>
+          {/* LEFT-ALIGNED SUB-HEADER ROW: RATINGS & REPORT */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '8px', marginTop: '4px' }}>
             
             {/* CLICKABLE AVERAGE RATING BADGE */}
             <button
               type="button"
               onClick={() => setShowRateModal(!showRateModal)}
               style={{
-                background: '#f5f5f5',
-                border: '1px solid #e5e5e5',
+                background: '#f8fafc',
+                border: '1px solid #cbd5e1',
                 borderRadius: '12px',
-                padding: '3px 8px',
+                padding: '4px 10px',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '4px',
-                cursor: 'pointer'
+                gap: '5px',
+                cursor: 'pointer',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.03)'
               }}
               title="Click to rate this business"
             >
-              <Star size={11} fill="#eab308" color="#eab308" />
-              <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#171717' }}>
+              <Star size={12} fill="#eab308" color="#eab308" />
+              <span style={{ fontSize: '12px', fontWeight: 800, color: '#0f172a' }}>
                 {averageRating.toFixed(1)}
               </span>
-              <span style={{ fontSize: '10px', color: '#737373' }}>
+              <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>
                 ({totalRatingsCount})
               </span>
             </button>
 
-            {/* VERY SMALL REPORT BUTTON */}
+            {/* SMALL REPORT BUTTON */}
             <button
               type="button"
               onClick={() => {
@@ -572,17 +578,17 @@ export const StoreFrontend: React.FC = () => {
                 background: 'rgba(239, 68, 68, 0.08)',
                 border: '1px solid rgba(239, 68, 68, 0.25)',
                 color: '#ef4444',
-                padding: '3px 8px',
+                padding: '4px 10px',
                 borderRadius: '12px',
-                fontSize: '10px',
-                fontWeight: 'bold',
+                fontSize: '11px',
+                fontWeight: 700,
                 display: 'flex',
                 alignItems: 'center',
-                gap: '3px',
+                gap: '4px',
                 cursor: 'pointer'
               }}
             >
-              <AlertTriangle size={10} />
+              <AlertTriangle size={11} />
               <span>Report</span>
             </button>
           </div>
