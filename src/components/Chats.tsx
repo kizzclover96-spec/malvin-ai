@@ -82,6 +82,17 @@ const Chats = ({ brandId, userBrand }: any) => {
     const timeout2 = useRef<any>(null);
     const [activeShipments, setActiveShipments] = useState<any[]>([]);
 
+    const [isMobile, setIsMobile] = useState(false);
+
+    useEffect(() => {
+        const handleResize = () => {
+            setIsMobile(window.innerWidth <= 768);
+        };
+        handleResize(); // run on mount
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
     const getShipmentProgress = (shipment:any) => {
 
         if (!shipment.createdAt) return "0%";
@@ -729,795 +740,796 @@ const Chats = ({ brandId, userBrand }: any) => {
                     </div>
                 )}
 
-                <div style={{ 
-                    display: 'grid', 
-                    gridTemplateColumns: '350px 1fr', 
-                    height: '100%',
-                    width: '100%',
-                    boxSizing: 'border-box'
-                }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '350px 1fr', height: '100%', width: '100%', boxSizing: 'border-box' }}>
                     
                     {/* LEFT: CHAT LIST (Sidebar) */}
-                    <ChatCard style={{ background: '#000000' }}>
-                        <div style={{ 
-                            padding: '0 24px', 
-                            borderBottom: '1px solid #1c1c1e', 
-                            fontWeight: 700, 
-                            fontSize: '20px',
-                            letterSpacing: '-0.5px',
-                            background: '#000000',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between', 
-                            height: '75px',
-                            boxSizing: 'border-box',
-                            flexShrink: 0
-                        }}>
-                            <span>Messages</span>
+                    {(!isMobile || !selectedChatId) && (
+                        <ChatCard style={{ background: '#000000' }}>
+                            <div style={{ 
+                                padding: '0 24px', 
+                                borderBottom: '1px solid #1c1c1e', 
+                                fontWeight: 700, 
+                                fontSize: '20px',
+                                letterSpacing: '-0.5px',
+                                background: '#000000',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between', 
+                                height: '75px',
+                                boxSizing: 'border-box',
+                                flexShrink: 0
+                            }}>
+                                <span>Messages</span>
 
-                            <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-                                <div
-                                    onClick={() => setShowLogisticsPanel(!showLogisticsPanel)}
-                                    style={{
-                                        cursor: "pointer",
-                                        color: showLogisticsPanel ? "#4ade80" : "rgba(255, 255, 255, 0.4)",
-                                        transition: "all 0.3s ease",
-                                        filter: showLogisticsPanel ? "drop-shadow(0 0 8px rgba(74, 222, 128, 0.4))" : "none",
-                                        display: "flex",
-                                        alignItems: "center"
-                                    }}
-                                >🚚
-                                    {activeShipments.length > 0 && (
-                                        <span
-                                            style={{
-                                                marginLeft:"6px",
-                                                display:"flex",
-                                                alignItems:"center",
-                                                justifyContent:"center",
-                                                minWidth:"18px",
-                                                height:"18px",
-                                                background: "#22c55e",
-                                                borderRadius: "999px",
-                                                padding: "2px 6px",
-                                                fontSize: "10px"
-                                            }}
-                                        >
-                                            {activeShipments.length}
-                                        </span>
-                                    )}
-                                </div>
-                                {showLogisticsPanel && (
+                                <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
                                     <div
+                                        onClick={() => setShowLogisticsPanel(!showLogisticsPanel)}
                                         style={{
-                                            position: "fixed",
-                                            top: "90px",
-                                            left: "370px",
-
-                                          width: "380px",
-                                            maxWidth: "calc(100vw - 420px)",
-
-                                            background: "#121214",
-                                            border: "1px solid #262626",
-                                            borderRadius: "16px",
-                                            padding: "16px",
-
-                                            maxHeight: "400px",
-                                            overflowY: "auto",
-
-                                            zIndex: 9999,
-                                            boxShadow: "0 20px 50px rgba(0,0,0,.45)"
+                                            cursor: "pointer",
+                                            color: showLogisticsPanel ? "#4ade80" : "rgba(255, 255, 255, 0.4)",
+                                            transition: "all 0.3s ease",
+                                            filter: showLogisticsPanel ? "drop-shadow(0 0 8px rgba(74, 222, 128, 0.4))" : "none",
+                                            display: "flex",
+                                            alignItems: "center"
                                         }}
-                                    >
-                                        <h4 style={{
-                                            display:"flex",
-                                            justifyContent:"space-between",
-                                            alignItems:"center",
-                                            marginTop:0
-                                        }}>
-                                            <span>🚚 Active Shipments</span>
-
+                                    >🚚
+                                        {activeShipments.length > 0 && (
                                             <span
                                                 style={{
-                                                    fontSize:"11px",
-                                                    background:"#22c55e",
-                                                    padding:"4px 8px",
-                                                    borderRadius:"999px"
+                                                    marginLeft:"6px",
+                                                    display:"flex",
+                                                    alignItems:"center",
+                                                    justifyContent:"center",
+                                                    minWidth:"18px",
+                                                    height:"18px",
+                                                    background: "#22c55e",
+                                                    borderRadius: "999px",
+                                                    padding: "2px 6px",
+                                                    fontSize: "10px"
                                                 }}
                                             >
                                                 {activeShipments.length}
                                             </span>
-                                        </h4>
-
-                                        {activeShipments.length === 0 ? (
-                                            <div style={{ color: "#888" }}>
-                                                No active shipments
-                                            </div>
-                                        ) : (
-                                            activeShipments.map((shipment) => (
-                                                
-                                                <div
-                                                    key={shipment.id}
-                                                    style={{
-                                                        background:"#18181b",
-                                                        border:"1px solid #262626",
-                                                        borderRadius:"12px",
-                                                        padding:"12px",
-                                                        marginBottom:"12px"
-                                                    }}
-                                                >
-                                                    <div
-                                                        style={{
-                                                            fontSize:"11px",
-                                                            color:"#6b7280",
-                                                            marginBottom:"6px"
-                                                        }}
-                                                    >
-                                                        Client #{sortedChats.findIndex(c => c.id === shipment.chatId) + 1}
-                                                    </div>
-                                                    <div
-                                                        style={{
-                                                            fontWeight:600,
-                                                            color:"#fff",
-                                                            marginBottom:"8px"
-                                                        }}
-                                                    >
-                                                        📦 {shipment.product}
-                                                    </div>
-
-                                                    <div
-                                                        style={{
-                                                            fontSize:"13px",
-                                                            color:"#9ca3af",
-                                                            display:"flex",
-                                                            justifyContent:"space-between"
-                                                        }}
-                                                    >
-                                                        <span>Qty: {shipment.quantity}</span>
-                                                        <span>ETA: {shipment.deliveryDate}</span>
-                                                    </div>
-                                                    <div style={{ marginTop:"12px" }}>
-                                                        <div
-                                                            style={{
-                                                                display:"flex",
-                                                                justifyContent:"space-between",
-                                                                marginBottom:"6px",
-                                                                fontSize:"11px",
-                                                                color:"#888"
-                                                            }}
-                                                        >
-                                                            <span>Status</span>
-                                                            <span>{getShipmentProgress(shipment)}</span>
-                                                            <span>📅 Expected Arrival: {shipment.expectedArrival}</span>
-                                                        </div>
-
-                                                        <div
-                                                            style={{
-                                                                width:"100%",
-                                                                height:"8px",
-                                                                background:"#222",
-                                                                borderRadius:"999px",
-                                                                overflow:"hidden"
-                                                            }}
-                                                        >
-                                                            <div
-                                                                style={{
-                                                                    width:getShipmentProgress(shipment),
-                                                                    height:"100%",
-                                                                    background:"#22c55e"
-                                                                }}
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            ))
                                         )}
                                     </div>
-                                )}
-                                
-                                <div
-                                    onClick={() => setShowTrustMsg(!showTrustMsg)}
-                                    style={{
-                                        cursor: "pointer",
-                                        color: showTrustMsg ? "#4ade80" : "rgba(255, 255, 255, 0.4)",
-                                        transition: "all 0.3s ease",
-                                        filter: showTrustMsg ? "drop-shadow(0 0 8px rgba(74, 222, 128, 0.4))" : "none",
-                                        display: "flex",
-                                        alignItems: "center"
-                                    }}
-                                >
-                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                                        <path d="m9 12 2 2 4-4" />
-                                    </svg>
-                                </div>
-
-                                {showTrustMsg && (
-                                    <div style={{
-                                        position: "absolute",
-                                        top: "40px",
-                                        right: "0",
-                                        width: "280px",
-                                        backgroundColor: "rgba(15, 15, 20, 0.95)",
-                                        backdropFilter: "blur(15px)",
-                                        border: "1px solid rgba(255, 255, 255, 0.1)",
-                                        borderRadius: "16px",
-                                        padding: "20px",
-                                        zIndex: 101,
-                                        animation: "fadeIn 0.2s ease-out"
-                                    }}>
-                                        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px" }}>
-                                            <div style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#4ade80" }}></div>
-                                            <span style={{ color: "white", fontWeight: "bold", fontSize: "13px" }}>Secure Session</span>
-                                        </div>
-                                        <p style={{ margin: "0 0 12px 0", fontSize: "12px", color: "rgba(255,255,255,0.7)", lineHeight: "1.6", fontWeight: "normal" }}>
-                                            All conversations are end-to-end encrypted. No Malvin personnel will ever ask for your login info.
-                                        </p>
-                                        <div style={{ height: "1px", backgroundColor: "rgba(255,255,255,0.1)", marginBottom: "12px" }}></div>
-                                        <p style={{ margin: 0, fontSize: "11px", color: "rgba(255,255,255,0.5)", fontWeight: "normal" }}>
-                                            Support: <a href="mailto:malvinsupportteam@gmail.com" style={{ color: "#bf00ff", textDecoration: "none", marginLeft: "5px", fontWeight: "bold", transition: "opacity 0.2s" }} onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.7")} onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}>malvinsupportteam@gmail.com</a>
-                                        </p>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-                        <div style={{ flex: 1, overflowY: 'auto', padding: '10px 0' }}>
-                            {sortedChats.map((chat, index) => {
-                                const isUnread = chat.viewedByManager === false;
-                                const isSelected = selectedChatId === chat.id;
-                                const isUnfinished = !!chat.hasUnfinishedBusiness; 
-                                const isBlueTheme = !!chat.isOrderBlue;
-                                const clientDisplayNum = sortedChats.length - index;
-
-                                // Turn layout rows blue if an active order session exists
-                                let rowBackground = 'transparent';
-                                let rowBoxShadow = 'none';
-
-                                if (isSelected) {
-                                    rowBackground = '#121212';
-                                }
-                                else if (isBlueTheme) {
-                                    rowBackground = 'rgba(0,122,255,0.25)';
-                                    rowBoxShadow = 'inset 0 0 15px rgba(0,122,255,0.25)';
-                                }
-                                else if (isUnfinished) {
-                                    rowBackground = 'rgba(255,255,255,0.05)';
-                                }
-                               
-
-                                return (
-                                    <div 
-                                        key={chat.id}
-                                        onClick={() => handleSelectChat(chat.id)}
-                                        style={{
-                                            padding: '14px 24px',
-                                            cursor: 'pointer',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '16px',
-                                            backgroundColor: rowBackground,
-                                            boxShadow: rowBoxShadow,
-                                            borderLeft: isBlueTheme ? '4px solid #007aff' : isUnfinished ? '4px solid #ffffff' : '4px solid transparent', 
-                                            transition: 'background 0.2s ease, border 0.2s ease'
-                                        }}
-                                        onMouseEnter={(e) => !isSelected && (e.currentTarget.style.backgroundColor = isBlueTheme ? 'rgba(0, 122, 255, 0.35)' : '#0a0a0a')}
-                                        onMouseLeave={(e) => !isSelected && (e.currentTarget.style.backgroundColor = rowBackground)}
-                                    >
-                                        <div style={{ 
-                                            width: '56px', height: '56px', borderRadius: '50%', 
-                                            display: 'flex', alignItems: 'center', 
-                                            justifyContent: 'center', color: isUnread ? '#000' : '#fff', 
-                                            fontWeight: '600', fontSize: '16px',
-                                            background: isUnread ? 'linear-gradient(45deg, #2bb35c, #38d777)' : '#262626', 
-                                            flexShrink: 0,
-                                            border: isSelected ? '2px solid #38d777' : isBlueTheme ? '2px solid #007aff' : 'none',
-                                            boxSizing: 'border-box'
-                                        }}>
-                                            {clientDisplayNum}
-                                        </div>
-                                        
-                                        <div style={{ flex: 1, overflow: 'hidden' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
-                                                <div style={{ fontSize: '14px', fontWeight: (isUnread || isUnfinished || isBlueTheme) ? 700 : 400, color: '#fff' }}>
-                                                    Client #{clientDisplayNum} {isBlueTheme ? '📦' : isUnfinished ? '💼' : ''}
-                                                    {chat.shipmentStatus === "in_progress" && (
-                                                        <span style={{ background:"rgba(34,197,94,.15)", color:"#22c55e", border:"1px solid rgba(34,197,94,.3)", padding:"2px 8px", borderRadius:"999px", fontSize:"10px", fontWeight:600, marginLeft:"6px"}}> 🚚 Shipping</span>
-                                                    )}
-                                                    {chat.orderCount > 0 && (
-                                                        <span style={{ fontSize: '11px', background: '#007aff', padding: '2px 6px', borderRadius: '10px', marginLeft: '6px' }}>
-                                                            {chat.orderCount} orders
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                {isUnread && (
-                                                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#38d777' }} />
-                                                )}
-                                            </div>
-                                            <div style={{ 
-                                                fontSize: '13px', 
-                                                color: isUnread ? '#fff' : '#a8a8a8', 
-                                                fontWeight: isUnread ? 600 : 400,
-                                                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' 
-                                            }}>
-                                                {chat.lastMessage || "No messages yet"}
-                                            </div>
-                                        </div>
-
-                                    
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </ChatCard>
-
-                    {/* RIGHT: MESSAGE FEED (Main View) */}
-                    <ChatCard style={{ background: '#000000', border: 'none' }}>
-                        {selectedChatId ? (
-                            <div style={{ display: 'flex', flexDirection: 'column', height: '100%', boxSizing: 'border-box' }}>
-
-                                {/* Chat Header */}
-                                <div style={{
-                                    padding: '0 24px',
-                                    borderBottom: '1px solid #1c1c1e',
-                                    display: 'flex',
-                                    justifyContent: 'space-between',
-                                    alignItems: 'center',
-                                    background: '#000000',
-                                    height: '75px',
-                                    boxSizing: 'border-box',
-                                    flexShrink: 0,
-                                    position: 'relative'
-                                }}>
-
-                                    {/* Confetti */}
-                                    {confettiParticles.map((particle) => (
-                                        <div
-                                            key={particle.id}
-                                            style={{
-                                                ["--x" as any]: `${particle.x}px`,
-                                                ["--y" as any]: `${particle.y}px`,
-                                                position: 'absolute',
-                                                right: '100px',
-                                                top: '60px',
-                                                width: particle.size,
-                                                height: particle.size,
-                                                background: ['#007aff', '#38d777', '#ffd60a', '#ff375f', '#bf5af2'][particle.id % 5],
-                                                borderRadius: '50%',
-                                                pointerEvents: 'none',
-                                                animation: 'confettiFly 1.5s ease-out forwards'
-                                            }}
-                                        />
-                                    ))}
-
-                                    {/* LEFT HEADER */}
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                        <div style={{
-                                            width: '40px',
-                                            height: '40px',
-                                            borderRadius: '50%',
-                                            background: '#262626',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            fontSize: '14px',
-                                            fontWeight: 'bold'
-                                        }}>
-                                            C
-                                        </div>
-
-                                        <div>
-                                            <div style={{ fontWeight: 600, color: '#fff', fontSize: '15px' }}>
-                                                Client Window
-                                            </div>
-                                            <div style={{
-                                                fontSize: '11px',
-                                                color: currentSelectedChat?.isOrderBlue ? '#007aff' : '#a8a8a8',
-                                                fontWeight: 500,
-                                                letterSpacing: '0.5px',
-                                                marginTop: '2px'
-                                            }}>
-                                                {currentSelectedChat?.isOrderBlue ? '📦 ORDER IN PROGRESS' : '○ DISPATCH STANDBY'}
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* RIGHT HEADER BUTTONS (FIXED ALIGNMENT) */}
-                                    <div style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '10px',
-                                        flexWrap: 'wrap',
-                                        justifyContent: 'flex-end'
-                                    }}>
-
-                                        {!isOrderActive ? (
-                                            <button
-                                                onClick={() => {
-                                                    setOrderInput("1");
-                                                    setShowOrderModal(true);
-                                                }}
-                                                style={{
-                                                    background: '#007aff',
-                                                    color: '#fff',
-                                                    border: 'none',
-                                                    padding: '10px 16px',
-                                                    borderRadius: '10px',
-                                                    cursor: 'pointer',
-                                                    fontWeight: 600,
-                                                    fontSize: '13px'
-                                                }}
-                                            >
-                                                📦 Order Placed
-                                            </button>
-                                        ) : (
-                                            <div style={{
-                                                display: "flex",
-                                                gap: "8px",
-                                                alignItems: "center",
-                                                flexWrap: "wrap",
-                                                justifyContent: "flex-end"
-                                            }}>
-                                                <button style={{
-                                                    background: '#38d777',
-                                                    color: '#fff',
-                                                    border: 'none',
-                                                    borderRadius: '10px',
-                                                    padding: '8px 12px',
-                                                    fontWeight: 600,
-                                                    cursor: 'pointer'
-                                                }}>
-                                                    + Add Orders
-                                                </button>
-
-                                                <button onClick={handleOrderSettled} style={{
-                                                    background: '#007aff',
-                                                    color: '#fff',
-                                                    border: 'none',
-                                                    borderRadius: '10px',
-                                                    padding: '8px 12px',
-                                                    fontWeight: 600,
-                                                    cursor: 'pointer'
-                                                }}>
-                                                    ✓ Settled
-                                                </button>
-
-                                                <button onClick={handleCancelOrder} style={{
-                                                    background: '#ff3b30',
-                                                    color: '#fff',
-                                                    border: 'none',
-                                                    borderRadius: '10px',
-                                                    padding: '8px 12px',
-                                                    fontWeight: 600,
-                                                    cursor: 'pointer'
-                                                }}>
-                                                    ✕ Cancel
-                                                </button>
-                                            </div>
-                                        )}
-
-                                        {isOrderActive && (
-                                            <button
-                                                onClick={() => setShowShipmentModal(true)}
-                                                style={{
-                                                    background: '#ff9500',
-                                                    color: '#fff',
-                                                    border: 'none',
-                                                    padding: '10px 16px',
-                                                    borderRadius: '10px',
-                                                    cursor: 'pointer',
-                                                    fontWeight: 600
-                                                }}
-                                            >
-                                                🚚 Set Shipment
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
-                                {showShipmentModal && (
-                                    <div
-                                        style={{
-                                            position: "fixed",
-                                            inset: 0,
-                                            background: "rgba(0,0,0,.65)",
-                                            display: "flex",
-                                            justifyContent: "center",
-                                            alignItems: "center",
-                                            zIndex: 99999
-                                        }}
-                                    >
+                                    {showLogisticsPanel && (
                                         <div
                                             style={{
-                                                width: "380px",
+                                                position: "fixed",
+                                                top: "90px",
+                                                left: "370px",
+
+                                            width: "380px",
+                                                maxWidth: "calc(100vw - 420px)",
+
                                                 background: "#121214",
                                                 border: "1px solid #262626",
-                                                borderRadius: "18px",
-                                                padding: "24px"
+                                                borderRadius: "16px",
+                                                padding: "16px",
+
+                                                maxHeight: "400px",
+                                                overflowY: "auto",
+
+                                                zIndex: 9999,
+                                                boxShadow: "0 20px 50px rgba(0,0,0,.45)"
                                             }}
                                         >
-                                            <h3 style={{ marginTop: 0 }}>
-                                                🚚 Create Shipment
-                                            </h3>
+                                            <h4 style={{
+                                                display:"flex",
+                                                justifyContent:"space-between",
+                                                alignItems:"center",
+                                                marginTop:0
+                                            }}>
+                                                <span>🚚 Active Shipments</span>
 
-                                            <input
-                                                placeholder="Product Name"
-                                                value={shipmentProduct}
-                                                onChange={(e)=>setShipmentProduct(e.target.value)}
-                                                style={inputStyle}
-                                            />
-
-                                            <input
-                                                type="number"
-                                                placeholder="Quantity"
-                                                value={shipmentQuantity}
-                                                onChange={(e)=>setShipmentQuantity(e.target.value)}
-                                                style={inputStyle}
-                                            />
-
-                                            <textarea
-                                                placeholder="Client Address"
-                                                value={shipmentAddress}
-                                                onChange={(e)=>setShipmentAddress(e.target.value)}
-                                                style={{
-                                                    ...inputStyle,
-                                                    height:"80px",
-                                                    resize:"none"
-                                                }}
-                                            />
-
-                                            <input
-                                                type="date"
-                                                value={shipmentArrivalDate}
-                                                onChange={(e)=>setShipmentArrivalDate(e.target.value)}
-                                                style={inputStyle}
-                                            />
-
-                                            <div
-                                                style={{
-                                                    display:"flex",
-                                                    gap:"10px",
-                                                    marginTop:"16px"
-                                                }}
-                                            >
-                                                <button
-                                                    onClick={()=>setShowShipmentModal(false)}
+                                                <span
                                                     style={{
-                                                        flex:1,
-                                                        padding:"10px",
-                                                        borderRadius:"10px",
-                                                        border:"none",
-                                                        background:"#333",
-                                                        color:"#fff"
-                                                    }}
-                                                >
-                                                    Cancel
-                                                </button>
-
-                                                <button
-                                                    onClick={handleSetShipment}
-                                                    style={{
-                                                        flex:1,
-                                                        padding:"10px",
-                                                        borderRadius:"10px",
-                                                        border:"none",
+                                                        fontSize:"11px",
                                                         background:"#22c55e",
-                                                        color:"#fff"
+                                                        padding:"4px 8px",
+                                                        borderRadius:"999px"
                                                     }}
                                                 >
-                                                    Create Shipment
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
+                                                    {activeShipments.length}
+                                                </span>
+                                            </h4>
 
-                                {/* MESSAGE FEED (FIXED LEFT/RIGHT ALIGNMENT) */}
-                                {/* MESSAGE AREA */}
-                                <div
-                                    id="message-feed"
-                                    style={{
-                                        flex: 1,
-                                        padding: '24px 30px',
-                                        overflowY: 'auto',
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        gap: '10px',
-                                        backgroundColor: '#000'
-                                    }}
-                                >
-                                    {activeMessages.map((msg) => {
-                                        const sender = (msg.sender || "").toLowerCase();
-                                        const isBrand = sender === "brand" || sender === "manager";
-
-                                        return (
-                                            <div
-                                            key={msg.id}
-                                            style={{
-                                                width: "100%",
-                                                display: "flex",
-                                                justifyContent: isBrand ? "flex-start" : "flex-end",
-                                            }}
-                                            >
-                                                {/* BUBBLE WRAPPER */}
-                                                <div
-                                                    style={{
-                                                    maxWidth: "65%",
-                                                    display: "flex",
-                                                    flexDirection: "column",
-                                                    }}
-                                                >
-                                                    {/* BUBBLE */}
+                                            {activeShipments.length === 0 ? (
+                                                <div style={{ color: "#888" }}>
+                                                    No active shipments
+                                                </div>
+                                            ) : (
+                                                activeShipments.map((shipment) => (
+                                                    
                                                     <div
-                                                    style={{
-                                                        background: isBrand ? "#007aff" : "#262626",
-                                                        color: "#fff",
-                                                        padding: "10px 14px",
-                                                        borderRadius: 18,
-                                                        fontSize: 14,
-                                                        lineHeight: 1.4,
-                                                        wordBreak: "break-word",
-                                                    }}
+                                                        key={shipment.id}
+                                                        style={{
+                                                            background:"#18181b",
+                                                            border:"1px solid #262626",
+                                                            borderRadius:"12px",
+                                                            padding:"12px",
+                                                            marginBottom:"12px"
+                                                        }}
                                                     >
-                                                        {msg.type === "photo" ? (
-                                                            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                                                                <img
-                                                                    src={msg.imageUrl}
+                                                        <div
+                                                            style={{
+                                                                fontSize:"11px",
+                                                                color:"#6b7280",
+                                                                marginBottom:"6px"
+                                                            }}
+                                                        >
+                                                            Client #{sortedChats.findIndex(c => c.id === shipment.chatId) + 1}
+                                                        </div>
+                                                        <div
+                                                            style={{
+                                                                fontWeight:600,
+                                                                color:"#fff",
+                                                                marginBottom:"8px"
+                                                            }}
+                                                        >
+                                                            📦 {shipment.product}
+                                                        </div>
+
+                                                        <div
+                                                            style={{
+                                                                fontSize:"13px",
+                                                                color:"#9ca3af",
+                                                                display:"flex",
+                                                                justifyContent:"space-between"
+                                                            }}
+                                                        >
+                                                            <span>Qty: {shipment.quantity}</span>
+                                                            <span>ETA: {shipment.deliveryDate}</span>
+                                                        </div>
+                                                        <div style={{ marginTop:"12px" }}>
+                                                            <div
+                                                                style={{
+                                                                    display:"flex",
+                                                                    justifyContent:"space-between",
+                                                                    marginBottom:"6px",
+                                                                    fontSize:"11px",
+                                                                    color:"#888"
+                                                                }}
+                                                            >
+                                                                <span>Status</span>
+                                                                <span>{getShipmentProgress(shipment)}</span>
+                                                                <span>📅 Expected Arrival: {shipment.expectedArrival}</span>
+                                                            </div>
+
+                                                            <div
+                                                                style={{
+                                                                    width:"100%",
+                                                                    height:"8px",
+                                                                    background:"#222",
+                                                                    borderRadius:"999px",
+                                                                    overflow:"hidden"
+                                                                }}
+                                                            >
+                                                                <div
                                                                     style={{
-                                                                        width: 240,
-                                                                        borderRadius: 12,
+                                                                        width:getShipmentProgress(shipment),
+                                                                        height:"100%",
+                                                                        background:"#22c55e"
                                                                     }}
                                                                 />
-                                                                <div style={{ fontSize: 13 }}>{msg.text}</div>
-                                                                
-                                                                {/* Check if the photo is locked */}
-                                                                {msg.locked ? (
-                                                                    <button
-                                                                        onClick={() => unlockPhoto(msg)}
-                                                                        style={{
-                                                                            marginTop: 8,
-                                                                            background: "#38d777",
-                                                                            border: "none",
-                                                                            padding: "6px 12px",
-                                                                            borderRadius: 8,
-                                                                            cursor: "pointer",
-                                                                            color: "#fff",
-                                                                            fontWeight: "bold"
-                                                                        }}
-                                                                    >
-                                                                        🔓 Unlock Photo
-                                                                    </button>
-                                                                ) : (
-                                                                    /* What to show when the photo is successfully unlocked */
-                                                                    <div style={{ 
-                                                                        marginTop: 8, 
-                                                                        color: "#38d777", 
-                                                                        fontSize: 14, 
-                                                                        fontWeight: "600" 
-                                                                    }}>
-                                                                        ✅ Photo unlocked
-                                                                    </div>
-                                                                )}
                                                             </div>
-                                                        ) : (
-                                                            msg.text
-                                                        )}
+                                                        </div>
                                                     </div>
-
-                                                    {/* TIMESTAMP */}
-                                                    <div
-                                                        style={{
-                                                            fontSize: 10,
-                                                            color: "#666",
-                                                            marginTop: 4,
-                                                            textAlign: isBrand ? "left" : "right",
-                                                        }}
-                                                        >
-                                                        {msg.timestamp?.toDate?.()?.toLocaleTimeString([], {
-                                                            hour: "2-digit",
-                                                            minute: "2-digit",
-                                                        })}
-
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-
-                                {/* FOOTER INPUT (FIXED CAMERA ALIGNMENT) */}
-                                <div style={{
-                                    padding: '16px 24px',
-                                    display: 'flex',
-                                    background: '#000000',
-                                    alignItems: 'center',
-                                    gap: '10px',
-                                    boxSizing: 'border-box'
-                                }}>
-
-                                    <div style={{
-                                        display: 'flex',
-                                        flex: 1,
-                                        alignItems: 'center',
-                                        background: '#000000',
-                                        border: '1px solid #262626',
-                                        borderRadius: '24px',
-                                        padding: '6px 10px 6px 16px'
-                                    }}>
-                                        <input
-                                            value={inputValue}
-                                            onChange={(e) => setInputValue(e.target.value)}
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter') {
-                                                    e.preventDefault();
-                                                    if (inputValue.trim()) handleManagerSend(inputValue);
-                                                }
-                                            }}
-                                            placeholder="Message..."
-                                            style={{
-                                                flex: 1,
-                                                background: 'transparent',
-                                                border: 'none',
-                                                color: '#fff',
-                                                fontSize: '14px',
-                                                outline: 'none'
-                                            }}
-                                        />
-
-                                        <button
-                                            onClick={() => handleManagerSend(inputValue)}
-                                            disabled={!inputValue.trim()}
-                                            style={{
-                                                background: 'transparent',
-                                                border: 'none',
-                                                color: inputValue.trim() ? '#007aff' : '#444',
-                                                fontWeight: 700,
-                                                cursor: inputValue.trim() ? 'pointer' : 'default',
-                                                padding: '6px 10px'
-                                            }}
-                                        >
-                                            Send
-                                        </button>
+                                                ))
+                                            )}
+                                        </div>
+                                    )}
+                                    
+                                    <div
+                                        onClick={() => setShowTrustMsg(!showTrustMsg)}
+                                        style={{
+                                            cursor: "pointer",
+                                            color: showTrustMsg ? "#4ade80" : "rgba(255, 255, 255, 0.4)",
+                                            transition: "all 0.3s ease",
+                                            filter: showTrustMsg ? "drop-shadow(0 0 8px rgba(74, 222, 128, 0.4))" : "none",
+                                            display: "flex",
+                                            alignItems: "center"
+                                        }}
+                                    >
+                                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                                            <path d="m9 12 2 2 4-4" />
+                                        </svg>
                                     </div>
 
-                                    {/* CAMERA / PHOTO BUTTON FIXED */}
-                                    {selectedChatId && (
+                                    {showTrustMsg && (
                                         <div style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center'
+                                            position: "absolute",
+                                            top: "40px",
+                                            right: "0",
+                                            width: "280px",
+                                            backgroundColor: "rgba(15, 15, 20, 0.95)",
+                                            backdropFilter: "blur(15px)",
+                                            border: "1px solid rgba(255, 255, 255, 0.1)",
+                                            borderRadius: "16px",
+                                            padding: "20px",
+                                            zIndex: 101,
+                                            animation: "fadeIn 0.2s ease-out"
                                         }}>
-                                            <SendPhoto
-                                                chatId={selectedChatId}
-                                                sender="brand"
-                                                brandName={userBrand?.name || "Malvin"}
-                                            />
+                                            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px" }}>
+                                                <div style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#4ade80" }}></div>
+                                                <span style={{ color: "white", fontWeight: "bold", fontSize: "13px" }}>Secure Session</span>
+                                            </div>
+                                            <p style={{ margin: "0 0 12px 0", fontSize: "12px", color: "rgba(255,255,255,0.7)", lineHeight: "1.6", fontWeight: "normal" }}>
+                                                All conversations are end-to-end encrypted. No Malvin personnel will ever ask for your login info.
+                                            </p>
+                                            <div style={{ height: "1px", backgroundColor: "rgba(255,255,255,0.1)", marginBottom: "12px" }}></div>
+                                            <p style={{ margin: 0, fontSize: "11px", color: "rgba(255,255,255,0.5)", fontWeight: "normal" }}>
+                                                Support: <a href="mailto:malvinsupportteam@gmail.com" style={{ color: "#bf00ff", textDecoration: "none", marginLeft: "5px", fontWeight: "bold", transition: "opacity 0.2s" }} onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.7")} onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}>malvinsupportteam@gmail.com</a>
+                                            </p>
                                         </div>
                                     )}
                                 </div>
                             </div>
-                        ) : (
-                            <div style={{ margin: 'auto', textAlign: 'center' }}>
-                                <div style={{
-                                    fontSize: '80px',
-                                    marginBottom: '16px',
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    width: '120px',
-                                    height: '120px',
-                                    borderRadius: '50%',
-                                    border: '2px solid #fff'
-                                }}>✉️</div>
 
-                                <h3 style={{ fontWeight: 400, color: '#fff', fontSize: '22px', margin: '10px 0 5px 0' }}>
-                                    Your Messages
-                                </h3>
+                            <div style={{ flex: 1, overflowY: 'auto', padding: '10px 0' }}>
+                                {sortedChats.map((chat, index) => {
+                                    const isUnread = chat.viewedByManager === false;
+                                    const isSelected = selectedChatId === chat.id;
+                                    const isUnfinished = !!chat.hasUnfinishedBusiness; 
+                                    const isBlueTheme = !!chat.isOrderBlue;
+                                    const clientDisplayNum = sortedChats.length - index;
 
-                                <p style={{ fontSize: '14px', color: '#737373', maxWidth: '300px', margin: '0 auto' }}>
-                                    Select a conversation from the sidebar to view details and autopilot controls.
-                                </p>
+                                    // Turn layout rows blue if an active order session exists
+                                    let rowBackground = 'transparent';
+                                    let rowBoxShadow = 'none';
+
+                                    if (isSelected) {
+                                        rowBackground = '#121212';
+                                    }
+                                    else if (isBlueTheme) {
+                                        rowBackground = 'rgba(0,122,255,0.25)';
+                                        rowBoxShadow = 'inset 0 0 15px rgba(0,122,255,0.25)';
+                                    }
+                                    else if (isUnfinished) {
+                                        rowBackground = 'rgba(255,255,255,0.05)';
+                                    }
+                                
+
+                                    return (
+                                        <div 
+                                            key={chat.id}
+                                            onClick={() => handleSelectChat(chat.id)}
+                                            style={{
+                                                padding: '14px 24px',
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '16px',
+                                                backgroundColor: rowBackground,
+                                                boxShadow: rowBoxShadow,
+                                                borderLeft: isBlueTheme ? '4px solid #007aff' : isUnfinished ? '4px solid #ffffff' : '4px solid transparent', 
+                                                transition: 'background 0.2s ease, border 0.2s ease'
+                                            }}
+                                            onMouseEnter={(e) => !isSelected && (e.currentTarget.style.backgroundColor = isBlueTheme ? 'rgba(0, 122, 255, 0.35)' : '#0a0a0a')}
+                                            onMouseLeave={(e) => !isSelected && (e.currentTarget.style.backgroundColor = rowBackground)}
+                                        >
+                                            <div style={{ 
+                                                width: '56px', height: '56px', borderRadius: '50%', 
+                                                display: 'flex', alignItems: 'center', 
+                                                justifyContent: 'center', color: isUnread ? '#000' : '#fff', 
+                                                fontWeight: '600', fontSize: '16px',
+                                                background: isUnread ? 'linear-gradient(45deg, #2bb35c, #38d777)' : '#262626', 
+                                                flexShrink: 0,
+                                                border: isSelected ? '2px solid #38d777' : isBlueTheme ? '2px solid #007aff' : 'none',
+                                                boxSizing: 'border-box'
+                                            }}>
+                                                {clientDisplayNum}
+                                            </div>
+                                            
+                                            <div style={{ flex: 1, overflow: 'hidden' }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
+                                                    <div style={{ fontSize: '14px', fontWeight: (isUnread || isUnfinished || isBlueTheme) ? 700 : 400, color: '#fff' }}>
+                                                        Client #{clientDisplayNum} {isBlueTheme ? '📦' : isUnfinished ? '💼' : ''}
+                                                        {chat.shipmentStatus === "in_progress" && (
+                                                            <span style={{ background:"rgba(34,197,94,.15)", color:"#22c55e", border:"1px solid rgba(34,197,94,.3)", padding:"2px 8px", borderRadius:"999px", fontSize:"10px", fontWeight:600, marginLeft:"6px"}}> 🚚 Shipping</span>
+                                                        )}
+                                                        {chat.orderCount > 0 && (
+                                                            <span style={{ fontSize: '11px', background: '#007aff', padding: '2px 6px', borderRadius: '10px', marginLeft: '6px' }}>
+                                                                {chat.orderCount} orders
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    {isUnread && (
+                                                        <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#38d777' }} />
+                                                    )}
+                                                </div>
+                                                <div style={{ 
+                                                    fontSize: '13px', 
+                                                    color: isUnread ? '#fff' : '#a8a8a8', 
+                                                    fontWeight: isUnread ? 600 : 400,
+                                                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' 
+                                                }}>
+                                                    {chat.lastMessage || "No messages yet"}
+                                                </div>
+                                            </div>
+
+                                        
+                                        </div>
+                                    );
+                                })}
                             </div>
-                        )}
-                    </ChatCard>
+                        </ChatCard>
+                    )}
+
+                    {/* RIGHT: MESSAGE FEED (Main View) */}
+                    {(!isMobile || selectedChatId) && (
+                        <ChatCard style={{ background: '#000000', border: 'none' }}>
+                            {selectedChatId ? (
+                                <div style={{ display: 'flex', flexDirection: 'column', height: '100%', boxSizing: 'border-box' }}>
+
+                                    {/* Chat Header */}
+                                    <div style={{
+                                        padding: '0 24px',
+                                        borderBottom: '1px solid #1c1c1e',
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                        background: '#000000',
+                                        height: '75px',
+                                        boxSizing: 'border-box',
+                                        flexShrink: 0,
+                                        position: 'relative'
+                                    }}>
+
+                                        {/* Confetti */}
+                                        {confettiParticles.map((particle) => (
+                                            <div
+                                                key={particle.id}
+                                                style={{
+                                                    ["--x" as any]: `${particle.x}px`,
+                                                    ["--y" as any]: `${particle.y}px`,
+                                                    position: 'absolute',
+                                                    right: '100px',
+                                                    top: '60px',
+                                                    width: particle.size,
+                                                    height: particle.size,
+                                                    background: ['#007aff', '#38d777', '#ffd60a', '#ff375f', '#bf5af2'][particle.id % 5],
+                                                    borderRadius: '50%',
+                                                    pointerEvents: 'none',
+                                                    animation: 'confettiFly 1.5s ease-out forwards'
+                                                }}
+                                            />
+                                        ))}
+
+                                        {/* LEFT HEADER */}
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            {isMobile && (
+                                                <button 
+                                                    onClick={() => setSelectedChatId(null)}
+                                                    style={{
+                                                        background: 'transparent', border: 'none', color: '#007aff',
+                                                        fontSize: '18px', fontWeight: 700, cursor: 'pointer', padding: '4px 8px 4px 0'
+                                                    }}
+                                                >
+                                                    ←
+                                                </button>
+                                            )}
+                                            <div style={{
+                                                width: isMobile ? '32px' : '40px', height: isMobile ? '32px' : '40px',
+                                                borderRadius: '50%', background: '#262626',
+                                                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 'bold'
+                                            }}>
+                                                C
+                                            </div>
+                                            <div>
+                                                <div style={{ fontWeight: 600, color: '#fff', fontSize: isMobile ? '13px' : '15px' }}>Client Window</div>
+
+                                                <div style={{
+                                                    fontSize: '11px',
+                                                    color: currentSelectedChat?.isOrderBlue ? '#007aff' : '#a8a8a8',
+                                                    fontWeight: 500,
+                                                    letterSpacing: '0.5px',
+                                                    marginTop: '2px'
+                                                }}>
+                                                    {currentSelectedChat?.isOrderBlue ? '📦 ORDER IN PROGRESS' : '○ DISPATCH STANDBY'}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* RIGHT HEADER BUTTONS (FIXED ALIGNMENT) */}
+                                        <div style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '10px',
+                                            flexWrap: 'wrap',
+                                            justifyContent: 'flex-end'
+                                        }}>
+
+                                            {!isOrderActive ? (
+                                                <button
+                                                    onClick={() => {
+                                                        setOrderInput("1");
+                                                        setShowOrderModal(true);
+                                                    }}
+                                                    style={{
+                                                        background: '#007aff',
+                                                        color: '#fff',
+                                                        border: 'none',
+                                                        padding: '10px 16px',
+                                                        borderRadius: '10px',
+                                                        cursor: 'pointer',
+                                                        fontWeight: 600,
+                                                        fontSize: '13px'
+                                                    }}
+                                                >
+                                                    📦 Order Placed
+                                                </button>
+                                            ) : (
+                                                <div style={{
+                                                    display: "flex",
+                                                    gap: "8px",
+                                                    alignItems: "center",
+                                                    flexWrap: "wrap",
+                                                    justifyContent: "flex-end"
+                                                }}>
+                                                    <button style={{
+                                                        background: '#38d777',
+                                                        color: '#fff',
+                                                        border: 'none',
+                                                        borderRadius: '10px',
+                                                        padding: '8px 12px',
+                                                        fontWeight: 600,
+                                                        cursor: 'pointer'
+                                                    }}>
+                                                        + Add Orders
+                                                    </button>
+
+                                                    <button onClick={handleOrderSettled} style={{
+                                                        background: '#007aff',
+                                                        color: '#fff',
+                                                        border: 'none',
+                                                        borderRadius: '10px',
+                                                        padding: '8px 12px',
+                                                        fontWeight: 600,
+                                                        cursor: 'pointer'
+                                                    }}>
+                                                        ✓ Settled
+                                                    </button>
+
+                                                    <button onClick={handleCancelOrder} style={{
+                                                        background: '#ff3b30',
+                                                        color: '#fff',
+                                                        border: 'none',
+                                                        borderRadius: '10px',
+                                                        padding: '8px 12px',
+                                                        fontWeight: 600,
+                                                        cursor: 'pointer'
+                                                    }}>
+                                                        ✕ Cancel
+                                                    </button>
+                                                </div>
+                                            )}
+
+                                            {isOrderActive && (
+                                                <button
+                                                    onClick={() => setShowShipmentModal(true)}
+                                                    style={{
+                                                        background: '#ff9500',
+                                                        color: '#fff',
+                                                        border: 'none',
+                                                        padding: '10px 16px',
+                                                        borderRadius: '10px',
+                                                        cursor: 'pointer',
+                                                        fontWeight: 600
+                                                    }}
+                                                >
+                                                    🚚 Set Shipment
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                    {showShipmentModal && (
+                                        <div
+                                            style={{
+                                                position: "fixed",
+                                                inset: 0,
+                                                background: "rgba(0,0,0,.65)",
+                                                display: "flex",
+                                                justifyContent: "center",
+                                                alignItems: "center",
+                                                zIndex: 99999
+                                            }}
+                                        >
+                                            <div
+                                                style={{
+                                                    width: "380px",
+                                                    background: "#121214",
+                                                    border: "1px solid #262626",
+                                                    borderRadius: "18px",
+                                                    padding: "24px"
+                                                }}
+                                            >
+                                                <h3 style={{ marginTop: 0 }}>
+                                                    🚚 Create Shipment
+                                                </h3>
+
+                                                <input
+                                                    placeholder="Product Name"
+                                                    value={shipmentProduct}
+                                                    onChange={(e)=>setShipmentProduct(e.target.value)}
+                                                    style={inputStyle}
+                                                />
+
+                                                <input
+                                                    type="number"
+                                                    placeholder="Quantity"
+                                                    value={shipmentQuantity}
+                                                    onChange={(e)=>setShipmentQuantity(e.target.value)}
+                                                    style={inputStyle}
+                                                />
+
+                                                <textarea
+                                                    placeholder="Client Address"
+                                                    value={shipmentAddress}
+                                                    onChange={(e)=>setShipmentAddress(e.target.value)}
+                                                    style={{
+                                                        ...inputStyle,
+                                                        height:"80px",
+                                                        resize:"none"
+                                                    }}
+                                                />
+
+                                                <input
+                                                    type="date"
+                                                    value={shipmentArrivalDate}
+                                                    onChange={(e)=>setShipmentArrivalDate(e.target.value)}
+                                                    style={inputStyle}
+                                                />
+
+                                                <div
+                                                    style={{
+                                                        display:"flex",
+                                                        gap:"10px",
+                                                        marginTop:"16px"
+                                                    }}
+                                                >
+                                                    <button
+                                                        onClick={()=>setShowShipmentModal(false)}
+                                                        style={{
+                                                            flex:1,
+                                                            padding:"10px",
+                                                            borderRadius:"10px",
+                                                            border:"none",
+                                                            background:"#333",
+                                                            color:"#fff"
+                                                        }}
+                                                    >
+                                                        Cancel
+                                                    </button>
+
+                                                    <button
+                                                        onClick={handleSetShipment}
+                                                        style={{
+                                                            flex:1,
+                                                            padding:"10px",
+                                                            borderRadius:"10px",
+                                                            border:"none",
+                                                            background:"#22c55e",
+                                                            color:"#fff"
+                                                        }}
+                                                    >
+                                                        Create Shipment
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* MESSAGE FEED (FIXED LEFT/RIGHT ALIGNMENT) */}
+                                    {/* MESSAGE AREA */}
+                                    <div
+                                        id="message-feed"
+                                        style={{
+                                            flex: 1,
+                                            padding: '24px 30px',
+                                            overflowY: 'auto',
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            gap: '10px',
+                                            backgroundColor: '#000'
+                                        }}
+                                    >
+                                        {activeMessages.map((msg) => {
+                                            const sender = (msg.sender || "").toLowerCase();
+                                            const isBrand = sender === "brand" || sender === "manager";
+
+                                            return (
+                                                <div
+                                                key={msg.id}
+                                                style={{
+                                                    width: "100%",
+                                                    display: "flex",
+                                                    justifyContent: isBrand ? "flex-start" : "flex-end",
+                                                }}
+                                                >
+                                                    {/* BUBBLE WRAPPER */}
+                                                    <div
+                                                        style={{
+                                                        maxWidth: "65%",
+                                                        display: "flex",
+                                                        flexDirection: "column",
+                                                        }}
+                                                    >
+                                                        {/* BUBBLE */}
+                                                        <div
+                                                        style={{
+                                                            background: isBrand ? "#007aff" : "#262626",
+                                                            color: "#fff",
+                                                            padding: "10px 14px",
+                                                            borderRadius: 18,
+                                                            fontSize: 14,
+                                                            lineHeight: 1.4,
+                                                            wordBreak: "break-word",
+                                                        }}
+                                                        >
+                                                            {msg.type === "photo" ? (
+                                                                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                                                                    <img
+                                                                        src={msg.imageUrl}
+                                                                        style={{
+                                                                            width: 240,
+                                                                            borderRadius: 12,
+                                                                        }}
+                                                                    />
+                                                                    <div style={{ fontSize: 13 }}>{msg.text}</div>
+                                                                    
+                                                                    {/* Check if the photo is locked */}
+                                                                    {msg.locked ? (
+                                                                        <button
+                                                                            onClick={() => unlockPhoto(msg)}
+                                                                            style={{
+                                                                                marginTop: 8,
+                                                                                background: "#38d777",
+                                                                                border: "none",
+                                                                                padding: "6px 12px",
+                                                                                borderRadius: 8,
+                                                                                cursor: "pointer",
+                                                                                color: "#fff",
+                                                                                fontWeight: "bold"
+                                                                            }}
+                                                                        >
+                                                                            🔓 Unlock Photo
+                                                                        </button>
+                                                                    ) : (
+                                                                        /* What to show when the photo is successfully unlocked */
+                                                                        <div style={{ 
+                                                                            marginTop: 8, 
+                                                                            color: "#38d777", 
+                                                                            fontSize: 14, 
+                                                                            fontWeight: "600" 
+                                                                        }}>
+                                                                            ✅ Photo unlocked
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            ) : (
+                                                                msg.text
+                                                            )}
+                                                        </div>
+
+                                                        {/* TIMESTAMP */}
+                                                        <div
+                                                            style={{
+                                                                fontSize: 10,
+                                                                color: "#666",
+                                                                marginTop: 4,
+                                                                textAlign: isBrand ? "left" : "right",
+                                                            }}
+                                                            >
+                                                            {msg.timestamp?.toDate?.()?.toLocaleTimeString([], {
+                                                                hour: "2-digit",
+                                                                minute: "2-digit",
+                                                            })}
+
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+
+                                    {/* FOOTER INPUT (FIXED CAMERA ALIGNMENT) */}
+                                    <div style={{
+                                        padding: '16px 24px',
+                                        display: 'flex',
+                                        background: '#000000',
+                                        alignItems: 'center',
+                                        gap: '10px',
+                                        boxSizing: 'border-box'
+                                    }}>
+
+                                        <div style={{
+                                            display: 'flex',
+                                            flex: 1,
+                                            alignItems: 'center',
+                                            background: '#000000',
+                                            border: '1px solid #262626',
+                                            borderRadius: '24px',
+                                            padding: '6px 10px 6px 16px'
+                                        }}>
+                                            <input
+                                                value={inputValue}
+                                                onChange={(e) => setInputValue(e.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        if (inputValue.trim()) handleManagerSend(inputValue);
+                                                    }
+                                                }}
+                                                placeholder="Message..."
+                                                style={{
+                                                    flex: 1,
+                                                    background: 'transparent',
+                                                    border: 'none',
+                                                    color: '#fff',
+                                                    fontSize: '14px',
+                                                    outline: 'none'
+                                                }}
+                                            />
+
+                                            <button
+                                                onClick={() => handleManagerSend(inputValue)}
+                                                disabled={!inputValue.trim()}
+                                                style={{
+                                                    background: 'transparent',
+                                                    border: 'none',
+                                                    color: inputValue.trim() ? '#007aff' : '#444',
+                                                    fontWeight: 700,
+                                                    cursor: inputValue.trim() ? 'pointer' : 'default',
+                                                    padding: '6px 10px'
+                                                }}
+                                            >
+                                                Send
+                                            </button>
+                                        </div>
+
+                                        {/* CAMERA / PHOTO BUTTON FIXED */}
+                                        {selectedChatId && (
+                                            <div style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center'
+                                            }}>
+                                                <SendPhoto
+                                                    chatId={selectedChatId}
+                                                    sender="brand"
+                                                    brandName={userBrand?.name || "Malvin"}
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            ) : (
+                                <div style={{ margin: 'auto', textAlign: 'center' }}>
+                                    <div style={{
+                                        fontSize: '80px',
+                                        marginBottom: '16px',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        width: '120px',
+                                        height: '120px',
+                                        borderRadius: '50%',
+                                        border: '2px solid #fff'
+                                    }}>✉️</div>
+
+                                    <h3 style={{ fontWeight: 400, color: '#fff', fontSize: '22px', margin: '10px 0 5px 0' }}>
+                                        Your Messages
+                                    </h3>
+
+                                    <p style={{ fontSize: '14px', color: '#737373', maxWidth: '300px', margin: '0 auto' }}>
+                                        Select a conversation from the sidebar to view details and autopilot controls.
+                                    </p>
+                                </div>
+                            )}
+                        </ChatCard>
+                    )}
                     {showShippingAnimation && (
                         <div
                             style={{
