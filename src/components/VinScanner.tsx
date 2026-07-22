@@ -187,8 +187,10 @@ export const VinScanner: React.FC = () => {
       setStatus('success');
     } catch (err: any) {
       console.error('[VinScanner] ❌ Firestore Fetch Error:', err);
-      setErrorMessage('Failed to connect to MalvinAI servers.');
-      setStatus('error');
+      // Show the exact error message directly on screen for easy mobile debugging
+        const detailedError = err?.message || err?.code || JSON.stringify(err);
+        setErrorMessage(`Firestore Error: ${detailedError}`);
+        setStatus('error');
     }
   }, []);
 
