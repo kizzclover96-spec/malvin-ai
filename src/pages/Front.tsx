@@ -11,6 +11,9 @@ import { firestore as db } from '../firebase';
 import { auth } from "../firebase"; 
 import QRCode from 'qrcode'; // Add QRCode to render the scan-ready ticket receipts
 
+import { Radio } from 'lucide-react'; // Added Radio icon for the radar style button
+import { VinScanner } from '../components/VinScanner'; // Adjust relative path based on your folder structure
+
 // --- MODULAR FLOW COMPONENT IMPORTS ---
 import { Wallet } from '../components/Wallet';
 import { QRScannerView } from '../components/QRScannerView';
@@ -41,6 +44,7 @@ export const Front: React.FC = () => {
 
 
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isRadarOpen, setIsRadarOpen] = useState(false);
 
   // Active booking receipts state
   const [activeReceipts, setActiveReceipts] = useState<any[]>([]);
@@ -320,6 +324,7 @@ export const Front: React.FC = () => {
       </AnimatePresence>
 
       {/* TOP BAR */}
+      {/* TOP BAR */}
       <motion.header 
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -334,18 +339,37 @@ export const Front: React.FC = () => {
           <Menu className="w-6 h-6" />
         </motion.button>
 
-        <div className="text-center max-w-[60%] truncate">
-          <h2 className="text-sm font-black text-neutral-900 tracking-tight truncate">Hi, {fullName || user.email}</h2>
-          <p className="text-[11px] font-bold text-neutral-400 uppercase tracking-widest mt-0.5">Welcome back</p>
+        <div className="text-center max-w-[50%] truncate">
+          <h2 className="text-sm font-black text-neutral-900 tracking-tight truncate">
+            Hi, {fullName || user.email}
+          </h2>
+          <p className="text-[11px] font-bold text-neutral-400 uppercase tracking-widest mt-0.5">
+            Welcome back
+          </p>
         </div>
 
-        <motion.button 
-          whileTap={{ scale: 0.92 }}
-          onClick={() => setIsSettingsOpen(true)}
-          className="icon-button p-3 hover:bg-neutral-100 rounded-full transition-colors text-[#E53935]"
-        >
-          <Settings className="w-6 h-6" />
-        </motion.button>
+        {/* RIGHT ACTION BUTTONS CONTAINER */}
+        <div className="flex items-center gap-1">
+          {/* RADAR SCANNER BUTTON (Pulsing Radar Wave style) */}
+          <motion.button 
+            whileTap={{ scale: 0.92 }}
+            onClick={() => setIsRadarOpen(true)}
+            className="icon-button relative p-3 hover:bg-neutral-100 rounded-full transition-colors text-[#E53935]"
+            title="Open MalvinAI Radar"
+          >
+            <Radio className="w-6 h-6 animate-pulse" />
+            <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+          </motion.button>
+
+          {/* SETTINGS GEAR BUTTON */}
+          <motion.button 
+            whileTap={{ scale: 0.92 }}
+            onClick={() => setIsSettingsOpen(true)}
+            className="icon-button p-3 hover:bg-neutral-100 rounded-full transition-colors text-[#E53935]"
+          >
+            <Settings className="w-6 h-6" />
+          </motion.button>
+        </div>
       </motion.header>
 
       {/* BODY WORKSPACE CONTAINER */}
@@ -754,6 +778,31 @@ export const Front: React.FC = () => {
         receiptQrs={receiptQrs}
       />
 
+      {/* RADAR SCANNER MODAL OVERLAY */}
+      <AnimatePresence>
+        {isRadarOpen && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.3 }}
+            className="fixed inset-0 z-50 bg-slate-950 flex flex-col"
+          >
+            {/* Top Close Bar */}
+            <div className="absolute top-4 right-4 z-50">
+              <button
+                onClick={() => setIsRadarOpen(false)}
+                className="p-3 rounded-full bg-slate-900/80 border border-slate-700/60 text-slate-300 hover:text-white transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Embedded VinScanner Component */}
+            <VinScanner />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
