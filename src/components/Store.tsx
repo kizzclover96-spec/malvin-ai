@@ -5,6 +5,8 @@ import styles from './store.module.css';
 import { useParams, useNavigate, useLocation } from "react-router-dom"; 
 import QRCode from "qrcode";
 import { auth } from '../firebase';
+import Report from "./report"; // <--- Imported Report component
+import { Star, AlertTriangle } from 'lucide-react';
 
 // --- Interfaces ---
 interface RestaurantProfile {
@@ -67,6 +69,14 @@ export const StoreFrontend: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [userOrders, setUserOrders] = useState<Order[]>([]);
+
+  // --- Rating & Report States ---
+  const [isReportOpen, setIsReportOpen] = useState(false);
+  const [averageRating, setAverageRating] = useState<number>(0);
+  const [totalRatingsCount, setTotalRatingsCount] = useState<number>(0);
+  const [userRating, setUserRating] = useState<number>(0);
+  const [isSubmittingRating, setIsSubmittingRating] = useState(false);
+  const [hoveredStar, setHoveredStar] = useState<number>(0);
 
   // Modals / Drawers UI Control
   const [activeProduct, setActiveProduct] = useState<Product | null>(null);
@@ -134,6 +144,92 @@ export const StoreFrontend: React.FC = () => {
     });
     return () => unsubscribe();
   }, [restaurantUid]);
+
+  // --- 1. Fetch Store Average Rating & Ratings Count ---
+  useEffect(() => {
+    if (!storeUid) return;
+    const ratingDocRef = doc(db, 'store_ratings', storeUid);
+    const unsub = onSnapshot(ratingDocRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setAverageRating(data.average || 0);
+        setTotalRatingsCount(data.count || 0);
+      } else {
+        setAverageRating(0);
+        setTotalRatingsCount(0);
+      }
+    });
+    return () => unsub();
+  }, [storeUid]);
+
+  // --- 2. Check current user's existing rating ---
+  useEffect(() => {
+    if (!storeUid || !user?.uid) return;
+    const userRatingRef = doc(db, 'store_ratings', storeUid, 'user_ratings', user.uid);
+    getDoc(userRatingRef).then((docSnap) => {
+      if (docSnap.exists()) {
+        setUserRating(docSnap.data().stars || 0);
+      }
+    });
+  }, [storeUid, user?.uid]);
+
+  // --- 3. Handle Star Click (Submit or Update Rating) ---
+  const handleRateStore = async (stars: number) => {
+    if (!user) {
+      alert("Please log in to rate this store.");
+      return;
+    }
+    if (!storeUid || isSubmittingRating) return;
+
+    setIsSubmittingRating(true);
+    try {
+      const userRatingRef = doc(db, 'store_ratings', storeUid, 'user_ratings', user.uid);
+      const summaryRef = doc(db, 'store_ratings', storeUid);
+
+      const oldRatingSnap = await getDoc(userRatingRef);
+      const summarySnap = await getDoc(summaryRef);
+
+      let currentSum = 0;
+      let currentCount = 0;
+
+      if (summarySnap.exists()) {
+        currentSum = summarySnap.data().sum || 0;
+        currentCount = summarySnap.data().count || 0;
+      }
+
+      if (oldRatingSnap.exists()) {
+        // User is updating their existing rating
+        const previousStars = oldRatingSnap.data().stars || 0;
+        currentSum = currentSum - previousStars + stars;
+      } else {
+        // New rating entry
+        currentSum += stars;
+        currentCount += 1;
+      }
+
+      const newAverage = currentCount > 0 ? Number((currentSum / currentCount).toFixed(1)) : 0;
+
+      // Save user rating
+      await setDoc(userRatingRef, {
+        stars,
+        updatedAt: new Date().toISOString()
+      });
+
+      // Save updated store average summary
+      await setDoc(summaryRef, {
+        average: newAverage,
+        count: currentCount,
+        sum: currentSum
+      }, { merge: true });
+
+      setUserRating(stars);
+    } catch (err) {
+      console.error("Error rating store:", err);
+      alert("Failed to submit rating.");
+    } finally {
+      setIsSubmittingRating(false);
+    }
+  };
 
   useEffect(() => {
     if (!profile?.cooldownExpiresAt) {
@@ -417,19 +513,116 @@ export const StoreFrontend: React.FC = () => {
     <div className={styles.appContainer}>
       {/* Top Bar */}
       <header className={styles.topBar}>
-        <div className={styles.brandInfo}>
-          <h1>{profile?.brandName || 'Loading...'} {profile?.isVerified && <VerifiedBadge />}</h1>
-          <p className={styles.brandBio}>{profile?.brandBio || 'Connecting to store...'}</p>
-          
-          {profile?.address && (
-            <p className={styles.brandLocation} style={{ fontSize: '13px', color: '#666', marginTop: '4px' }}>
-              📍 {profile.address}
-            </p>
-          )}
-        </div>
-        <button className={styles.ordersBtn} onClick={() => setIsOrdersOpen(true)}>
-          Orders ({userOrders.length})
+        {/* BRAND HEADER & RATINGS / REPORT */}
+      <div style={{ padding: '20px 16px 10px', textAlign: 'center', position: 'relative' }}>
+        
+        {/* REPORT BUSINESS BUTTON */}
+        <button
+          type="button"
+          onClick={() => {
+            if (!user) {
+              alert("Please log in to report a business.");
+              return;
+            }
+            setIsReportOpen(true);
+          }}
+          style={{
+            position: 'absolute',
+            top: '16px',
+            right: '16px',
+            background: 'rgba(239, 68, 68, 0.1)',
+            border: '1px solid rgba(239, 68, 68, 0.3)',
+            color: '#ef4444',
+            padding: '6px 10px',
+            borderRadius: '12px',
+            fontSize: '11px',
+            fontWeight: 'bold',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            cursor: 'pointer'
+          }}
+        >
+          <AlertTriangle size={13} />
+          <span>Report</span>
         </button>
+
+        {/* STORE TITLE & VERIFIED BADGE */}
+        <h1 style={{ fontSize: '22px', fontWeight: 900, margin: '0 0 4px 0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {profile?.brandName || "Store"}
+          {profile?.isVerified && <VerifiedBadge />}
+        </h1>
+
+        {/* AVERAGE RATING DISPLAY & COUNT */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', margin: '6px 0 10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+            {[1, 2, 3, 4, 5].map((star) => (
+              <Star
+                key={star}
+                size={14}
+                fill={star <= Math.round(averageRating) ? "#eab308" : "none"}
+                color={star <= Math.round(averageRating) ? "#eab308" : "#a3a3a3"}
+              />
+            ))}
+          </div>
+          <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#171717' }}>
+            {averageRating.toFixed(1)}
+          </span>
+          <span style={{ fontSize: '11px', color: '#737373', fontWeight: 500 }}>
+            ({totalRatingsCount} {totalRatingsCount === 1 ? 'rating' : 'ratings'})
+          </span>
+        </div>
+
+        {/* STORE BIO */}
+        <p style={{ fontSize: '12px', color: '#666', margin: '0 0 14px 0', lineHeight: 1.4 }}>
+          {profile?.brandBio}
+        </p>
+
+        {/* INTERACTIVE 5-STAR RATING WIDGET FOR CUSTOMER */}
+        <div style={{
+          background: '#f5f5f5',
+          border: '1px solid #e5e5e5',
+          borderRadius: '16px',
+          padding: '10px 14px',
+          display: 'inline-flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '6px'
+        }}>
+          <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: '#525252', letterSpacing: '0.5px' }}>
+            {userRating > 0 ? `Your Rating: ${userRating} Stars` : "Rate this business"}
+          </span>
+
+          <div style={{ display: 'flex', gap: '6px' }}>
+            {[1, 2, 3, 4, 5].map((star) => (
+              <button
+                key={star}
+                type="button"
+                disabled={isSubmittingRating}
+                onClick={() => handleRateStore(star)}
+                onMouseEnter={() => setHoveredStar(star)}
+                onMouseLeave={() => setHoveredStar(0)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: '2px',
+                  cursor: 'pointer',
+                  transition: 'transform 0.15s ease'
+                }}
+              >
+                <Star
+                  size={20}
+                  fill={(hoveredStar || userRating) >= star ? "#eab308" : "none"}
+                  color={(hoveredStar || userRating) >= star ? "#eab308" : "#a3a3a3"}
+                  style={{
+                    transform: (hoveredStar || userRating) >= star ? 'scale(1.15)' : 'scale(1)'
+                  }}
+                />
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
       </header>
 
       {/* Search Bar */}
@@ -607,10 +800,20 @@ export const StoreFrontend: React.FC = () => {
         </div>
       )}
       
+      {/* REPORT MODAL OVERLAY */}
+      {isReportOpen && storeUid && user && (
+        <Report
+          isOpen={isReportOpen}
+          onClose={() => setIsReportOpen(false)}
+          reportedUserUid={storeUid}
+          currentUserUid={user.uid}
+        />
+      )}
       {/* Small Blue Watermark */}
       <div className={styles.watermark}>
         Malvinai
       </div>
+
     </div>
   );
 };
