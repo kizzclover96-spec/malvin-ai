@@ -147,8 +147,8 @@ export const StoreFrontend: React.FC = () => {
 
   // --- 1. Fetch Store Average Rating & Ratings Count ---
   useEffect(() => {
-    if (!storeUid) return;
-    const ratingDocRef = doc(db, 'store_ratings', storeUid);
+    if (!uid) return;
+    const ratingDocRef = doc(db, 'store_ratings', uid);
     const unsub = onSnapshot(ratingDocRef, (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
@@ -160,18 +160,18 @@ export const StoreFrontend: React.FC = () => {
       }
     });
     return () => unsub();
-  }, [storeUid]);
+  }, [uid]);
 
   // --- 2. Check current user's existing rating ---
   useEffect(() => {
-    if (!storeUid || !user?.uid) return;
-    const userRatingRef = doc(db, 'store_ratings', storeUid, 'user_ratings', user.uid);
+    if (!uid || !user?.uid) return;
+    const userRatingRef = doc(db, 'store_ratings', uid, 'user_ratings', user.uid);
     getDoc(userRatingRef).then((docSnap) => {
       if (docSnap.exists()) {
         setUserRating(docSnap.data().stars || 0);
       }
     });
-  }, [storeUid, user?.uid]);
+  }, [uid, user?.uid]);
 
   // --- 3. Handle Star Click (Submit or Update Rating) ---
   const handleRateStore = async (stars: number) => {
@@ -179,12 +179,12 @@ export const StoreFrontend: React.FC = () => {
       alert("Please log in to rate this store.");
       return;
     }
-    if (!storeUid || isSubmittingRating) return;
+    if (!uid || isSubmittingRating) return;
 
     setIsSubmittingRating(true);
     try {
-      const userRatingRef = doc(db, 'store_ratings', storeUid, 'user_ratings', user.uid);
-      const summaryRef = doc(db, 'store_ratings', storeUid);
+      const userRatingRef = doc(db, 'store_ratings', uid, 'user_ratings', user.uid);
+      const summaryRef = doc(db, 'store_ratings', uid);
 
       const oldRatingSnap = await getDoc(userRatingRef);
       const summarySnap = await getDoc(summaryRef);
@@ -230,7 +230,6 @@ export const StoreFrontend: React.FC = () => {
       setIsSubmittingRating(false);
     }
   };
-
   useEffect(() => {
     if (!profile?.cooldownExpiresAt) {
       setTimeRemaining(null);
@@ -800,12 +799,13 @@ export const StoreFrontend: React.FC = () => {
         </div>
       )}
       
+      
       {/* REPORT MODAL OVERLAY */}
-      {isReportOpen && storeUid && user && (
+      {isReportOpen && uid && user && (
         <Report
           isOpen={isReportOpen}
           onClose={() => setIsReportOpen(false)}
-          reportedUserUid={storeUid}
+          reportedUserUid={uid}
           currentUserUid={user.uid}
         />
       )}
