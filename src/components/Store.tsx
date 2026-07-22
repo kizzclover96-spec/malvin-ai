@@ -84,6 +84,9 @@ export const StoreFrontend: React.FC = () => {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isOrdersOpen, setIsOrdersOpen] = useState(false);
 
+  // Controls visibility of the customer's interactive rating widget
+  const [showRateModal, setShowRateModal] = useState(false);
+
   // Checkout Form State
   const [customerName, setCustomerName] = useState<string>(() => {
     return localStorage.getItem('saved_customer_name') || location.state?.orderPayload?.customerName || '';
@@ -510,117 +513,84 @@ export const StoreFrontend: React.FC = () => {
   return (
     <div className={styles.appContainer}>
       {/* Top Bar */}
+      {/* Top Bar */}
       <header className={styles.topBar}>
         <div className={styles.brandInfo}>
-          <h1>{profile?.brandName || 'Loading...'} {profile?.isVerified && <VerifiedBadge />}</h1>
-          <p className={styles.brandBio}>{profile?.brandBio || 'Connecting to store...'}</p>
+          <h1 style={{ fontSize: '20px', fontWeight: 900, margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+            {profile?.brandName || 'Loading...'} {profile?.isVerified && <VerifiedBadge />}
+          </h1>
+
+          <p className={styles.brandBio} style={{ margin: '4px 0', fontSize: '12px', color: '#666' }}>
+            {profile?.brandBio || 'Connecting to store...'}
+          </p>
           
           {profile?.address && (
-            <p className={styles.brandLocation} style={{ fontSize: '13px', color: '#666', marginTop: '4px' }}>
+            <p className={styles.brandLocation} style={{ fontSize: '11px', color: '#666', margin: '2px 0 6px' }}>
               📍 {profile.address}
             </p>
           )}
+
+          {/* COMPACT SUB-HEADER ROW: RATINGS & REPORT */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginTop: '6px' }}>
+            
+            {/* CLICKABLE AVERAGE RATING BADGE */}
+            <button
+              type="button"
+              onClick={() => setShowRateModal(!showRateModal)}
+              style={{
+                background: '#f5f5f5',
+                border: '1px solid #e5e5e5',
+                borderRadius: '12px',
+                padding: '3px 8px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                cursor: 'pointer'
+              }}
+              title="Click to rate this business"
+            >
+              <Star size={11} fill="#eab308" color="#eab308" />
+              <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#171717' }}>
+                {averageRating.toFixed(1)}
+              </span>
+              <span style={{ fontSize: '10px', color: '#737373' }}>
+                ({totalRatingsCount})
+              </span>
+            </button>
+
+            {/* VERY SMALL REPORT BUTTON */}
+            <button
+              type="button"
+              onClick={() => {
+                if (!auth.currentUser && !guestId) {
+                  alert("Please establish a session to report a business.");
+                  return;
+                }
+                setIsReportOpen(true);
+              }}
+              style={{
+                background: 'rgba(239, 68, 68, 0.08)',
+                border: '1px solid rgba(239, 68, 68, 0.25)',
+                color: '#ef4444',
+                padding: '3px 8px',
+                borderRadius: '12px',
+                fontSize: '10px',
+                fontWeight: 'bold',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '3px',
+                cursor: 'pointer'
+              }}
+            >
+              <AlertTriangle size={10} />
+              <span>Report</span>
+            </button>
+          </div>
         </div>
+
         <button className={styles.ordersBtn} onClick={() => setIsOrdersOpen(true)}>
           Orders ({userOrders.length})
         </button>
-        <div style={{ padding: '20px 16px 10px', textAlign: 'center', position: 'relative' }}>
-        
-          {/* REPORT BUSINESS BUTTON */}
-          <button
-            type="button"
-            onClick={() => {
-              if (!user) {
-                alert("Please log in to report a business.");
-                return;
-              }
-              setIsReportOpen(true);
-            }}
-            style={{
-              position: 'absolute',
-              top: '16px',
-              right: '16px',
-              background: 'rgba(239, 68, 68, 0.1)',
-              border: '1px solid rgba(239, 68, 68, 0.3)',
-              color: '#ef4444',
-              padding: '6px 10px',
-              borderRadius: '12px',
-              fontSize: '11px',
-              fontWeight: 'bold',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              cursor: 'pointer'
-            }}
-          >
-            <AlertTriangle size={13} />
-            <span>Report</span>
-          </button>
-          {/* AVERAGE RATING DISPLAY & COUNT */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', margin: '6px 0 10px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-              {[1, 2, 3, 4, 5].map((star) => (
-                <Star
-                  key={star}
-                  size={14}
-                  fill={star <= Math.round(averageRating) ? "#eab308" : "none"}
-                  color={star <= Math.round(averageRating) ? "#eab308" : "#a3a3a3"}
-                />
-              ))}
-            </div>
-            <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#171717' }}>
-              {averageRating.toFixed(1)}
-            </span>
-            <span style={{ fontSize: '11px', color: '#737373', fontWeight: 500 }}>
-              ({totalRatingsCount} {totalRatingsCount === 1 ? 'rating' : 'ratings'})
-            </span>
-          </div>
-
-          {/* INTERACTIVE 5-STAR RATING WIDGET FOR CUSTOMER */}
-          <div style={{
-            background: '#f5f5f5',
-            border: '1px solid #e5e5e5',
-            borderRadius: '16px',
-            padding: '10px 14px',
-            display: 'inline-flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '6px'
-          }}>
-            <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: '#525252', letterSpacing: '0.5px' }}>
-              {userRating > 0 ? `Your Rating: ${userRating} Stars` : "Rate this business"}
-            </span>
-
-            <div style={{ display: 'flex', gap: '6px' }}>
-              {[1, 2, 3, 4, 5].map((star) => (
-                <button
-                  key={star}
-                  type="button"
-                  disabled={isSubmittingRating}
-                  onClick={() => handleRateStore(star)}
-                  onMouseEnter={() => setHoveredStar(star)}
-                  onMouseLeave={() => setHoveredStar(0)}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    padding: '2px',
-                    cursor: 'pointer',
-                    transition: 'transform 0.15s ease'
-                  }}
-                >
-                  <Star
-                    size={20}
-                    fill={(hoveredStar || userRating) >= star ? "#eab308" : "none"}
-                    color={(hoveredStar || userRating) >= star ? "#eab308" : "#a3a3a3"}
-                    style={{
-                      transform: (hoveredStar || userRating) >= star ? 'scale(1.15)' : 'scale(1)'
-                    }}
-                  />
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
       </header>
 
       {/* Search Bar */}
@@ -805,6 +775,77 @@ export const StoreFrontend: React.FC = () => {
           reportedUserUid={restaurantUid}
           currentUserUid={auth.currentUser?.uid || guestId}
         />
+      )}
+      {/* INTERACTIVE STAR RATING MODAL (POPS UP WHEN RATINGS ARE CLICKED) */}
+      {showRateModal && (
+        <div 
+          className={styles.drawerOverlay} 
+          onClick={() => setShowRateModal(false)}
+          style={{ zIndex: 2500 }}
+        >
+          <div 
+            className={styles.drawer} 
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: '320px', margin: 'auto', textAlign: 'center', padding: '20px' }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <h3 style={{ fontSize: '14px', fontWeight: 800, margin: 0, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Rate This Store
+              </h3>
+              <button 
+                className={styles.closeBtn} 
+                onClick={() => setShowRateModal(false)}
+                style={{ background: 'none', border: 'none', fontSize: '16px', cursor: 'pointer' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <p style={{ fontSize: '12px', color: '#666', marginBottom: '16px' }}>
+              {userRating > 0 
+                ? `You previously rated this business ${userRating} stars. Tap to update your rating:` 
+                : 'Tap a star to leave your rating for this business:'}
+            </p>
+
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '16px' }}>
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  type="button"
+                  disabled={isSubmittingRating}
+                  onClick={async () => {
+                    await handleRateStore(star);
+                    setShowRateModal(false);
+                  }}
+                  onMouseEnter={() => setHoveredStar(star)}
+                  onMouseLeave={() => setHoveredStar(0)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    padding: '4px',
+                    cursor: 'pointer',
+                    transition: 'transform 0.15s ease'
+                  }}
+                >
+                  <Star
+                    size={28}
+                    fill={(hoveredStar || userRating) >= star ? "#eab308" : "none"}
+                    color={(hoveredStar || userRating) >= star ? "#eab308" : "#a3a3a3"}
+                    style={{
+                      transform: (hoveredStar || userRating) >= star ? 'scale(1.15)' : 'scale(1)'
+                    }}
+                  />
+                </button>
+              ))}
+            </div>
+
+            {userRating > 0 && (
+              <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#10b981' }}>
+                ✓ Current Rating: {userRating} Stars
+              </span>
+            )}
+          </div>
+        </div>
       )}
       {/* Small Blue Watermark */}
       <div className={styles.watermark}>
