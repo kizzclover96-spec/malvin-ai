@@ -264,7 +264,19 @@ export default function Login() {
                 </span>{" "}
                 and{" "}
                 <span onClick={() => navigate("/refund-policy")} style={{ color: "#00d4ff", cursor: "pointer" }}>
-                  Refund Policy
+                  Refund, Cancellation & Withdrawal Policy
+                </span>
+                and{" "}
+                <span onClick={() => navigate("/cookiePolicy")} style={{ color: "#00d4ff", cursor: "pointer" }}>
+                  Cookie Policy
+                </span>
+                and{" "}
+                <span onClick={() => navigate("/communityGuidelines")} style={{ color: "#00d4ff", cursor: "pointer" }}>
+                  communityGuidelines
+                </span>
+                and{" "}
+                <span onClick={() => navigate("/aiTransparencyNotice")} style={{ color: "#00d4ff", cursor: "pointer" }}>
+                  aiTransparencyNotice
                 </span>
               </div>
             </div>

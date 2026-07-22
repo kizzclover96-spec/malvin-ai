@@ -40,15 +40,17 @@ export const VerifiedBadge = () => (
   </svg>
 );
 
-const DashboardCard = ({ children, style }: any) => (
+const DashboardCard = ({ children, style, isMobile }: any) => (
   <div style={{
     position: "relative",
     background: '#111111',
-    borderRadius: '32px',
-    padding: '24px',
+    borderRadius: isMobile ? '20px' : '32px',
+    padding: isMobile ? '16px' : '24px',
     border: '1px solid #1A1A1A',
     display: 'flex',
     flexDirection: 'column',
+    boxSizing: 'border-box',
+    width: '100%',
     ...style
   }}>
     {children}
@@ -1064,28 +1066,32 @@ const Dashboard = (props: any) => {
                     )}
 
                     {/* Header */}
-                    <div style={{
-                        ...headerWrapper(isMobile),
-                        display: 'flex', 
-                        justifyContent: 'space-between', 
-                        alignItems: 'center', 
-                        width: '100%',
-                        gap: '16px'
-                    }}>
-                        <BackButton
-                            activeTab={activeTab}
-                            setActiveTab={setActiveTab}
-                            setShowTools={setShowTools}
-                            userBrand={userBrand}
-                            setUserBrand={setUserBrand}
-                            setBrandData={setBrandData}
-                            history={history}
-                            handleSaveSimulation={handleSaveSimulation}
-                            handleUpdateBrand={handleUpdateBrand}
-                            handleLogout={handleLogout}
-                            userEmail={userEmail}
-                        />
+                    <div style={headerWrapper(isMobile)}>
+                        {/* Top Bar for Mobile / Main Row for Desktop */}
+                        <div style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            width: isMobile ? '100%' : 'auto',
+                        }}>
+                            <BackButton
+                                activeTab={activeTab}
+                                setActiveTab={setActiveTab}
+                                setShowTools={setShowTools}
+                                userBrand={userBrand}
+                                setUserBrand={setUserBrand}
+                                setBrandData={setBrandData}
+                                history={history}
+                                handleSaveSimulation={handleSaveSimulation}
+                                handleUpdateBrand={handleUpdateBrand}
+                                handleLogout={handleLogout}
+                                userEmail={userEmail}
+                            />
+
+                            {isMobile && <Achievements data-tour="Achievments" />}
+                        </div>
                         
+                        {/* Navigation Pill */}
                         <div data-tour="nav" style={navPillStyle(isMobile)}>
                             {['Ads', 'Dashboard', 'Payments', 'Chats', 'Catalog'].map(item => (
                                 <div key={item} onClick={() => setActiveTab(item)} style={{
@@ -1099,10 +1105,11 @@ const Dashboard = (props: any) => {
                             ))}
                         </div>
                         
-                        {/* Pushed right with clear safety clearance from the screen boundary */}
-                        <div style={{ marginLeft: 'auto', marginRight: '40px' }}>
-                            <Achievements data-tour="Achievments" />
-                        </div>
+                        {!isMobile && (
+                            <div style={{ marginLeft: 'auto' }}>
+                                <Achievements data-tour="Achievments" />
+                            </div>
+                        )}
                     </div>
                     {/* Comment out your real components and use this test block */}
                     {/*<div style={contentWrapper}>
@@ -1122,84 +1129,62 @@ const Dashboard = (props: any) => {
                             <div style={bentoGridStyle(isMobile)}>
                                 {/* Upper Bento*/} 
                                 <div style={upperGridStyle(isMobile)}>
-                                    <DashboardCard>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                            <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-                                                
+                                    <DashboardCard isMobile={isMobile}>
+                                        <div style={{ 
+                                            display: 'flex', 
+                                            flexDirection: isMobile ? 'column' : 'row',
+                                            justify: 'space-between', 
+                                            alignItems: isMobile ? 'stretch' : 'flex-start',
+                                            gap: isMobile ? '16px' : '0' 
+                                        }}>
+                                            <div style={{ 
+                                                display: 'flex', 
+                                                gap: isMobile ? '12px' : '20px', 
+                                                alignItems: 'center',
+                                                justifyContent: isMobile ? 'space-around' : 'flex-start',
+                                                width: isMobile ? '100%' : 'auto'
+                                            }}>
                                                 {/* BOOKING SECTION */} 
                                                 <div 
                                                     onClick={() => setShowCalendar(true)} 
-                                                    style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px' }}
+                                                    style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
                                                 >
                                                     <div>
-                                                        <span style={{ fontSize: '10px', color: '#666', fontWeight: 800, letterSpacing: '1px' }}>RESERVATIONS</span>
-                                                        <div style={{ fontSize: '32px', fontWeight: 700, color: bookings.length > 0 ? '#C5FF41' : '#fff' }}>
+                                                        <span style={{ fontSize: '9px', color: '#666', fontWeight: 800, letterSpacing: '1px' }}>RESERVATIONS</span>
+                                                        <div style={{ fontSize: isMobile ? '22px' : '32px', fontWeight: 700, color: bookings.length > 0 ? '#C5FF41' : '#fff' }}>
                                                             {bookings.length}
                                                         </div>
                                                         {maxBookingsPerDay > 0 && (
-                                                            <div style={{ fontSize: '10px', color: '#888', marginTop: '-4px' }}>
+                                                            <div style={{ fontSize: '9px', color: '#888', marginTop: '-4px' }}>
                                                                 Limit: {maxBookingsPerDay}/day
                                                             </div>
                                                         )}
                                                     </div>
-                                                    <div style={{ 
-                                                        width: '12px', height: '12px', borderRadius: '50%', 
-                                                        backgroundColor: bookings.length > 0 ? '#C5FF41' : '#222',
-                                                        boxShadow: bookings.length > 0 ? '0 0 15px #C5FF41' : 'none',
-                                                        transition: '0.3s'
-                                                    }} />
                                                 </div>
 
-                                                <div style={{ width: '1px', height: '40px', background: '#1A1A1A' }} />
+                                                <div style={{ width: '1px', height: '30px', background: '#1A1A1A' }} />
 
-                                                {/* ORDERS SECTION */} 
                                                 {/* ORDERS SECTION */}
                                                 <div>
-                                                    <span
-                                                        style={{
-                                                            fontSize: '10px',
-                                                            color: '#666',
-                                                            fontWeight: 800,
-                                                            letterSpacing: '1px'
-                                                        }}
-                                                    >
-                                                        PENDING_ORDERS
-                                                    </span>
-
-                                                    <div style={{ fontSize: '32px', fontWeight: 700 }}>
+                                                    <span style={{ fontSize: '9px', color: '#666', fontWeight: 800, letterSpacing: '1px' }}>PENDING_ORDERS</span>
+                                                    <div style={{ fontSize: isMobile ? '22px' : '32px', fontWeight: 700 }}>
                                                         {orderCount}
                                                     </div>
                                                 </div>
 
-                                                <div style={{ width: '1px', height: '40px', background: '#1A1A1A' }} />
+                                                <div style={{ width: '1px', height: '30px', background: '#1A1A1A' }} />
 
                                                 {/* SALES SECTION */}
                                                 <div>
-                                                    <span
-                                                        style={{
-                                                            fontSize: '10px',
-                                                            color: '#666',
-                                                            fontWeight: 800,
-                                                            letterSpacing: '1px'
-                                                        }}
-                                                    >
-                                                        SALES
-                                                    </span>
-
-                                                    <div
-                                                        style={{
-                                                            fontSize: '32px',
-                                                            fontWeight: 700,
-                                                            color: '#38d777'
-                                                        }}
-                                                    >
+                                                    <span style={{ fontSize: '9px', color: '#666', fontWeight: 800, letterSpacing: '1px' }}>SALES</span>
+                                                    <div style={{ fontSize: isMobile ? '22px' : '32px', fontWeight: 700, color: '#38d777' }}>
                                                         {totalSales}
                                                     </div>
                                                 </div>
                                             </div>
                                             
-                                            <div style={{ textAlign: 'right' }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+                                            <div style={{ textAlign: isMobile ? 'left' : 'right', borderTop: isMobile ? '1px solid #1A1A1A' : 'none', paddingTop: isMobile ? '10px' : '0' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: isMobile ? 'flex-start' : 'flex-end' }}>
                                                     <div style={{ color: '#C5FF41', fontSize: '10px', fontWeight: 900 }}>LIVE_SYNC</div>
                                                     {isVerified && <VerifiedBadge />}
                                                 </div>
@@ -1207,10 +1192,10 @@ const Dashboard = (props: any) => {
                                             </div>
                                         </div>
 
-                                        {/* MANUALLY EDITABLE BIO (Upper-left card, under data fields) */} 
+                                        {/* MANUALLY EDITABLE BIO */} 
                                         <div data-tour="bio" style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                             <span style={{ fontSize: '10px', color: '#666', fontWeight: 800, letterSpacing: '1px' }}>STORE_FRONT_BIO</span>
-                                            <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end' }}>
+                                            <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
                                                 <textarea 
                                                     value={bio}
                                                     onChange={(e) => setBio(e.target.value)}
@@ -1245,13 +1230,18 @@ const Dashboard = (props: any) => {
                                         </div>
                                     </DashboardCard>
 
-                                    <DashboardCard style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <DashboardCard isMobile={isMobile} style={{ 
+                                        flexDirection: isMobile ? 'column' : 'row', 
+                                        justifyContent: 'space-between', 
+                                        alignItems: isMobile ? 'stretch' : 'center',
+                                        gap: isMobile ? '16px' : '0' 
+                                    }}>
                                         <VerificationButton data-tour="verification" state={getVerificationState()} onClick={() => { if (getVerificationState() === "premium") { requestVerification(); }}} />
                                         <div>
                                             <div style={{ fontSize: '12px', color: '#666' }}>
                                                 ACTIVE CUSTOMERS {isVerified && <VerifiedBadge />}
                                             </div>
-                                            <div style={{ fontSize: '32px', fontWeight: 700 }}>{chatCount}</div>
+                                            <div style={{ fontSize: isMobile ? '26px' : '32px', fontWeight: 700 }}>{chatCount}</div>
                                         </div>
                                         <button onClick={() => setActiveTab('Ads')} style={actionBtnStyle(isMobile)}>+ Add Customers</button>
                                     </DashboardCard>
@@ -1620,7 +1610,7 @@ const headerWrapper = (isMobile: boolean): React.CSSProperties => ({
     width: '100%', 
     maxWidth: '1400px', 
     margin: '0 auto', 
-    padding: isMobile ? '16px' : '20px', 
+    padding: isMobile ? '12px 16px' : '20px', 
     display: 'flex', 
     flexDirection: isMobile ? 'column' : 'row',
     alignItems: isMobile ? 'stretch' : 'center', 
@@ -1630,27 +1620,29 @@ const headerWrapper = (isMobile: boolean): React.CSSProperties => ({
 });
 
 const navPillStyle = (isMobile: boolean): React.CSSProperties => ({ 
-    position: isMobile ? 'static' : 'absolute', 
-    left: isMobile ? 'auto' : '50%', 
+    position: isMobile ? 'relative' : 'absolute', 
+    left: isMobile ? '0' : '50%', 
     transform: isMobile ? 'none' : 'translateX(-50%)', 
     background: '#111', 
-    padding: '4px', 
+    padding: isMobile ? '3px' : '4px', 
     borderRadius: '40px', 
     display: 'flex', 
-    gap: '4px', 
+    gap: isMobile ? '2px' : '4px', 
     border: '1px solid #222',
     overflowX: isMobile ? 'auto' : 'visible',
     whiteSpace: 'nowrap',
     width: isMobile ? '100%' : 'auto',
-    WebkitOverflowScrolling: 'touch', // smooth scroll momentum on iOS
-    boxSizing: 'border-box'
+    justifyContent: isMobile ? 'flex-start' : 'center',
+    WebkitOverflowScrolling: 'touch',
+    boxSizing: 'border-box',
+    scrollbarWidth: 'none' // hides scrollbar on mobile browsers
 });
 
 const navItemStyle = (isMobile: boolean): React.CSSProperties => ({ 
     position: 'relative', 
-    padding: isMobile ? '8px 16px' : '10px 24px', 
+    padding: isMobile ? '6px 12px' : '10px 24px', // Significantly smaller pill buttons on mobile
     borderRadius: '30px', 
-    fontSize: isMobile ? '12px' : '13px', 
+    fontSize: isMobile ? '11px' : '13px', // Compact font on mobile
     fontWeight: 600, 
     cursor: 'pointer', 
     transition: '0.3s',

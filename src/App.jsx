@@ -22,6 +22,9 @@ import LandingPage from "./pages/LandingPage";
 import CookieBanner from "./components/CookieBanner";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
+import CookiePolicy from "./pages/CookiePolicy";
+import CommunityGuidelines from "./pages/CommunityGuidelines";
+import AiTransparencyNotice from "./pages/AiTransparencyNotice";
 import About from "./pages/About";
 import AllAds from "./components/AllAds";
 import RefundPolicy from "./pages/RefundPolicy";
@@ -247,6 +250,9 @@ function App() {
           <Route path="/salon/:uid" element={<SalonStore onExecuteWalletPayment={handleWalletPaymentExecution} />} />
           
           <Route path="/terms" element={<Terms />} />
+          <Route path="/cookiePolicy" element={<CookiePolicy />} />
+          <Route path="/communityGuidelines" element={<CommunityGuidelines />} />
+          <Route path="/aiTransparencyNotice" element={<AiTransparencyNotice />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/refund-policy" element={<RefundPolicy />} />
           <Route path="/impressum" element={<Impressum />} />
