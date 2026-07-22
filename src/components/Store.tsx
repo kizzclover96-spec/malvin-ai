@@ -565,35 +565,31 @@ export const StoreFrontend: React.FC = () => {
             </button>
 
             {/* SMALL REPORT BUTTON */}
-            {/* REPORT BUSINESS BUTTON */}
             <button
               type="button"
               onClick={() => {
-                const currentUserId = auth.currentUser?.uid || guestId;
-                if (!currentUserId) {
-                  alert("Please wait a moment for your session to initialize before reporting.");
+                const activeUser = auth.currentUser?.uid || guestId || localStorage.getItem('guest_id');
+                if (!activeUser) {
+                  alert("Initializing session... please try again in a moment.");
                   return;
                 }
                 setIsReportOpen(true);
               }}
               style={{
-                position: 'absolute',
-                top: '16px',
-                right: '16px',
-                background: 'rgba(239, 68, 68, 0.1)',
-                border: '1px solid rgba(239, 68, 68, 0.3)',
+                background: 'rgba(239, 68, 68, 0.08)',
+                border: '1px solid rgba(239, 68, 68, 0.25)',
                 color: '#ef4444',
-                padding: '6px 10px',
+                padding: '4px 10px',
                 borderRadius: '12px',
                 fontSize: '11px',
-                fontWeight: 'bold',
+                fontWeight: 700,
                 display: 'flex',
                 alignItems: 'center',
                 gap: '4px',
                 cursor: 'pointer'
               }}
             >
-              <AlertTriangle size={13} />
+              <AlertTriangle size={11} />
               <span>Report</span>
             </button>
           </div>
@@ -778,13 +774,12 @@ export const StoreFrontend: React.FC = () => {
           </div>
         </div>
       )}
-      {/* REPORT MODAL OVERLAY */}
       {isReportOpen && restaurantUid && (
         <Report
           isOpen={isReportOpen}
           onClose={() => setIsReportOpen(false)}
           reportedUserUid={restaurantUid}
-          currentUserUid={auth.currentUser?.uid || guestId || 'guest_anonymous'}
+          currentUserUid={auth.currentUser?.uid || guestId || localStorage.getItem('guest_id') || 'anonymous_guest'}
         />
       )}
       {/* INTERACTIVE STAR RATING MODAL (POPS UP WHEN RATINGS ARE CLICKED) */}

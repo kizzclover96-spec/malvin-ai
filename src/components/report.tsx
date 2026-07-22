@@ -3,12 +3,12 @@ import { db } from "../firebase";
 import { push, ref, set } from "firebase/database";
 
 type Props = {
-    reportedUserId: string;
-    reporterId: string;
+    reportedUserId?: string;
+    reporterId?: string;
     onBack: () => void;
 };
 
-const Report = ({ reportedUserId, reporterId, onBack  }: Props) => {
+const Report = ({ reportedUserId, reporterId, onBack }: Props) => {
     const [reason, setReason] = useState("");
     const [details, setDetails] = useState("");
     const [sent, setSent] = useState(false);
@@ -16,13 +16,17 @@ const Report = ({ reportedUserId, reporterId, onBack  }: Props) => {
     const submitReport = async () => {
         if (!reason) return;
 
+        // Fallbacks prevent Firebase from crashing with 'undefined' error
+        const safeReporterId = reporterId || localStorage.getItem('guest_id') || "anonymous_reporter";
+        const safeReportedUserId = reportedUserId || "unknown_user";
+
         const reportRef = push(ref(db, "reports"));
 
         await set(reportRef, {
-            reporterId,
-            reportedUserId,
-            reason,
-            details,
+            reporterId: safeReporterId,
+            reportedUserId: safeReportedUserId,
+            reason: reason || "",
+            details: details || "",
             timestamp: Date.now(),
             status: "open"
         });
@@ -31,25 +35,27 @@ const Report = ({ reportedUserId, reporterId, onBack  }: Props) => {
     };
 
     if (sent) {
-        return <div style={{ color: "#C5FF41", fontSize: "12px" }}>Report submitted ✔</div>;
+        return <div style={{ color: "#C5FF41", fontSize: "12px", padding: "10px" }}>Report submitted ✔</div>;
     }
 
     return (
-        <div style={{ padding: "10px", background: "#111", borderRadius: "12px" }}>
+        <div style={{ padding: "10px", background: "#111", borderRadius: "12px", position: "relative" }}>
             <h4 style={{ color: "white", marginBottom: "8px" }}>Report User</h4>
+            
             <button
                 onClick={onBack}
                 style={{
                     position: "absolute",
-                    top: 15,
-                    left: 15,
-                    background: "#C5FF41",
+                    top: 10,
+                    right: 10,
+                    background: "#333",
+                    color: "white",
                     border: "none",
-                    padding: "8px 12px",
-                    borderRadius: "10px",
+                    padding: "6px 10px",
+                    borderRadius: "8px",
                     fontWeight: 700,
                     cursor: "pointer",
-                    zIndex: 1000
+                    fontSize: "12px"
                 }}
             >
                 ← Back
@@ -58,7 +64,7 @@ const Report = ({ reportedUserId, reporterId, onBack  }: Props) => {
             <select
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                style={{ width: "100%", marginBottom: "8px" }}
+                style={{ width: "100%", marginBottom: "8px", padding: "8px", borderRadius: "6px", background: "#222", color: "white", border: "1px solid #333" }}
             >
                 <option value="">Select reason</option>
                 <option value="scam">Scam / Fraud</option>
@@ -72,7 +78,7 @@ const Report = ({ reportedUserId, reporterId, onBack  }: Props) => {
                 placeholder="Extra details (optional)"
                 value={details}
                 onChange={(e) => setDetails(e.target.value)}
-                style={{ width: "100%", marginBottom: "8px" }}
+                style={{ width: "100%", marginBottom: "8px", padding: "8px", borderRadius: "6px", background: "#222", color: "white", border: "1px solid #333", minHeight: "60px" }}
             />
 
             <button
@@ -83,7 +89,9 @@ const Report = ({ reportedUserId, reporterId, onBack  }: Props) => {
                     color: "white",
                     padding: "10px",
                     border: "none",
-                    borderRadius: "8px"
+                    borderRadius: "8px",
+                    fontWeight: "bold",
+                    cursor: "pointer"
                 }}
             >
                 Submit Report
