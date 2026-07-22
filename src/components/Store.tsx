@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { firestore as db } from '../firebase'; // Ensure your firebase configuration is exported here
-import { doc, onSnapshot, collection, addDoc, query, where } from 'firebase/firestore';
+import { doc, onSnapshot, collection, addDoc, query, where, getDoc, setDoc } from 'firebase/firestore';
 import styles from './store.module.css';
 import { useParams, useNavigate, useLocation } from "react-router-dom"; 
 import QRCode from "qrcode";
