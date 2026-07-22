@@ -229,7 +229,6 @@ export const StoreFrontend: React.FC = () => {
     }
   };
 
-
   useEffect(() => {
     if (!profile?.cooldownExpiresAt) {
       setTimeRemaining(null);
@@ -512,116 +511,116 @@ export const StoreFrontend: React.FC = () => {
     <div className={styles.appContainer}>
       {/* Top Bar */}
       <header className={styles.topBar}>
-        {/* BRAND HEADER & RATINGS / REPORT */}
-      <div style={{ padding: '20px 16px 10px', textAlign: 'center', position: 'relative' }}>
-        
-        {/* REPORT BUSINESS BUTTON */}
-        <button
-          type="button"
-          onClick={() => {
-            if (!user) {
-              alert("Please log in to report a business.");
-              return;
-            }
-            setIsReportOpen(true);
-          }}
-          style={{
-            position: 'absolute',
-            top: '16px',
-            right: '16px',
-            background: 'rgba(239, 68, 68, 0.1)',
-            border: '1px solid rgba(239, 68, 68, 0.3)',
-            color: '#ef4444',
-            padding: '6px 10px',
-            borderRadius: '12px',
-            fontSize: '11px',
-            fontWeight: 'bold',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px',
-            cursor: 'pointer'
-          }}
-        >
-          <AlertTriangle size={13} />
-          <span>Report</span>
+        <div className={styles.brandInfo}>
+          <h1>{profile?.brandName || 'Loading...'} {profile?.isVerified && <VerifiedBadge />}</h1>
+          <p className={styles.brandBio}>{profile?.brandBio || 'Connecting to store...'}</p>
+          
+          {profile?.address && (
+            <p className={styles.brandLocation} style={{ fontSize: '13px', color: '#666', marginTop: '4px' }}>
+              📍 {profile.address}
+            </p>
+          )}
+        </div>
+        <button className={styles.ordersBtn} onClick={() => setIsOrdersOpen(true)}>
+          Orders ({userOrders.length})
         </button>
-
-        {/* STORE TITLE & VERIFIED BADGE */}
-        <h1 style={{ fontSize: '22px', fontWeight: 900, margin: '0 0 4px 0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          {profile?.brandName || "Store"}
-          {profile?.isVerified && <VerifiedBadge />}
-        </h1>
-
-        {/* AVERAGE RATING DISPLAY & COUNT */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', margin: '6px 0 10px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-            {[1, 2, 3, 4, 5].map((star) => (
-              <Star
-                key={star}
-                size={14}
-                fill={star <= Math.round(averageRating) ? "#eab308" : "none"}
-                color={star <= Math.round(averageRating) ? "#eab308" : "#a3a3a3"}
-              />
-            ))}
-          </div>
-          <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#171717' }}>
-            {averageRating.toFixed(1)}
-          </span>
-          <span style={{ fontSize: '11px', color: '#737373', fontWeight: 500 }}>
-            ({totalRatingsCount} {totalRatingsCount === 1 ? 'rating' : 'ratings'})
-          </span>
-        </div>
-
-        {/* STORE BIO */}
-        <p style={{ fontSize: '12px', color: '#666', margin: '0 0 14px 0', lineHeight: 1.4 }}>
-          {profile?.brandBio}
-        </p>
-
-        {/* INTERACTIVE 5-STAR RATING WIDGET FOR CUSTOMER */}
-        <div style={{
-          background: '#f5f5f5',
-          border: '1px solid #e5e5e5',
-          borderRadius: '16px',
-          padding: '10px 14px',
-          display: 'inline-flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: '6px'
-        }}>
-          <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: '#525252', letterSpacing: '0.5px' }}>
-            {userRating > 0 ? `Your Rating: ${userRating} Stars` : "Rate this business"}
-          </span>
-
-          <div style={{ display: 'flex', gap: '6px' }}>
-            {[1, 2, 3, 4, 5].map((star) => (
-              <button
-                key={star}
-                type="button"
-                disabled={isSubmittingRating}
-                onClick={() => handleRateStore(star)}
-                onMouseEnter={() => setHoveredStar(star)}
-                onMouseLeave={() => setHoveredStar(0)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  padding: '2px',
-                  cursor: 'pointer',
-                  transition: 'transform 0.15s ease'
-                }}
-              >
+        <div style={{ padding: '20px 16px 10px', textAlign: 'center', position: 'relative' }}>
+        
+          {/* REPORT BUSINESS BUTTON */}
+          <button
+            type="button"
+            onClick={() => {
+              if (!user) {
+                alert("Please log in to report a business.");
+                return;
+              }
+              setIsReportOpen(true);
+            }}
+            style={{
+              position: 'absolute',
+              top: '16px',
+              right: '16px',
+              background: 'rgba(239, 68, 68, 0.1)',
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              color: '#ef4444',
+              padding: '6px 10px',
+              borderRadius: '12px',
+              fontSize: '11px',
+              fontWeight: 'bold',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              cursor: 'pointer'
+            }}
+          >
+            <AlertTriangle size={13} />
+            <span>Report</span>
+          </button>
+          {/* AVERAGE RATING DISPLAY & COUNT */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', margin: '6px 0 10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+              {[1, 2, 3, 4, 5].map((star) => (
                 <Star
-                  size={20}
-                  fill={(hoveredStar || userRating) >= star ? "#eab308" : "none"}
-                  color={(hoveredStar || userRating) >= star ? "#eab308" : "#a3a3a3"}
-                  style={{
-                    transform: (hoveredStar || userRating) >= star ? 'scale(1.15)' : 'scale(1)'
-                  }}
+                  key={star}
+                  size={14}
+                  fill={star <= Math.round(averageRating) ? "#eab308" : "none"}
+                  color={star <= Math.round(averageRating) ? "#eab308" : "#a3a3a3"}
                 />
-              </button>
-            ))}
+              ))}
+            </div>
+            <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#171717' }}>
+              {averageRating.toFixed(1)}
+            </span>
+            <span style={{ fontSize: '11px', color: '#737373', fontWeight: 500 }}>
+              ({totalRatingsCount} {totalRatingsCount === 1 ? 'rating' : 'ratings'})
+            </span>
+          </div>
+
+          {/* INTERACTIVE 5-STAR RATING WIDGET FOR CUSTOMER */}
+          <div style={{
+            background: '#f5f5f5',
+            border: '1px solid #e5e5e5',
+            borderRadius: '16px',
+            padding: '10px 14px',
+            display: 'inline-flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '6px'
+          }}>
+            <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: '#525252', letterSpacing: '0.5px' }}>
+              {userRating > 0 ? `Your Rating: ${userRating} Stars` : "Rate this business"}
+            </span>
+
+            <div style={{ display: 'flex', gap: '6px' }}>
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  type="button"
+                  disabled={isSubmittingRating}
+                  onClick={() => handleRateStore(star)}
+                  onMouseEnter={() => setHoveredStar(star)}
+                  onMouseLeave={() => setHoveredStar(0)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    padding: '2px',
+                    cursor: 'pointer',
+                    transition: 'transform 0.15s ease'
+                  }}
+                >
+                  <Star
+                    size={20}
+                    fill={(hoveredStar || userRating) >= star ? "#eab308" : "none"}
+                    color={(hoveredStar || userRating) >= star ? "#eab308" : "#a3a3a3"}
+                    style={{
+                      transform: (hoveredStar || userRating) >= star ? 'scale(1.15)' : 'scale(1)'
+                    }}
+                  />
+                </button>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
       </header>
 
       {/* Search Bar */}
@@ -798,8 +797,6 @@ export const StoreFrontend: React.FC = () => {
           </div>
         </div>
       )}
-      
-      
       {/* REPORT MODAL OVERLAY */}
       {isReportOpen && restaurantUid && (auth.currentUser?.uid || guestId) && (
         <Report
@@ -813,7 +810,6 @@ export const StoreFrontend: React.FC = () => {
       <div className={styles.watermark}>
         Malvinai
       </div>
-
     </div>
   );
 };
