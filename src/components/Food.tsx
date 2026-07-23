@@ -185,24 +185,7 @@ export default function FoodDashboard() {
     }
   };
 
-  useEffect(() => {
-    if (!uid) return;
-
-    const profileRef = ref(rtdb, `users/${uid}/profile`);
-
-    const unsubscribe = onValue(profileRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        setIsVerified(data.isVerified || false);
-        // Check for Banned and Suspended states
-        setIsBanned(data.banned || false);
-        setIsSuspended(data.suspended || false);
-        setSuspendedReason(data.suspendedReason || '');
-      }
-    });
-
-    return () => unsubscribe();
-  }, [uid]);
+  
 
   // --- Delete Account & Store Data ---
   const handleDeleteAccountAndData = async () => {
@@ -513,18 +496,21 @@ export default function FoodDashboard() {
   };
 
   useEffect(() => {
-        if (!uid) return;
+    if (!uid) return;
 
-        const profileRef = ref(rtdb, `users/${uid}/profile`);
+    const profileRef = ref(rtdb, `users/${uid}/profile`);
 
-        const unsubscribe = onValue(profileRef, (snapshot) => {
-            const data = snapshot.val();
-            if (data) {
-              setIsVerified(data.isVerified || false);
-            }
-        });
+    const unsubscribe = onValue(profileRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        setIsVerified(data.isVerified || false);
+        setIsBanned(data.banned || data.isBanned || false);
+        setIsSuspended(data.suspended || data.isSuspended || false);
+        setSuspendedReason(data.suspendedReason || data.suspensionReason || '');
+      }
+    });
 
-        return () => unsubscribe();
+    return () => unsubscribe();
   }, [uid]);
 
   // --- Listen for Auth Changes ---
@@ -846,7 +832,7 @@ export default function FoodDashboard() {
       setScanResultMsg({ type: 'error', text: 'Server connection sync error.' });
     }
   };
-  
+
   if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-white text-black flex items-center justify-center font-sans">
@@ -854,14 +840,14 @@ export default function FoodDashboard() {
       </div>
     );
   }
+
   if (isBanned) {
-    return <Banned />;
+    return <Banned userBrand={{ id: uid, banReason: suspendedReason, ...profile }} />;
   }
 
   if (isSuspended) {
-    return <Suspended reason={suspendedReason} />;
+    return <Suspended userBrand={{ id: uid, suspensionReason: suspendedReason, ...profile }} />;
   }
-
   if (page === 'catalogue') { return <RestaurantCatalogue onBack={() => setPage('dashboard')} />;}
   
   return (
