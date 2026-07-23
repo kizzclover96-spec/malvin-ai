@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { firestore as db } from '../firebase'; 
 import { auth } from "../firebase"; 
+import { getDatabase, ref, onValue } from 'firebase/database';
+import Banned from './Banned';
+import Suspended from './Suspended';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { 
   doc, 
@@ -77,6 +80,10 @@ export default function SalonDashboard() {
   const [isForgotPinOpen, setIsForgotPinOpen] = useState(false);
   const [resetCode, setResetCode] = useState('');
   const [newPin, setNewPin] = useState('');
+
+  const [isBanned, setIsBanned] = useState<boolean>(false);
+  const [isSuspended, setIsSuspended] = useState<boolean>(false);
+  const [suspendedReason, setSuspendedReason] = useState<string>('');
   // First-Time Pin Setup States
   const [setupPin, setSetupPin] = useState('');
   const [confirmSetupPin, setConfirmSetupPin] = useState('');
@@ -164,6 +171,23 @@ export default function SalonDashboard() {
     }
   };
 
+
+  useEffect(() => {
+    if (!uid) return;
+
+    const profileRef = ref(rtdb, `users/${uid}/profile`);
+
+    const unsubscribe = onValue(profileRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        setIsBanned(data.banned || false);
+        setIsSuspended(data.suspended || false);
+        setSuspendedReason(data.suspendedReason || '');
+      }
+    });
+
+    return () => unsubscribe();
+  }, [uid]);
   // Form States
   const [formName, setFormName] = useState('');
   const [formBio, setFormBio] = useState('');
@@ -172,6 +196,7 @@ export default function SalonDashboard() {
   const [formClosing, setFormClosing] = useState('18:00');
   const [formOffDays, setFormOffDays] = useState<string[]>([]);
   const [formLimit, setFormLimit] = useState<number>(20);
+  const rtdb = getDatabase();
 
   // UI States
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -723,6 +748,14 @@ export default function SalonDashboard() {
         <div style={{ padding: "40px" }}></div>
       </div>
     );
+  }
+
+  if (isBanned) {
+    return <Banned />;
+  }
+
+  if (isSuspended) {
+    return <Suspended reason={suspendedReason} />;
   }
   
   if (page === 'catalogue') { 

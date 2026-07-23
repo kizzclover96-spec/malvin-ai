@@ -7,6 +7,9 @@ import QRCode from "qrcode";
 import { auth } from '../firebase';
 import Report from "./report"; // <--- Imported Report component
 import { Star, AlertTriangle } from 'lucide-react';
+import { getDatabase, ref, onValue } from 'firebase/database';
+import Banned from './Banned';
+import Suspended from './Suspended';
 
 // --- Interfaces ---
 interface RestaurantProfile {
@@ -108,6 +111,10 @@ export const StoreFrontend: React.FC = () => {
   // Controls visibility of the customer's interactive rating widget
   const [showRateModal, setShowRateModal] = useState(false);
 
+  const [isBanned, setIsBanned] = useState<boolean>(false);
+  const [isSuspended, setIsSuspended] = useState<boolean>(false);
+  const [suspendedReason, setSuspendedReason] = useState<string>('');
+
   // Checkout Form State
   const [customerName, setCustomerName] = useState<string>(() => {
     return localStorage.getItem('saved_customer_name') || location.state?.orderPayload?.customerName || '';
@@ -168,6 +175,23 @@ export const StoreFrontend: React.FC = () => {
     });
     return () => unsubscribe();
   }, [restaurantUid]);
+
+  useEffect(() => {
+    if (!uid) return;
+
+    const profileRef = ref(rtdb, `users/${uid}/profile`);
+
+    const unsubscribe = onValue(profileRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        setIsBanned(data.banned || false);
+        setIsSuspended(data.suspended || false);
+        setSuspendedReason(data.suspendedReason || '');
+      }
+    });
+
+    return () => unsubscribe();
+  }, [uid]);
 
   // --- 1. Fetch Store Average Rating & Ratings Count ---
   useEffect(() => {
@@ -529,6 +553,14 @@ export const StoreFrontend: React.FC = () => {
         </div>
       </div>
     );
+  }
+
+  if (isBanned) {
+    return <Banned />;
+  }
+
+  if (isSuspended) {
+    return <Suspended reason={suspendedReason} />;
   }
 
   return (

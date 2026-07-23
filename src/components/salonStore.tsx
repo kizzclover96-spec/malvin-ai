@@ -6,6 +6,9 @@ import styles from './salonStore.module.css';
 import QRCode from 'qrcode';
 import Report from "./report";                        // <--- Added
 import { Star, AlertTriangle } from 'lucide-react';    // <--- Added
+import { ref, onValue } from 'firebase/database';
+import Banned from './Banned';
+import Suspended from './Suspended';
 
 // --- Types & Interfaces ---
 interface SalonProfile {
@@ -84,6 +87,10 @@ export default function SalonStore() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [generatedRefId, setGeneratedRefId] = useState('');
 
+  const [isBanned, setIsBanned] = useState<boolean>(false);
+  const [isSuspended, setIsSuspended] = useState<boolean>(false);
+  const [suspendedReason, setSuspendedReason] = useState<string>('');
+
   // --- Rating & Report States ---
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [averageRating, setAverageRating] = useState<number>(0);
@@ -139,6 +146,23 @@ export default function SalonStore() {
     });
 
     return () => unsubscribeCurrency();
+  }, [uid]);
+
+  useEffect(() => {
+    if (!uid) return;
+
+    const profileRef = ref(rtdb, `users/${uid}/profile`);
+
+    const unsubscribe = onValue(profileRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        setIsBanned(data.banned || false);
+        setIsSuspended(data.suspended || false);
+        setSuspendedReason(data.suspendedReason || '');
+      }
+    });
+
+    return () => unsubscribe();
   }, [uid]);
 
   // 1. Listen for store average rating
@@ -625,6 +649,14 @@ export default function SalonStore() {
         </div>
       </div>
     );
+  }
+
+  if (isBanned) {
+    return <Banned />;
+  }
+
+  if (isSuspended) {
+    return <Suspended reason={suspendedReason} />;
   }
 
   return (

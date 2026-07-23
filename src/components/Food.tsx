@@ -24,6 +24,8 @@ import styles from './salonDashboard.module.css';
 import ConfirmQRScanner from './ConfirmQRScanner';
 import { CheckCircle, Download, Trash2, Loader2} from 'lucide-react';
 import { geocodeAddress } from '../utils/geocoding';
+import Banned from "./Banned";
+import Suspended from "./Suspended";
 
 // --- Type Definitions ---
 interface RestaurantData {
@@ -89,6 +91,10 @@ export default function FoodDashboard() {
   // Find this line in Food.tsx and update it:
   const { balance, currency, stripeBalance } = useBusinessWallet({ merchantType: "food" });
 
+
+  const [isBanned, setIsBanned] = useState<boolean>(false);
+  const [isSuspended, setIsSuspended] = useState<boolean>(false);
+  const [suspendedReason, setSuspendedReason] = useState<string>('');
   // Editable Form State
   const [formBrandName, setFormBrandName] = useState<string>('');
   const [formBrandBio, setFormBrandBio] = useState<string>('');
@@ -178,6 +184,25 @@ export default function FoodDashboard() {
       setIsDownloading(false);
     }
   };
+
+  useEffect(() => {
+    if (!uid) return;
+
+    const profileRef = ref(rtdb, `users/${uid}/profile`);
+
+    const unsubscribe = onValue(profileRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        setIsVerified(data.isVerified || false);
+        // Check for Banned and Suspended states
+        setIsBanned(data.banned || false);
+        setIsSuspended(data.suspended || false);
+        setSuspendedReason(data.suspendedReason || '');
+      }
+    });
+
+    return () => unsubscribe();
+  }, [uid]);
 
   // --- Delete Account & Store Data ---
   const handleDeleteAccountAndData = async () => {
@@ -821,6 +846,13 @@ export default function FoodDashboard() {
       setScanResultMsg({ type: 'error', text: 'Server connection sync error.' });
     }
   };
+  if (isBanned) {
+    return <Banned />;
+  }
+
+  if (isSuspended) {
+    return <Suspended reason={suspendedReason} />;
+  }
 
   if (authLoading || loading) {
     return (
