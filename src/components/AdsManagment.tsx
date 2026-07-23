@@ -31,9 +31,10 @@ const AdsManager = () => {
     ).length;
 
     const bannedUsers = users.filter(
-    (u) =>
-        u.brandData?.status === "Banned" ||
-        u.status === "Banned"
+        (u) =>
+            u.status === "Banned" ||
+            u.isBanned === true ||
+            u.brandData?.status === "Banned"
     ).length;
     
     
@@ -153,22 +154,27 @@ const AdsManager = () => {
         if (!selectedUser) return;
 
         const uid = selectedUser.uid;
-
         const updates: any = {};
 
         if (newStatus === "Banned") {
+            // Write to both top-level user status and brandData status
+            updates[`users/${uid}/status`] = "Banned";
+            updates[`users/${uid}/isBanned`] = true;
             updates[`users/${uid}/brandData/status`] = "Banned";
             updates[`users/${uid}/brandData/banReason`] =
                 "Account has been banned. Contact verify.malvin@gmail.com";
         }
-
         else if (newStatus === "Suspended") {
+            updates[`users/${uid}/status`] = "Suspended";
+            updates[`users/${uid}/isSuspended`] = true;
             updates[`users/${uid}/brandData/status`] = "Suspended";
             updates[`users/${uid}/brandData/suspensionEnds`] =
                 Date.now() + 3600000;
         }
-
         else {
+            updates[`users/${uid}/status`] = "Active";
+            updates[`users/${uid}/isBanned`] = false;
+            updates[`users/${uid}/isSuspended`] = false;
             updates[`users/${uid}/brandData/status`] = "Active";
             updates[`users/${uid}/brandData/suspensionEnds`] = null;
         }
