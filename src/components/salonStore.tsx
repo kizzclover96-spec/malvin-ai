@@ -87,6 +87,9 @@ export default function SalonStore() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [generatedRefId, setGeneratedRefId] = useState('');
 
+
+  const [isVerified, setIsVerified] = useState(false);
+
   // Ban / Suspension States
   const [isBanned, setIsBanned] = useState(false);
   const [isSuspended, setIsSuspended] = useState(false);
@@ -150,10 +153,10 @@ export default function SalonStore() {
   }, [uid]);
 
   useEffect(() => {
-    if (!salonId) return;
+    if (!uid) return;
 
     const rtdb = getDatabase();
-    const userRef = ref(rtdb, `users/${salonId}`);
+    const userRef = ref(rtdb, `users/${uid}`);
 
     const unsubscribe = onValue(userRef, (snapshot) => {
       const data = snapshot.val();
@@ -162,21 +165,22 @@ export default function SalonStore() {
         const isBannedUser = status === "Banned" || data.banned === true || data.isBanned === true;
         const isSuspendedUser = status === "Suspended" || data.suspended === true || data.isSuspended === true;
 
+        setIsVerified(data.profile?.isVerified || data.isVerified || false);
         setIsBanned(isBannedUser);
         setIsSuspended(isSuspendedUser);
 
         setBrandStatusData({
-          id: salonId,
+          id: uid,
           banReason: data.brandData?.banReason || data.banReason || "Violation of platform policies or suspicious activity detected.",
           suspensionReason: data.brandData?.suspensionReason || data.suspensionReason || "Temporary restriction due to policy violation.",
           suspensionEnds: data.brandData?.suspensionEnds || data.suspensionEnds || null,
-          ...salonProfile
+          ...profile
         });
       }
     });
 
     return () => unsubscribe();
-  }, [salonId, salonProfile]);
+  }, [uid, profile]);
 
   // 1. Listen for store average rating
   useEffect(() => {
@@ -631,7 +635,7 @@ export default function SalonStore() {
             </div>
 
             <div className={styles.receiptDetails}>
-              <h3>{profile?.salonName} {profile?.isVerified && <VerifiedBadge />}</h3>
+              <h3>{profile?.salonName} {(isVerified || profile?.isVerified) && <VerifiedBadge />}</h3>
               <p>👤 Client Name: <strong>{customerName}</strong></p>
               {customerPhone && <p>📞 Phone: {customerPhone}</p>}
               <p>📅 Schedule: {selectedDate} at <strong>{selectedTime}</strong></p>
@@ -664,14 +668,13 @@ export default function SalonStore() {
     );
   }
 
-  if (isBanned) {
+ if (isBanned) {
     return <Banned userBrand={brandStatusData} />;
   }
 
   if (isSuspended) {
     return <Suspended userBrand={brandStatusData} />;
   }
-
   return (
     <div className={styles.storeContainer}>
       {toast && <div className={styles.toastNotification}>{toast}</div>}
@@ -679,7 +682,7 @@ export default function SalonStore() {
       {step === 1 && profile && (
         <section className={styles.heroBanner}>
           <div className={styles.heroGlassDetails}>
-            <h1>{profile.salonName} {profile.isVerified && <VerifiedBadge />}</h1>
+            <h1>{profile.salonName } {(isVerified || profile?.isVerified) && <VerifiedBadge />}</h1>
             <p className={styles.salonBio}>{profile.bio}</p>
             <p className={styles.salonAddress}>📍 {profile.address}</p>
             <p className={styles.salonHours}>🕒 Open daily: {profile.openingTime} - {profile.closingTime}</p>
@@ -921,7 +924,7 @@ export default function SalonStore() {
           <div className={styles.stepViewport}>
             <h2 className={styles.stepTitleHeading}>Confirm & Pay with Wallet</h2>
             <div className={styles.luxurySummaryDisplayCard}>
-              <h3>{profile?.salonName} {profile?.isVerified && <VerifiedBadge />}</h3>
+              <h3>{profile?.salonName} {(isVerified || profile?.isVerified) && <VerifiedBadge />}</h3>
               <p className={styles.summaryLocationText}>📍 {profile?.address}</p>
               
               <div className={styles.summaryDividerLine} />

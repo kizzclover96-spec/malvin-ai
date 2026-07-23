@@ -59,6 +59,17 @@ interface LiveAppointment {
   createdAt: any;
 }
 
+const VerifiedBadge = () => (
+    <svg 
+        width="14" 
+        height="14" 
+        viewBox="0 0 24 24" 
+        fill="#007fff" 
+        style={{ display: 'inline-block', marginLeft: '6px', verticalAlign: 'middle' }}
+    >
+        <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+    </svg>
+);
 const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 export default function SalonDashboard() {
@@ -187,7 +198,8 @@ export default function SalonDashboard() {
         const status = data.brandData?.status || data.status || "";
         const isBannedUser = status === "Banned" || data.banned === true || data.isBanned === true;
         const isSuspendedUser = status === "Suspended" || data.suspended === true || data.isSuspended === true;
-
+        
+        setIsVerified(data.profile?.isVerified || data.isVerified || false);
         setIsBanned(isBannedUser);
         setIsSuspended(isSuspendedUser);
 
@@ -216,6 +228,8 @@ export default function SalonDashboard() {
 
   // State variables to hold full brand status context
   const [brandStatusData, setBrandStatusData] = useState<any>(null);
+
+  const [isVerified, setIsVerified] = useState(false);
 
   // UI States
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -820,7 +834,7 @@ export default function SalonDashboard() {
         
         {/* HERO BANNER BLOCK */}
         <div className={styles.heroGlassCard} style={{ background: "#0c0c0c", border: "1px solid #1a1a1a", padding: "32px", borderRadius: "24px", marginBottom: "32px", width: "100%", boxSizing: "border-box" }}>
-          <h1 className={styles.salonTitle} style={{ margin: "0 0 8px 0", fontSize: "32px", fontWeight: 900 }}>{salon.salonName}</h1>
+          <h1 className={styles.salonTitle} style={{ margin: "0 0 8px 0", fontSize: "32px", fontWeight: 900 }}>{salon.salonName}{isVerified && <VerifiedBadge />}</h1>
           <p className={styles.salonBio} style={{ color: "#888", margin: "0 0 16px 0", fontSize: "14px", lineHeight: "1.5" }}>{salon.bio}</p>
           <div className={styles.salonAddressBlock} style={{ color: "#aaa", fontSize: "13px", display: "flex", alignItems: "center" }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: '8px', flexShrink: 0 }}><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="12" r="3"></circle></svg>
