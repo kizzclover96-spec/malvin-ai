@@ -178,10 +178,10 @@ export const StoreFrontend: React.FC = () => {
   }, [restaurantUid]);
 
   useEffect(() => {
-    if (!uid) return;
+    if (!restaurantId) return;
 
     const rtdb = getDatabase();
-    const userRef = ref(rtdb, `users/${uid}`);
+    const userRef = ref(rtdb, `users/${restaurantId}`);
 
     const unsubscribe = onValue(userRef, (snapshot) => {
       const data = snapshot.val();
@@ -194,7 +194,7 @@ export const StoreFrontend: React.FC = () => {
         setIsSuspended(isSuspendedUser);
 
         setBrandStatusData({
-          id: uid,
+          id: restaurantId,
           banReason: data.brandData?.banReason || data.banReason || "Violation of platform policies or suspicious activity detected.",
           suspensionReason: data.brandData?.suspensionReason || data.suspensionReason || "Temporary restriction due to policy violation.",
           suspensionEnds: data.brandData?.suspensionEnds || data.suspensionEnds || null,
@@ -204,7 +204,7 @@ export const StoreFrontend: React.FC = () => {
     });
 
     return () => unsubscribe();
-  }, [uid, restaurantProfile]);
+  }, [restaurantId, restaurantProfile]);
 
   // --- 1. Fetch Store Average Rating & Ratings Count ---
   useEffect(() => {
