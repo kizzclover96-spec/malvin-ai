@@ -846,6 +846,14 @@ export default function FoodDashboard() {
       setScanResultMsg({ type: 'error', text: 'Server connection sync error.' });
     }
   };
+  
+  if (authLoading || loading) {
+    return (
+      <div className="min-h-screen bg-white text-black flex items-center justify-center font-sans">
+        <p className="font-bold tracking-wider animate-pulse text-lg">LOADING DASHBOARD...</p>
+      </div>
+    );
+  }
   if (isBanned) {
     return <Banned />;
   }
@@ -854,13 +862,6 @@ export default function FoodDashboard() {
     return <Suspended reason={suspendedReason} />;
   }
 
-  if (authLoading || loading) {
-    return (
-      <div className="min-h-screen bg-white text-black flex items-center justify-center font-sans">
-        <p className="font-bold tracking-wider animate-pulse text-lg">LOADING DASHBOARD...</p>
-      </div>
-    );
-  }
   if (page === 'catalogue') { return <RestaurantCatalogue onBack={() => setPage('dashboard')} />;}
   
   return (
