@@ -111,9 +111,10 @@ export const StoreFrontend: React.FC = () => {
   // Controls visibility of the customer's interactive rating widget
   const [showRateModal, setShowRateModal] = useState(false);
 
-  const [isBanned, setIsBanned] = useState<boolean>(false);
-  const [isSuspended, setIsSuspended] = useState<boolean>(false);
-  const [suspendedReason, setSuspendedReason] = useState<string>('');
+  // Ban / Suspension States
+  const [isBanned, setIsBanned] = useState(false);
+  const [isSuspended, setIsSuspended] = useState(false);
+  const [brandStatusData, setBrandStatusData] = useState<any>(null);
 
   // Checkout Form State
   const [customerName, setCustomerName] = useState<string>(() => {
@@ -179,19 +180,31 @@ export const StoreFrontend: React.FC = () => {
   useEffect(() => {
     if (!uid) return;
 
-    const profileRef = ref(rtdb, `users/${uid}/profile`);
+    const rtdb = getDatabase();
+    const userRef = ref(rtdb, `users/${uid}`);
 
-    const unsubscribe = onValue(profileRef, (snapshot) => {
+    const unsubscribe = onValue(userRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
-        setIsBanned(data.banned || false);
-        setIsSuspended(data.suspended || false);
-        setSuspendedReason(data.suspendedReason || '');
+        const status = data.brandData?.status || data.status || "";
+        const isBannedUser = status === "Banned" || data.banned === true || data.isBanned === true;
+        const isSuspendedUser = status === "Suspended" || data.suspended === true || data.isSuspended === true;
+
+        setIsBanned(isBannedUser);
+        setIsSuspended(isSuspendedUser);
+
+        setBrandStatusData({
+          id: uid,
+          banReason: data.brandData?.banReason || data.banReason || "Violation of platform policies or suspicious activity detected.",
+          suspensionReason: data.brandData?.suspensionReason || data.suspensionReason || "Temporary restriction due to policy violation.",
+          suspensionEnds: data.brandData?.suspensionEnds || data.suspensionEnds || null,
+          ...restaurantProfile
+        });
       }
     });
 
     return () => unsubscribe();
-  }, [uid]);
+  }, [uid, restaurantProfile]);
 
   // --- 1. Fetch Store Average Rating & Ratings Count ---
   useEffect(() => {
@@ -556,11 +569,11 @@ export const StoreFrontend: React.FC = () => {
   }
 
   if (isBanned) {
-    return <Banned />;
+    return <Banned userBrand={brandStatusData} />;
   }
 
   if (isSuspended) {
-    return <Suspended reason={suspendedReason} />;
+    return <Suspended userBrand={brandStatusData} />;
   }
 
   return (

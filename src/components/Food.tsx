@@ -129,6 +129,8 @@ export default function FoodDashboard() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  const [brandStatusData, setBrandStatusData] = useState<any>(null);
+
   // First-Time Pin Setup States
   const [setupPin, setSetupPin] = useState('');
   const [confirmSetupPin, setConfirmSetupPin] = useState('');
@@ -498,20 +500,34 @@ export default function FoodDashboard() {
   useEffect(() => {
     if (!uid) return;
 
-    const profileRef = ref(rtdb, `users/${uid}/profile`);
+    // Listen directly to the user's root node in Realtime Database
+    const userRef = ref(rtdb, `users/${uid}`);
 
-    const unsubscribe = onValue(profileRef, (snapshot) => {
+    const unsubscribe = onValue(userRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
-        setIsVerified(data.isVerified || false);
-        setIsBanned(data.banned || data.isBanned || false);
-        setIsSuspended(data.suspended || data.isSuspended || false);
-        setSuspendedReason(data.suspendedReason || data.suspensionReason || '');
+        // Check status from either brandData, status string, or boolean flags
+        const status = data.brandData?.status || data.status || "";
+        const isBannedUser = status === "Banned" || data.banned === true || data.isBanned === true;
+        const isSuspendedUser = status === "Suspended" || data.suspended === true || data.isSuspended === true;
+
+        setIsVerified(data.profile?.isVerified || data.isVerified || false);
+        setIsBanned(isBannedUser);
+        setIsSuspended(isSuspendedUser);
+
+        // Save complete status data for Banned/Suspended screen props
+        setBrandStatusData({
+          id: uid,
+          banReason: data.brandData?.banReason || data.banReason || "Violation of platform policies or suspicious activity detected.",
+          suspensionReason: data.brandData?.suspensionReason || data.suspensionReason || "Temporary restriction due to policy violation.",
+          suspensionEnds: data.brandData?.suspensionEnds || data.suspensionEnds || null,
+          ...profile
+        });
       }
     });
 
     return () => unsubscribe();
-  }, [uid]);
+  }, [uid, profile]);
 
   // --- Listen for Auth Changes ---
   // --- Listen for Auth Changes ---
@@ -841,12 +857,13 @@ export default function FoodDashboard() {
     );
   }
 
+  // AFTER:
   if (isBanned) {
-    return <Banned userBrand={{ id: uid, banReason: suspendedReason, ...profile }} />;
+    return <Banned userBrand={brandStatusData} />;
   }
 
   if (isSuspended) {
-    return <Suspended userBrand={{ id: uid, suspensionReason: suspendedReason, ...profile }} />;
+    return <Suspended userBrand={brandStatusData} />;
   }
   if (page === 'catalogue') { return <RestaurantCatalogue onBack={() => setPage('dashboard')} />;}
   

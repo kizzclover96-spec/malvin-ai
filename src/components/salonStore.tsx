@@ -6,7 +6,7 @@ import styles from './salonStore.module.css';
 import QRCode from 'qrcode';
 import Report from "./report";                        // <--- Added
 import { Star, AlertTriangle } from 'lucide-react';    // <--- Added
-import { ref, onValue } from 'firebase/database';
+import { getDatabase, ref, onValue } from 'firebase/database';
 import Banned from './Banned';
 import Suspended from './Suspended';
 
@@ -87,9 +87,10 @@ export default function SalonStore() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [generatedRefId, setGeneratedRefId] = useState('');
 
-  const [isBanned, setIsBanned] = useState<boolean>(false);
-  const [isSuspended, setIsSuspended] = useState<boolean>(false);
-  const [suspendedReason, setSuspendedReason] = useState<string>('');
+  // Ban / Suspension States
+  const [isBanned, setIsBanned] = useState(false);
+  const [isSuspended, setIsSuspended] = useState(false);
+  const [brandStatusData, setBrandStatusData] = useState<any>(null);
 
   // --- Rating & Report States ---
   const [isReportOpen, setIsReportOpen] = useState(false);
@@ -149,21 +150,33 @@ export default function SalonStore() {
   }, [uid]);
 
   useEffect(() => {
-    if (!uid) return;
+    if (!salonId) return;
 
-    const profileRef = ref(rtdb, `users/${uid}/profile`);
+    const rtdb = getDatabase();
+    const userRef = ref(rtdb, `users/${salonId}`);
 
-    const unsubscribe = onValue(profileRef, (snapshot) => {
+    const unsubscribe = onValue(userRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
-        setIsBanned(data.banned || false);
-        setIsSuspended(data.suspended || false);
-        setSuspendedReason(data.suspendedReason || '');
+        const status = data.brandData?.status || data.status || "";
+        const isBannedUser = status === "Banned" || data.banned === true || data.isBanned === true;
+        const isSuspendedUser = status === "Suspended" || data.suspended === true || data.isSuspended === true;
+
+        setIsBanned(isBannedUser);
+        setIsSuspended(isSuspendedUser);
+
+        setBrandStatusData({
+          id: salonId,
+          banReason: data.brandData?.banReason || data.banReason || "Violation of platform policies or suspicious activity detected.",
+          suspensionReason: data.brandData?.suspensionReason || data.suspensionReason || "Temporary restriction due to policy violation.",
+          suspensionEnds: data.brandData?.suspensionEnds || data.suspensionEnds || null,
+          ...salonProfile
+        });
       }
     });
 
     return () => unsubscribe();
-  }, [uid]);
+  }, [salonId, salonProfile]);
 
   // 1. Listen for store average rating
   useEffect(() => {
@@ -652,11 +665,11 @@ export default function SalonStore() {
   }
 
   if (isBanned) {
-    return <Banned />;
+    return <Banned userBrand={brandStatusData} />;
   }
 
   if (isSuspended) {
-    return <Suspended reason={suspendedReason} />;
+    return <Suspended userBrand={brandStatusData} />;
   }
 
   return (

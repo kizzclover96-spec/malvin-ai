@@ -172,22 +172,38 @@ export default function SalonDashboard() {
   };
 
 
+
+
   useEffect(() => {
     if (!uid) return;
 
-    const profileRef = ref(rtdb, `users/${uid}/profile`);
+    // Listen directly to the user's root node in Realtime Database
+    const userRef = ref(rtdb, `users/${uid}`);
 
-    const unsubscribe = onValue(profileRef, (snapshot) => {
+    const unsubscribe = onValue(userRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
-        setIsBanned(data.banned || false);
-        setIsSuspended(data.suspended || false);
-        setSuspendedReason(data.suspendedReason || '');
+        // Check status from either brandData, status string, or boolean flags
+        const status = data.brandData?.status || data.status || "";
+        const isBannedUser = status === "Banned" || data.banned === true || data.isBanned === true;
+        const isSuspendedUser = status === "Suspended" || data.suspended === true || data.isSuspended === true;
+
+        setIsBanned(isBannedUser);
+        setIsSuspended(isSuspendedUser);
+
+        // Save complete status data for Banned/Suspended screen props
+        setBrandStatusData({
+          id: uid,
+          banReason: data.brandData?.banReason || data.banReason || "Violation of platform policies or suspicious activity detected.",
+          suspensionReason: data.brandData?.suspensionReason || data.suspensionReason || "Temporary restriction due to policy violation.",
+          suspensionEnds: data.brandData?.suspensionEnds || data.suspensionEnds || null,
+          ...salon
+        });
       }
     });
 
     return () => unsubscribe();
-  }, [uid]);
+  }, [uid, salon]);
   // Form States
   const [formName, setFormName] = useState('');
   const [formBio, setFormBio] = useState('');
@@ -197,6 +213,9 @@ export default function SalonDashboard() {
   const [formOffDays, setFormOffDays] = useState<string[]>([]);
   const [formLimit, setFormLimit] = useState<number>(20);
   const rtdb = getDatabase();
+
+  // State variables to hold full brand status context
+  const [brandStatusData, setBrandStatusData] = useState<any>(null);
 
   // UI States
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -750,12 +769,13 @@ export default function SalonDashboard() {
     );
   }
 
+  // AFTER:
   if (isBanned) {
-    return <Banned />;
+    return <Banned userBrand={brandStatusData} />;
   }
 
   if (isSuspended) {
-    return <Suspended reason={suspendedReason} />;
+    return <Suspended userBrand={brandStatusData} />;
   }
   
   if (page === 'catalogue') { 
