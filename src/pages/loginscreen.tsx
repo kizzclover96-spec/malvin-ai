@@ -5,7 +5,8 @@ import {
   signInWithCredential,
   signInWithPopup,
   signInWithEmailAndPassword,
-  createUserWithEmailAndPassword
+  createUserWithEmailAndPassword,
+  sendPasswordResetEmail
 } from "firebase/auth";
 import { GoogleAuth } from "@codetrix-studio/capacitor-google-auth";
 import { Capacitor } from "@capacitor/core";
@@ -19,6 +20,7 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
   const [agreed, setAgreed] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
 
   const navigate = useNavigate();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -93,7 +95,21 @@ export default function Login() {
     }
   };
 
-  // GOOGLE LOGIN (UPDATED)
+  // PASSWORD RESET HANDLER
+  const handleForgotPassword = async () => {
+    if (!email) {
+      alert("Please enter your email address first.");
+      return;
+    }
+    try {
+      await sendPasswordResetEmail(auth, email);
+      alert("Password reset email sent! Check your inbox.");
+    } catch (error: any) {
+      alert("Error sending reset email: " + error.message);
+    }
+  };
+
+  // GOOGLE LOGIN
   const handleGoogleLogin = async () => {
     if (!agreed) return;
     try {
@@ -110,23 +126,15 @@ export default function Login() {
       
       // Capture metadata after success
       if (userCredential.user) {
-
-        await saveUserMetadata(
-          userCredential.user.uid
-        );
-
-
-        await initializeUser(
-          userCredential.user
-        );
-
+        await saveUserMetadata(userCredential.user.uid);
+        await initializeUser(userCredential.user);
       }
     } catch (error: any) {
       alert("Login failed: " + error.message);
     }
   };
 
-  // EMAIL AUTH (UPDATED)
+  // EMAIL AUTH
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!agreed) return;
@@ -141,16 +149,8 @@ export default function Login() {
 
       // Capture metadata after success
       if (userCredential.user) {
-
-        await saveUserMetadata(
-          userCredential.user.uid
-        );
-
-
-        await initializeUser(
-          userCredential.user
-        );
-
+        await saveUserMetadata(userCredential.user.uid);
+        await initializeUser(userCredential.user);
       }
     } catch (error: any) {
       alert(error.message);
@@ -163,7 +163,7 @@ export default function Login() {
       backgroundColor: '#000',
       display: 'flex', flexDirection: 'column',
       zIndex: 9999, fontFamily: 'sans-serif', color: '#ffffff',
-      overflow: 'hidden' // Keeps everything inside
+      overflow: 'hidden'
     }}>
 
       {/* --- ROTATION ANIMATIONS --- */}
@@ -172,7 +172,7 @@ export default function Login() {
         @keyframes spinRev { 0% { transform: rotate(360deg); } 100% { transform: rotate(0deg); } }
       `}</style>
 
-      {/* 1. BASE IMAGE (Your main background) */}
+      {/* 1. BASE IMAGE */}
       <div style={{
         position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
         backgroundImage: 'url("/Malvin self.png")',
@@ -180,13 +180,13 @@ export default function Login() {
         opacity: 0.6, zIndex: -3
       }} />
 
-      {/* 2. MATRIX CANVAS (Data reading effect) */}
+      {/* 2. MATRIX CANVAS */}
       <canvas ref={canvasRef} style={{
         position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
         zIndex: -2, pointerEvents: 'none'
       }} />
 
-      {/* 3. ROTATING TECH RINGS (HUD effect) */}
+      {/* 3. ROTATING TECH RINGS */}
       <div style={{
         position: 'absolute', top: '50%', left: '50%', width: '500px', height: '500px',
         border: '1px dashed rgba(0, 102, 255, 0.4)', borderRadius: '50%',
@@ -200,14 +200,14 @@ export default function Login() {
         animation: 'spinRev 10s linear infinite', zIndex: -1
       }} />
       
-      {/* --- YOUR ORIGINAL LOGIN UI --- */}
+      {/* LOGIN UI */}
       <div style={{ flex: 1.5 }}></div>
       
       <div style={{ display: 'flex', justifyContent: 'center', width: '100%', paddingBottom: '20px', zIndex: 10 }}>
         <div style={{ 
           textAlign: 'center', 
-          padding: '80px 30px', 
-          backgroundColor: 'rgba(0, 0, 0, 0.4)', // Slightly darker for better contrast
+          padding: '40px 30px', 
+          backgroundColor: 'rgba(0, 0, 0, 0.4)',
           width: '85%', maxWidth: '450px', 
           borderRadius: '32px', 
           backdropFilter: 'blur(30px)', 
@@ -220,7 +220,7 @@ export default function Login() {
             MALVIN
           </h1>
 
-          <p style={{ opacity: 0.7, marginBottom: '3rem', fontSize: '0.8rem', letterSpacing: '0.2rem' }}>
+          <p style={{ opacity: 0.7, marginBottom: '2rem', fontSize: '0.8rem', letterSpacing: '0.2rem' }}>
             THE FUTURE IN YOUR PALMS
           </p>
 
@@ -247,6 +247,21 @@ export default function Login() {
                 backgroundColor: 'rgba(255, 255, 255, 0.1)', color: '#fff', outline: 'none'
               }}
             />
+
+            {/* REMEMBER ME TOGGLE */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', textAlign: 'left' }}>
+              <input 
+                type="checkbox" 
+                id="rememberMe"
+                checked={rememberMe} 
+                onChange={(e) => setRememberMe(e.target.checked)} 
+              />
+              <label htmlFor="rememberMe" style={{ cursor: 'pointer', opacity: 0.8 }}>
+                Remember my login
+              </label>
+            </div>
+
+            {/* TERMS & POLICIES */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', textAlign: 'left', margin: '5px 0' }}>
               <div style={{ fontSize: "0.8rem" }}>
                 <input
@@ -265,31 +280,32 @@ export default function Login() {
                 and{" "}
                 <span onClick={() => navigate("/refund-policy")} style={{ color: "#00d4ff", cursor: "pointer" }}>
                   Refund, Cancellation & Withdrawal Policy
-                </span>
+                </span>{" "}
                 and{" "}
                 <span onClick={() => navigate("/cookiePolicy")} style={{ color: "#00d4ff", cursor: "pointer" }}>
                   Cookie Policy
-                </span>
+                </span>{" "}
                 and{" "}
                 <span onClick={() => navigate("/communityGuidelines")} style={{ color: "#00d4ff", cursor: "pointer" }}>
-                  communityGuidelines
-                </span>
+                  Community Guidelines
+                </span>{" "}
                 and{" "}
                 <span onClick={() => navigate("/aiTransparencyNotice")} style={{ color: "#00d4ff", cursor: "pointer" }}>
-                  aiTransparencyNotice
+                  AI Transparency Notice
                 </span>
               </div>
             </div>
+
             <button 
               type="submit"
-              disabled={!agreed} // DISABLES BUTTON
+              disabled={!agreed}
               style={{
                 padding: '15px', borderRadius: '12px', border: '2px solid #ffffff', 
-                backgroundColor: agreed ? '#0066ff' : '#333', // Changes color when disabled
+                backgroundColor: agreed ? '#0066ff' : '#333', 
                 color: agreed ? '#fff' : '#888', 
                 fontWeight: 'bold', 
                 fontSize: '1rem', cursor: agreed ? 'pointer' : 'not-allowed', 
-                marginTop: '10px',
+                marginTop: '5px',
                 transition: '0.3s'
               }}
             >
@@ -297,14 +313,25 @@ export default function Login() {
             </button>
           </form>
 
+          {/* TOGGLE SIGN-IN / SIGN-UP */}
           <p 
             onClick={() => setIsSignUp(!isSignUp)} 
-            style={{ fontSize: '0.85rem', cursor: 'pointer', textDecoration: 'underline', opacity: 0.8, marginBottom: '10px' }}
+            style={{ fontSize: '0.85rem', cursor: 'pointer', textDecoration: 'underline', opacity: 0.8, marginBottom: '8px' }}
           >
             {isSignUp ? "Already have an account? Sign In" : "New here? Create an account"}
           </p>
 
-          <div style={{ margin: '10px 0', opacity: 0.3, fontSize: '0.8rem' }}>OR</div>
+          {/* FORGOT PASSWORD BUTTON */}
+          {!isSignUp && (
+            <p 
+              onClick={handleForgotPassword} 
+              style={{ fontSize: '0.8rem', cursor: 'pointer', textDecoration: 'underline', color: '#00d4ff', opacity: 0.9, marginBottom: '10px' }}
+            >
+              Forgot Password?
+            </p>
+          )}
+
+          <div style={{ margin: '5px 0', opacity: 0.3, fontSize: '0.8rem' }}>OR</div>
 
           <button 
             type="button"
@@ -327,7 +354,8 @@ export default function Login() {
             />
             Continue with Google
           </button>
-          {/* ✅ IMPRESSUM LINK */}
+
+          {/* IMPRESSUM LINK */}
           <p style={{ marginTop: "15px", fontSize: "0.75rem", opacity: 0.7 }}>
             <span
               onClick={() => navigate("/impressum")}
