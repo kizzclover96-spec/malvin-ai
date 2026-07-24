@@ -11,7 +11,7 @@ import { QRCodeSVG } from 'qrcode.react';
 // EXTERNAL FIREBASE ROUTER IMPORTS
 // ============================================================================
 import { firestore as db } from '../firebase'; 
-import { auth } from "../firebase";  // Adjust this relative directory path to match your project tree
+import { auth } from "../firebase";  
 import { 
   collection, onSnapshot, addDoc, deleteDoc, doc, query, orderBy 
 } from 'firebase/firestore';
@@ -30,7 +30,7 @@ interface PersonaDocument {
 }
 
 interface Member {
-  id: string; // Document ID / Generated Employee ID
+  id: string; 
   fullName: string;
   contactNumber: string;
   email: string;
@@ -77,7 +77,7 @@ export const MalvinAiPersonnelSystem: React.FC = () => {
   // Form Fields Buffers
   const [newMemberForm, setNewMemberForm] = useState({
     fullName: '', contactNumber: '', email: '', role: '', startingDate: '',
-    contractName: '', applicationName: '', certificateName: ''
+    profileImage: '', contractName: '', applicationName: '', certificateName: ''
   });
   const [deleteTargetQuery, setDeleteTargetQuery] = useState('');
   const [deleteSelectedId, setDeleteSelectedId] = useState('');
@@ -108,7 +108,6 @@ export const MalvinAiPersonnelSystem: React.FC = () => {
       });
       setMembers(fetchedMembers);
 
-      // FIX: Look up the scanned user first if present; otherwise, fallback to standard selection.
       if (fetchedMembers.length > 0) {
         if (scanId) {
           const scannedPerson = fetchedMembers.find(m => m.id === scanId);
@@ -131,7 +130,6 @@ export const MalvinAiPersonnelSystem: React.FC = () => {
       setSecureFiles(fetchedFiles);
     });
 
-    // Intercept view context immediately if query parameters exist
     if (scanId) {
       setScannedSummaryId(scanId);
       setCurrentView('public_summary');
@@ -143,7 +141,6 @@ export const MalvinAiPersonnelSystem: React.FC = () => {
     };
   }, []);
 
-  // Enforce Role Permissions constraints onto UI state selection
   useEffect(() => {
     if (currentUserRole === 'WORKER' && members.length > 0) {
       const workerAccount = members.find(m => m.email.includes('kaelen')) || members[0];
@@ -156,7 +153,6 @@ export const MalvinAiPersonnelSystem: React.FC = () => {
   // GENUINE SCANNABLE TARGET URL & DOWNLOAD MATRIX GENERATOR
   // --------------------------------------------------------------------------
   const getScanningUrl = (memberId: string) => {
-    // Keeps the base origin and path intact, adding the query parameter directly
     const base = window.location.origin + window.location.pathname;
     return `${base}?scanId=${memberId}`;
   };
@@ -221,12 +217,12 @@ export const MalvinAiPersonnelSystem: React.FC = () => {
         email: newMemberForm.email,
         role: newMemberForm.role,
         startingDate: newMemberForm.startingDate || today,
-        profileImage: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80",
+        profileImage: newMemberForm.profileImage.trim() || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80",
         documents: preparedDocs
       });
 
       setIsAddModalOpen(false);
-      setNewMemberForm({ fullName: '', contactNumber: '', email: '', role: '', startingDate: '', contractName: '', applicationName: '', certificateName: '' });
+      setNewMemberForm({ fullName: '', contactNumber: '', email: '', role: '', startingDate: '', profileImage: '', contractName: '', applicationName: '', certificateName: '' });
       showToast(`Successfully saved ${newMemberForm.fullName} to Firestore.`);
     } catch (err) {
       alert("Error adding document to Firestore: " + err);
@@ -330,8 +326,6 @@ export const MalvinAiPersonnelSystem: React.FC = () => {
               <div className="flex justify-between border-b border-white/5 pb-1.5"><span className="text-gray-500">Commencement Date:</span> <span className="text-white">{activeScannedPerson.startingDate}</span></div>
               <div className="flex justify-between"><span className="text-gray-500">Contact id:</span> <span className="text-white">{activeScannedPerson.contactNumber}</span></div>
             </div>
-            
-            
           </div>
         ) : (
           <div className="text-center space-y-2 max-w-sm">
@@ -581,6 +575,9 @@ export const MalvinAiPersonnelSystem: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 <input required type="email" value={newMemberForm.email} onChange={e => setNewMemberForm({...newMemberForm, email: e.target.value})} placeholder="Digital Mail Coordinate" className="w-full bg-black border border-white/5 rounded-xl px-3 py-2 text-white focus:outline-none" />
                 <input type="text" value={newMemberForm.contactNumber} onChange={e => setNewMemberForm({...newMemberForm, contactNumber: e.target.value})} placeholder="Contact Phone" className="w-full bg-black border border-white/5 rounded-xl px-3 py-2 text-white focus:outline-none" />
+              </div>
+              <div>
+                <input type="url" value={newMemberForm.profileImage} onChange={e => setNewMemberForm({...newMemberForm, profileImage: e.target.value})} placeholder="Profile Image URL (Optional)" className="w-full bg-black border border-white/5 rounded-xl px-3 py-2 text-white focus:outline-none" />
               </div>
               <button type="submit" className="w-full py-2 bg-[#D60000] text-white font-bold rounded-xl">Commit File Node to Firestore</button>
             </form>
