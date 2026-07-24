@@ -3,7 +3,7 @@ import {
   Shield, Users, User, ArrowLeft, MoreVertical, Plus, Trash2, 
   Search, Download, Eye, FileText, Upload, Calendar, Phone, 
   Mail, Briefcase, IdCard, Lock, ChevronLeft, ChevronRight, 
-  Camera, X, Check, AlertCircle, Sparkles, FileCheck, Award
+  Camera, X, Check, AlertCircle, Sparkles, FileCheck, Award, Image as ImageIcon
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 
@@ -150,6 +150,23 @@ export const MalvinAiPersonnelSystem: React.FC = () => {
   }, [currentUserRole, members]);
 
   // --------------------------------------------------------------------------
+  // IMAGE FILE SELECTION & CONVERSION HANDLER
+  // --------------------------------------------------------------------------
+  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setNewMemberForm(prev => ({
+          ...prev,
+          profileImage: reader.result as string
+        }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // --------------------------------------------------------------------------
   // GENUINE SCANNABLE TARGET URL & DOWNLOAD MATRIX GENERATOR
   // --------------------------------------------------------------------------
   const getScanningUrl = (memberId: string) => {
@@ -217,7 +234,7 @@ export const MalvinAiPersonnelSystem: React.FC = () => {
         email: newMemberForm.email,
         role: newMemberForm.role,
         startingDate: newMemberForm.startingDate || today,
-        profileImage: newMemberForm.profileImage.trim() || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80",
+        profileImage: newMemberForm.profileImage || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80",
         documents: preparedDocs
       });
 
@@ -576,9 +593,40 @@ export const MalvinAiPersonnelSystem: React.FC = () => {
                 <input required type="email" value={newMemberForm.email} onChange={e => setNewMemberForm({...newMemberForm, email: e.target.value})} placeholder="Digital Mail Coordinate" className="w-full bg-black border border-white/5 rounded-xl px-3 py-2 text-white focus:outline-none" />
                 <input type="text" value={newMemberForm.contactNumber} onChange={e => setNewMemberForm({...newMemberForm, contactNumber: e.target.value})} placeholder="Contact Phone" className="w-full bg-black border border-white/5 rounded-xl px-3 py-2 text-white focus:outline-none" />
               </div>
-              <div>
-                <input type="url" value={newMemberForm.profileImage} onChange={e => setNewMemberForm({...newMemberForm, profileImage: e.target.value})} placeholder="Profile Image URL (Optional)" className="w-full bg-black border border-white/5 rounded-xl px-3 py-2 text-white focus:outline-none" />
+
+              {/* FILE / GALLERY PHOTO PICKER INPUT */}
+              <div className="space-y-2">
+                <label className="block text-[10px] uppercase font-black text-gray-400 tracking-wider">Profile Photo (Select from Gallery / Device)</label>
+                <div className="flex items-center space-x-3">
+                  {newMemberForm.profileImage ? (
+                    <img src={newMemberForm.profileImage} alt="Preview" className="w-12 h-12 rounded-xl object-cover border border-red-500/50" />
+                  ) : (
+                    <div className="w-12 h-12 rounded-xl bg-black border border-dashed border-white/20 flex items-center justify-center text-gray-500">
+                      <ImageIcon size={18} />
+                    </div>
+                  )}
+                  <label className="flex-1 cursor-pointer bg-black border border-white/10 hover:border-red-500/50 rounded-xl px-3 py-2.5 text-center text-gray-300 hover:text-white transition-all flex items-center justify-center space-x-2">
+                    <Upload size={14} className="text-red-500" />
+                    <span>{newMemberForm.profileImage ? 'Change Photo' : 'Choose Photo from Files'}</span>
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      onChange={handleImageFileChange} 
+                      className="hidden" 
+                    />
+                  </label>
+                  {newMemberForm.profileImage && (
+                    <button 
+                      type="button" 
+                      onClick={() => setNewMemberForm(prev => ({ ...prev, profileImage: '' }))} 
+                      className="p-2.5 bg-red-950/40 border border-red-500/20 text-red-400 rounded-xl hover:bg-red-600 hover:text-white"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
               </div>
+
               <button type="submit" className="w-full py-2 bg-[#D60000] text-white font-bold rounded-xl">Commit File Node to Firestore</button>
             </form>
           </div>
