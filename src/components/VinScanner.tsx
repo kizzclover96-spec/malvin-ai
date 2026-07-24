@@ -14,7 +14,8 @@ import {
   ShoppingBag,
   Scissors,
   Utensils,
-  ShieldCheck
+  ShieldCheck,
+  Search
 } from 'lucide-react';
 import { collection, getDocs, QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
 import { firestore as db } from '../firebase'; // Adjust this import to match your Firebase config path
@@ -114,6 +115,7 @@ export const VinScanner: React.FC = () => {
   const [location, setLocation] = useState<UserLocation | null>(null);
   const [businesses, setBusinesses] = useState<BusinessProfile[]>([]);
   const [selectedBusiness, setSelectedBusiness] = useState<BusinessProfile | null>(null);
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   // Reverse geocoding via OpenStreetMap Nominatim
   const reverseGeocode = async (lat: number, lng: number): Promise<string> => {
@@ -187,10 +189,9 @@ export const VinScanner: React.FC = () => {
       setStatus('success');
     } catch (err: any) {
       console.error('[VinScanner] ❌ Firestore Fetch Error:', err);
-      // Show the exact error message directly on screen for easy mobile debugging
-        const detailedError = err?.message || err?.code || JSON.stringify(err);
-        setErrorMessage(`Firestore Error: ${detailedError}`);
-        setStatus('error');
+      const detailedError = err?.message || err?.code || JSON.stringify(err);
+      setErrorMessage(`Firestore Error: ${detailedError}`);
+      setStatus('error');
     }
   }, []);
 
@@ -247,6 +248,19 @@ export const VinScanner: React.FC = () => {
     startScan();
   }, [startScan]);
 
+  // Dynamic filter based on search query
+  const filteredBusinesses = useMemo(() => {
+    if (!searchQuery.trim()) return businesses;
+    const term = searchQuery.toLowerCase().trim();
+    return businesses.filter(
+      (b) =>
+        b.brandName.toLowerCase().includes(term) ||
+        b.category.toLowerCase().includes(term) ||
+        b.address.toLowerCase().includes(term) ||
+        b.bio.toLowerCase().includes(term)
+    );
+  }, [businesses, searchQuery]);
+
   const getCategoryIcon = (category: string) => {
     switch (category.toLowerCase()) {
       case 'salon':
@@ -266,25 +280,79 @@ export const VinScanner: React.FC = () => {
       <div className="absolute bottom-10 right-10 w-72 h-72 bg-violet-600/10 rounded-full blur-[100px] pointer-events-none" />
 
       {/* Header */}
-      <header className="z-10 w-full max-w-md flex items-center justify-between py-4 border-b border-slate-800/80 backdrop-blur-md">
-        <div className="flex items-center space-x-2">
-          <div className="w-3 h-3 rounded-full bg-cyan-400 animate-ping" />
-          <h1 className="text-xl font-black tracking-wider bg-gradient-to-r from-cyan-400 via-sky-300 to-indigo-400 bg-clip-text text-transparent">
-            MALVIN<span className="font-light text-slate-300">AI</span> RADAR
-          </h1>
+      <header className="z-10 w-full max-w-md flex flex-col space-y-3 py-3 border-b border-slate-800/80 backdrop-blur-md">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <div className="w-3 h-3 rounded-full bg-cyan-400 animate-ping" />
+            <h1 className="text-xl font-black tracking-wider bg-gradient-to-r from-cyan-400 via-sky-300 to-indigo-400 bg-clip-text text-transparent">
+              MALVIN<span className="font-light text-slate-300">AI</span> RADAR
+            </h1>
+          </div>
+          <button
+            onClick={startScan}
+            disabled={status === 'scanning' || status === 'locating'}
+            className="p-2 rounded-xl bg-slate-900 border border-slate-700/60 hover:border-cyan-500/50 hover:bg-slate-800 text-slate-300 hover:text-cyan-400 transition-all active:scale-95 disabled:opacity-50"
+            title="Rescan Area"
+          >
+            <RefreshCw className={`w-4 h-4 ${status === 'scanning' || status === 'locating' ? 'animate-spin text-cyan-400' : ''}`} />
+          </button>
         </div>
-        <button
-          onClick={startScan}
-          disabled={status === 'scanning' || status === 'locating'}
-          className="p-2 rounded-xl bg-slate-900 border border-slate-700/60 hover:border-cyan-500/50 hover:bg-slate-800 text-slate-300 hover:text-cyan-400 transition-all active:scale-95 disabled:opacity-50"
-          title="Rescan Area"
-        >
-          <RefreshCw className={`w-4 h-4 ${status === 'scanning' || status === 'locating' ? 'animate-spin text-cyan-400' : ''}`} />
-        </button>
+
+        {/* SEARCH BAR & QUICK FILTERS */}
+        <div className="space-y-2">
+          <div className="relative flex items-center">
+            <Search className="absolute left-3.5 w-4 h-4 text-slate-400 pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search store name, restaurant, salon..."
+              className="w-full bg-slate-900/90 border border-slate-700/70 focus:border-cyan-400/80 rounded-xl pl-9 pr-8 py-2 text-xs text-slate-100 placeholder-slate-500 outline-none transition-all shadow-inner"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 p-1 text-slate-400 hover:text-white rounded-full"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Quick Category Chips */}
+          <div className="flex items-center space-x-1.5 overflow-x-auto no-scrollbar pt-1 text-[10px]">
+            <button
+              onClick={() => setSearchQuery('')}
+              className={`px-2.5 py-1 rounded-lg border font-mono transition-all shrink-0 ${
+                !searchQuery ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/50' : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'
+              }`}
+            >
+              All
+            </button>
+            <button
+              onClick={() => setSearchQuery('restaurant')}
+              className={`px-2.5 py-1 rounded-lg border font-mono flex items-center space-x-1 transition-all shrink-0 ${
+                searchQuery.toLowerCase() === 'restaurant' ? 'bg-amber-500/20 text-amber-300 border-amber-500/50' : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'
+              }`}
+            >
+              <Utensils className="w-3 h-3 text-amber-400" />
+              <span>Restaurants</span>
+            </button>
+            <button
+              onClick={() => setSearchQuery('salon')}
+              className={`px-2.5 py-1 rounded-lg border font-mono flex items-center space-x-1 transition-all shrink-0 ${
+                searchQuery.toLowerCase() === 'salon' ? 'bg-pink-500/20 text-pink-300 border-pink-500/50' : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'
+              }`}
+            >
+              <Scissors className="w-3 h-3 text-pink-400" />
+              <span>Salons</span>
+            </button>
+          </div>
+        </div>
       </header>
 
       {/* Center Radar Scanner Viewport */}
-      <main className="z-10 relative flex-1 flex flex-col items-center justify-center my-6 w-full max-w-md">
+      <main className="z-10 relative flex-1 flex flex-col items-center justify-center my-4 w-full max-w-md">
         {/* Radar Canvas Container */}
         <div className="relative w-[340px] h-[340px] sm:w-[380px] sm:h-[380px] rounded-full border border-cyan-500/20 bg-slate-900/40 backdrop-blur-xl shadow-[0_0_50px_rgba(6,182,212,0.15)] flex items-center justify-center overflow-hidden">
           
@@ -342,7 +410,7 @@ export const VinScanner: React.FC = () => {
           {/* Discovered Businesses Plotted Markers */}
           <AnimatePresence>
             {status === 'success' &&
-              businesses.map((biz) => {
+              filteredBusinesses.map((biz) => {
                 const isSelected = selectedBusiness?.id === biz.id;
                 return (
                   <motion.button
@@ -388,7 +456,7 @@ export const VinScanner: React.FC = () => {
         </div>
 
         {/* Location Status Banner */}
-        <div className="mt-6 text-center space-y-1 px-4">
+        <div className="mt-4 text-center space-y-1 px-4">
           {status === 'locating' && (
             <p className="text-sm font-mono text-cyan-400/80 animate-pulse">Acquiring GPS Satellite Signals...</p>
           )}
@@ -407,7 +475,7 @@ export const VinScanner: React.FC = () => {
           )}
           {status === 'success' && (
             <div className="text-xs text-slate-400">
-              <span className="text-cyan-400 font-semibold">{businesses.length} MalvinAI locations</span> detected within {RADIUS_KM}km radius.
+              <span className="text-cyan-400 font-semibold">{filteredBusinesses.length}</span> of {businesses.length} locations showing within {RADIUS_KM}km.
             </div>
           )}
         </div>
@@ -447,9 +515,11 @@ export const VinScanner: React.FC = () => {
       )}
 
       {/* No Businesses Discovered State */}
-      {status === 'success' && businesses.length === 0 && (
+      {status === 'success' && filteredBusinesses.length === 0 && (
         <div className="z-10 text-center py-2 px-4 rounded-xl bg-slate-900/60 border border-slate-800/80 mb-4">
-          <p className="text-xs text-slate-400">No MalvinAI partners found nearby in this area yet.</p>
+          <p className="text-xs text-slate-400">
+            {searchQuery ? `No store matching "${searchQuery}" found nearby.` : 'No MalvinAI partners found nearby in this area yet.'}
+          </p>
         </div>
       )}
 
