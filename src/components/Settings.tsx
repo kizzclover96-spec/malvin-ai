@@ -514,7 +514,7 @@ const Settings = ({ onBack, onSave, userBrand, setUserBrand, onUpdate, auth }: a
                                                     <span style={{ fontSize: '14px' }}>Global Operations</span>
                                                 </div>
                                                 <div>
-                                                    <span style={{ display: 'block', fontSize: '11px', fontWeight 700, opacity: 0.4 }}>VERSION</span>
+                                                    <span style={{ display: 'block', fontSize: '11px', fontWeight: 700, opacity: 0.4 }}>VERSION</span>
                                                     <span style={{ fontSize: '14px' }}>Neural OS v1.0.4 (Beta)</span>
                                                 </div>
                                             </div>
