@@ -62,7 +62,6 @@ const updatesText = [
 ];
 
 const neuralVisions = [
-    // MACRO & CAPITAL SHIFTS
     { 
         title: 'Institutional reallocation: $4.2B moving into ${sector} automated infrastructure.', 
         img: 'https://images.unsplash.com/photo-1551288049-bbbda546697a?auto=format&fit=crop&w=400&q=80',
@@ -87,120 +86,13 @@ const neuralVisions = [
         title: "Unusual 'Whale' activity: High-volume buy orders detected in ${sector} niche.", 
         img: 'https://images.unsplash.com/photo-1639762681485-074b7f938ba0?auto=format&fit=crop&w=400&q=80',
         tag: 'LIQUIDITY'
-    },
-
-    // BEHAVIORAL & SOCIAL TRENDS
-    { 
-        title: 'Neural projection: User trust in traditional systems migrating toward ${sector}.', 
-        img: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=400&q=80',
-        tag: 'PREDICTION' 
-    },
-    { 
-        title: 'Psychological barrier broken: ${sector} mainstream adoption confirmed by multi-channel data.', 
-        img: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=400&q=80',
-        tag: 'CULTURAL_SHIFT'
-    },
-    { 
-        title: "Search volume for ${sector} 'Efficiency First' models up 212% globally.", 
-        img: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=400&q=80',
-        tag: 'TRAFFIC_PULSE'
-    },
-    { 
-        title: 'Sentiment bot: High saturation in legacy markets driving traffic to ${sector} alternatives.', 
-        img: 'https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=400&q=80',
-        tag: 'SOCIAL_PROOF'
-    },
-    { 
-        title: 'Viral trajectory: Predicted peak for ${sector} related interest in 14-day cycle.', 
-        img: 'https://images.unsplash.com/photo-1551434678-e076c223a692?auto=format&fit=crop&w=400&q=80',
-        tag: 'MOMENTUM'
-    },
-
-    // TECHNICAL & REGULATORY
-    { 
-        title: 'Regulatory landscape clearing for aggressive ${sector} cross-border expansion.', 
-        img: 'https://images.unsplash.com/photo-1450101499163-c8848c66ca85?auto=format&fit=crop&w=400&q=80',
-        tag: 'GOVERNANCE'
-    },
-    { 
-        title: 'Cross-border demand for ${sector} services skyrocketing in emerging corridors.', 
-        img: 'https://images.unsplash.com/photo-1526772662000-3f88f10405ff?auto=format&fit=crop&w=400&q=80',
-        tag: 'GLOBAL_TRADE'
-    },
-    { 
-        title: 'Tech giants scouting ${sector} acquisitions; market consolidation beginning.', 
-        img: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=400&q=80',
-        tag: 'M_AND_A'
-    },
-    { 
-        title: 'Efficiency breakthrough in ${sector} logic reduces average operational overhead.', 
-        img: 'https://images.unsplash.com/photo-1518186239717-31464402636a?auto=format&fit=crop&w=400&q=80',
-        tag: 'SYSTEM_UPGRADE'
-    },
-    { 
-        title: 'Alpha detected: Early-stage ${sector} startups outperforming blue-chip benchmarks.', 
-        img: 'https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=400&q=80',
-        tag: 'ALPHA_INTEL'
-    },
-
-    // SECTOR PULSE (THE "REAL" WORLD)
-    { 
-        title: 'Infrastructure update: High-speed connectivity bolstering ${sector} remote viability.', 
-        img: 'https://images.unsplash.com/photo-1544197150-b99a580bb7a8?auto=format&fit=crop&w=400&q=80',
-        tag: 'INFRASTRUCTURE'
-    },
-    { 
-        title: 'Digital identity integration becoming standard for ${sector} security protocols.', 
-        img: 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=400&q=80',
-        tag: 'SECURITY_CORE'
-    },
-    { 
-        title: 'Energy mandates forcing rapid innovation in ${sector} power consumption.', 
-        img: 'https://images.unsplash.com/photo-1473341304170-971dccb5ac1e?auto=format&fit=crop&w=400&q=80',
-        tag: 'SUSTAINABILITY'
-    },
-    { 
-        title: 'Market depth analysis: High resilience shown in ${sector} against volatility.', 
-        img: 'https://images.unsplash.com/photo-1611974717482-48a14950529d?auto=format&fit=crop&w=400&q=80',
-        tag: 'RESILIENCE'
-    },
-    { 
-        title: 'Predictive AI indicates 12% revenue growth potential for agile ${sector} firms.', 
-        img: 'https://images.unsplash.com/photo-1535378917042-10a22c95931a?auto=format&fit=crop&w=400&q=80',
-        tag: 'GROWTH_HACK'
-    },
-
-    // SYSTEM LOGS
-    { 
-        title: 'Data sync: New leadership emerges as ${sector} incumbents struggle with tech-debt.', 
-        img: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=400&q=80',
-        tag: 'LEADERSHIP'
-    },
-    { 
-        title: "Neural projection: The 'Great Reset' in ${sector} valuations favors lean operations.", 
-        img: 'https://images.unsplash.com/photo-1484417855536-a3631484196c?auto=format&fit=crop&w=400&q=80',
-        tag: 'VALUATION'
-    },
-    { 
-        title: 'Quarterly outlook: Diversification into ${sector} assets recommended by analysts.', 
-        img: 'https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?auto=format&fit=crop&w=400&q=80',
-        tag: 'ANALYST_RECAP'
-    },
-    { 
-        title: 'Pattern recognized: Historical data suggests a 24-month bull cycle for ${sector}.', 
-        img: 'https://images.unsplash.com/photo-1535320903710-d993d3d77d29?auto=format&fit=crop&w=400&q=80',
-        tag: 'CYCLE_LOG'
-    },
-    { 
-        title: 'End of cycle: Old-guard ${sector} models failing to adapt to real-time sync.', 
-        img: 'https://images.unsplash.com/photo-1516321497487-e288fb19713f?auto=format&fit=crop&w=400&q=80',
-        tag: 'SYSTEM_EXIT'
     }
 ];
+
 interface MarketTrendsProps {
     onBack: () => void;
-    brandName: string;
-    userBrand: any;
+    brandName?: string;
+    userBrand?: any;
 }
 
 interface Projection {
@@ -220,17 +112,15 @@ interface Opportunity {
   action: string;
   impact: string;
 }
+
 const MarketTrends: React.FC<MarketTrendsProps> = ({ onBack, brandName, userBrand }) => {
   const [projections, setProjections] = useState<Projection[]>([]);
   const [livePosts, setLivePosts] = useState<LivePost[]>([]);
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
-  const brand = userBrand?.name || 'Enterprise';
+  const brand = userBrand?.name || brandName || 'Enterprise';
   const sector = userBrand?.category || 'Industry';
 
-  // 1. GENJUTSU ENGINE: Generates "Neural Projections" instead of news
   useEffect(() => {
-    const shuffled = [...neuralVisions].sort(() => 0.5 - Math.random());
-
     const dynamicVisions = neuralVisions.map(v => ({
       ...v,
       title: v.title.split('${sector}').join(sector)
@@ -241,13 +131,9 @@ const MarketTrends: React.FC<MarketTrendsProps> = ({ onBack, brandName, userBran
 
     setProjections(selected);
     
-    
     const interval = setInterval(() => {
        const randomUser = analystUsers[Math.floor(Math.random() * analystUsers.length)];
-       // Fixed: using updatesText instead of UPDATES_TEXT_BASE
        const template = updatesText[Math.floor(Math.random() * updatesText.length)];
-       
-       // Inject sector into the live text
        const cleanText = template.text.split('${sector}').join(sector);
 
        setLivePosts(prev => [
@@ -267,100 +153,259 @@ const MarketTrends: React.FC<MarketTrendsProps> = ({ onBack, brandName, userBran
   }, []);
 
   return (
-    <div style={{
-      position: 'fixed',
-      inset: 0,
-      background: 'radial-gradient(circle at top right, #1e1b4b, #020617)',
-      color: 'white',
-      padding: '30px',
-      fontFamily: "'Orbitron', sans-serif", // Gives it that futuristic feel
-      overflowY: 'auto'
-    }}>
+    <>
+      <style>{responsiveStyles}</style>
 
-      {/* HEADER */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 30 }}>
-        <div>
-          <h2 style={{ fontSize: 28, margin: 0, color: '#60a5fa', letterSpacing: '2px', textShadow: '0 0 15px rgba(96, 165, 250, 0.4)' }}>
-            {userBrand?.name?.toUpperCase() || 'MALVIN'} // PULSE
-          </h2>
-          <div style={{ fontSize: 10, opacity: 0.5, marginTop: 5 }}>NEURAL_FEED_STABLE // 99.8% SYNCED</div>
+      <div className="market-trends-wrapper">
+
+        {/* --- COMING SOON OVERLAY --- */}
+        <div className="coming-soon-overlay">
+          <div className="coming-soon-card">
+            <div className="status-pill">NEURAL PULSE // UNDER_DEVELOPMENT</div>
+            <h1 className="overlay-title">COMING SOON</h1>
+            <p className="overlay-description">
+              The <strong>Market Trends & Signal Core</strong> is actively connecting to global market liquidity nodes. Signal syncing will be available in the next release.
+            </p>
+            <button className="overlay-back-btn" onClick={onBack}>
+              Return to Dashboard
+            </button>
+          </div>
         </div>
-        <button onClick={onBack} style={{ ...glass, cursor: 'pointer', padding: '10px 25px', color: '#60a5fa', fontWeight: 'bold' }}>
-          DISCONNECT
-        </button>
-      </div>
 
-      {/* BIG GENJUTSU INSIGHT */}
-      <div style={{ 
-          ...glass, 
-          marginBottom: 30, 
-          borderLeft: '4px solid #22c55e', 
-          background: 'linear-gradient(90deg, rgba(34, 197, 94, 0.1), transparent)' 
-      }}>
-        <h3 style={{ color: '#22c55e', margin: '0 0 10px 0', fontSize: 14 }}>NEURAL PROJECTION</h3>
-        <p style={{ fontSize: 18, fontWeight: 'bold', margin: 0 }}>
-          Your presence is creating a market void. <span style={{ color: '#22c55e' }}>Occupy it now.</span> Every metric confirms your trajectory is unmatchable.
-        </p>
-      </div>
+        {/* --- BLURRED BACKGROUND CONTENT --- */}
+        <div className="blurred-content-wrapper">
+          {/* HEADER */}
+          <div className="trends-header">
+            <div>
+              <h2 style={{ fontSize: 28, margin: 0, color: '#60a5fa', letterSpacing: '2px', textShadow: '0 0 15px rgba(96, 165, 250, 0.4)' }}>
+                {brand.toUpperCase()} // PULSE
+              </h2>
+              <div style={{ fontSize: 10, opacity: 0.5, marginTop: 5 }}>NEURAL_FEED_STABLE // 99.8% SYNCED</div>
+            </div>
+            <button onClick={onBack} style={{ ...glass, cursor: 'pointer', padding: '10px 25px', color: '#60a5fa', fontWeight: 'bold' }}>
+              DISCONNECT
+            </button>
+          </div>
 
-      {/* MAIN GRID */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1fr 1fr', gap: 25 }}>
-
-        {/* NEURAL VISIONS (Visual News) */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
-          <h4 style={{ color: '#60a5fa', margin: 0, fontSize: 12, letterSpacing: '1px' }}>GLOBAL_SIGNALS</h4>
-          {projections.map((n, i) => (
-            <div key={i} style={{ 
+          {/* INSIGHT BANNER */}
+          <div style={{ 
               ...glass, 
-              display: 'flex', 
-              gap: 15, 
-              alignItems: 'center',
-              cursor: 'pointer'
-            }}>
-              <img src={n.img} style={{ width: 80, height: 60, borderRadius: 8, objectFit: 'cover' }} alt="vision" />
-              <div>
-                <small style={{ color: '#60a5fa', fontSize: 9, fontWeight: 'bold' }}>{n.tag}</small>
-                <p style={{ fontSize: 14, margin: '4px 0 0 0', fontWeight: '500' }}>{n.title}</p>
-              </div>
+              marginBottom: 30, 
+              borderLeft: '4px solid #22c55e', 
+              background: 'linear-gradient(90deg, rgba(34, 197, 94, 0.1), transparent)' 
+          }}>
+            <h3 style={{ color: '#22c55e', margin: '0 0 10px 0', fontSize: 14 }}>NEURAL PROJECTION</h3>
+            <p style={{ fontSize: 18, fontWeight: 'bold', margin: 0 }}>
+              Your presence is creating a market void. <span style={{ color: '#22c55e' }}>Occupy it now.</span> Every metric confirms your trajectory is unmatchable.
+            </p>
+          </div>
+
+          {/* MAIN GRID */}
+          <div className="trends-grid">
+
+            {/* NEURAL VISIONS */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
+              <h4 style={{ color: '#60a5fa', margin: 0, fontSize: 12, letterSpacing: '1px' }}>GLOBAL_SIGNALS</h4>
+              {projections.map((n, i) => (
+                <div key={i} style={{ 
+                  ...glass, 
+                  display: 'flex', 
+                  gap: 15, 
+                  alignItems: 'center',
+                  cursor: 'pointer'
+                }}>
+                  <img src={n.img} style={{ width: 80, height: 60, borderRadius: 8, objectFit: 'cover' }} alt="vision" />
+                  <div>
+                    <small style={{ color: '#60a5fa', fontSize: 9, fontWeight: 'bold' }}>{n.tag}</small>
+                    <p style={{ fontSize: 14, margin: '4px 0 0 0', fontWeight: '500' }}>{n.title}</p>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
+
+            {/* LIVE STREAM */}
+            <div style={{ ...glass }}>
+              <h4 style={{ color: '#22c55e', margin: '0 0 20px 0', fontSize: 12 }}>SENTIMENT_FLOW</h4>
+              {livePosts.map((p, i) => (
+                <div key={i} style={{ marginBottom: 20, borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                     <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e' }} />
+                     <small style={{ color: '#22c55e', fontWeight: 'bold' }}>{p.user}</small>
+                  </div>
+                  <p style={{ fontSize: 13, margin: '5px 0 0 0', opacity: 0.8 }}>{p.text}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* OPPORTUNITIES */}
+            <div style={{ ...glass, background: 'rgba(250, 204, 21, 0.03)', borderColor: 'rgba(250, 204, 21, 0.2)' }}>
+              <h4 style={{ color: '#facc15', margin: '0 0 20px 0', fontSize: 12 }}>STRATEGIC_WINDOWS</h4>
+              {opportunities.map((o, i) => (
+                <div key={i} style={{ 
+                  marginBottom: 15, 
+                  padding: 12, 
+                  background: 'rgba(255,255,255,0.02)', 
+                  borderRadius: 10,
+                  border: '1px solid rgba(250, 204, 21, 0.1)'
+                }}>
+                  <p style={{ fontWeight: 'bold', margin: '0 0 5px 0', color: '#facc15' }}>{o.title}</p>
+                  <div style={{ fontSize: 11, opacity: 0.7 }}>{o.action}</div>
+                  <div style={{ fontSize: 14, fontWeight: 'bold', marginTop: 5, color: '#22c55e' }}>{o.impact}</div>
+                </div>
+              ))}
+            </div>
+
+          </div>
         </div>
 
-        {/* LIVE STREAM */}
-        <div style={{ ...glass }}>
-          <h4 style={{ color: '#22c55e', margin: '0 0 20px 0', fontSize: 12 }}>SENTIMENT_FLOW</h4>
-          {livePosts.map((p, i) => (
-            <div key={i} style={{ marginBottom: 20, borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: 10 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                 <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e' }} />
-                 <small style={{ color: '#22c55e', fontWeight: 'bold' }}>{p.user}</small>
-              </div>
-              <p style={{ fontSize: 13, margin: '5px 0 0 0', opacity: 0.8 }}>{p.text}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* OPPORTUNITIES */}
-        <div style={{ ...glass, background: 'rgba(250, 204, 21, 0.03)', borderColor: 'rgba(250, 204, 21, 0.2)' }}>
-          <h4 style={{ color: '#facc15', margin: '0 0 20px 0', fontSize: 12 }}>STRATEGIC_WINDOWS</h4>
-          {opportunities.map((o, i) => (
-            <div key={i} style={{ 
-              marginBottom: 15, 
-              padding: 12, 
-              background: 'rgba(255,255,255,0.02)', 
-              borderRadius: 10,
-              border: '1px solid rgba(250, 204, 21, 0.1)'
-            }}>
-              <p style={{ fontWeight: 'bold', margin: '0 0 5px 0', color: '#facc15' }}>{o.title}</p>
-              <div style={{ fontSize: 11, opacity: 0.7 }}>{o.action}</div>
-              <div style={{ fontSize: 14, fontWeight: 'bold', marginTop: 5, color: '#22c55e' }}>{o.impact}</div>
-            </div>
-          ))}
-        </div>
       </div>
-
-    </div>
+    </>
   );
 };
+
+// --- RESPONSIVE CSS INJECTION ---
+const responsiveStyles = `
+  .market-trends-wrapper {
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(circle at top right, #1e1b4b, #020617);
+    color: white;
+    padding: 30px;
+    font-family: 'Orbitron', -apple-system, sans-serif;
+    overflow-y: auto;
+    box-sizing: border-box;
+  }
+
+  .blurred-content-wrapper {
+    filter: blur(12px);
+    pointer-events: none;
+    user-select: none;
+    opacity: 0.45;
+  }
+
+  /* OVERLAY STYLES */
+  .coming-soon-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(2, 6, 23, 0.75);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  .coming-soon-card {
+    background: rgba(15, 23, 42, 0.85);
+    border: 1px solid rgba(96, 165, 250, 0.3);
+    box-shadow: 0 0 50px rgba(96, 165, 250, 0.2), inset 0 0 20px rgba(255, 255, 255, 0.05);
+    border-radius: 28px;
+    padding: 40px;
+    max-width: 480px;
+    width: 100%;
+    text-align: center;
+    box-sizing: border-box;
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+  }
+
+  .status-pill {
+    display: inline-block;
+    padding: 6px 14px;
+    background: rgba(96, 165, 250, 0.15);
+    border: 1px solid rgba(96, 165, 250, 0.4);
+    color: #60a5fa;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    margin-bottom: 20px;
+  }
+
+  .overlay-title {
+    font-size: 32px;
+    font-weight: 800;
+    margin: 0 0 12px 0;
+    letter-spacing: 2px;
+    color: #ffffff;
+    text-shadow: 0 0 20px rgba(96, 165, 250, 0.5);
+  }
+
+  .overlay-description {
+    font-size: 14px;
+    opacity: 0.8;
+    line-height: 1.6;
+    margin-bottom: 30px;
+    color: #cbd5e1;
+  }
+
+  .overlay-back-btn {
+    width: 100%;
+    background: #2563eb;
+    color: white;
+    border: none;
+    padding: 16px;
+    border-radius: 14px;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    box-shadow: 0 0 20px rgba(37, 99, 235, 0.4);
+    transition: transform 0.2s ease, background 0.2s ease;
+  }
+
+  .overlay-back-btn:active {
+    transform: scale(0.98);
+  }
+
+  /* LAYOUT GRID */
+  .trends-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+  }
+
+  .trends-grid {
+    display: grid;
+    grid-template-columns: 1.8fr 1fr 1fr;
+    gap: 25px;
+  }
+
+  @media (max-width: 768px) {
+    .market-trends-wrapper {
+      padding: 20px 15px !important;
+    }
+
+    .trends-header {
+      flex-direction: column !important;
+      align-items: flex-start !important;
+      gap: 15px !important;
+    }
+
+    .trends-header button {
+      width: 100% !important;
+    }
+
+    .trends-grid {
+      grid-template-columns: 1fr !important;
+      gap: 20px !important;
+    }
+
+    .coming-soon-card {
+      padding: 28px 20px !important;
+      border-radius: 20px !important;
+    }
+
+    .overlay-title {
+      font-size: 26px !important;
+    }
+
+    .overlay-description {
+      font-size: 13px !important;
+    }
+  }
+`;
 
 export default MarketTrends;

@@ -292,7 +292,7 @@ const AdsManager = ({ userBrand }: any) => {
                     </div>
                     <div style={statBox}>
                         <span style={statLabel}>Avg. Engagement</span>
-                        <div style={statValue}>4.2%</div>
+                        <div style={statValue}>(coming soon...) </div>
                     </div>
                 </div>
 
