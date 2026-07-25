@@ -73,202 +73,275 @@ const Catalog = ({ onBack, userBrand }: any) => {
     };
 
     return (
-        <div style={{ 
-            width: '100vw', 
-            height: '100vh', // 🌟 FIXED: Lock master container height
-            backgroundColor: '#050505', 
-            color: 'white', 
-            padding: '60px 100px 20px 100px', 
-            boxSizing: 'border-box', 
-            position: 'relative',
-            overflow: 'hidden' // 🌟 FIXED: Prevent document window breaks
-        }}>
-            
-            {/* Header Area */}
-            <div style={{ marginBottom: '20px', position: 'relative' }}>
-                <h1 style={{ fontSize: '40px', fontWeight: 700, margin: 0 }}>Inventory_Management</h1>
-                <p style={{ opacity: 0.5, margin: '5px 0 0 0' }}>Core assets for {userBrand?.name}.</p>
-                {/* Top Right Vault Button */}
-                {!showVault && (
-                    <button
-                        onClick={() => setShowVault(true)}
-                        style={{
-                            position: 'absolute',
-                            top: '20px',
-                            right: '30px',
-                            padding: '10px 14px',
-                            background: '#C5FF41',
-                            color: '#000',
-                            border: 'none',
-                            borderRadius: '12px',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            fontSize: '12px',
-                            zIndex: 1000,
-                            boxShadow: '0 0 20px rgba(197,255,65,0.2)'
-                        }}
-                    >
-                        Environment Vault
-                    </button>
-                )}
-            </div>
-
-            {/* Floating Right Corner Add Button */}
-            {products.length > 0 && (
-                <button 
-                    onClick={() => setShowModal(true)} 
-                    style={fabStyle}
-                    title="Add Item"
-                    onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
-                    onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                >
-                    +
-                </button>
-            )}
-
-            {/* Scrollable Container Wrapper */}
-            <div style={gridStyle}>
-                {!loading && products.length === 0 && (
-                    <div style={emptyStateStyle}>
-                        <div style={{ fontSize: '50px' }}>📦</div>
-                        <h3>No Products Available</h3>
-                        <p style={{opacity: 0.5, marginBottom: '20px'}}>Add products to catalog to begin.</p>
-                        <button onClick={() => setShowModal(true)} style={{...primaryBtn, maxWidth: '200px', margin: '0 auto'}}>+ Add Product</button>
+        <>
+            <style>{responsiveStyles}</style>
+            <div className="catalog-master-container">
+                
+                {/* Header Area */}
+                <div className="catalog-header-area">
+                    <div>
+                        <h1 className="catalog-title">Inventory_Management</h1>
+                        <p style={{ opacity: 0.5, margin: '5px 0 0 0' }}>Core assets for {userBrand?.name}.</p>
                     </div>
-                )}
 
-                {products.map((item) => (
-                    <div key={item.id} style={cardStyle} onClick={() => setSelectedProduct(item)}>
-                        {/* Delete Button */}
-                        <div 
-                            onClick={(e) => handleDelete(e, item.id)}
-                            style={deleteBtnStyle}
+                    {/* Environment Vault Button */}
+                    {!showVault && (
+                        <button
+                            onClick={() => setShowVault(true)}
+                            className="vault-btn"
                         >
-                            ×
-                        </div>
-
-                        <div style={{ 
-                            width: '100%', height: '180px', borderRadius: '12px', background: '#111', marginBottom: '16px',
-                            backgroundImage: `url(${item.image})`, backgroundSize: 'cover', backgroundPosition: 'center'
-                        }} />
-                        <h3 style={{ margin: '0 0 4px 0', fontSize: '16px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.name}</h3>
-                        <span style={{ color: '#C5FF41', fontWeight: 700, fontSize: '14px' }}>
-                            {item.currency}{item.price}
-                        </span>
-                        <p style={truncatedTextStyle}>{item.details || "No specifications provided."}</p>
-                    </div>
-                ))}
-            </div>
-
-            {/* --- ADD ITEM MODAL --- */}
-            {showModal && (
-                <div style={modalOverlay}>
-                    <div style={glassModal}>
-                        <h2 style={{ marginTop: 0 }}>New_Deployment</h2>
-                        <label style={labelStyle}>Product Image</label>
-                        <input type="file" accept="image/*" onChange={handleImageChange} style={{ marginBottom: '20px', fontSize: '12px' }} />
-                        <label style={labelStyle}>Name</label>
-                        <input style={inputStyle} value={newItem.name} onChange={(e) => setNewItem({...newItem, name: e.target.value})} />
-                        <div style={{ display: 'flex', gap: '10px' }}>
-                            <div style={{ flex: 1 }}><label style={labelStyle}>Currency</label>
-                                <select style={inputStyle} value={newItem.currency} onChange={(e) => setNewItem({...newItem, currency: e.target.value})}>
-                                    {currencies.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-                                </select>
-                            </div>
-                            <div style={{ flex: 2 }}><label style={labelStyle}>Price</label>
-                                <input style={inputStyle} value={newItem.price} onChange={(e) => setNewItem({...newItem, price: e.target.value})} />
-                            </div>
-                        </div>
-                        <label style={labelStyle}>Details</label>
-                        <textarea style={{...inputStyle, height: '60px'}} onChange={(e) => setNewItem({...newItem, details: e.target.value})} />
-                        <div style={{ display: 'flex', gap: '12px' }}>
-                            <button onClick={handleSave} style={primaryBtn}>Save to Core</button>
-                            <button onClick={() => setShowModal(false)} style={secondaryBtn}>Cancel</button>
-                        </div>
-                    </div>
+                            Environment Vault
+                        </button>
+                    )}
                 </div>
-            )}
 
-            {/* --- DETAIL VIEW MODAL --- */}
-            {selectedProduct && (
-                <div style={modalOverlay} onClick={() => setSelectedProduct(null)}>
-                    <div style={detailModalStyle} onClick={(e) => e.stopPropagation()}>
-                        <div style={{display: 'flex', gap: '40px'}}>
-                            <div style={{
-                                flex: 1, height: '450px', borderRadius: '24px', 
-                                backgroundImage: `url(${selectedProduct.image})`, 
-                                backgroundSize: 'cover', backgroundPosition: 'center',
-                                border: '1px solid rgba(255,255,255,0.1)'
+                {/* Floating Right Corner Add Button */}
+                {products.length > 0 && (
+                    <button 
+                        onClick={() => setShowModal(true)} 
+                        style={fabStyle}
+                        title="Add Item"
+                        onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
+                        onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                    >
+                        +
+                    </button>
+                )}
+
+                {/* Scrollable Container Wrapper */}
+                <div style={gridStyle}>
+                    {!loading && products.length === 0 && (
+                        <div style={emptyStateStyle}>
+                            <div style={{ fontSize: '50px' }}>📦</div>
+                            <h3>No Products Available</h3>
+                            <p style={{opacity: 0.5, marginBottom: '20px'}}>Add products to catalog to begin.</p>
+                            <button onClick={() => setShowModal(true)} style={{...primaryBtn, maxWidth: '200px', margin: '0 auto'}}>+ Add Product</button>
+                        </div>
+                    )}
+
+                    {products.map((item) => (
+                        <div key={item.id} className="catalog-card" style={cardStyle} onClick={() => setSelectedProduct(item)}>
+                            {/* Delete Button */}
+                            <div 
+                                onClick={(e) => handleDelete(e, item.id)}
+                                style={deleteBtnStyle}
+                            >
+                                ×
+                            </div>
+
+                            <div style={{ 
+                                width: '100%', height: '180px', borderRadius: '12px', background: '#111', marginBottom: '16px',
+                                backgroundImage: `url(${item.image})`, backgroundSize: 'cover', backgroundPosition: 'center'
                             }} />
-                            <div style={{flex: 1, display: 'flex', flexDirection: 'column'}}>
-                                <div style={{flex: 1}}>
-                                    <h1 style={{margin: '0 0 10px 0', fontSize: '32px'}}>{selectedProduct.name}</h1>
-                                    <p style={{color: '#C5FF41', fontSize: '24px', fontWeight: 700, marginBottom: '20px'}}>
-                                        {selectedProduct.currency}{selectedProduct.price}
-                                    </p>
-                                    <label style={labelStyle}>Description</label>
-                                    <p style={{opacity: 0.7, lineHeight: '1.6', fontSize: '14px'}}>{selectedProduct.details}</p>
-                                    
-                                    <label style={{...labelStyle, marginTop: '30px'}}>Reviews / Neural Feedback</label>
-                                    <div style={{padding: '15px', borderRadius: '12px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)'}}>
-                                        <p style={{fontSize: '12px', opacity: 0.5, margin: 0}}>No internal feedback loops detected for this asset yet.</p>
-                                    </div>
+                            <h3 style={{ margin: '0 0 4px 0', fontSize: '16px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.name}</h3>
+                            <span style={{ color: '#C5FF41', fontWeight: 700, fontSize: '14px' }}>
+                                {item.currency}{item.price}
+                            </span>
+                            <p style={truncatedTextStyle}>{item.details || "No specifications provided."}</p>
+                        </div>
+                    ))}
+                </div>
+
+                {/* --- ADD ITEM MODAL --- */}
+                {showModal && (
+                    <div style={modalOverlay}>
+                        <div className="catalog-modal-box" style={glassModal}>
+                            <h2 style={{ marginTop: 0 }}>New_Deployment</h2>
+                            <label style={labelStyle}>Product Image</label>
+                            <input type="file" accept="image/*" onChange={handleImageChange} style={{ marginBottom: '20px', fontSize: '12px', width: '100%' }} />
+                            <label style={labelStyle}>Name</label>
+                            <input style={inputStyle} value={newItem.name} onChange={(e) => setNewItem({...newItem, name: e.target.value})} />
+                            <div style={{ display: 'flex', gap: '10px' }}>
+                                <div style={{ flex: 1 }}><label style={labelStyle}>Currency</label>
+                                    <select style={inputStyle} value={newItem.currency} onChange={(e) => setNewItem({...newItem, currency: e.target.value})}>
+                                        {currencies.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                                    </select>
                                 </div>
-                                <button onClick={() => setSelectedProduct(null)} style={{...secondaryBtn, marginTop: '20px'}}>Close View</button>
+                                <div style={{ flex: 2 }}><label style={labelStyle}>Price</label>
+                                    <input style={inputStyle} value={newItem.price} onChange={(e) => setNewItem({...newItem, price: e.target.value})} />
+                                </div>
+                            </div>
+                            <label style={labelStyle}>Details</label>
+                            <textarea style={{...inputStyle, height: '60px'}} onChange={(e) => setNewItem({...newItem, details: e.target.value})} />
+                            <div style={{ display: 'flex', gap: '12px' }}>
+                                <button onClick={handleSave} style={primaryBtn}>Save to Core</button>
+                                <button onClick={() => setShowModal(false)} style={secondaryBtn}>Cancel</button>
                             </div>
                         </div>
                     </div>
-                </div>
-            )}
-            {showVault && (
-                <div
-                    style={{
-                        position: 'fixed',
-                        top: 0,
-                        left: 0,
-                        width: '100vw',
-                        height: '100vh',
-                        zIndex: 99999,
-                        background: 'rgba(0,0,0,0.85)',
-                        inset: 0,
-                        backdropFilter: 'blur(12px)',
-                        animation: 'fadeIn 0.2s ease'
-                    }}
-                >
-                    {/* Close button */}
-                    <button
-                        onClick={() => setShowVault(false)}
+                )}
+
+                {/* --- DETAIL VIEW MODAL --- */}
+                {selectedProduct && (
+                    <div style={modalOverlay} onClick={() => setSelectedProduct(null)}>
+                        <div className="catalog-detail-modal" style={detailModalStyle} onClick={(e) => e.stopPropagation()}>
+                            <div className="catalog-detail-flex" style={{display: 'flex', gap: '40px'}}>
+                                <div className="catalog-detail-img" style={{
+                                    flex: 1, height: '350px', borderRadius: '24px', 
+                                    backgroundImage: `url(${selectedProduct.image})`, 
+                                    backgroundSize: 'cover', backgroundPosition: 'center',
+                                    border: '1px solid rgba(255,255,255,0.1)'
+                                }} />
+                                <div style={{flex: 1, display: 'flex', flexDirection: 'column'}}>
+                                    <div style={{flex: 1}}>
+                                        <h1 style={{margin: '0 0 10px 0', fontSize: '28px'}}>{selectedProduct.name}</h1>
+                                        <p style={{color: '#C5FF41', fontSize: '22px', fontWeight: 700, marginBottom: '20px'}}>
+                                            {selectedProduct.currency}{selectedProduct.price}
+                                        </p>
+                                        <label style={labelStyle}>Description</label>
+                                        <p style={{opacity: 0.7, lineHeight: '1.6', fontSize: '14px'}}>{selectedProduct.details}</p>
+                                        
+                                        <label style={{...labelStyle, marginTop: '20px'}}>Reviews / Neural Feedback</label>
+                                        <div style={{padding: '15px', borderRadius: '12px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)'}}>
+                                            <p style={{fontSize: '12px', opacity: 0.5, margin: 0}}>No internal feedback loops detected for this asset yet.</p>
+                                        </div>
+                                    </div>
+                                    <button onClick={() => setSelectedProduct(null)} style={{...secondaryBtn, marginTop: '20px', width: '100%'}}>Close View</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+                {showVault && (
+                    <div
                         style={{
-                            position: 'absolute',
-                            top: 20,
-                            right: 20,
-                            zIndex: 100000,
-                            padding: '10px 14px',
-                            borderRadius: '10px',
-                            border: '1px solid #333',
-                            background: '#111',
-                            color: 'white',
-                            cursor: 'pointer'
+                            position: 'fixed',
+                            top: 0,
+                            left: 0,
+                            width: '100vw',
+                            height: '100vh',
+                            zIndex: 99999,
+                            background: 'rgba(0,0,0,0.85)',
+                            inset: 0,
+                            backdropFilter: 'blur(12px)',
+                            animation: 'fadeIn 0.2s ease'
                         }}
                     >
-                        Close Vault
-                    </button>
+                        {/* Close button */}
+                        <button
+                            onClick={() => setShowVault(false)}
+                            style={{
+                                position: 'absolute',
+                                top: 20,
+                                right: 20,
+                                zIndex: 100000,
+                                padding: '10px 14px',
+                                borderRadius: '10px',
+                                border: '1px solid #333',
+                                background: '#111',
+                                color: 'white',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            Close Vault
+                        </button>
 
-                    {/* Vault App */}
-                    <div style={{ width: '100vw', height: '100vh', overflow: 'auto' }}>
-                        <SaaSEnvironmentVault userEmail={auth.currentUser?.email || ''} />
+                        {/* Vault App */}
+                        <div style={{ width: '100vw', height: '100vh', overflow: 'auto' }}>
+                            <SaaSEnvironmentVault userEmail={auth.currentUser?.email || ''} />
+                        </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )}
+            </div>
+        </>
     );
 };
 
-// --- UPDATED STYLES CONFIGURATION ---
+// --- RESPONSIVE CSS INJECTION ---
+const responsiveStyles = `
+  .catalog-master-container {
+    width: 100vw;
+    height: 100vh;
+    background-color: #050505;
+    color: white;
+    padding: 60px 100px 20px 100px;
+    box-sizing: border-box;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .catalog-header-area {
+    margin-bottom: 20px;
+    position: relative;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+
+  .catalog-title {
+    font-size: 40px;
+    font-weight: 700;
+    margin: 0;
+  }
+
+  .vault-btn {
+    padding: 10px 14px;
+    background: #C5FF41;
+    color: #000;
+    border: none;
+    border-radius: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    font-size: 12px;
+    z-index: 1000;
+    box-shadow: 0 0 20px rgba(197,255,65,0.2);
+  }
+
+  @media (max-width: 768px) {
+    .catalog-master-container {
+      padding: 20px 15px !important;
+    }
+
+    .catalog-header-area {
+      flex-direction: column !important;
+      gap: 15px !important;
+      align-items: flex-start !important;
+    }
+
+    .catalog-title {
+      font-size: 28px !important;
+    }
+
+    .vault-btn {
+      width: 100% !important;
+    }
+
+    .catalog-card {
+      width: 100% !important;
+      height: auto !important;
+    }
+
+    .catalog-modal-box {
+      width: 90% !important;
+      padding: 24px !important;
+      border-radius: 20px !important;
+    }
+
+    .catalog-detail-modal {
+      width: 92% !important;
+      padding: 24px !important;
+      border-radius: 24px !important;
+      max-height: 85vh;
+      overflow-y: auto;
+    }
+
+    .catalog-detail-flex {
+      flex-direction: column !important;
+      gap: 20px !important;
+    }
+
+    .catalog-detail-img {
+      height: 220px !important;
+      width: 100% !important;
+    }
+  }
+`;
+
+// --- STYLES CONFIGURATION ---
 const fabStyle = {
-    position: 'fixed' as 'fixed', bottom: '20px', right: '40px',
+    position: 'fixed' as 'fixed', bottom: '20px', right: '25px',
     background: 'none', color: '#C5FF41', border: 'none',
-    fontSize: '80px', fontWeight: '300', cursor: 'pointer',
+    fontSize: '60px', fontWeight: '300', cursor: 'pointer',
     zIndex: 100,
     lineHeight: '1',
     transition: 'transform 0.2s ease, opacity 0.2s ease',
@@ -280,7 +353,7 @@ const cardStyle = {
     background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.08)', 
     borderRadius: '24px', padding: '16px', backdropFilter: 'blur(10px)', 
     width: '260px', height: '340px', cursor: 'pointer', position: 'relative' as 'relative',
-    transition: 'transform 0.2s ease'
+    transition: 'transform 0.2s ease', boxSizing: 'border-box' as 'border-box'
 };
 
 const truncatedTextStyle = { 
@@ -303,21 +376,20 @@ const detailModalStyle = {
     boxShadow: '0 50px 100px rgba(0,0,0,0.8)'
 };
 
-// 🌟 FIXED: Handled explicit height tracking boundary and set overflow properties
 const gridStyle = { 
     display: 'flex', 
     flexWrap: 'wrap' as 'wrap', 
     gap: '24px', 
     marginTop: '20px', 
     justifyContent: 'flex-start',
-    height: 'calc(100vh - 200px)', // Takes up exactly remaining room under the headers
-    overflowY: 'auto' as 'auto',   // Triggers clean independent list scrolling
-    paddingBottom: '60px',         // Safe padding space for the cards on scroll floor
+    height: 'calc(100vh - 200px)',
+    overflowY: 'auto' as 'auto',   
+    paddingBottom: '60px',         
     boxSizing: 'border-box' as 'border-box'
 };
 
 const modalOverlay = { position: 'fixed' as 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(12px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 };
-const glassModal = { background: 'rgba(25, 25, 25, 0.95)', border: '1px solid rgba(255,255,255,0.1)', padding: '40px', borderRadius: '32px', width: '420px' };
+const glassModal = { background: 'rgba(25, 25, 25, 0.95)', border: '1px solid rgba(255,255,255,0.1)', padding: '40px', borderRadius: '32px', width: '420px', boxSizing: 'border-box' as 'border-box' };
 const inputStyle = { width: '100%', backgroundColor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '12px', color: 'white', marginBottom: '20px', outline: 'none', boxSizing: 'border-box' as 'border-box' };
 const labelStyle = { fontSize: '10px', textTransform: 'uppercase' as 'uppercase', opacity: 0.4, marginBottom: '8px', display: 'block', letterSpacing: '1px' };
 const primaryBtn = { background: '#C5FF41', color: 'black', border: 'none', padding: '14px 24px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', flex: 1 };
