@@ -1,2 +1,7 @@
 /build/*
 !/build/.npmkeep
+# Android signing secrets & keystores
+*.keystore
+*.jks
+android/gradle.properties
+my-upload-key.keystore
