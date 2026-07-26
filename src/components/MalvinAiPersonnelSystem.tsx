@@ -10,11 +10,12 @@ import { QRCodeSVG } from 'qrcode.react';
 // ============================================================================
 // EXTERNAL FIREBASE ROUTER IMPORTS
 // ============================================================================
-import { firestore as db } from '../firebase'; 
+import { firestore as db, storage } from '../firebase'; // <--- Imported storage
 import { auth } from "../firebase";  
 import { 
   collection, onSnapshot, addDoc, deleteDoc, doc, query, orderBy 
 } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'; // <--- Firebase Storage SDK
 
 // ============================================================================
 // STRUCTURAL INTERFACES & SCHEMAS
@@ -58,6 +59,7 @@ export const MalvinAiPersonnelSystem: React.FC = () => {
   const [secureFiles, setSecureFiles] = useState<SecureFile[]>([]);
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Navigation & Sub-views State
   const [currentView, setCurrentView] = useState<'dashboard' | 'secure_files' | 'public_summary'>('dashboard');
@@ -74,10 +76,12 @@ export const MalvinAiPersonnelSystem: React.FC = () => {
   const [isQrScannerModalOpen, setIsQrScannerModalOpen] = useState(false);
   const [scannedCardMember, setScannedCardMember] = useState<Member | null>(null);
 
-  // Form Fields Buffers
+  // Form Fields Buffers & Image File State
+  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>('');
   const [newMemberForm, setNewMemberForm] = useState({
     fullName: '', contactNumber: '', email: '', role: '', startingDate: '',
-    profileImage: '', contractName: '', applicationName: '', certificateName: ''
+    contractName: '', applicationName: '', certificateName: ''
   });
   const [deleteTargetQuery, setDeleteTargetQuery] = useState('');
   const [deleteSelectedId, setDeleteSelectedId] = useState('');
@@ -150,20 +154,19 @@ export const MalvinAiPersonnelSystem: React.FC = () => {
   }, [currentUserRole, members]);
 
   // --------------------------------------------------------------------------
-  // IMAGE FILE SELECTION & CONVERSION HANDLER
+  // LOCAL IMAGE FILE SELECTION HANDLER (PREVIEW ONLY)
   // --------------------------------------------------------------------------
   const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setNewMemberForm(prev => ({
-          ...prev,
-          profileImage: reader.result as string
-        }));
-      };
-      reader.readAsDataURL(file);
+      setSelectedImageFile(file);
+      setImagePreview(URL.createObjectURL(file));
     }
+  };
+
+  const handleClearImage = () => {
+    setSelectedImageFile(null);
+    setImagePreview('');
   };
 
   // --------------------------------------------------------------------------
@@ -214,35 +217,51 @@ export const MalvinAiPersonnelSystem: React.FC = () => {
     e.preventDefault();
     if (!newMemberForm.fullName || !newMemberForm.email || !newMemberForm.role) return;
 
-    const preparedDocs: PersonaDocument[] = [];
-    const today = new Date().toISOString().split('T')[0];
-
-    if (newMemberForm.contractName) {
-      preparedDocs.push({ id: `DOC-${Math.floor(Math.random()*900)}`, name: newMemberForm.contractName, type: 'Contract', uploadedAt: today, fileSize: '1.5 MB' });
-    }
-    if (newMemberForm.applicationName) {
-      preparedDocs.push({ id: `DOC-${Math.floor(Math.random()*900)}`, name: newMemberForm.applicationName, type: 'Application', uploadedAt: today, fileSize: '2.1 MB' });
-    }
-    if (newMemberForm.certificateName) {
-      preparedDocs.push({ id: `DOC-${Math.floor(Math.random()*900)}`, name: newMemberForm.certificateName, type: 'Certificate', uploadedAt: today, fileSize: '950 KB' });
-    }
+    setIsSubmitting(true);
+    let uploadedImageUrl = "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80";
 
     try {
+      // 1. Upload Profile Image to Firebase Storage if selected
+      if (selectedImageFile) {
+        const fileExt = selectedImageFile.name.split('.').pop();
+        const storageRef = ref(storage, `profileImages/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`);
+        const uploadResult = await uploadBytes(storageRef, selectedImageFile);
+        uploadedImageUrl = await getDownloadURL(uploadResult.ref);
+      }
+
+      // 2. Prepare Documents Metadata
+      const preparedDocs: PersonaDocument[] = [];
+      const today = new Date().toISOString().split('T')[0];
+
+      if (newMemberForm.contractName) {
+        preparedDocs.push({ id: `DOC-${Math.floor(Math.random()*900)}`, name: newMemberForm.contractName, type: 'Contract', uploadedAt: today, fileSize: '1.5 MB' });
+      }
+      if (newMemberForm.applicationName) {
+        preparedDocs.push({ id: `DOC-${Math.floor(Math.random()*900)}`, name: newMemberForm.applicationName, type: 'Application', uploadedAt: today, fileSize: '2.1 MB' });
+      }
+      if (newMemberForm.certificateName) {
+        preparedDocs.push({ id: `DOC-${Math.floor(Math.random()*900)}`, name: newMemberForm.certificateName, type: 'Certificate', uploadedAt: today, fileSize: '950 KB' });
+      }
+
+      // 3. Save Document to Firestore
       await addDoc(collection(db, "members"), {
         fullName: newMemberForm.fullName,
         contactNumber: newMemberForm.contactNumber || "+1 (555) 000-0000",
         email: newMemberForm.email,
         role: newMemberForm.role,
         startingDate: newMemberForm.startingDate || today,
-        profileImage: newMemberForm.profileImage || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80",
+        profileImage: uploadedImageUrl,
         documents: preparedDocs
       });
 
       setIsAddModalOpen(false);
-      setNewMemberForm({ fullName: '', contactNumber: '', email: '', role: '', startingDate: '', profileImage: '', contractName: '', applicationName: '', certificateName: '' });
+      setNewMemberForm({ fullName: '', contactNumber: '', email: '', role: '', startingDate: '', contractName: '', applicationName: '', certificateName: '' });
+      handleClearImage();
       showToast(`Successfully saved ${newMemberForm.fullName} to Firestore.`);
     } catch (err) {
       alert("Error adding document to Firestore: " + err);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -582,7 +601,7 @@ export const MalvinAiPersonnelSystem: React.FC = () => {
           <div className="bg-[#111111] border border-white/10 w-full max-w-xl rounded-2xl overflow-hidden shadow-2xl flex flex-col">
             <div className="p-4 bg-[#141414] border-b border-white/5 flex justify-between items-center">
               <h3 className="text-sm font-black uppercase text-white tracking-wider">Provision New Personnel Member File</h3>
-              <button onClick={() => setIsAddModalOpen(false)} className="p-1 text-gray-400 bg-white/5 rounded-lg"><X size={14} /></button>
+              <button onClick={() => { setIsAddModalOpen(false); handleClearImage(); }} className="p-1 text-gray-400 bg-white/5 rounded-lg"><X size={14} /></button>
             </div>
             <form onSubmit={handleAddMember} className="p-6 space-y-4 text-xs">
               <div className="grid grid-cols-2 gap-4">
@@ -598,8 +617,8 @@ export const MalvinAiPersonnelSystem: React.FC = () => {
               <div className="space-y-2">
                 <label className="block text-[10px] uppercase font-black text-gray-400 tracking-wider">Profile Photo (Select from Gallery / Device)</label>
                 <div className="flex items-center space-x-3">
-                  {newMemberForm.profileImage ? (
-                    <img src={newMemberForm.profileImage} alt="Preview" className="w-12 h-12 rounded-xl object-cover border border-red-500/50" />
+                  {imagePreview ? (
+                    <img src={imagePreview} alt="Preview" className="w-12 h-12 rounded-xl object-cover border border-red-500/50" />
                   ) : (
                     <div className="w-12 h-12 rounded-xl bg-black border border-dashed border-white/20 flex items-center justify-center text-gray-500">
                       <ImageIcon size={18} />
@@ -607,7 +626,7 @@ export const MalvinAiPersonnelSystem: React.FC = () => {
                   )}
                   <label className="flex-1 cursor-pointer bg-black border border-white/10 hover:border-red-500/50 rounded-xl px-3 py-2.5 text-center text-gray-300 hover:text-white transition-all flex items-center justify-center space-x-2">
                     <Upload size={14} className="text-red-500" />
-                    <span>{newMemberForm.profileImage ? 'Change Photo' : 'Choose Photo from Files'}</span>
+                    <span>{selectedImageFile ? selectedImageFile.name : 'Choose Photo from Files'}</span>
                     <input 
                       type="file" 
                       accept="image/*" 
@@ -615,10 +634,10 @@ export const MalvinAiPersonnelSystem: React.FC = () => {
                       className="hidden" 
                     />
                   </label>
-                  {newMemberForm.profileImage && (
+                  {selectedImageFile && (
                     <button 
                       type="button" 
-                      onClick={() => setNewMemberForm(prev => ({ ...prev, profileImage: '' }))} 
+                      onClick={handleClearImage} 
                       className="p-2.5 bg-red-950/40 border border-red-500/20 text-red-400 rounded-xl hover:bg-red-600 hover:text-white"
                     >
                       <X size={14} />
@@ -627,7 +646,13 @@ export const MalvinAiPersonnelSystem: React.FC = () => {
                 </div>
               </div>
 
-              <button type="submit" className="w-full py-2 bg-[#D60000] text-white font-bold rounded-xl">Commit File Node to Firestore</button>
+              <button 
+                type="submit" 
+                disabled={isSubmitting} 
+                className="w-full py-2 bg-[#D60000] text-white font-bold rounded-xl disabled:opacity-50"
+              >
+                {isSubmitting ? 'Uploading & Saving...' : 'Commit File Node to Firestore'}
+              </button>
             </form>
           </div>
         </div>
