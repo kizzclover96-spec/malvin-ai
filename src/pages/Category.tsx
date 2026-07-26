@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
+import { db, auth } from "../firebase";
+import { ref, push, serverTimestamp, onValue } from "firebase/database";
 
 type Props = {
-  // Updated type union signature to support passing premium state parameters
   onSelect: (
     type: "food" | "fashion" | "explore" | "records" | "premium"
   ) => void;
+  isPremium?: boolean;
+  userBrand?: { id: string; name?: string; isPremium?: boolean };
 };
 
 interface StarParticle {
@@ -19,7 +22,11 @@ interface StarParticle {
   rotationSpeed?: number;
 }
 
-const Category: React.FC<Props> = ({ onSelect }) => {
+const Category: React.FC<Props> = ({ onSelect, isPremium: isPremiumProp, userBrand: userBrandProp }) => {
+  // Add these new state hooks:
+  const [isVerified, setIsVerified] = useState(false);
+  const [userBrandState, setUserBrandState] = useState<any>(userBrandProp || null);
+  const [verificationPopup, setVerificationPopup] = useState(false);
   const [stars, setStars] = useState<StarParticle[]>([]);
   const lastSpawnTime = useRef<number>(Date.now());
   const pillRef = useRef<HTMLButtonElement>(null);
@@ -101,6 +108,146 @@ const Category: React.FC<Props> = ({ onSelect }) => {
     setStars((prev) => [...prev, ...newParticles]);
   };
 
+  // Listen for user verification status
+  useEffect(() => {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const brandId = user.uid;
+    const profileRef = ref(db, `users/${brandId}/profile`);
+
+    setUserBrandState({ id: brandId, name: user.displayName || "UNKNOWN" });
+
+    // Store previous premium state to catch the change moment
+    let prevIsPremium: boolean | null = null;
+
+    const unsub = onValue(profileRef, async (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        setIsVerified(!!data.isVerified);
+        const currentIsPremium = !!data.isPremium;
+
+        // 🚨 Webhook revoked premium (Transition from true -> false)
+        if (prevIsPremium === true && currentIsPremium === false) {
+          try {
+            await push(ref(db, "verification_requests"), {
+              uid: brandId,
+              brandName: user.displayName || "UNKNOWN",
+              email: user.email,
+              status: "subscription_canceled",
+              createdAt: serverTimestamp(),
+              isPremium: false,
+            });
+            console.log("Cancellation request logged for admin.");
+          } catch (err) {
+            console.error("Failed to log cancellation:", err);
+          }
+        }
+
+        prevIsPremium = currentIsPremium;
+      }
+    });
+
+    return () => unsub();
+  }, []);
+
+  const isPremium = isPremiumProp ?? userBrandState?.isPremium ?? false;
+
+  const getVerificationState = (): "verified" | "premium" | "locked" => {
+    if (isVerified) return "verified";
+    if (isPremium) return "premium";
+    return "locked";
+  };
+
+  // Logic to send verification request to Firebase
+  const requestVerification = async () => {
+    const currentUserId = userBrandState?.id || auth.currentUser?.uid;
+    if (!currentUserId) return;
+
+    try {
+      await push(ref(db, "verification_requests"), {
+        uid: currentUserId,
+        brandName: userBrandState?.name || "UNKNOWN",
+        email: auth.currentUser?.email,
+        status: "pending",
+        createdAt: serverTimestamp(),
+        isPremium: isPremium,
+      });
+
+      if (isPremium) {
+        setVerificationPopup(true);
+        setTimeout(() => setVerificationPopup(false), 6000);
+      }
+    } catch (err) {
+      console.error("VERIFICATION WRITE FAILED:", err);
+    }
+  };
+
+  const VerificationButton = ({
+    state,
+    onClick,
+  }: {
+    state: "premium" | "locked" | "verified";
+    onClick?: () => void;
+  }) => {
+    const config = {
+      premium: {
+        text: "Request verification mark",
+        bg: "rgba(255, 215, 0, 0.08)",
+        color: "#FFD700",
+        border: "1px solid rgba(255, 215, 0, 0.4)",
+        glow: "0 0 15px rgba(255, 215, 0, 0.35)",
+        cursor: "pointer",
+        clickable: true,
+      },
+      locked: {
+        text: "request verification mark",
+        bg: "rgba(255,255,255,0.02)",
+        color: "#444",
+        border: "1px solid #222",
+        glow: "none",
+        cursor: "not-allowed",
+        clickable: false,
+      },
+      verified: {
+        text: "Verified",
+        bg: "rgba(0, 140, 255, 0.08)",
+        color: "#8ccfff",
+        border: "1px solid rgba(0, 140, 255, 0.35)",
+        glow: "0 0 12px rgba(0, 140, 255, 0.25)",
+        cursor: "default",
+        clickable: false,
+      },
+    };
+
+    const c = config[state];
+
+    return (
+      <div
+        onClick={c.clickable ? onClick : undefined}
+        style={{
+          padding: "6px 12px",
+          fontSize: "10px",
+          fontWeight: 700,
+          letterSpacing: "1px",
+          borderRadius: "12px",
+          background: c.bg,
+          color: c.color,
+          border: c.border,
+          cursor: c.cursor,
+          boxShadow: c.glow,
+          backdropFilter: "blur(10px)",
+          transition: "0.3s ease",
+          userSelect: "none",
+          marginTop: "10px",
+          display: "inline-block",
+        }}
+      >
+        {c.text}
+      </div>
+    );
+  };
+
   return (
     <div style={container}>
       {/* 🌟 STARS PARTICLES CANVAS GENERATION MUXER */}
@@ -127,10 +274,31 @@ const Category: React.FC<Props> = ({ onSelect }) => {
         ))}
       </div>
 
-      {/* 👑 FLOATING PREMIUM BADGE ACCENT */}
-      <button ref={pillRef} style={premiumPillStyle} onClick={handlePremiumClick}>
-        ✨ Premium
-      </button>
+      
+
+      {/* Toast confirmation */}
+      {verificationPopup && (
+        <div style={toastPopupStyle}>
+          Verification request sent successfully!
+        </div>
+      )}
+
+      {/* TOP RIGHT CONTROLS WRAPPER (PREMIUM + VERIFICATION BELOW IT) */}
+      <div style={topRightControlsContainer}>
+        <button ref={pillRef} style={premiumPillStyle} onClick={handlePremiumClick}>
+          ✨ Premium
+        </button>
+
+        <VerificationButton
+          state={getVerificationState()}
+          onClick={() => {
+            if (getVerificationState() === "premium") {
+              requestVerification();
+            }
+          }}
+        />
+      </div>
+
 
       <div style={wrapper}>
         {/* FOOD */}
@@ -218,10 +386,19 @@ const container: React.CSSProperties = {
 };
 
 // 🟢 Golden Premium Button Style Overlay Map
-const premiumPillStyle: React.CSSProperties = {
+// 1. Container that positions both buttons at top right stacked vertically
+const topRightControlsContainer: React.CSSProperties = {
   position: "absolute",
   top: "24px",
   right: "24px",
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "flex-end", // or "center" if you want the verification pill centered under Premium
+  gap: "6px",
+  zIndex: 100,
+};
+
+const premiumPillStyle: React.CSSProperties = {
   background: "linear-gradient(135deg, #FFD700 0%, #FFA500 100%)",
   border: "2px solid #FFF",
   color: "#020617",
@@ -238,7 +415,7 @@ const premiumPillStyle: React.CSSProperties = {
   alignItems: "center",
   gap: "6px",
   transition: "transform 0.1s ease, box-shadow 0.2s ease",
-  zIndex: 100,
+  // Note: remove position: "absolute", top, and right from here because topRightControlsContainer handles positioning now
 };
 
 const particlesContainer: React.CSSProperties = {
@@ -282,4 +459,17 @@ const labelStyle: React.CSSProperties = {
   marginTop: "16px",
   fontSize: "18px",
   fontWeight: 600,
+};
+
+const toastPopupStyle: React.CSSProperties = {
+  position: "fixed",
+  top: "20px",
+  background: "#111",
+  color: "#FFD700",
+  border: "1px solid #FFD700",
+  borderRadius: "12px",
+  padding: "10px 16px",
+  fontSize: "12px",
+  fontWeight: 700,
+  zIndex: 10000,
 };

@@ -491,104 +491,170 @@ const AdsManager = () => {
                     </section>
 
                     {/* --- RIGHT: AUDIT LOGS --- */}
+                    {/* --- RIGHT: AUDIT LOGS / VERIFICATION REQUESTS --- */}
                     <section style={panelStyle}>
-                        <h3 style={sectionTitle}>VERIFICATION_REQUESTS</h3>
+                        <h3 style={sectionTitle}>VERIFICATION & SUBSCRIPTION NOTICES</h3>
 
                         <div style={{ maxHeight: '70vh', overflowY: 'auto' }}>
                             {verificationRequests.length === 0 ? (
                                 <div style={{ opacity: 0.3, fontSize: '12px' }}>
-                                    NO_PENDING_REQUESTS
+                                    NO_PENDING_REQUESTS_OR_NOTICES
                                 </div>
                             ) : (
-                                verificationRequests.map(req => (
-                                    <div key={req.id} style={{
-                                        padding: '12px',
-                                        borderBottom: '1px solid #111',
-                                        fontSize: '12px'
-                                    }}>
-                                        <div style={{ color: '#C5FF41', fontWeight: 700 }}>
-                                            {req.brandName}
+                                verificationRequests.map(req => {
+                                    const isCanceled = req.status === "subscription_canceled";
+
+                                    return (
+                                        <div key={req.id} style={{
+                                            padding: '12px',
+                                            borderBottom: '1px solid #222',
+                                            background: isCanceled ? 'rgba(255, 77, 77, 0.08)' : 'transparent',
+                                            borderRadius: '8px',
+                                            marginBottom: '8px',
+                                            fontSize: '12px'
+                                        }}>
+                                            <div style={{ color: isCanceled ? '#ff4d4d' : '#C5FF41', fontWeight: 700 }}>
+                                                {req.brandName || "UNKNOWN_BRAND"}
+                                            </div>
+
+                                            <div style={{ fontSize: '10px', opacity: 0.6 }}>
+                                                UID: {req.uid}
+                                            </div>
+
+                                            <div style={{ fontSize: '10px', opacity: 0.6 }}>
+                                                EMAIL: {req.email}
+                                            </div>
+
+                                            {/* STATUS BADGE */}
+                                            <div style={{ marginTop: '6px' }}>
+                                                {isCanceled ? (
+                                                    <span style={{ background: '#ff4d4d', color: '#fff', fontSize: '9px', padding: '2px 6px', borderRadius: '4px', fontWeight: 800 }}>
+                                                        🔴 SUBSCRIPTION CANCELED
+                                                    </span>
+                                                ) : (
+                                                    <span style={{ background: '#FFD700', color: '#000', fontSize: '9px', padding: '2px 6px', borderRadius: '4px', fontWeight: 800 }}>
+                                                        🟡 VERIFICATION REQUESTED
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            {/* ACTION BUTTONS */}
+                                            <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+                                                {isCanceled ? (
+                                                    /* REVOKE & DISMISS CANCELLATION */
+                                                    <button
+                                                        style={{
+                                                            padding: '6px 10px',
+                                                            fontSize: '10px',
+                                                            border: '1px solid #ff4d4d',
+                                                            background: processingId === req.id ? '#333' : 'rgba(255, 77, 77, 0.2)',
+                                                            color: '#ff4d4d',
+                                                            cursor: processingId === req.id ? 'not-allowed' : 'pointer',
+                                                            fontWeight: 700,
+                                                            borderRadius: '4px',
+                                                        }}
+                                                        disabled={processingId === req.id}
+                                                        onClick={async () => {
+                                                            try {
+                                                                setProcessingId(req.id);
+
+                                                                // 1. Remove verified and premium status from profile
+                                                                await update(ref(db), {
+                                                                    [`users/${req.uid}/profile/isVerified`]: false,
+                                                                    [`users/${req.uid}/profile/isPremium`]: false,
+                                                                });
+
+                                                                // 2. Remove cancellation notice
+                                                                await remove(ref(db, `verification_requests/${req.id}`));
+
+                                                                // 3. Log audit event
+                                                                await push(ref(db, 'admin/audit_log'), {
+                                                                    adminEmail: auth.currentUser?.email,
+                                                                    action: 'REVOKE_VERIFICATION',
+                                                                    targetUid: req.uid,
+                                                                    details: `Revoked verification mark due to subscription cancellation for ${req.brandName}`,
+                                                                    timestamp: serverTimestamp(),
+                                                                });
+                                                            } finally {
+                                                                setProcessingId(null);
+                                                            }
+                                                        }}
+                                                    >
+                                                        {processingId === req.id ? "REVOKING..." : "REVOKE BADGE & DISMISS"}
+                                                    </button>
+                                                ) : (
+                                                    /* APPROVE VERIFICATION */
+                                                    <>
+                                                        <button
+                                                            style={{
+                                                                padding: '6px 10px',
+                                                                fontSize: '10px',
+                                                                border: '1px solid #C5FF41',
+                                                                background: processingId === req.id ? '#333' : 'transparent',
+                                                                color: '#C5FF41',
+                                                                cursor: processingId === req.id ? 'not-allowed' : 'pointer',
+                                                                opacity: processingId === req.id ? 0.5 : 1
+                                                            }}
+                                                            disabled={processingId === req.id}
+                                                            onClick={async () => {
+                                                                try {
+                                                                    setProcessingId(req.id);
+
+                                                                    await update(ref(db), {
+                                                                        [`users/${req.uid}/profile/isVerified`]: true,
+                                                                        [`users/${req.uid}/profile/verifiedAt`]: serverTimestamp(),
+                                                                    });
+                                                                    await remove(ref(db, `verification_requests/${req.id}`));
+
+                                                                    await push(ref(db, 'admin/audit_log'), {
+                                                                        adminEmail: auth.currentUser?.email,
+                                                                        action: 'VERIFY_USER',
+                                                                        targetUid: req.uid,
+                                                                        details: `Approved verification for ${req.brandName}`,
+                                                                        timestamp: serverTimestamp(),
+                                                                    });
+                                                                } finally {
+                                                                    setProcessingId(null);
+                                                                }
+                                                            }}
+                                                        >
+                                                            {processingId === req.id ? "PROCESSING..." : "APPROVE"}
+                                                        </button>
+
+                                                        {/* REJECT VERIFICATION */}
+                                                        <button
+                                                            style={{
+                                                                ...statusBtn,
+                                                                opacity: processingId === req.id ? 0.5 : 1,
+                                                                cursor: processingId === req.id ? 'not-allowed' : 'pointer'
+                                                            }}
+                                                            disabled={processingId === req.id}
+                                                            onClick={async () => {
+                                                                try {
+                                                                    setProcessingId(req.id);
+
+                                                                    await remove(ref(db, `verification_requests/${req.id}`));
+
+                                                                    await push(ref(db, 'admin/audit_log'), {
+                                                                        adminEmail: auth.currentUser?.email,
+                                                                        action: 'REJECT_VERIFY',
+                                                                        targetUid: req.uid,
+                                                                        details: `Rejected verification for ${req.brandName}`,
+                                                                        timestamp: serverTimestamp(),
+                                                                    });
+                                                                } finally {
+                                                                    setProcessingId(null);
+                                                                }
+                                                            }}
+                                                        >
+                                                            {processingId === req.id ? "PROCESSING..." : "REJECT"}
+                                                        </button>
+                                                    </>
+                                                )}
+                                            </div>
                                         </div>
-
-                                        <div style={{ fontSize: '10px', opacity: 0.6 }}>
-                                            UID: {req.uid}
-                                        </div>
-
-                                        <div style={{ fontSize: '10px', opacity: 0.6 }}>
-                                            EMAIL: {req.email}
-                                        </div>
-
-                                        <button
-                                            style={{
-                                                marginTop: '10px',
-                                                padding: '6px 10px',
-                                                fontSize: '10px',
-                                                border: '1px solid #C5FF41',
-                                                background: processingId === req.id ? '#333' : 'transparent',
-                                                color: '#C5FF41',
-                                                cursor: processingId === req.id ? 'not-allowed' : 'pointer',
-                                                opacity: processingId === req.id ? 0.5 : 1
-                                            }}
-                                            disabled={processingId === req.id}
-                                            onClick={async () => {
-                                                try {
-                                                    setProcessingId(req.id);
-
-                                                    await update(ref(db), {
-                                                        [`users/${req.uid}/profile/isVerified`]: true,
-                                                        [`users/${req.uid}/profile/verifiedAt`]: serverTimestamp(),
-                                                    });
-                                                    await remove(
-                                                        ref(db, `verification_requests/${req.id}`)
-                                                    );
-
-                                                    await push(ref(db, 'admin/audit_log'), {
-                                                        adminEmail: auth.currentUser?.email,
-                                                        action: 'VERIFY_USER',
-                                                        targetUid: req.uid,
-                                                        details: `Approved verification for ${req.brandName}`,
-                                                        timestamp: serverTimestamp(),
-                                                    });
-
-                                                } finally {
-                                                    setProcessingId(null);
-                                                }
-                                            }}
-                                        >
-                                            {processingId === req.id ? "PROCESSING..." : "APPROVE"}
-                                        </button>
-                                        <button
-                                            style={{
-                                                ...statusBtn,
-                                                opacity: processingId === req.id ? 0.5 : 1,
-                                                cursor: processingId === req.id ? 'not-allowed' : 'pointer'
-                                            }}
-                                            disabled={processingId === req.id}
-                                            onClick={async () => {
-                                                try {
-                                                    setProcessingId(req.id);
-
-                                                    await remove(
-                                                        ref(db, `verification_requests/${req.id}`)
-                                                    );
-
-                                                    await push(ref(db, 'admin/audit_log'), {
-                                                        adminEmail: auth.currentUser?.email,
-                                                        action: 'REJECT_VERIFY',
-                                                        targetUid: req.uid,
-                                                        details: `Rejected verification for ${req.brandName}`,
-                                                        timestamp: serverTimestamp(),
-                                                    });
-
-                                                } finally {
-                                                    setProcessingId(null);
-                                                }
-                                            }}
-                                        >
-                                            {processingId === req.id ? "PROCESSING..." : "REJECT"}
-                                        </button>
-                                    </div>
-                                ))
+                                    );
+                                })
                             )}
                         </div>
                     </section>
