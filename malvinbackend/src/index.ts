@@ -31,7 +31,7 @@ function hashPin(pin: string, salt: string): string {
 =====================================
 */
 export const createBusinessStripeAccount = onCall(
-  { secrets: ["SECURE_STRIPE_KEY"] }, // 🟢 Added secure secret binding
+  { secrets: ["SECURE_STRIPE_KEY"] },
   async (request) => {
     if (!process.env.SECURE_STRIPE_KEY) {
       throw new HttpsError("failed-precondition", "Stripe secret key is missing on the server.");
@@ -44,7 +44,6 @@ export const createBusinessStripeAccount = onCall(
       throw new HttpsError("invalid-argument", "Email, businessId, and merchantType are required"); 
     }
 
-    // Determine the correct database collection dynamically
     const targetCollection = merchantType === "food" ? "restaurantprofile" : "salons";
 
     const account = await stripe.accounts.create({
@@ -54,13 +53,13 @@ export const createBusinessStripeAccount = onCall(
       capabilities: { card_payments: { requested: true }, transfers: { requested: true } }
     });
 
-    // 🟢 Update the actual salon or restaurant document, NOT a generic "businesses" collection
-    await db.collection(targetCollection).doc(businessId).update({
+    // 🟢 SAFE FIX: Use set with merge: true instead of update to prevent crashes on missing docs
+    await db.collection(targetCollection).doc(businessId).set({
       stripeAccountId: account.id,
       stripeOnboarded: false,
-      charges_enabled: false, // Maintain alignment with direct payments validator
+      charges_enabled: false,
       payouts_enabled: false,
-    });
+    }, { merge: true });
 
     return { stripeAccountId: account.id };
   }

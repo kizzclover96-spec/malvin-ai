@@ -366,11 +366,11 @@ export default function FoodDashboard() {
       
       // 1. Create the Stripe Connect Account
       const createAccount = httpsCallable(functions, 'createBusinessStripeAccount');
-      const accountRes: any = await createAccount({ 
-        email: auth.currentUser?.email || "", 
-        businessId: uid, // Make sure 'uid' is defined as the restaurant's document ID
-        merchantType: "food" // 👈 Set to "food"
-      });
+      const response = await createBusinessStripeAccount({
+        email: auth.currentUser?.email || restaurantData?.email, // Must be 'email', not 'userEmail'
+        businessId: auth.currentUser?.uid,                      // Must be 'businessId'
+        merchantType: 'food'                                    // Must be 'merchantType'
+      })
       
       const { stripeAccountId } = accountRes.data;
 
