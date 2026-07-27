@@ -375,7 +375,7 @@ export const StoreFrontend: React.FC = () => {
     const q = query(
       colRef, 
       where('customerUid', '==', finalUid),
-      where('targetBusinessUid', '==', restaurantUid)
+      where('restaurantUid', '==', restaurantUid)
     );
 
     const unsubscribe = onSnapshot(q, (querySnapshot) => {

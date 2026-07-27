@@ -2,6 +2,7 @@ import React, { useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 import { getFunctions, httpsCallable } from 'firebase/functions'; // 👈 Added Firebase imports
+import { getAuth } from 'firebase/auth';
 
 interface StoreFrontProps {
   businessUid: string;
@@ -17,6 +18,20 @@ interface StoreFrontProps {
 export const StoreFront: React.FC<StoreFrontProps> = ({ businessUid, userUid, onExit }) => {
   const targetUrl = businessUid.startsWith('http://') || businessUid.startsWith('https://') ? businessUid : `https://${businessUid}`;
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
+
+  
+
+  // Inside your payment handler in StoreFront.tsx
+  const auth = getAuth();
+  if (!auth.currentUser) {
+    console.error("User is not logged into Firebase Auth on the parent shell.");
+    alert("Please log in before completing checkout.");
+    return;
+  }
+
+  
+
+  
  
   useEffect(() => {
     const listener = async (event: MessageEvent) => {
@@ -38,7 +53,8 @@ export const StoreFront: React.FC<StoreFrontProps> = ({ businessUid, userUid, on
         const payload = event.data.payload;
 
         try {
-          const functions = getFunctions();
+          // Specify region explicitly if deployed to us-central1
+          const functions = getFunctions(undefined, 'us-central1');
           const createDirectPaymentSession = httpsCallable(functions, 'createDirectPaymentSession');
 
           // Run function securely from parent shell. 
