@@ -152,42 +152,51 @@ function App() {
 
         try {
           await currentUser.getIdToken(true); 
-          const targetEmail = currentUser.email?.trim() || ""
-          const targetEmailLower = currentUser.email.toLowerCase().trim();
           
-          const memberQuery = query(
-            collectionGroup(db, "members"), 
-            where("email", "in", [targetEmail, targetEmailLower])
-          );
+          // 🟢 SAFELY GUARD BOTH EMAIL VARIABLES AGAINST NULL VALUES
+          const targetEmail = currentUser.email?.trim() || "";
+          const targetEmailLower = currentUser.email?.toLowerCase().trim() || "";
           
-          const memberDocsSnapshot = await getDocs(memberQuery);
-
-          if (!memberDocsSnapshot.empty) {
-            const matchedMemberDoc = memberDocsSnapshot.docs[0];
-            const memberData = matchedMemberDoc.data();
+          // Only run the query if a valid email address exists
+          if (targetEmail) {
+            const memberQuery = query(
+              collectionGroup(db, "members"), 
+              where("email", "in", [targetEmail, targetEmailLower])
+            );
             
-            if (memberData.role !== 'Manager') { 
-              const matchedDocId = matchedMemberDoc.id;
-              const currentStatus = memberData.status;
-              const pathSegments = matchedMemberDoc.ref.path.split('/');
-              const foundManagerUid = pathSegments[1]; 
+            const memberDocsSnapshot = await getDocs(memberQuery);
 
-              setAssignedManagerUid(foundManagerUid);
-              setIsWorker(true);
+            if (!memberDocsSnapshot.empty) {
+              const matchedMemberDoc = memberDocsSnapshot.docs[0];
+              const memberData = matchedMemberDoc.data();
+              
+              if (memberData.role !== 'Manager') { 
+                const matchedDocId = matchedMemberDoc.id;
+                const currentStatus = memberData.status;
+                const pathSegments = matchedMemberDoc.ref.path.split('/');
+                const foundManagerUid = pathSegments[1]; 
 
-              if (currentStatus === "pending") {
-                await updateDoc(doc(db, "managerMembers", foundManagerUid, "members", matchedDocId), {
-                  workerUid: currentUser.uid,
-                  uid: currentUser.uid,
-                  status: "active",
-                  joinedAt: serverTimestamp()
-                });
+                setAssignedManagerUid(foundManagerUid);
+                setIsWorker(true);
+
+                if (currentStatus === "pending") {
+                  await updateDoc(doc(db, "managerMembers", foundManagerUid, "members", matchedDocId), {
+                    workerUid: currentUser.uid,
+                    uid: currentUser.uid,
+                    status: "active",
+                    joinedAt: serverTimestamp()
+                  });
+                }
+              } else {
+                setIsWorker(false);
+                setAssignedManagerUid("");
               }
             } else {
               setIsWorker(false);
               setAssignedManagerUid("");
             }
           } else {
+            // Fallback if the user logged in without an email address
             setIsWorker(false);
             setAssignedManagerUid("");
           }
