@@ -239,6 +239,15 @@ function App() {
     if (type === "premium") { setFlowStep("premiumView"); return; }
   };
 
+  const params = new URLSearchParams(location.search);
+  const checkoutStatus = params.get("checkout");
+
+  if (checkoutStatus === "success" || checkoutStatus === "cancel") {
+    setFlowStep("front"); // straight to Customer Hub
+    navigate(location.pathname, { replace: true, state: {} }); // clean the URL
+    return;
+  }
+
   return (
     <>
       <div className="App" style={{ minHeight: '100vh' }}>

@@ -204,8 +204,8 @@ export const createDirectPaymentSession = onCall(
         appointmentDetails: JSON.stringify(appointmentDetails || {}),
         type: "direct_payment"
       },
-      success_url: "https://malvinai.com/payment-success?status=success",
-      cancel_url: "https://malvinai.com/payment-success?status=cancel",
+      success_url: "https://malvinai.com/?checkout=success",
+      cancel_url: "https://malvinai.com/?checkout=cancel",
     });
 
     return { url: session.url };
