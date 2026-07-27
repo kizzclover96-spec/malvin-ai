@@ -2,6 +2,7 @@ import React, { useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 import { getFunctions, httpsCallable } from 'firebase/functions'; // 👈 Added Firebase imports
+import { getAuth } from 'firebase/auth';
 
 interface StoreFrontProps {
   businessUid: string;
@@ -34,15 +35,22 @@ export const StoreFront: React.FC<StoreFrontProps> = ({ businessUid, userUid, on
 
       // 2. 🔐 SECURE PARENT PAYMENT DELEGATION (Option C)
       if (event.data?.type === "REQUEST_DIRECT_PAYMENT") {
-        console.log("Parent received payment request. Creating secure session under authenticated shell...");
+        console.log("Parent received payment request. Verifying authentication...");
         const payload = event.data.payload;
 
         try {
+          const auth = getAuth();
+          
+          // Ensure Firebase Auth client state is populated
+          if (!auth.currentUser) {
+            throw new Error("Authentication state is not ready or user is logged out.");
+          }
+
           const functions = getFunctions();
           const createDirectPaymentSession = httpsCallable(functions, 'createDirectPaymentSession');
 
           // Run function securely from parent shell. 
-          // Firebase SDK automatically propagates user session headers safely!
+          // Firebase SDK now properly attaches the ID token.
           const response = await createDirectPaymentSession({
             amount: payload.amount,
             targetBusinessUid: payload.targetBusinessUid,
@@ -54,7 +62,6 @@ export const StoreFront: React.FC<StoreFrontProps> = ({ businessUid, userUid, on
 
           if (resultData && resultData.url) {
             console.log("Stripe Session successfully created. Redirecting top-level screen...");
-            // Redirect the top-level viewport to Stripe to bypass frame restriction headers
             window.top!.location.href = resultData.url;
           } else {
             throw new Error("Invalid payment gateway URL returned.");
@@ -62,7 +69,6 @@ export const StoreFront: React.FC<StoreFrontProps> = ({ businessUid, userUid, on
         } catch (error: any) {
           console.error("Parent payment setup failure:", error);
           
-          // Send error response back down to iframe to render checkout error states
           iframeRef.current?.contentWindow?.postMessage({
             type: "DIRECT_PAYMENT_FAILURE",
             error: error.message || "An error occurred starting checkout."
