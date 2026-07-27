@@ -345,7 +345,7 @@ export const StoreFrontend: React.FC = () => {
   // Update localStorage cache records
   useEffect(() => {
     if (customerName.trim()) {
-      localStorage.setItem('saved_customer_name', customerName.trim());
+      localStorage.setItem('saved_customer_name', customerName?.trim());
     }
   }, [customerName]);
 

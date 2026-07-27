@@ -152,7 +152,7 @@ function App() {
 
         try {
           await currentUser.getIdToken(true); 
-          const targetEmail = currentUser.email.trim();
+          const targetEmail = currentUser.email?.trim() || ""
           const targetEmailLower = currentUser.email.toLowerCase().trim();
           
           const memberQuery = query(
