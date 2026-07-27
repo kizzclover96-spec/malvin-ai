@@ -1,7 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
-import { getFunctions, httpsCallable } from 'firebase/functions'; // 👈 Added Firebase imports
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { getAuth } from 'firebase/auth';
 
 interface StoreFrontProps {
@@ -16,23 +16,12 @@ interface StoreFrontProps {
 }
 
 export const StoreFront: React.FC<StoreFrontProps> = ({ businessUid, userUid, onExit }) => {
-  const targetUrl = businessUid.startsWith('http://') || businessUid.startsWith('https://') ? businessUid : `https://${businessUid}`;
+  const targetUrl = businessUid.startsWith('http://') || businessUid.startsWith('https://') 
+    ? businessUid 
+    : `https://${businessUid}`;
+    
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
 
-  
-
-  // Inside your payment handler in StoreFront.tsx
-  const auth = getAuth();
-  if (!auth.currentUser) {
-    console.error("User is not logged into Firebase Auth on the parent shell.");
-    alert("Please log in before completing checkout.");
-    return;
-  }
-
-  
-
-  
- 
   useEffect(() => {
     const listener = async (event: MessageEvent) => {
       // 1. Identity handshake when the iframe loaded is ready
@@ -47,22 +36,34 @@ export const StoreFront: React.FC<StoreFrontProps> = ({ businessUid, userUid, on
         console.log("Salon requested identity:", userUid);
       }
 
-      // 2. 🔐 SECURE PARENT PAYMENT DELEGATION (Option C)
+      // 2. 🔐 SECURE PARENT PAYMENT DELEGATION
       if (event.data?.type === "REQUEST_DIRECT_PAYMENT") {
         console.log("Parent received payment request. Creating secure session under authenticated shell...");
         const payload = event.data.payload;
 
+        const auth = getAuth();
+        if (!auth.currentUser) {
+          console.error("User is not logged into Firebase Auth on the parent shell.");
+          alert("Please log in before completing checkout.");
+          
+          iframeRef.current?.contentWindow?.postMessage({
+            type: "DIRECT_PAYMENT_FAILURE",
+            error: "User is not logged into Firebase Auth."
+          }, "*");
+          return;
+        }
+
         try {
-          // Specify region explicitly if deployed to us-central1
+          // Specify region explicitly matching Cloud Functions deployment
           const functions = getFunctions(undefined, 'us-central1');
           const createDirectPaymentSession = httpsCallable(functions, 'createDirectPaymentSession');
 
-          // Run function securely from parent shell. 
+          // Run function securely from parent shell.
           // Firebase SDK automatically propagates user session headers safely!
           const response = await createDirectPaymentSession({
             amount: payload.amount,
-            targetBusinessUid: payload.targetBusinessUid,
-            merchantType: payload.merchantType,
+            targetBusinessUid: payload.targetBusinessUid || payload.businessId || businessUid,
+            merchantType: payload.merchantType || "food",
             appointmentDetails: payload.appointmentDetails
           });
 
@@ -70,8 +71,12 @@ export const StoreFront: React.FC<StoreFrontProps> = ({ businessUid, userUid, on
 
           if (resultData && resultData.url) {
             console.log("Stripe Session successfully created. Redirecting top-level screen...");
-            // Redirect the top-level viewport to Stripe to bypass frame restriction headers
-            window.top!.location.href = resultData.url;
+            // Redirect top-level viewport to Stripe to bypass frame restriction headers
+            if (window.top) {
+              window.top.location.href = resultData.url;
+            } else {
+              window.location.href = resultData.url;
+            }
           } else {
             throw new Error("Invalid payment gateway URL returned.");
           }
@@ -89,7 +94,7 @@ export const StoreFront: React.FC<StoreFrontProps> = ({ businessUid, userUid, on
 
     window.addEventListener("message", listener);
     return () => window.removeEventListener("message", listener);
-  }, [userUid]);
+  }, [userUid, businessUid]);
 
   return (
     <motion.div 
