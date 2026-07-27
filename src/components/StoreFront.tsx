@@ -2,7 +2,6 @@ import React, { useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 import { getFunctions, httpsCallable } from 'firebase/functions'; // 👈 Added Firebase imports
-import { auth } from '../firebase';
 
 interface StoreFrontProps {
   businessUid: string;
