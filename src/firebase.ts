@@ -53,10 +53,10 @@ setPersistence(auth, browserLocalPersistence)
 // them with "unauthenticated". Signing guests in anonymously gives them a real
 // (but limited/anonymous) Firebase Auth UID, so auth.currentUser is always
 // populated and secure Cloud Functions keep working for guests too.
-onAuthStateChanged(auth, (user) => {
-  if (!user) {
-    signInAnonymously(auth).catch((err) =>
-      console.error("Anonymous auth bootstrap failed:", err)
-    );
-  }
-});
+//onAuthStateChanged(auth, (user) => {
+    //if (!user) {
+   //   signInAnonymously(auth).catch((err) =>
+    //    console.error("Anonymous auth bootstrap failed:", err)
+   //   );
+  //  }
+ // });//
