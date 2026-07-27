@@ -364,13 +364,14 @@ export default function FoodDashboard() {
     try {
       const functions = getFunctions();
       
-      // 1. Create the Stripe Connect Account
+      // 1. Correctly initialize the callable Cloud Function:
       const createAccount = httpsCallable(functions, 'createBusinessStripeAccount');
-      const response = await createBusinessStripeAccount({
-        email: auth.currentUser?.email || restaurantData?.email, // Must be 'email', not 'userEmail'
-        businessId: auth.currentUser?.uid,                      // Must be 'businessId'
-        merchantType: 'food'                                    // Must be 'merchantType'
-      })
+      
+      const accountRes: any = await createAccount({ 
+        email: auth.currentUser?.email || "", 
+        businessId: uid,
+        merchantType: "food"
+      });
       
       const { stripeAccountId } = accountRes.data;
 
