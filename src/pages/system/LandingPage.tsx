@@ -209,42 +209,43 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
             {/* Left Column Text Content */}
             <div className="animate delay-1" style={{ textAlign: 'left' }}>
               <h1 className="hero-title" style={{ fontSize: '3.8rem', fontWeight: '800', lineHeight: '1.15', letterSpacing: '-1.5px', marginBottom: '16px', color: '#ffffff' }}>
-                Automate, Manage <br />
-                and Control Your <br />
+                Point your phone <br />
+                at the street. <br />
                 <span style={{
                   background: 'linear-gradient(90deg, #ffffff 30%, #a855f7 70%, #00d4ff 100%)',
                   WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-                }}>Entire Workspace.</span>
+                }}>Book, order, or chat — instantly.</span>
               </h1>
-              <h2 style={{ fontSize: '1.1rem', color: '#a855f7', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '20px' }}>AI Business Automation Platform</h2>
+              <h2 style={{ fontSize: '1.1rem', color: '#a855f7', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '20px' }}>Local Discovery, Powered by AI</h2>
               
               <p style={{ fontSize: '1rem', color: 'rgba(255,255,255,0.5)', lineHeight: '1.6', maxWidth: '520px', marginBottom: '32px', fontWeight: '400' }}>
-                Malvin is a Multi-vendor commerce platform designed to help businesses grow, organize, and scale more effectively. 
-                With over 95% of the operational toolkit frameworks needed natively standard—from storefront modules down to granular matrix automation layers.
+                Malvin scans the world around you and surfaces verified local businesses in seconds —
+                restaurants, salons, and more. See who's open, what they offer, and connect instantly.
+                No searching, no scrolling, no guesswork.
               </p>
 
               <div className="hero-buttons" style={{ display: 'flex', flexWrap: 'wrap', gap: '14px', alignItems: 'center', marginBottom: '35px' }}>
                 <button onClick={onLoginClick} className="btn-register" style={{ padding: '15px 28px', fontSize: '0.95rem' }}>
-                  Create a Vin account to get started
+                  Try the Scanner
                 </button>
-                <button className="btn-outline" style={{ padding: '15px 24px', fontSize: '0.95rem' }}>Explore Features</button>
+                <button onClick={onLoginClick} className="btn-outline" style={{ padding: '15px 24px', fontSize: '0.95rem' }}>For Businesses</button>
               </div>
 
               {/* Data Matrices Grid Row */}
               <div className="stats-container" style={{ display: 'inline-flex', flexWrap: 'wrap', alignItems: 'center', backgroundColor: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.06)', borderRadius: '16px', padding: '16px 32px', gap: '32px' }}>
                 <div>
-                  <div style={{ fontSize: '1.3rem', fontWeight: '800', color: '#fff' }}>99.9%</div>
-                  <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', marginTop: '2px' }}>Uptime</div>
+                  <div style={{ fontSize: '1.3rem', fontWeight: '800', color: '#fff' }}>5km</div>
+                  <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', marginTop: '2px' }}>Live Scan Radius</div>
                 </div>
                 <div style={{ width: '1px', height: '24px', backgroundColor: 'rgba(255,255,255,0.1)' }} className="desktop-nav" />
                 <div>
-                  <div style={{ fontSize: '1.3rem', fontWeight: '800', color: '#fff' }}>20k+</div>
-                  <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', marginTop: '2px' }}>Automation</div>
+                  <div style={{ fontSize: '1.3rem', fontWeight: '800', color: '#fff' }}>Verified</div>
+                  <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', marginTop: '2px' }}>Every Business Checked</div>
                 </div>
                 <div style={{ width: '1px', height: '24px', backgroundColor: 'rgba(255,255,255,0.1)' }} className="desktop-nav" />
                 <div>
-                  <div style={{ fontSize: '1.3rem', fontWeight: '800', color: '#fff' }}>24/7</div>
-                  <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', marginTop: '2px' }}>AI Monitor</div>
+                  <div style={{ fontSize: '1.3rem', fontWeight: '800', color: '#fff' }}>Instant</div>
+                  <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', marginTop: '2px' }}>Book, Order, or Chat</div>
                 </div>
               </div>
             </div>

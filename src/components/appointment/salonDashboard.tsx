@@ -46,6 +46,7 @@ interface SalonData {
   stripeAccountId?: string;
   latitude?: number; 
   longitude?: number;
+  vinLink?: string;
 }
 
 interface LiveAppointment {
@@ -363,10 +364,14 @@ export default function SalonDashboard() {
           qrImage: "",
           walletBalance: 0,
           status: "Active",
+          vinLink: `/salon/${uid}`, // relative VinLink, read directly by the customer scanner
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp()
         };
         await setDoc(docRef, defaultDoc);
+      } else if (!docSnap.data()?.vinLink) {
+        // Backfill: doc existed before the vinLink field was introduced
+        await updateDoc(docRef, { vinLink: `/salon/${uid}` });
       }
     };
 
