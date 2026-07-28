@@ -46,22 +46,32 @@ export const createBusinessStripeAccount = onCall(
 
     const targetCollection = merchantType === "food" ? "restaurantprofile" : "salons";
 
-    const account = await stripe.accounts.create({
-      type: "express",
-      country: "DE",
-      email,
-      capabilities: { card_payments: { requested: true }, transfers: { requested: true } }
-    });
+    // 🟢 Wrapped so real Stripe/Firestore errors reach the client instead of
+    // being swallowed into a generic "INTERNAL" by Firebase Functions.
+    try {
+      const account = await stripe.accounts.create({
+        type: "express",
+        country: "DE",
+        email,
+        capabilities: { card_payments: { requested: true }, transfers: { requested: true } }
+      });
 
-    // 🟢 SAFE FIX: Use set with merge: true instead of update to prevent crashes on missing docs
-    await db.collection(targetCollection).doc(businessId).set({
-      stripeAccountId: account.id,
-      stripeOnboarded: false,
-      charges_enabled: false,
-      payouts_enabled: false,
-    }, { merge: true });
+      // 🟢 SAFE FIX: Use set with merge: true instead of update to prevent crashes on missing docs
+      await db.collection(targetCollection).doc(businessId).set({
+        stripeAccountId: account.id,
+        stripeOnboarded: false,
+        charges_enabled: false,
+        payouts_enabled: false,
+      }, { merge: true });
 
-    return { stripeAccountId: account.id };
+      return { stripeAccountId: account.id };
+    } catch (err: any) {
+      console.error("createBusinessStripeAccount failed:", err);
+      throw new HttpsError(
+        "internal",
+        err?.raw?.message || err?.message || "Failed to create the Stripe connected account."
+      );
+    }
   }
 );
 
