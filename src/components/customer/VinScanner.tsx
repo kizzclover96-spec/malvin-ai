@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Compass,
@@ -15,6 +16,7 @@ import {
   Search,
   Clock,
   LocateFixed,
+  ChevronRight,
 } from 'lucide-react';
 import { collection, getDocs, QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
 import { firestore as db } from '../../firebase'; // Adjust this import to match your Firebase config path
@@ -51,6 +53,7 @@ export interface BusinessProfile {
   verified?: boolean;
   distanceKm?: number;
   hours?: BusinessHours;
+  vinLink?: string;
   // Radar visual positioning coordinates
   radarX?: number;
   radarY?: number;
@@ -218,6 +221,7 @@ function getCategoryTheme(category: string): { gradient: string; glow: string } 
 // ==========================================
 
 export const VinScanner: React.FC = () => {
+  const navigate = useNavigate();
   const [status, setStatus] = useState<ScanStatus>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [location, setLocation] = useState<UserLocation | null>(null);
@@ -285,19 +289,24 @@ export const VinScanner: React.FC = () => {
                 RADIUS_KM
               );
 
+              const category = data.category || (colName === 'salons' ? 'salon' : 'restaurant');
+              const fallbackVinLink = colName === 'salons' ? `/salon/${docSnap.id}` : `/food/${docSnap.id}`;
+
               fetched.push({
                 id: docSnap.id,
-                brandName: data.brandName || 'Unnamed Business',
+                // Salon docs store the name under `salonName`, restaurant docs under `brandName`
+                brandName: data.brandName || data.salonName || 'Unnamed Business',
                 address: data.address || 'Address unavailable',
                 bio: data.bio || 'No description available.',
                 rating: data.rating || 5.0,
-                category: data.category || (colName === 'salons' ? 'salon' : 'restaurant'),
+                category,
                 latitude: data.latitude,
                 longitude: data.longitude,
                 logo: data.logo,
                 verified: data.verified ?? true,
                 distanceKm: dist,
                 hours: data.hours || undefined,
+                vinLink: data.vinLink || fallbackVinLink,
                 radarX: x,
                 radarY: y,
               });
@@ -385,6 +394,17 @@ export const VinScanner: React.FC = () => {
       window.open(url, '_blank', 'noopener,noreferrer');
     },
     [location]
+  );
+
+  // Instantly loads the selected business's real storefront (Food ordering or Salon
+  // booking page) using its stored VinLink — no extra lookup, no page reload.
+  const openStorefront = useCallback(
+    (biz: BusinessProfile) => {
+      const path = biz.vinLink || (biz.category.toLowerCase() === 'salon' ? `/salon/${biz.id}` : `/food/${biz.id}`);
+      console.log(`[VinScanner] 🏪 Opening storefront for "${biz.brandName}" at ${path}`);
+      navigate(path);
+    },
+    [navigate]
   );
 
   // Dynamic filter based on search query
@@ -741,16 +761,20 @@ export const VinScanner: React.FC = () => {
                 <X className="w-4 h-4" />
               </button>
 
-              <div className="flex items-start gap-4 pr-6">
+              <button
+                onClick={() => openStorefront(selectedBusiness)}
+                className="w-full flex items-start gap-4 pr-6 text-left group/header active:scale-[0.99] transition-transform"
+                title="Open storefront"
+              >
                 <div className="relative">
                   {selectedBusiness.logo ? (
                     <img
                       src={selectedBusiness.logo}
                       alt={selectedBusiness.brandName}
-                      className="w-14 h-14 rounded-2xl object-cover border border-white/10 shadow-md"
+                      className="w-14 h-14 rounded-2xl object-cover border border-white/10 shadow-md group-hover/header:border-teal-400/50 transition-colors"
                     />
                   ) : (
-                    <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center shadow-inner">
+                    <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center shadow-inner group-hover/header:border-teal-400/50 transition-colors">
                       {getCategoryIcon(selectedBusiness.category)}
                     </div>
                   )}
@@ -761,9 +785,10 @@ export const VinScanner: React.FC = () => {
                   )}
                 </div>
 
-                <div>
-                  <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2">
-                    {selectedBusiness.brandName}
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-lg font-bold text-slate-100 flex items-center gap-1.5">
+                    <span className="truncate">{selectedBusiness.brandName}</span>
+                    <ChevronRight className="w-4 h-4 text-slate-500 group-hover/header:text-teal-300 group-hover/header:translate-x-0.5 transition-all shrink-0" />
                   </h3>
                   <div className="flex items-center gap-2 mt-1">
                     <div className="flex items-center text-amber-400 text-xs font-semibold">
@@ -775,8 +800,9 @@ export const VinScanner: React.FC = () => {
                       {selectedBusiness.category}
                     </span>
                   </div>
+                  <p className="mt-1 text-[10px] text-slate-500 font-mono">Tap to open storefront</p>
                 </div>
-              </div>
+              </button>
 
               <div className="mt-4 p-3 rounded-2xl bg-white/[0.03] border border-white/10 space-y-2 text-xs">
                 <div className="flex items-center text-slate-300">

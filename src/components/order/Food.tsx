@@ -35,6 +35,7 @@ interface RestaurantData {
   openingTime: string;
   closingTime: string;
   shareLink: string;
+  vinLink?: string;
   walletBalance?: number;
   onlineStatus: boolean;
   createdAt: Timestamp | null;
@@ -595,12 +596,16 @@ export default function FoodDashboard() {
             openingTime: '08:00',
             closingTime: '22:00',
             shareLink: `${window.location.origin}/food/${uid}`,
+            vinLink: `/food/${uid}`, // relative VinLink, read directly by the customer scanner
             onlineStatus: true,
             walletBalance: 0, // Initialize balance structure
             createdAt: serverTimestamp() as unknown as Timestamp,
             updatedAt: serverTimestamp() as unknown as Timestamp,
           };
           await setDoc(docRef, defaultData);
+        } else if (!docSnap.data()?.vinLink) {
+          // Backfill: doc existed before the vinLink field was introduced
+          await updateDoc(docRef, { vinLink: `/food/${uid}` });
         }
       } catch (error) {
         console.error("Error establishing initial profile:", error);
