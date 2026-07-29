@@ -3,9 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Menu, Settings, Search, Home, Wallet as WalletIcon, QrCode, X, 
   User, Save, Mail, Loader2, CheckCircle2, AlertCircle,
-  Clock, Heart, Bell, Moon, Globe, LogOut, ChevronRight, ChevronDown, Calendar, DollarSign,  Download, Trash2 
+  Clock, Heart, Bell, Moon, Globe, LogOut, ChevronRight, ChevronDown, Calendar, DollarSign,  Download, Trash2, Store 
 } from 'lucide-react';
-import { doc, getDoc, setDoc, deleteDoc,collection, collectionGroup, query, where, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, setDoc, deleteDoc, collection, collectionGroup, query, where, orderBy, limit, serverTimestamp, onSnapshot } from 'firebase/firestore';
 import { signOut, deleteUser } from 'firebase/auth';
 import { firestore as db } from '../../firebase'; 
 import { auth } from "../../firebase"; 
@@ -20,6 +20,25 @@ import { QRScannerView } from '../addons/QRScannerView';
 import { StoreFront } from './StoreFront';
 import { RecentBusinesses } from './RecentBusinesses';
 import { ReceiptsDrawer } from './ReceiptsDrawer';
+
+// Fixed allow-list — the language row can only ever pick one of these,
+// which is what keeps the stored value safe even before Firestore rules see it.
+type LanguageCode = 'en' | 'de' | 'fr' | 'es' | 'it';
+const LANGUAGES: { code: LanguageCode; label: string }[] = [
+  { code: 'en', label: 'English' },
+  { code: 'de', label: 'Deutsch' },
+  { code: 'fr', label: 'Français' },
+  { code: 'es', label: 'Español' },
+  { code: 'it', label: 'Italiano' },
+];
+
+interface FavoriteItem {
+  id: string;
+  businessUid: string;
+  storeName: string;
+  logoUrl?: string;
+  address?: string;
+}
 
 export const Front: React.FC = () => {
   const user = auth.currentUser;
@@ -41,6 +60,18 @@ export const Front: React.FC = () => {
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+
+  // Settings: notifications, language, favorites
+  // `prefsLoaded` guards toggles until the real saved values arrive from Firestore,
+  // so a fast tap can't race a write before we know the current state.
+  const [prefsLoaded, setPrefsLoaded] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [language, setLanguage] = useState<LanguageCode>('en');
+  const [isFavoritesExpanded, setIsFavoritesExpanded] = useState(false);
+  const [isLanguageExpanded, setIsLanguageExpanded] = useState(false);
+  const [favoriteStores, setFavoriteStores] = useState<FavoriteItem[]>([]);
+  const [isFavoritesLoading, setIsFavoritesLoading] = useState(true);
+
 
 
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -173,13 +204,128 @@ export const Front: React.FC = () => {
           setFullName(data.fullName || '');
           setPhone(data.phone || '');
           setAddress(data.address || '');
+
+          // Preferences ride along on this same read — one round trip instead of three.
+          setIsDarkMode(Boolean(data.darkMode));
+          setNotificationsEnabled(Boolean(data.notificationsEnabled));
+          // Defensive fallback: if a stored language value isn't one we recognize
+          // (tampered, stale, or from a future app version), default to English
+          // rather than trusting it blindly.
+          const storedLanguage = LANGUAGES.some(l => l.code === data.language) ? data.language : 'en';
+          setLanguage(storedLanguage);
         }
       } catch (err) {
         console.error('Error reading profile ledger data node:', err);
+      } finally {
+        setPrefsLoaded(true);
       }
     };
     fetchUserProfile();
   }, [user]);
+
+  // Applies the persisted Dark Mode preference to the whole customer hub.
+  // Scoped via the `.malvin-hub` CSS class (see index.css) so this can never
+  // affect any other part of the app that happens to share the page.
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', isDarkMode);
+    // Reset to light on unmount so navigating away (e.g. to a business dashboard
+    // in the same session) never leaves a stray `dark` class behind.
+    return () => { document.documentElement.classList.remove('dark'); };
+  }, [isDarkMode]);
+
+  // Live favorites list — a customer can only ever favorite a business they've
+  // actually visited (added via the heart icon on Recent Businesses), so this
+  // can't be used to inject arbitrary entries.
+  useEffect(() => {
+    if (!user?.uid) return;
+    const favRef = collection(db, 'customers', user.uid, 'favorites');
+    const q = query(favRef, orderBy('favoritedAt', 'desc'), limit(50));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setFavoriteStores(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as FavoriteItem)));
+      setIsFavoritesLoading(false);
+    }, (err) => {
+      console.error('Error syncing favorite stores:', err);
+      setIsFavoritesLoading(false);
+    });
+    return () => unsubscribe();
+  }, [user]);
+
+  // Generic, safe preference writer — merges one field at a time onto the
+  // customer's own doc. Paired with Firestore rules that only allow the
+  // signed-in owner to write to their own `customers/{uid}` doc, and that
+  // type-check each of these fields server-side.
+  const updateCustomerPref = async (patch: Record<string, unknown>) => {
+    if (!user?.uid) throw new Error('Not signed in');
+    await setDoc(doc(db, 'customers', user.uid), patch, { merge: true });
+  };
+
+  const handleToggleDarkMode = async () => {
+    const next = !isDarkMode;
+    setIsDarkMode(next); // optimistic — flips instantly via the effect above
+    try {
+      await updateCustomerPref({ darkMode: next });
+    } catch (err) {
+      console.error(err);
+      setIsDarkMode(!next); // roll back on failure
+      showToast('error', 'Could not save that preference. Please try again.');
+    }
+  };
+
+  const handleToggleNotifications = async () => {
+    const next = !notificationsEnabled;
+
+    // Turning ON: actually ask the browser for permission rather than just
+    // flipping a switch that silently does nothing.
+    if (next && typeof window !== 'undefined' && 'Notification' in window) {
+      try {
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+          showToast('error', 'Notifications are blocked in your browser settings.');
+          return;
+        }
+      } catch (err) {
+        console.error('Notification permission request failed:', err);
+      }
+    }
+
+    setNotificationsEnabled(next);
+    try {
+      await updateCustomerPref({ notificationsEnabled: next });
+      showToast('success', next ? 'Notifications turned on.' : 'Notifications turned off.');
+    } catch (err) {
+      console.error(err);
+      setNotificationsEnabled(!next);
+      showToast('error', 'Could not save that preference. Please try again.');
+    }
+  };
+
+  const handleSelectLanguage = async (code: LanguageCode) => {
+    const previous = language;
+    setLanguage(code); // optimistic
+    setIsLanguageExpanded(false);
+    try {
+      await updateCustomerPref({ language: code });
+    } catch (err) {
+      console.error(err);
+      setLanguage(previous);
+      showToast('error', 'Could not save that preference. Please try again.');
+    }
+  };
+
+  const handleRemoveFavorite = async (id: string) => {
+    if (!user?.uid) return;
+    try {
+      await deleteDoc(doc(db, 'customers', user.uid, 'favorites', id));
+    } catch (err) {
+      console.error(err);
+      showToast('error', 'Could not remove that favorite.');
+    }
+  };
+
+  const handleOpenFavorite = (businessUid: string) => {
+    setIsSettingsOpen(false);
+    handleBusinessVisit(businessUid);
+  };
 
   // Sync user active receipts / booking tickets in real-time
   // 🟢 SYNC BOTH SALON & FOOD RECEIPTS IN REAL-TIME
@@ -304,7 +450,7 @@ export const Front: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-white text-neutral-900 font-sans relative flex flex-col justify-between p-6 pb-28">
+    <div className="malvin-hub min-h-screen bg-white text-neutral-900 font-sans relative flex flex-col justify-between p-6 pb-28">
       
       {/* TOAST NOTIFICATION CONTAINER */}
       <AnimatePresence>
@@ -550,22 +696,135 @@ export const Front: React.FC = () => {
                   <div className="flex items-center justify-between py-3 cursor-pointer hover:text-neutral-900">
                     <div className="flex items-center gap-2.5"><Clock className="w-4 h-4 text-neutral-400" /><span>Recent Businesses</span></div>
                   </div>
-                  <div className="flex items-center justify-between py-3 cursor-pointer hover:text-neutral-900">
-                    <div className="flex items-center gap-2.5"><Heart className="w-4 h-4 text-neutral-400" /><span>Favorite Stores</span></div>
+
+                  {/* FAVORITE STORES — expandable, backed by customers/{uid}/favorites */}
+                  <div className="py-1">
+                    <button
+                      type="button"
+                      onClick={() => setIsFavoritesExpanded(v => !v)}
+                      className="icon-button w-full flex items-center justify-between py-2 hover:text-neutral-900"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <Heart className="w-4 h-4 text-neutral-400" />
+                        <span>Favorite Stores</span>
+                        {favoriteStores.length > 0 && (
+                          <span className="text-[10px] font-black bg-neutral-100 text-neutral-500 rounded-full px-1.5 py-0.5">{favoriteStores.length}</span>
+                        )}
+                      </div>
+                      <ChevronDown className={`w-3.5 h-3.5 text-neutral-400 transition-transform ${isFavoritesExpanded ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    <AnimatePresence initial={false}>
+                      {isFavoritesExpanded && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+                          className="overflow-hidden"
+                        >
+                          <div className="pb-3 space-y-2">
+                            {isFavoritesLoading ? (
+                              <div className="flex justify-center py-3"><Loader2 className="w-4 h-4 text-neutral-300 animate-spin" /></div>
+                            ) : favoriteStores.length === 0 ? (
+                              <p className="text-[10px] font-semibold text-neutral-400 normal-case py-2 leading-relaxed">
+                                No favorites yet — tap the heart on a Recent Business to save it here.
+                              </p>
+                            ) : (
+                              favoriteStores.map(fav => (
+                                <div key={fav.id} className="flex items-center justify-between bg-neutral-50 rounded-xl px-3 py-2.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenFavorite(fav.businessUid)}
+                                    className="icon-button flex items-center gap-2.5 flex-1 min-w-0 text-left"
+                                  >
+                                    <div className="w-8 h-8 rounded-lg overflow-hidden bg-white border border-neutral-100 flex-shrink-0 flex items-center justify-center">
+                                      {fav.logoUrl ? (
+                                        <img src={fav.logoUrl} alt={fav.storeName} className="w-full h-full object-cover" />
+                                      ) : (
+                                        <Store className="w-3.5 h-3.5 text-neutral-400" />
+                                      )}
+                                    </div>
+                                    <span className="text-[11px] font-black text-neutral-800 truncate normal-case">{fav.storeName}</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveFavorite(fav.id)}
+                                    className="icon-button p-1.5 text-neutral-400 hover:text-[#E53935] shrink-0"
+                                    title="Remove favorite"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
-                  <div className="flex items-center justify-between py-3 cursor-pointer hover:text-neutral-900">
+
+                  {/* NOTIFICATIONS — real permission request + persisted preference */}
+                  <div className="flex items-center justify-between py-3">
                     <div className="flex items-center gap-2.5"><Bell className="w-4 h-4 text-neutral-400" /><span>Notifications</span></div>
+                    <input
+                      type="checkbox" checked={notificationsEnabled} disabled={!prefsLoaded}
+                      onChange={handleToggleNotifications}
+                      className="w-9 h-5 bg-neutral-200 checked:bg-[#E53935] rounded-full appearance-none transition-colors relative cursor-pointer disabled:opacity-40 disabled:cursor-wait before:content-[''] before:w-4 before:h-4 before:bg-white before:rounded-full before:absolute before:top-0.5 before:left-0.5 checked:before:translate-x-4 before:transition-transform before:shadow-sm"
+                    />
                   </div>
+
+                  {/* DARK MODE — persisted + actually re-skins the customer hub */}
                   <div className="flex items-center justify-between py-3">
                     <div className="flex items-center gap-2.5"><Moon className="w-4 h-4 text-neutral-400" /><span>Dark Mode</span></div>
                     <input 
-                      type="checkbox" checked={isDarkMode} onChange={() => setIsDarkMode(!isDarkMode)}
-                      className="w-9 h-5 bg-neutral-200 checked:bg-[#E53935] rounded-full appearance-none transition-colors relative cursor-pointer before:content-[''] before:w-4 before:h-4 before:bg-white before:rounded-full before:absolute before:top-0.5 before:left-0.5 checked:before:translate-x-4 before:transition-transform before:shadow-sm"
+                      type="checkbox" checked={isDarkMode} disabled={!prefsLoaded}
+                      onChange={handleToggleDarkMode}
+                      className="w-9 h-5 bg-neutral-200 checked:bg-[#E53935] rounded-full appearance-none transition-colors relative cursor-pointer disabled:opacity-40 disabled:cursor-wait before:content-[''] before:w-4 before:h-4 before:bg-white before:rounded-full before:absolute before:top-0.5 before:left-0.5 checked:before:translate-x-4 before:transition-transform before:shadow-sm"
                     />
                   </div>
-                  <div className="flex items-center justify-between py-3">
-                    <div className="flex items-center gap-2.5"><Globe className="w-4 h-4 text-neutral-400" /><span>Language</span></div>
-                    <span className="text-neutral-400 font-semibold">English (US)</span>
+
+                  {/* LANGUAGE — fixed allow-list picker, no free text */}
+                  <div className="py-1">
+                    <button
+                      type="button"
+                      onClick={() => setIsLanguageExpanded(v => !v)}
+                      className="icon-button w-full flex items-center justify-between py-2 hover:text-neutral-900"
+                    >
+                      <div className="flex items-center gap-2.5"><Globe className="w-4 h-4 text-neutral-400" /><span>Language</span></div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-neutral-400 font-semibold">{LANGUAGES.find(l => l.code === language)?.label}</span>
+                        <ChevronDown className={`w-3.5 h-3.5 text-neutral-400 transition-transform ${isLanguageExpanded ? 'rotate-180' : ''}`} />
+                      </div>
+                    </button>
+
+                    <AnimatePresence initial={false}>
+                      {isLanguageExpanded && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+                          className="overflow-hidden"
+                        >
+                          <div className="pb-3 space-y-1">
+                            {LANGUAGES.map(l => (
+                              <button
+                                key={l.code}
+                                type="button"
+                                onClick={() => handleSelectLanguage(l.code)}
+                                className={`icon-button w-full flex items-center justify-between rounded-xl px-3 py-2 normal-case transition-colors ${
+                                  l.code === language ? 'bg-[#E53935]/10 text-[#E53935]' : 'text-neutral-600 hover:bg-neutral-50'
+                                }`}
+                              >
+                                <span className="font-bold">{l.label}</span>
+                                {l.code === language && <CheckCircle2 className="w-3.5 h-3.5" />}
+                              </button>
+                            ))}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
                 </div>
               </div>

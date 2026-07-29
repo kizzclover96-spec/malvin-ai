@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { collection, onSnapshot, query, orderBy, doc, deleteDoc, setDoc, limit } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, doc, deleteDoc, setDoc, limit, serverTimestamp } from 'firebase/firestore';
 import { firestore as db } from '../../firebase'; 
 import { auth } from "../../firebase";  
-import { ArrowRight, Loader2, Store, Trash2 } from 'lucide-react';
+import { ArrowRight, Loader2, Store, Trash2, Heart } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface RecentBusinessItem {
@@ -26,6 +26,7 @@ export const RecentBusinesses: React.FC<RecentBusinessesProps> = ({ onSelectBusi
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [newName, setNewName] = useState('');
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
   const isLongPressActive = useRef(false);
@@ -89,6 +90,51 @@ export const RecentBusinesses: React.FC<RecentBusinessesProps> = ({ onSelectBusi
 
     return () => unsubscribe();
   }, [user, setHasRecentItems]);
+
+  // Track which of these items are already favorited, so the heart icon
+  // reflects real saved state instead of just a local click.
+  useEffect(() => {
+    if (!user?.uid) return;
+    const favRef = collection(db, 'customers', user.uid, 'favorites');
+    const unsubscribe = onSnapshot(favRef, (snapshot) => {
+      setFavoriteIds(new Set(snapshot.docs.map(d => d.id)));
+    }, (err) => console.error('Error syncing favorite ids:', err));
+    return () => unsubscribe();
+  }, [user]);
+
+  const FAVORITES_SOFT_CAP = 50;
+
+  const handleToggleFavorite = async (item: RecentBusinessItem, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!user?.uid) return;
+    const favRef = doc(db, 'customers', user.uid, 'favorites', item.id);
+
+    if (favoriteIds.has(item.id)) {
+      try {
+        await deleteDoc(favRef);
+      } catch (err) {
+        console.error('Error removing favorite:', err);
+      }
+      return;
+    }
+
+    if (favoriteIds.size >= FAVORITES_SOFT_CAP) {
+      alert(`You can save up to ${FAVORITES_SOFT_CAP} favorite stores. Remove one first.`);
+      return;
+    }
+
+    try {
+      await setDoc(favRef, {
+        businessUid: item.businessUid,
+        storeName: item.customName || item.storeName,
+        logoUrl: item.logoUrl || '',
+        address: item.address || '',
+        favoritedAt: serverTimestamp(),
+      });
+    } catch (err) {
+      console.error('Error saving favorite:', err);
+    }
+  };
 
   const handleTouchStart = (url: string) => {
     isLongPressActive.current = false;
@@ -187,6 +233,18 @@ export const RecentBusinesses: React.FC<RecentBusinessesProps> = ({ onSelectBusi
                     </div>
 
                     <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                          onClick={(e) => handleToggleFavorite(item, e)}
+                          className={`p-2 rounded-xl transition-colors ${
+                            favoriteIds.has(item.id)
+                              ? 'text-[#E53935]'
+                              : 'text-neutral-400 hover:bg-rose-50 hover:text-[#E53935] md:opacity-0 group-hover:opacity-100'
+                          }`}
+                          title={favoriteIds.has(item.id) ? 'Remove from favorites' : 'Add to favorites'}
+                      >
+                          <Heart className="w-4 h-4" fill={favoriteIds.has(item.id) ? 'currentColor' : 'none'} />
+                      </button>
+
                       <button
                           onClick={(e) => {
                           e.stopPropagation();
