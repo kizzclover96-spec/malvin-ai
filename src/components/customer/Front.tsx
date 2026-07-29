@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Menu, Settings, Search, Home, Wallet as WalletIcon, QrCode, X, 
   User, Save, Mail, Loader2, CheckCircle2, AlertCircle,
-  Clock, Heart, Bell, Moon, Globe, LogOut, ChevronRight, ChevronDown, Calendar, DollarSign,  Download, Trash2, Store 
+  Clock, Heart, Bell, Moon, Globe, LogOut, ChevronRight, ChevronDown, Calendar, DollarSign,  Download, Trash2, Store, Sparkles, Share2 
 } from 'lucide-react';
 import { doc, getDoc, setDoc, deleteDoc, collection, collectionGroup, query, where, orderBy, limit, serverTimestamp, onSnapshot } from 'firebase/firestore';
 import { signOut, deleteUser } from 'firebase/auth';
@@ -19,6 +19,7 @@ import { Wallet } from '../addons/Wallet';
 import { QRScannerView } from '../addons/QRScannerView';
 import { StoreFront } from './StoreFront';
 import { RecentBusinesses } from './RecentBusinesses';
+import { VinMoment } from './VinMoment';
 import { ReceiptsDrawer } from './ReceiptsDrawer';
 
 // Fixed allow-list — the language row can only ever pick one of these,
@@ -72,6 +73,12 @@ export const Front: React.FC = () => {
   const [favoriteStores, setFavoriteStores] = useState<FavoriteItem[]>([]);
   const [isFavoritesLoading, setIsFavoritesLoading] = useState(true);
 
+  // First-visit "try sharing this" nudge — set briefly after a NEW recent
+  // business is saved (see handleBusinessVisit), cleared once dismissed,
+  // shared, or after its own timeout.
+  const [shareNudge, setShareNudge] = useState<{ uid: string; storeName: string } | null>(null);
+  const [nudgeMomentOpen, setNudgeMomentOpen] = useState(false);
+
 
 
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -93,6 +100,14 @@ export const Front: React.FC = () => {
     setToast({ type, message });
     setTimeout(() => setToast(null), 3500);
   };
+
+  // Auto-dismiss the share nudge if it's just ignored — but not while the
+  // person has actually opened VinMoment from it.
+  useEffect(() => {
+    if (!shareNudge || nudgeMomentOpen) return;
+    const id = setTimeout(() => setShareNudge(null), 7000);
+    return () => clearTimeout(id);
+  }, [shareNudge, nudgeMomentOpen]);
 
 
   // Export and Download Data Functionality
@@ -178,14 +193,24 @@ export const Front: React.FC = () => {
     try {
         const recentDocRef = doc(db, 'customers', user.uid, 'recentBusinesses', cleanUid);
         const docSnap = await getDoc(recentDocRef);
-        
+        const isFirstVisit = !docSnap.exists();
+        const resolvedName = isFirstVisit ? 'Saved Store' : (docSnap.data().customName || 'Saved Store');
+
         // 🟢 Save cleanly without blocking prompt modals
         await setDoc(recentDocRef, {
         businessUid: storefrontTarget,
         lastVisited: new Date().toISOString(),
         // Keep existing customName if it's already there, otherwise default to 'Saved Store'
-        customName: docSnap.exists() ? (docSnap.data().customName || 'Saved Store') : 'Saved Store'
+        customName: resolvedName
         }, { merge: true });
+
+        // First time seeing this business — nudge them toward VinMoment a
+        // couple seconds later, once the "Opening..." toast has cleared.
+        if (isFirstVisit) {
+          setTimeout(() => {
+            setShareNudge({ uid: storefrontTarget, storeName: resolvedName });
+          }, 2200);
+        }
 
     } catch (err) {
         console.error("Failed to log business visit history item:", err);
@@ -468,6 +493,47 @@ export const Front: React.FC = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* SHARE NUDGE — appears once, a couple seconds after a business is
+          visited for the first time, inviting them to make a VinMoment. */}
+      <AnimatePresence>
+        {shareNudge && (
+          <motion.div
+            initial={{ opacity: 0, y: -40, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.95 }}
+            transition={{ type: 'spring', damping: 22, stiffness: 260 }}
+            className="fixed top-6 left-6 right-6 z-50 mx-auto max-w-sm p-4 rounded-2xl bg-[#0a0d16]/95 border border-white/10 backdrop-blur-xl shadow-2xl flex items-center gap-3"
+          >
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-cyan-400/25 to-violet-500/25 flex items-center justify-center flex-shrink-0">
+              <Sparkles className="w-4 h-4 text-cyan-300" />
+            </div>
+            <p className="flex-1 text-[11px] font-semibold text-slate-200 leading-snug">
+              Hey! Try sharing <span className="text-white font-black">{shareNudge.storeName}</span> and your moment with friends ✨
+            </p>
+            <button
+              onClick={() => { setNudgeMomentOpen(true); }}
+              className="shrink-0 px-3 py-2 rounded-xl bg-gradient-to-r from-cyan-400 to-violet-500 text-slate-950 text-[11px] font-black flex items-center gap-1"
+            >
+              <Share2 className="w-3 h-3" /> Share
+            </button>
+            <button
+              onClick={() => setShareNudge(null)}
+              className="shrink-0 p-1.5 rounded-full bg-white/5 text-slate-400 hover:text-white"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {nudgeMomentOpen && shareNudge && (
+        <VinMoment
+          businessUid={shareNudge.uid}
+          storeName={shareNudge.storeName}
+          onClose={() => { setNudgeMomentOpen(false); setShareNudge(null); }}
+        />
+      )}
 
       {/* TOP BAR */}
       {/* TOP BAR */}

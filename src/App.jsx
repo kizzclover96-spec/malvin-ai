@@ -38,6 +38,7 @@ import SalonDashboard from "./components/appointment/salonDashboard";
 import Category from "./pages/navigation/Category";
 import { StoreFrontend } from './components/order/Store';
 import SalonStore from "./components/appointment/salonStore";
+import { FoodDeepLinkGate, SalonDeepLinkGate } from "./components/addons/AppOpenGate";
 import { FloatingTeamHub } from "./components/addons/FloatingTeamHub";
 import { WorkerDashboard } from './components/team/workerDashboard';
 import { QrScannerView } from './components/addons/QR Scanner'; 
@@ -61,6 +62,46 @@ function App() {
   const [assignedManagerUid, setAssignedManagerUid] = useState("");
   const [flowStep, setFlowStep] = useState("welcome");
   const [workerSubScreen, setWorkerSubScreen] = useState("dashboard");
+
+  // 🟢 VINMOMENT DEEP LINK HANDLING
+  // When the native app is opened via a malvinai://food/{uid} or
+  // malvinai://salon/{uid} link (from a shared VinMoment card), Capacitor
+  // fires 'appUrlOpen' with the raw URL. We just translate that into a
+  // normal in-app route push. No-op on web (the plugin only fires natively).
+  useEffect(() => {
+    let removeListener;
+    (async () => {
+      try {
+        const { Capacitor } = await import("@capacitor/core");
+        if (!Capacitor.isNativePlatform()) return;
+
+        const { App: CapacitorApp } = await import("@capacitor/app");
+        const handle = CapacitorApp.addListener("appUrlOpen", ({ url }) => {
+          try {
+            // url looks like "malvinai://food/abc123" or "malvinai://salon/abc123"
+            const parsed = new URL(url);
+            const uid = parsed.pathname.replace(/^\/+/, "") || parsed.host;
+            if (parsed.protocol === "malvinai:" || url.startsWith("malvinai://")) {
+              const kind = url.includes("/salon/") || url.includes("salon:") ? "salon" : "food";
+              // Fall back to whatever segment actually follows the host, since
+              // some Android versions parse custom-scheme URLs inconsistently.
+              const segments = url.replace("malvinai://", "").split("/").filter(Boolean);
+              const routeUid = segments[1] || uid;
+              const routeKind = segments[0] === "salon" ? "salon" : "food";
+              navigate(`/${routeKind || kind}/${routeUid}`);
+            }
+          } catch (err) {
+            console.error("Failed to parse VinMoment deep link:", err);
+          }
+        });
+        removeListener = () => handle.remove();
+      } catch (err) {
+        // @capacitor/app not installed yet, or running on web — safe to ignore.
+        console.warn("Capacitor App plugin unavailable for deep links:", err);
+      }
+    })();
+    return () => { if (removeListener) removeListener(); };
+  }, [navigate]);
 
   // 🟢 ATOMIC BALANCE PAYMENT CONTROLLER
   // 🟢 ATOMIC BALANCE PAYMENT CONTROLLER
@@ -264,8 +305,8 @@ function App() {
           <Route path="/chat/:brandId" element={<MarketFront />} />
           
           {/* 🟢 Passing the wallet execution mechanism directly down into routing subcomponents */}
-          <Route path="/food/:Uid" element={<StoreFrontend onExecuteWalletPayment={handleWalletPaymentExecution} />} />
-          <Route path="/salon/:uid" element={<SalonStore onExecuteWalletPayment={handleWalletPaymentExecution} />} />
+          <Route path="/food/:Uid" element={<><FoodDeepLinkGate /><StoreFrontend onExecuteWalletPayment={handleWalletPaymentExecution} /></>} />
+          <Route path="/salon/:uid" element={<><SalonDeepLinkGate /><SalonStore onExecuteWalletPayment={handleWalletPaymentExecution} /></>} />
           
           <Route path="/terms" element={<Terms />} />
           <Route path="/cookiePolicy" element={<CookiePolicy />} />

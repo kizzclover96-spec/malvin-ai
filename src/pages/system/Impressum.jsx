@@ -34,7 +34,7 @@ const Impressum = () => {
 
       <h3>Address</h3>
       <p>
-        [Insert official business address]<br />
+        [Im Waager 41 72581 Dettingen An Der Erms]<br />
         Germany
       </p>
 
@@ -43,7 +43,7 @@ const Impressum = () => {
       <p><strong>Praise Eloghosarumwen Imasuen</strong></p>
       <p>
         Address:<br />
-        [Insert official business address]<br />
+        [Im Waager 72581 Dettingen An Der Erms]<br />
         Germany
       </p>
 
