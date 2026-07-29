@@ -25,6 +25,58 @@ function hashPin(pin: string, salt: string): string {
   return crypto.pbkdf2Sync(pin, salt, 1000, 64, "sha512").toString("hex");
 }
 
+// Constant-time comparison for hashed secrets (PINs, reset tokens). A plain
+// `===`/`!==` string comparison can leak timing information about how many
+// leading characters matched; this closes that off. Lengths are checked
+// first since timingSafeEqual throws on mismatched buffer lengths rather
+// than returning false.
+function safeCompare(hexA: string, hexB: string): boolean {
+  const bufA = Buffer.from(hexA, "hex");
+  const bufB = Buffer.from(hexB, "hex");
+  if (bufA.length !== bufB.length) return false;
+  return crypto.timingSafeEqual(bufA, bufB);
+}
+
+// Sends the PIN-reset code by email via Resend's HTTP API (no SDK needed —
+// Cloud Functions' Node runtime has global fetch built in). Requires a
+// RESEND_API_KEY secret to be set; see setup notes below. Throws on failure
+// rather than silently succeeding, since a reset code nobody receives is
+// worse than an honest error telling the merchant to try again.
+async function sendResetEmail(toEmail: string, code: string): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    throw new Error("Email service is not configured (RESEND_API_KEY secret is missing).");
+  }
+
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      // TODO: replace with an address on a domain you've verified in Resend.
+      // Resend's shared "onboarding@resend.dev" sender only works for testing.
+      from: "Malvin AI Security <malvinsecurity@malvinai.com>",
+      to: toEmail,
+      subject: "Your Malvin AI PIN reset code",
+      html: `
+        <div style="font-family: -apple-system, Helvetica, Arial, sans-serif; max-width: 420px;">
+          <p>Someone requested a PIN reset for your Malvin AI merchant account.</p>
+          <p style="font-size: 32px; font-weight: 800; letter-spacing: 6px; margin: 24px 0;">${code}</p>
+          <p>This code expires in 15 minutes and can only be used once.</p>
+          <p style="color: #888; font-size: 13px;">If you didn't request this, you can safely ignore this email — your PIN has not been changed.</p>
+        </div>
+      `,
+    }),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => "");
+    throw new Error(`Resend API error (${res.status}): ${errText}`);
+  }
+}
+
 /*
 =====================================
 1. CREATE STRIPE CONNECT ACCOUNT
@@ -490,38 +542,80 @@ export const requestPayout = onCall(
     const businessDocRef = db.collection(targetCollection).doc(uid);
     const securityRef = businessDocRef.collection("private").doc("security");
 
+    const PAYOUT_MAX_ATTEMPTS = 5;
+    const PAYOUT_LOCKOUT_MS = 15 * 60 * 1000; // 15 minutes
+
     try {
-      // 1. Validate permissions, credentials, and pull Stripe details securely
-      const result = await db.runTransaction(async (transaction: typeof Transaction) => {
+      // 1. Validate permissions, credentials, and pull Stripe details securely.
+      // IMPORTANT: this transaction must never throw on a "wrong PIN" or
+      // "locked out" outcome — throwing inside a Firestore transaction rolls
+      // back every write it staged, which would silently discard the very
+      // attempt-count/lockout state we need to persist. Instead it always
+      // returns a status object, and the caller throws afterwards, once the
+      // transaction has already committed.
+      const outcome: any = await db.runTransaction(async (transaction: typeof Transaction) => {
         const docSnap = await transaction.get(businessDocRef);
         const securitySnap = await transaction.get(securityRef);
 
         if (!docSnap.exists) {
-          throw new HttpsError("not-found", "Business profile not found.");
+          return { ok: false, code: "not-found", message: "Business profile not found." };
         }
         if (!securitySnap.exists) {
-          throw new HttpsError("failed-precondition", "Security PIN setup is incomplete.");
+          return { ok: false, code: "failed-precondition", message: "Security PIN setup is incomplete." };
         }
 
         const data = docSnap.data();
-        const securityData = securitySnap.data();
+        const securityData = securitySnap.data()!;
 
         const stripeAccountId = data?.stripeAccountId;
         const payoutsEnabled = data?.payoutsEnabled ?? data?.payouts_enabled;
-        
-        const { hashedPin, salt } = securityData!;
-        const incomingPinHash = hashPin(pin, salt);
 
-        if (!hashedPin || incomingPinHash !== hashedPin) {
-          throw new HttpsError("permission-denied", "Incorrect secret PIN.");
+        // Already locked out from a prior run of too many wrong PINs?
+        const lockedUntil = securityData.payoutLockedUntil || 0;
+        if (lockedUntil > Date.now()) {
+          const minutesLeft = Math.ceil((lockedUntil - Date.now()) / 60000);
+          return {
+            ok: false,
+            code: "resource-exhausted",
+            message: `Too many incorrect PIN attempts. Try again in ${minutesLeft} minute(s).`,
+          };
+        }
+
+        const { hashedPin, salt } = securityData;
+        const incomingPinHash = hashPin(pin, salt);
+        const pinMatches = !!hashedPin && safeCompare(incomingPinHash, hashedPin);
+
+        if (!pinMatches) {
+          const attempts = (securityData.payoutPinAttempts || 0) + 1;
+          const update: Record<string, unknown> = { payoutPinAttempts: attempts };
+          const lockingNow = attempts >= PAYOUT_MAX_ATTEMPTS;
+          if (lockingNow) {
+            update.payoutLockedUntil = Date.now() + PAYOUT_LOCKOUT_MS;
+            update.payoutPinAttempts = 0; // the lockout itself is now the gate
+          }
+          transaction.set(securityRef, update, { merge: true });
+
+          return lockingNow
+            ? { ok: false, code: "resource-exhausted", message: `Too many incorrect PIN attempts. Try again in ${PAYOUT_LOCKOUT_MS / 60000} minutes.` }
+            : { ok: false, code: "permission-denied", message: `Incorrect secret PIN. ${PAYOUT_MAX_ATTEMPTS - attempts} attempt(s) remaining.` };
+        }
+
+        // Correct PIN — clear any accumulated attempt count.
+        if (securityData.payoutPinAttempts) {
+          transaction.set(securityRef, { payoutPinAttempts: 0 }, { merge: true });
         }
 
         if (!stripeAccountId || !payoutsEnabled) {
-          throw new HttpsError("failed-precondition", "Stripe payout account is not fully setup.");
+          return { ok: false, code: "failed-precondition", message: "Stripe payout account is not fully setup." };
         }
 
-        return { stripeAccountId };
+        return { ok: true, stripeAccountId };
       });
+
+      if (!outcome.ok) {
+        throw new HttpsError(outcome.code, outcome.message);
+      }
+      const result = outcome;
 
       // 🟢 2. Fetch the live Stripe available balance instead of trusting Firestore's walletBalance counter
       const stripeBalance = await stripe.balance.retrieve({}, {
@@ -581,43 +675,70 @@ export const requestPayout = onCall(
 8. REQUEST PIN RESET (V2)
 =====================================
 */
-export const requestPinReset = onCall(async (request) => {
-  const uid = request.auth?.uid;
-  if (!uid) {
-    throw new HttpsError("unauthenticated", "Authentication context is missing.");
+const RESET_REQUEST_COOLDOWN_MS = 60 * 1000; // 1 request per minute per merchant
+
+export const requestPinReset = onCall(
+  { secrets: ["RESEND_API_KEY"] },
+  async (request) => {
+    const uid = request.auth?.uid;
+    if (!uid) {
+      throw new HttpsError("unauthenticated", "Authentication context is missing.");
+    }
+
+    const { merchantType } = request.data;
+    const targetCollection = merchantType === "food" ? "restaurantprofile" : "salons";
+
+    const { getAuth } = require("firebase-admin/auth");
+    const db = getDb();
+    const securityRef = db.collection(targetCollection).doc(uid).collection("private").doc("security");
+
+    const userRecord = await getAuth().getUser(uid);
+    const email = userRecord.email;
+
+    if (!email) {
+      throw new HttpsError("failed-precondition", "No email associated with this merchant account.");
+    }
+
+    // Rate-limit: stops both email-bombing the merchant and an attacker
+    // repeatedly minting fresh tokens to widen their guessing window.
+    const existingSnap = await securityRef.get();
+    const existing = existingSnap.exists ? existingSnap.data()! : {};
+    const lastRequestedAt = existing.lastResetRequestAt || 0;
+    if (Date.now() - lastRequestedAt < RESET_REQUEST_COOLDOWN_MS) {
+      throw new HttpsError("resource-exhausted", "Please wait a minute before requesting another code.");
+    }
+
+    const resetToken = Math.floor(100000 + Math.random() * 900000).toString();
+    const tokenSalt = crypto.randomBytes(16).toString("hex");
+    const hashedResetToken = hashPin(resetToken, tokenSalt);
+    const expiresAt = Date.now() + 15 * 60 * 1000;
+
+    // The token itself is hashed before storage — same treatment as the PIN
+    // — so even a Firestore-level read of this doc (which should already be
+    // admin-only per security rules) never exposes a usable code directly.
+    await securityRef.set({
+      hashedResetToken,
+      resetTokenSalt: tokenSalt,
+      tokenExpires: expiresAt,
+      resetAttempts: 0,
+      lastResetRequestAt: Date.now(),
+    }, { merge: true });
+
+    // Actually send it. If this throws, the caller gets a real error instead
+    // of a false "check your email" message for a code that never arrived.
+    await sendResetEmail(email, resetToken);
+
+    return { success: true, message: "A secure reset code has been sent to your email." };
   }
-
-  const { merchantType } = request.data;
-  const targetCollection = merchantType === "food" ? "restaurantprofile" : "salons";
-
-  const { getAuth } = require("firebase-admin/auth");
-  const db = getDb();
-
-  const userRecord = await getAuth().getUser(uid);
-  const email = userRecord.email;
-
-  if (!email) {
-    throw new HttpsError("failed-precondition", "No email associated with this merchant account.");
-  }
-
-  const resetToken = Math.floor(100000 + Math.random() * 900000).toString();
-  const expiresAt = Date.now() + 15 * 60 * 1000;
-
-  await db.collection(targetCollection).doc(uid).collection("private").doc("security").set({
-    resetToken,
-    tokenExpires: expiresAt
-  }, { merge: true });
-
-  console.log(`Reset token for ${email}: ${resetToken}`);
-
-  return { success: true, message: "A secure reset code has been sent to your email." };
-});
+);
 
 /*
 =====================================
 9. CONFIRM PIN RESET (V2)
 =====================================
 */
+const RESET_TOKEN_MAX_ATTEMPTS = 5;
+
 export const confirmPinReset = onCall(async (request) => {
   const uid = request.auth?.uid;
   if (!uid) {
@@ -638,10 +759,25 @@ export const confirmPinReset = onCall(async (request) => {
     throw new HttpsError("not-found", "Security record missing.");
   }
 
-  const { resetToken: storedToken, tokenExpires } = securitySnap.data()!;
+  const { hashedResetToken, resetTokenSalt, tokenExpires, resetAttempts } = securitySnap.data()!;
 
-  if (storedToken !== resetToken || Date.now() > tokenExpires) {
-    throw new HttpsError("permission-denied", "The token is invalid or has expired.");
+  if (!hashedResetToken) {
+    throw new HttpsError("failed-precondition", "No reset code has been requested.");
+  }
+
+  // A 6-digit code only has 1,000,000 combinations — without a hard cap on
+  // guesses, it's brute-forceable well within the 15-minute expiry window.
+  if ((resetAttempts || 0) >= RESET_TOKEN_MAX_ATTEMPTS) {
+    throw new HttpsError("resource-exhausted", "Too many incorrect attempts. Please request a new code.");
+  }
+
+  const incomingTokenHash = hashPin(resetToken, resetTokenSalt);
+  const tokenMatches = safeCompare(incomingTokenHash, hashedResetToken);
+  const notExpired = Date.now() <= tokenExpires;
+
+  if (!tokenMatches || !notExpired) {
+    await securityRef.set({ resetAttempts: (resetAttempts || 0) + 1 }, { merge: true });
+    throw new HttpsError("permission-denied", "The code is invalid or has expired.");
   }
 
   const salt = crypto.randomBytes(16).toString("hex");
@@ -650,8 +786,14 @@ export const confirmPinReset = onCall(async (request) => {
   await securityRef.set({
     hashedPin,
     salt,
-    resetToken: null, 
-    tokenExpires: null 
+    hashedResetToken: null,
+    resetTokenSalt: null,
+    tokenExpires: null,
+    resetAttempts: 0,
+    // A PIN reset is a good moment to also clear any accumulated payout
+    // lockout — the merchant just proved account ownership via email.
+    payoutPinAttempts: 0,
+    payoutLockedUntil: null,
   });
 
   return { success: true, message: "Security PIN updated successfully!" };
