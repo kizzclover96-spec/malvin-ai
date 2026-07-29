@@ -38,7 +38,7 @@ import SalonDashboard from "./components/appointment/salonDashboard";
 import Category from "./pages/navigation/Category";
 import { StoreFrontend } from './components/order/Store';
 import SalonStore from "./components/appointment/salonStore";
-import { FoodDeepLinkGate, SalonDeepLinkGate } from "./components/addons/Appopengate";
+import { FoodDeepLinkGate, SalonDeepLinkGate } from "./components/addons/AppOpenGate";
 import { FloatingTeamHub } from "./components/addons/FloatingTeamHub";
 import { WorkerDashboard } from './components/team/workerDashboard';
 import { QrScannerView } from './components/addons/QR Scanner'; 
