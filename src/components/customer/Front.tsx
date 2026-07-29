@@ -19,7 +19,7 @@ import { Wallet } from '../addons/Wallet';
 import { QRScannerView } from '../addons/QRScannerView';
 import { StoreFront } from './StoreFront';
 import { RecentBusinesses } from './RecentBusinesses';
-import { VinMoment, getTierForScore, MOM_MILESTONE_STEP } from './VinMoment';
+import { VinMoment, getTierForScore, MOM_MILESTONE_STEP } from './Vinmoment';
 import { ReceiptsDrawer } from './ReceiptsDrawer';
 
 // Fixed allow-list — the language row can only ever pick one of these,
