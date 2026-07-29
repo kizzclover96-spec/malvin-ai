@@ -19,7 +19,7 @@ import { Wallet } from '../addons/Wallet';
 import { QRScannerView } from '../addons/QRScannerView';
 import { StoreFront } from './StoreFront';
 import { RecentBusinesses } from './RecentBusinesses';
-import { VinMoment } from './Vinmoment';
+import { VinMoment, getTierForScore, MOM_MILESTONE_STEP } from './VinMoment';
 import { ReceiptsDrawer } from './ReceiptsDrawer';
 
 // Fixed allow-list — the language row can only ever pick one of these,
@@ -78,6 +78,7 @@ export const Front: React.FC = () => {
   // shared, or after its own timeout.
   const [shareNudge, setShareNudge] = useState<{ uid: string; storeName: string } | null>(null);
   const [nudgeMomentOpen, setNudgeMomentOpen] = useState(false);
+  const [momScore, setMomScore] = useState(0);
 
 
 
@@ -272,6 +273,17 @@ export const Front: React.FC = () => {
       console.error('Error syncing favorite stores:', err);
       setIsFavoritesLoading(false);
     });
+    return () => unsubscribe();
+  }, [user]);
+
+  // Live MomScore — subscribed (not just fetched once) so sharing a
+  // VinMoment updates the badge here immediately, without needing a reload.
+  useEffect(() => {
+    if (!user?.uid) return;
+    const ref = doc(db, 'customers', user.uid);
+    const unsubscribe = onSnapshot(ref, (snap) => {
+      if (snap.exists()) setMomScore(typeof snap.data().momScore === 'number' ? snap.data().momScore : 0);
+    }, (err) => console.error('Error syncing MomScore:', err));
     return () => unsubscribe();
   }, [user]);
 
@@ -555,9 +567,23 @@ export const Front: React.FC = () => {
           <h2 className="text-sm font-black text-neutral-900 tracking-tight truncate">
             Hi, {fullName || user.email}
           </h2>
-          <p className="text-[11px] font-bold text-neutral-400 uppercase tracking-widest mt-0.5">
-            Welcome back
-          </p>
+          {momScore > 0 ? (
+            <button
+              onClick={() => setIsSettingsOpen(true)}
+              className="inline-flex items-center gap-1 mt-0.5 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-cyan-400/15 to-violet-500/15 border border-violet-300/30 hover:from-cyan-400/25 hover:to-violet-500/25 transition-colors"
+              title="Your MomScore"
+            >
+              <span className="text-[10px]">✦</span>
+              <span className="text-[10px] font-black text-violet-600">{momScore}</span>
+              <span className="text-[9px] font-bold text-neutral-500 uppercase tracking-wide truncate">
+                {getTierForScore(momScore)}
+              </span>
+            </button>
+          ) : (
+            <p className="text-[11px] font-bold text-neutral-400 uppercase tracking-widest mt-0.5">
+              Welcome back
+            </p>
+          )}
         </div>
 
         {/* RIGHT ACTION BUTTONS CONTAINER */}
@@ -732,6 +758,33 @@ export const Front: React.FC = () => {
                   <X className="w-5 h-5" />
                 </motion.button>
               </div>
+
+              {/* MOMSCORE STAT CARD */}
+              {momScore > 0 && (
+                <div className="mt-6 bg-gradient-to-br from-cyan-400/10 to-violet-500/10 border border-violet-300/30 rounded-[1.75rem] p-5 shadow-[0_8px_24px_rgba(0,0,0,0.01)]">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-wider text-violet-500 mb-1">Your MomScore</p>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-3xl font-black text-neutral-900">{momScore}</span>
+                        <span className="text-xs font-black text-violet-600">{getTierForScore(momScore)}</span>
+                      </div>
+                    </div>
+                    <div className="text-3xl">✦</div>
+                  </div>
+                  <div className="mt-3">
+                    <div className="h-1.5 bg-neutral-200/70 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-cyan-400 to-violet-500 rounded-full transition-all"
+                        style={{ width: `${((momScore % MOM_MILESTONE_STEP) / MOM_MILESTONE_STEP) * 100}%` }}
+                      />
+                    </div>
+                    <p className="text-[10px] font-semibold text-neutral-400 mt-1.5">
+                      {MOM_MILESTONE_STEP - (momScore % MOM_MILESTONE_STEP)} more VinMoment{MOM_MILESTONE_STEP - (momScore % MOM_MILESTONE_STEP) === 1 ? '' : 's'} to level up
+                    </p>
+                  </div>
+                </div>
+              )}
 
               <div className="mt-6 bg-white border border-neutral-200/80 rounded-[1.75rem] p-5 shadow-[0_8px_24px_rgba(0,0,0,0.01)]">
                 <button 

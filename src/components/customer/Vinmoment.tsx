@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ImagePlus, Camera, Loader2, Share2, Download, Trash2, Sparkles } from 'lucide-react';
-import { doc, getDoc } from 'firebase/firestore';
-import { firestore as db } from '../../firebase';
+import { doc, getDoc, setDoc, increment } from 'firebase/firestore';
+import { firestore as db, auth } from '../../firebase';
 
 // ============================================================================
 // VINMOMENT
@@ -99,6 +99,20 @@ function buildVinLink(uid: string, category: string): string {
   return `https://malvinai.com/${kind}/${uid}`;
 }
 
+// --- MomScore: a small, fun running counter of how many VinMoments someone
+// has shared, with a named tier that levels up every 20 shares. Purely for
+// delight/engagement — never gates any real feature. ---
+export const MOM_TIERS = ['Vin Rookie', 'Vin Regular', 'Vin Insider', 'Vin Legend', 'Vin Icon'];
+export const MOM_MILESTONE_STEP = 20;
+
+export function getTierForScore(score: number): string {
+  const level = Math.floor(score / MOM_MILESTONE_STEP) - 1;
+  if (level < 0) return MOM_TIERS[0];
+  if (level < MOM_TIERS.length) return MOM_TIERS[level];
+  const cycle = level - MOM_TIERS.length + 2;
+  return `${MOM_TIERS[MOM_TIERS.length - 1]} ×${cycle}`;
+}
+
 // Lightweight, self-contained open/closed check (deliberately duplicated from
 // VinScanner's version rather than imported, so this card never breaks if
 // that file changes shape — it only needs opening/closing time strings).
@@ -129,6 +143,7 @@ export const VinMoment: React.FC<VinMomentProps> = ({ businessUid, storeName, lo
   const [userPhotos, setUserPhotos] = useState<{ url: string; img: HTMLImageElement }[]>([]);
   const [isSharing, setIsSharing] = useState(false);
   const [shareFeedback, setShareFeedback] = useState<string | null>(null);
+  const [milestone, setMilestone] = useState<{ score: number; tier: string } | null>(null);
 
   // --- 1. Load the live business profile (rating/hours/category aren't kept
   // on the lightweight recentBusinesses copy, so we fetch the real doc) ---
@@ -263,6 +278,27 @@ export const VinMoment: React.FC<VinMomentProps> = ({ businessUid, storeName, lo
     ctx.beginPath(); ctx.arc(CANVAS_W * 0.5, CANVAS_H * 0.05, 340, 0, Math.PI * 2); ctx.fill();
     ctx.globalAlpha = 1;
 
+    // Dashed "polaroid/ticket" frame around the whole card
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+    ctx.lineWidth = 3;
+    ctx.setLineDash([14, 12]);
+    roundedRectPath(ctx, 28, 28, CANVAS_W - 56, CANVAS_H - 56, 40);
+    ctx.stroke();
+    ctx.restore();
+
+    // Diagonal "DISCOVERED ON MALVIN" ribbon, top-left corner
+    ctx.save();
+    ctx.translate(-40, 130);
+    ctx.rotate(-Math.PI / 4.2);
+    ctx.fillStyle = 'rgba(0,0,0,0.28)';
+    ctx.fillRect(-60, -22, 340, 44);
+    ctx.font = '800 22px -apple-system, Helvetica, Arial, sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.95)';
+    ctx.textAlign = 'center';
+    ctx.fillText('DISCOVERED ON MALVIN', 110, 7);
+    ctx.restore();
+
     // "Share this moment" eyebrow pill
     ctx.font = '600 30px -apple-system, Helvetica, Arial, sans-serif';
     ctx.fillStyle = 'rgba(255,255,255,0.92)';
@@ -291,6 +327,26 @@ export const VinMoment: React.FC<VinMomentProps> = ({ businessUid, storeName, lo
       }
     }
 
+    // Rating sticker — a rotated circular "badge" instead of plain text
+    ctx.save();
+    ctx.translate(CANVAS_W - 150, 245);
+    ctx.rotate(-0.12);
+    ctx.beginPath();
+    ctx.arc(0, 0, 78, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.95)';
+    ctx.fill();
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = theme.accent;
+    ctx.stroke();
+    ctx.fillStyle = '#111827';
+    ctx.font = '900 40px -apple-system, Helvetica, Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(profile.rating.toFixed(1), 0, 8);
+    ctx.font = '800 22px -apple-system, Helvetica, Arial, sans-serif';
+    ctx.fillStyle = theme.to;
+    ctx.fillText('★★★★★'.slice(0, Math.round(profile.rating)), 0, 34);
+    ctx.restore();
+
     // Business name — auto-shrinks to fit the width
     ctx.textAlign = 'left';
     let nameSize = 92;
@@ -309,44 +365,73 @@ export const VinMoment: React.FC<VinMomentProps> = ({ businessUid, storeName, lo
       wrapText(ctx, profile.bio, 70, 480, CANVAS_W - 140, 44, 2);
     }
 
-    // Rating
-    ctx.font = '700 40px -apple-system, Helvetica, Arial, sans-serif';
-    ctx.fillStyle = theme.accent;
-    ctx.fillText(`★ ${profile.rating.toFixed(1)}`, 70, 610);
-
     // Hours
     const { label, isOpen } = getOpenLabel(profile.openingTime, profile.closingTime);
     if (label) {
       ctx.font = '600 34px -apple-system, Helvetica, Arial, sans-serif';
       ctx.fillStyle = isOpen ? '#bbf7d0' : '#fecdd3';
-      ctx.fillText(`🕐 ${label}`, 70, 665);
+      ctx.textAlign = 'left';
+      ctx.fillText(`🕐 ${label}`, 70, 620);
     }
 
-    // Address
+    // Address — small rotated pin "sticker" tag instead of plain text
     if (profile.address) {
-      ctx.font = '500 32px -apple-system, Helvetica, Arial, sans-serif';
-      ctx.fillStyle = 'rgba(255,255,255,0.85)';
-      ctx.fillText(`📍 ${truncate(profile.address, 42)}`, 70, 715);
+      ctx.save();
+      ctx.translate(70, 660);
+      ctx.rotate(-0.03);
+      ctx.font = '600 30px -apple-system, Helvetica, Arial, sans-serif';
+      const label = `📍 ${truncate(profile.address, 34)}`;
+      const w = ctx.measureText(label).width + 40;
+      roundedRectPath(ctx, 0, -34, w, 48, 24);
+      ctx.fillStyle = 'rgba(0,0,0,0.22)';
+      ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.9)';
+      ctx.textAlign = 'left';
+      ctx.fillText(label, 20, 0);
+      ctx.restore();
     }
 
-    // Personal photos strip (bottom third) — purely composited, never stored
+    // Fanned photo-stack teaser — an IG-story-style stack, not a flat strip.
+    // This is purely decorative on the main card; the actual full-size
+    // photos are shared as their own separate images alongside this one.
     if (userPhotos.length > 0) {
-      const stripTop = CANVAS_H - 620;
-      const gap = 20;
-      const count = userPhotos.length;
-      const cellW = (CANVAS_W - 140 - gap * (count - 1)) / count;
-      const cellH = 480;
-      userPhotos.forEach((p, i) => {
-        const x = 70 + i * (cellW + gap);
+      const centerX = CANVAS_W / 2;
+      const centerY = CANVAS_H - 560;
+      const cardW = 300, cardH = 380;
+      const shown = userPhotos.slice(0, 5);
+      const mid = (shown.length - 1) / 2;
+      const angleStep = shown.length > 1 ? 0.16 : 0;
+
+      shown.forEach((p, i) => {
+        const offsetFromCenter = i - mid;
+        const angle = offsetFromCenter * angleStep;
+        const xOffset = offsetFromCenter * 70;
         ctx.save();
-        roundedRectPath(ctx, x, stripTop, cellW, cellH, 28);
+        ctx.translate(centerX + xOffset, centerY);
+        ctx.rotate(angle);
+        // subtle drop shadow so the stack reads as layered cards
+        ctx.shadowColor = 'rgba(0,0,0,0.35)';
+        ctx.shadowBlur = 30;
+        ctx.shadowOffsetY = 14;
+        roundedRectPath(ctx, -cardW / 2, -cardH / 2, cardW, cardH, 26);
+        ctx.fillStyle = '#ffffff';
+        ctx.fill();
+        ctx.shadowColor = 'transparent';
+        ctx.save();
+        roundedRectPath(ctx, -cardW / 2 + 8, -cardH / 2 + 8, cardW - 16, cardH - 16, 20);
         ctx.clip();
-        // Cover-fit crop
-        const scale = Math.max(cellW / p.img.width, cellH / p.img.height);
+        const scale = Math.max((cardW - 16) / p.img.width, (cardH - 16) / p.img.height);
         const w = p.img.width * scale, h = p.img.height * scale;
-        ctx.drawImage(p.img, x + (cellW - w) / 2, stripTop + (cellH - h) / 2, w, h);
+        ctx.drawImage(p.img, -w / 2, -h / 2, w, h);
+        ctx.restore();
         ctx.restore();
       });
+
+      ctx.textAlign = 'center';
+      ctx.font = '700 30px -apple-system, Helvetica, Arial, sans-serif';
+      ctx.fillStyle = 'rgba(255,255,255,0.9)';
+      const photoWord = shown.length === 1 ? 'photo' : 'photos';
+      ctx.fillText(`📸 +${shown.length} full-size ${photoWord} shared alongside`, centerX, centerY + cardH / 2 + 70);
     }
 
     // Bottom gradient for legibility + CTA bar
@@ -367,43 +452,101 @@ export const VinMoment: React.FC<VinMomentProps> = ({ businessUid, storeName, lo
 
   useEffect(() => { drawCard(); }, [drawCard]);
 
+  // Increments the person's MomScore by 1 and returns the milestone info if
+  // this share just crossed a multiple of 20 — never blocks the share flow
+  // if it fails, since this is a delight feature, not a core one.
+  const bumpMomScore = async (): Promise<{ score: number; tier: string } | null> => {
+    const uid = auth.currentUser?.uid;
+    if (!uid) return null;
+    try {
+      const custRef = doc(db, 'customers', uid);
+      const snap = await getDoc(custRef);
+      const current = snap.exists() && typeof snap.data().momScore === 'number' ? snap.data().momScore : 0;
+      const newScore = current + 1;
+      await setDoc(custRef, { momScore: increment(1) }, { merge: true });
+      if (newScore % MOM_MILESTONE_STEP === 0) {
+        return { score: newScore, tier: getTierForScore(newScore) };
+      }
+      return null;
+    } catch (err) {
+      console.error('VinMoment: failed to update MomScore:', err);
+      return null;
+    }
+  };
+
+  // Called once a share has genuinely gone through (not cancelled). Wipes
+  // photos, bumps the score, and either shows a milestone celebration or
+  // (if autoClose) just closes shortly after. When autoClose is false, the
+  // modal stays open so the person can see the share feedback message.
+  const finishShare = async (autoClose: boolean, autoCloseDelay = 700) => {
+    revokeAllPhotos();
+    const hit = await bumpMomScore();
+    if (hit) {
+      setMilestone(hit);
+      setTimeout(handleClose, 2800);
+    } else if (autoClose) {
+      setTimeout(handleClose, autoCloseDelay);
+    }
+  };
+
   const handleShare = async () => {
     const canvas = canvasRef.current;
     if (!canvas || !profile) return;
     setIsSharing(true);
     setShareFeedback(null);
 
-    canvas.toBlob(async (blob) => {
-      if (!blob) { setIsSharing(false); return; }
-      const file = new File([blob], 'vinmoment.png', { type: 'image/png' });
-      const shareData: ShareData & { files?: File[] } = {
-        title: `${profile.name} on Malvin`,
-        text: `Check out ${profile.name} — I found it on Malvin.`,
-        url: profile.vinLink,
-        files: [file],
-      };
+    canvas.toBlob(async (mainBlob) => {
+      if (!mainBlob) { setIsSharing(false); return; }
+
+      const mainFile = new File([mainBlob], 'vinmoment.png', { type: 'image/png' });
+
+      // Build the full-size, watermarked version of every photo the person
+      // added — these are what actually get shared, not the small preview.
+      const photoBlobs = await Promise.all(userPhotos.map(p => buildWatermarkedPhotoBlob(p.img)));
+      const photoFiles = photoBlobs
+        .map((blob, i) => blob ? new File([blob], `vinmoment-photo-${i + 1}.jpg`, { type: 'image/jpeg' }) : null)
+        .filter((f): f is File => f !== null);
+
+      const allFiles = [mainFile, ...photoFiles];
+      const shareText = `Check out ${profile.name} — I found it on Malvin.`;
 
       try {
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          await navigator.share(shareData);
-          // Shared successfully — this is a one-time card, so the photos
-          // are gone the instant the handoff to the OS share sheet happens.
-          revokeAllPhotos();
-          setTimeout(handleClose, 700);
+        if (navigator.canShare && navigator.canShare({ files: allFiles })) {
+          // Everything — the card and every full photo — goes out together
+          // in one share, so whoever receives it sees the real photos too.
+          await navigator.share({ title: `${profile.name} on Malvin`, text: shareText, url: profile.vinLink, files: allFiles });
+          await finishShare(true, 700);
+        } else if (navigator.canShare && navigator.canShare({ files: [mainFile] })) {
+          // This browser can share files, just not this many at once —
+          // share the main card and let them know the photos didn't fit.
+          await navigator.share({ title: `${profile.name} on Malvin`, text: shareText, url: profile.vinLink, files: [mainFile] });
+          if (photoFiles.length > 0) {
+            setShareFeedback("Shared the moment — this browser couldn't attach every photo though.");
+          }
+          await finishShare(true, 900);
         } else if (navigator.share) {
-          await navigator.share({ title: shareData.title, text: shareData.text, url: shareData.url });
-          revokeAllPhotos();
-          setTimeout(handleClose, 700);
+          await navigator.share({ title: `${profile.name} on Malvin`, text: shareText, url: profile.vinLink });
+          await finishShare(true, 700);
         } else {
-          // Desktop fallback: download the image and copy the link
-          const a = document.createElement('a');
-          a.href = URL.createObjectURL(blob);
-          a.download = `${profile.name.replace(/\s+/g, '-').toLowerCase()}-vinmoment.png`;
-          a.click();
-          URL.revokeObjectURL(a.href);
+          // Desktop fallback: download every image (main card + each full
+          // photo) and copy the link, since there's no native share sheet.
+          const downloadBlob = (blob: Blob, filename: string) => {
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(a.href);
+          };
+          downloadBlob(mainBlob, `${profile.name.replace(/\s+/g, '-').toLowerCase()}-vinmoment.png`);
+          for (let i = 0; i < photoBlobs.length; i++) {
+            const blob = photoBlobs[i];
+            if (!blob) continue;
+            await new Promise(r => setTimeout(r, 300)); // avoid the browser blocking rapid downloads
+            downloadBlob(blob, `vinmoment-photo-${i + 1}.jpg`);
+          }
           await navigator.clipboard?.writeText(profile.vinLink).catch(() => {});
-          revokeAllPhotos();
-          setShareFeedback('Image saved and link copied — share it anywhere!');
+          setShareFeedback('Images saved and link copied — share them anywhere!');
+          await finishShare(false); // wipes photos + bumps score; stays open to show the save/copy feedback
         }
       } catch (err: any) {
         // AbortError = the person just cancelled the native share sheet —
@@ -424,60 +567,85 @@ export const VinMoment: React.FC<VinMomentProps> = ({ businessUid, storeName, lo
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-4"
+        className="fixed inset-0 z-[100] bg-black/20 backdrop-blur-md flex items-center justify-center p-4"
         onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
       >
         <motion.div
-          initial={{ scale: 0.94, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.94, opacity: 0 }}
+          initial={{ scale: 0.94, opacity: 0, y: 10 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          exit={{ scale: 0.94, opacity: 0, y: 8 }}
           transition={{ type: 'spring', damping: 24, stiffness: 260 }}
-          className="relative w-full max-w-sm bg-[#0a0d16]/95 border border-white/10 rounded-[2rem] p-5 shadow-2xl flex flex-col max-h-[92vh]"
+          className="relative w-full max-w-sm bg-white/75 backdrop-blur-2xl border border-white/60 rounded-[2rem] p-5 shadow-[0_20px_60px_rgba(0,0,0,0.18)] flex flex-col max-h-[92vh]"
         >
+          {/* MOMSCORE MILESTONE CELEBRATION — every 20 shares */}
+          <AnimatePresence>
+            {milestone && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 z-10 rounded-[2rem] bg-gradient-to-br from-cyan-400/95 to-violet-600/95 backdrop-blur-xl flex flex-col items-center justify-center text-center p-8"
+              >
+                <motion.div
+                  initial={{ scale: 0.5, rotate: -8 }}
+                  animate={{ scale: 1, rotate: 0 }}
+                  transition={{ type: 'spring', damping: 12, stiffness: 220 }}
+                  className="text-6xl mb-3"
+                >
+                  🎉
+                </motion.div>
+                <p className="text-white/90 text-xs font-bold uppercase tracking-widest mb-1">MomScore Milestone</p>
+                <p className="text-white text-4xl font-black mb-2">{milestone.score}</p>
+                <p className="text-white text-lg font-black">{milestone.tier}</p>
+                <p className="text-white/80 text-xs font-semibold mt-2">Keep sharing moments to level up again!</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2 text-white font-black tracking-tight">
-              <Sparkles className="w-4 h-4 text-cyan-300" />
+            <div className="flex items-center gap-2 text-neutral-900 font-black tracking-tight">
+              <Sparkles className="w-4 h-4 text-violet-500" />
               <span>VinMoment</span>
             </div>
-            <button onClick={handleClose} className="p-2 rounded-full bg-white/5 hover:bg-white/10 text-slate-300">
+            <button onClick={handleClose} className="p-2 rounded-full bg-neutral-900/5 hover:bg-neutral-900/10 text-neutral-500 hover:text-neutral-800 transition-colors">
               <X className="w-4 h-4" />
             </button>
           </div>
 
           {step === 'loading' && (
             <div className="flex-1 flex items-center justify-center py-16">
-              <Loader2 className="w-6 h-6 text-cyan-300 animate-spin" />
+              <Loader2 className="w-6 h-6 text-violet-500 animate-spin" />
             </div>
           )}
 
           {step === 'error' && (
             <div className="flex-1 flex flex-col items-center justify-center py-16 text-center gap-2">
-              <p className="text-sm text-rose-300 font-semibold">Couldn't load this business right now.</p>
-              <button onClick={handleClose} className="text-xs text-slate-400 underline">Close</button>
+              <p className="text-sm text-rose-500 font-semibold">Couldn't load this business right now.</p>
+              <button onClick={handleClose} className="text-xs text-neutral-500 underline">Close</button>
             </div>
           )}
 
           {(step === 'photos' || step === 'preview') && profile && (
             <>
-              <div className="overflow-y-auto rounded-2xl border border-white/10 mb-4">
+              <div className="overflow-y-auto rounded-2xl border border-neutral-900/10 mb-4 shadow-inner">
                 <canvas ref={canvasRef} className="w-full h-auto block" style={{ aspectRatio: `${CANVAS_W}/${CANVAS_H}` }} />
               </div>
 
               {step === 'photos' && (
                 <div className="mb-4">
-                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-2">
+                  <p className="text-[11px] font-bold text-neutral-500 uppercase tracking-wide mb-2">
                     Add {MIN_PHOTOS_HINT}-{MAX_PHOTOS} photos of your own (optional)
                   </p>
-                  <p className="text-[10px] text-slate-500 mb-2.5 leading-relaxed">
-                    These are only used to build the image below — nothing you add here is ever uploaded or saved.
+                  <p className="text-[10px] text-neutral-400 mb-2.5 leading-relaxed">
+                    Shared full-size, watermarked, right alongside your moment card — never uploaded or saved anywhere.
                   </p>
                   <div className="flex items-center gap-2 flex-wrap">
                     {userPhotos.map(p => (
-                      <div key={p.url} className="relative w-14 h-14 rounded-xl overflow-hidden border border-white/10">
+                      <div key={p.url} className="relative w-14 h-14 rounded-xl overflow-hidden border border-neutral-900/10">
                         <img src={p.url} className="w-full h-full object-cover" />
                         <button
                           onClick={() => handleRemovePhoto(p.url)}
-                          className="absolute inset-0 bg-black/50 opacity-0 hover:opacity-100 flex items-center justify-center transition-opacity"
+                          className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 flex items-center justify-center transition-opacity"
                         >
                           <Trash2 className="w-4 h-4 text-white" />
                         </button>
@@ -488,14 +656,14 @@ export const VinMoment: React.FC<VinMomentProps> = ({ businessUid, storeName, lo
                         <button
                           onClick={() => cameraInputRef.current?.click()}
                           title="Take a photo"
-                          className="w-14 h-14 rounded-xl border border-dashed border-white/20 flex items-center justify-center text-slate-400 hover:text-cyan-300 hover:border-cyan-300/50 transition-colors"
+                          className="w-14 h-14 rounded-xl border border-dashed border-neutral-900/15 bg-neutral-900/[0.03] flex items-center justify-center text-neutral-400 hover:text-violet-500 hover:border-violet-400/50 transition-colors"
                         >
                           <Camera className="w-5 h-5" />
                         </button>
                         <button
                           onClick={() => fileInputRef.current?.click()}
                           title="Choose from gallery"
-                          className="w-14 h-14 rounded-xl border border-dashed border-white/20 flex items-center justify-center text-slate-400 hover:text-cyan-300 hover:border-cyan-300/50 transition-colors"
+                          className="w-14 h-14 rounded-xl border border-dashed border-neutral-900/15 bg-neutral-900/[0.03] flex items-center justify-center text-neutral-400 hover:text-violet-500 hover:border-violet-400/50 transition-colors"
                         >
                           <ImagePlus className="w-5 h-5" />
                         </button>
@@ -522,14 +690,14 @@ export const VinMoment: React.FC<VinMomentProps> = ({ businessUid, storeName, lo
               )}
 
               {shareFeedback && (
-                <p className="text-[11px] text-center text-cyan-300 mb-2">{shareFeedback}</p>
+                <p className="text-[11px] text-center text-violet-600 font-semibold mb-2">{shareFeedback}</p>
               )}
 
               <div className="flex gap-2">
                 {step === 'photos' ? (
                   <button
                     onClick={() => setStep('preview')}
-                    className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-cyan-400 to-violet-500 text-slate-950 font-black text-sm tracking-wide"
+                    className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-cyan-400 to-violet-500 text-white font-black text-sm tracking-wide shadow-lg shadow-violet-500/20"
                   >
                     Continue
                   </button>
@@ -537,14 +705,14 @@ export const VinMoment: React.FC<VinMomentProps> = ({ businessUid, storeName, lo
                   <>
                     <button
                       onClick={() => setStep('photos')}
-                      className="px-4 py-3 rounded-2xl bg-white/5 border border-white/10 text-slate-300 text-sm font-bold"
+                      className="px-4 py-3 rounded-2xl bg-neutral-900/[0.05] border border-neutral-900/10 text-neutral-600 text-sm font-bold hover:bg-neutral-900/10 transition-colors"
                     >
                       Back
                     </button>
                     <button
                       onClick={handleShare}
                       disabled={isSharing}
-                      className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-cyan-400 to-violet-500 text-slate-950 font-black text-sm tracking-wide flex items-center justify-center gap-2 disabled:opacity-60"
+                      className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-cyan-400 to-violet-500 text-white font-black text-sm tracking-wide flex items-center justify-center gap-2 disabled:opacity-60 shadow-lg shadow-violet-500/20"
                     >
                       {isSharing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Share2 className="w-4 h-4" />}
                       Share Moment
@@ -600,5 +768,49 @@ function loadImage(src: string): Promise<HTMLImageElement> {
     img.onload = () => resolve(img);
     img.onerror = reject;
     img.src = src;
+  });
+}
+
+// Builds a full-size version of a user-added photo (capped so file sizes stay
+// reasonable to share), stamped with a small "VinMoment" watermark in the
+// top-right corner. This — not a tiny thumbnail — is what actually gets
+// shared alongside the main card, so whoever receives it can really see
+// what was snapped or uploaded.
+const MAX_PHOTO_DIMENSION = 1600;
+
+function buildWatermarkedPhotoBlob(img: HTMLImageElement): Promise<Blob | null> {
+  return new Promise((resolve) => {
+    const scale = Math.min(1, MAX_PHOTO_DIMENSION / Math.max(img.width, img.height));
+    const w = Math.round(img.width * scale);
+    const h = Math.round(img.height * scale);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) { resolve(null); return; }
+
+    ctx.drawImage(img, 0, 0, w, h);
+
+    // Watermark pill, top-right corner
+    const pad = Math.max(16, w * 0.03);
+    ctx.font = `700 ${Math.max(16, Math.round(w * 0.028))}px -apple-system, Helvetica, Arial, sans-serif`;
+    const label = '✦ VinMoment';
+    const textW = ctx.measureText(label).width;
+    const pillW = textW + pad * 1.6;
+    const pillH = pad * 2.1;
+    const pillX = w - pillW - pad * 0.8;
+    const pillY = pad * 0.8;
+
+    roundedRectPath(ctx, pillX, pillY, pillW, pillH, pillH / 2);
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.95)';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, pillX + pad * 0.8, pillY + pillH / 2 + 1);
+    ctx.textBaseline = 'alphabetic';
+
+    canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.92);
   });
 }

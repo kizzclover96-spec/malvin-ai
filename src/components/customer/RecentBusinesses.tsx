@@ -288,7 +288,7 @@ export const RecentBusinesses: React.FC<RecentBusinessesProps> = ({ onSelectBusi
                 </div>
                 <button
                   onClick={() => setActionSheetItem(null)}
-                  className="p-1.5 rounded-full bg-neutral-900/5 text-neutral-500 hover:bg-neutral-900/10 hover:text-neutral-800 transition-colors"
+                  className="icon-buttonp-1.5 rounded-full bg-neutral-900/5 text-neutral-500 hover:bg-neutral-900/10 hover:text-neutral-800 transition-colors"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -297,7 +297,7 @@ export const RecentBusinesses: React.FC<RecentBusinessesProps> = ({ onSelectBusi
               <div className="space-y-1.5">
                 <button
                   onClick={() => { handleToggleFavorite(actionSheetItem); setActionSheetItem(null); }}
-                  className="w-full flex items-center gap-3 px-3 py-3 rounded-2xl hover:bg-neutral-900/[0.04] transition-colors text-left group"
+                  className="icon-button w-full flex items-center gap-3 px-3 py-3 rounded-2xl hover:bg-neutral-900/[0.04] transition-colors text-left group"
                 >
                   <span className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${
                     favoriteIds.has(actionSheetItem.id) ? 'bg-[#E53935]/15' : 'bg-neutral-900/[0.06]'
@@ -311,10 +311,12 @@ export const RecentBusinesses: React.FC<RecentBusinessesProps> = ({ onSelectBusi
                     {favoriteIds.has(actionSheetItem.id) ? 'Remove from Favorites' : 'Like this Business'}
                   </span>
                 </button>
+                
+                <div className="h-px bg-neutral-900/[0.06] mx-3 my-1" />
 
                 <button
                   onClick={() => { setMomentItem(actionSheetItem); setActionSheetItem(null); }}
-                  className="w-full flex items-center gap-3 px-3 py-3 rounded-2xl hover:bg-neutral-900/[0.04] transition-colors text-left"
+                  className="icon-button w-full flex items-center gap-3 px-3 py-3 rounded-2xl hover:bg-neutral-900/[0.04] transition-colors text-left"
                 >
                   <span className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 bg-gradient-to-br from-cyan-400/25 to-violet-500/25">
                     <Share2 className="w-4 h-4 text-violet-600" />
@@ -326,7 +328,7 @@ export const RecentBusinesses: React.FC<RecentBusinessesProps> = ({ onSelectBusi
 
                 <button
                   onClick={() => { handleDeleteRecent(actionSheetItem); setActionSheetItem(null); }}
-                  className="w-full flex items-center gap-3 px-3 py-3 rounded-2xl hover:bg-rose-500/[0.06] transition-colors text-left"
+                  className="icon-button w-full flex items-center gap-3 px-3 py-3 rounded-2xl hover:bg-rose-500/[0.06] transition-colors text-left"
                 >
                   <span className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 bg-rose-500/10">
                     <Trash2 className="w-4 h-4 text-rose-600" />
