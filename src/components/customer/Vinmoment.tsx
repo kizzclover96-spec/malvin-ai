@@ -584,7 +584,7 @@ export const VinMoment: React.FC<VinMomentProps> = ({ businessUid, storeName, lo
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="absolute inset-0 z-10 rounded-[2rem] bg-gradient-to-br from-cyan-400/95 to-violet-600/95 backdrop-blur-xl flex flex-col items-center justify-center text-center p-8"
+                className="icon-button absolute inset-0 z-10 rounded-[2rem] bg-gradient-to-br from-cyan-400/95 to-violet-600/95 backdrop-blur-xl flex flex-col items-center justify-center text-center p-8"
               >
                 <motion.div
                   initial={{ scale: 0.5, rotate: -8 }}
