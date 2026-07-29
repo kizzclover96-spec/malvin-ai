@@ -4,7 +4,7 @@ import { firestore as db } from '../../firebase';
 import { auth } from "../../firebase";  
 import { Loader2, Store, Trash2, Heart, Share2, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { VinMoment } from './VinMoment';
+import { VinMoment } from './Vinmoment';
 
 interface RecentBusinessItem {
   id: string;
