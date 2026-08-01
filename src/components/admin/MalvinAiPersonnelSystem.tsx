@@ -13,9 +13,11 @@ import { QRCodeSVG } from 'qrcode.react';
 import { firestore as db, storage } from '../../firebase'; // <--- Imported storage
 import { auth } from "../../firebase";  
 import { 
-  collection, onSnapshot, addDoc, deleteDoc, doc, query, orderBy 
+  collection, onSnapshot, addDoc, deleteDoc, doc, getDoc, setDoc, query, orderBy 
 } from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'; // <--- Firebase Storage SDK
+import { getFunctions, httpsCallable } from 'firebase/functions';
 
 // ============================================================================
 // STRUCTURAL INTERFACES & SCHEMAS
@@ -33,12 +35,18 @@ interface PersonaDocument {
 interface Member {
   id: string; 
   fullName: string;
-  contactNumber: string;
-  email: string;
   role: string;
-  startingDate: string;
   profileImage?: string;
   documents: PersonaDocument[];
+  // Deliberately no email/contactNumber/startingDate here anymore — those
+  // now live in members/{id}/private/contact, readable only by signed-in
+  // real users. See MemberContact below.
+}
+
+interface MemberContact {
+  contactNumber: string;
+  email: string;
+  startingDate: string;
 }
 
 interface SecureFile {
@@ -60,10 +68,30 @@ export const MalvinAiPersonnelSystem: React.FC = () => {
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isMigratingContacts, setIsMigratingContacts] = useState(false);
   
   // Navigation & Sub-views State
   const [currentView, setCurrentView] = useState<'dashboard' | 'secure_files' | 'public_summary'>('dashboard');
-  const [scannedSummaryId, setScannedSummaryId] = useState<string | null>(null);
+  // Resolved directly via a single-document getDoc — deliberately NOT sourced
+  // from the `members` collection subscription below, since that requires a
+  // signed-in session to query. A scanned badge should verify for anyone,
+  // logged in or not (this is why it worked inconsistently before: it only
+  // "worked" when the scanning browser already happened to have a session —
+  // e.g. an Android Chrome tab that was already logged in — and silently
+  // failed in a fresh session, like Safari after an iPhone Camera scan).
+  const [scannedPerson, setScannedPerson] = useState<Member | null>(null);
+  const [scanLookupState, setScanLookupState] = useState<'idle' | 'loading' | 'found' | 'not_found' | 'error'>('idle');
+  // Whether the person doing the scanning is signed in with a real (non-guest)
+  // account — gates whether we also fetch/show private contact details.
+  const [viewerIsRealUser, setViewerIsRealUser] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [scannedContact, setScannedContact] = useState<MemberContact | null>(null);
+  const [scannedContactLoading, setScannedContactLoading] = useState(false);
+
+  // Private contact details for whichever member is selected in the admin
+  // dashboard's own Inspector panel — fetched separately from the public
+  // member doc, same as the public scan flow above.
+  const [selectedMemberContact, setSelectedMemberContact] = useState<MemberContact | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
@@ -104,6 +132,49 @@ export const MalvinAiPersonnelSystem: React.FC = () => {
     const urlParams = new URLSearchParams(window.location.search);
     const scanId = urlParams.get('scanId');
 
+    // Figure out whether the scanning viewer is a real, signed-in account
+    // BEFORE deciding whether to also fetch private contact details for them.
+    const unsubscribeAuth = onAuthStateChanged(auth, (authUser) => {
+      const isReal = !!authUser && !authUser.isAnonymous;
+      setViewerIsRealUser(isReal);
+      setAuthChecked(true);
+
+      // Only fetch private contact details once we know the viewer is real —
+      // an anonymous/guest scan should never even attempt this read.
+      if (scanId && isReal) {
+        setScannedContactLoading(true);
+        getDoc(doc(db, 'members', scanId, 'private', 'contact'))
+          .then((snap) => { if (snap.exists()) setScannedContact(snap.data() as MemberContact); })
+          .catch((err) => console.warn('Private contact unavailable for this viewer:', err))
+          .finally(() => setScannedContactLoading(false));
+      }
+    });
+
+    // Public scan verification — a single `getDoc` by the exact (unguessable,
+    // Firestore auto-generated) member ID. This only needs Firestore rules to
+    // allow a public `get` on this one (public-fields-only) document; it
+    // deliberately does not touch the full collection query below, so it
+    // works the same whether the scanning device has ever logged into Malvin
+    // or not.
+    if (scanId) {
+      setCurrentView('public_summary');
+      setScanLookupState('loading');
+
+      getDoc(doc(db, 'members', scanId))
+        .then((snap) => {
+          if (snap.exists()) {
+            setScannedPerson({ id: snap.id, ...snap.data() } as Member);
+            setScanLookupState('found');
+          } else {
+            setScanLookupState('not_found');
+          }
+        })
+        .catch((err) => {
+          console.error('Error resolving scanned member:', err);
+          setScanLookupState('error');
+        });
+    }
+
     const qMembers = query(collection(db, "members"), orderBy("fullName", "asc"));
     const unsubscribeMembers = onSnapshot(qMembers, (snapshot) => {
       const fetchedMembers: Member[] = [];
@@ -112,16 +183,15 @@ export const MalvinAiPersonnelSystem: React.FC = () => {
       });
       setMembers(fetchedMembers);
 
-      if (fetchedMembers.length > 0) {
-        if (scanId) {
-          const scannedPerson = fetchedMembers.find(m => m.id === scanId);
-          if (scannedPerson) {
-            setSelectedMember(scannedPerson);
-          }
-        } else if (!selectedMember) {
-          setSelectedMember(fetchedMembers[0]);
-        }
+      if (fetchedMembers.length > 0 && !scanId && !selectedMember) {
+        setSelectedMember(fetchedMembers[0]);
       }
+      setLoading(false);
+    }, (err) => {
+      // A signed-out or non-staff visitor landing here purely to view a
+      // scanned badge is expected to hit this — it's fine, the direct
+      // getDoc lookup above handles that case independently.
+      console.warn('Members list subscription unavailable (expected for a public scan-only visitor):', err);
       setLoading(false);
     });
 
@@ -132,26 +202,41 @@ export const MalvinAiPersonnelSystem: React.FC = () => {
         fetchedFiles.push({ id: doc.id, ...doc.data() } as SecureFile);
       });
       setSecureFiles(fetchedFiles);
+    }, (err) => {
+      console.warn('Secure files subscription unavailable:', err);
     });
 
-    if (scanId) {
-      setScannedSummaryId(scanId);
-      setCurrentView('public_summary');
-    }
-
     return () => {
+      unsubscribeAuth();
       unsubscribeMembers();
       unsubscribeFiles();
     };
   }, []);
 
   useEffect(() => {
+    // Note: this already looked like placeholder/demo logic (matching a
+    // hardcoded name substring rather than the signed-in user's own uid) —
+    // preserved as-is functionally, just updated since `email` moved off the
+    // public Member type. Worth wiring to the actual authenticated uid later.
     if (currentUserRole === 'WORKER' && members.length > 0) {
-      const workerAccount = members.find(m => m.email.includes('kaelen')) || members[0];
+      const workerAccount = members.find(m => m.fullName.toLowerCase().includes('kaelen')) || members[0];
       setSelectedMember(workerAccount);
       setCurrentView('dashboard');
     }
   }, [currentUserRole, members]);
+
+  // Admin Inspector panel: fetch private contact details for whichever
+  // member is currently selected. Separate from the public scan flow above,
+  // but the same underlying document — this whole dashboard already
+  // requires a signed-in admin/real user to reach at all.
+  useEffect(() => {
+    if (!selectedMember?.id) { setSelectedMemberContact(null); return; }
+    let cancelled = false;
+    getDoc(doc(db, 'members', selectedMember.id, 'private', 'contact'))
+      .then((snap) => { if (!cancelled) setSelectedMemberContact(snap.exists() ? (snap.data() as MemberContact) : null); })
+      .catch((err) => { console.error('Error loading member contact details:', err); if (!cancelled) setSelectedMemberContact(null); });
+    return () => { cancelled = true; };
+  }, [selectedMember?.id]);
 
   // --------------------------------------------------------------------------
   // LOCAL IMAGE FILE SELECTION HANDLER (PREVIEW ONLY)
@@ -173,8 +258,12 @@ export const MalvinAiPersonnelSystem: React.FC = () => {
   // GENUINE SCANNABLE TARGET URL & DOWNLOAD MATRIX GENERATOR
   // --------------------------------------------------------------------------
   const getScanningUrl = (memberId: string) => {
-    const base = window.location.origin + window.location.pathname;
-    return `${base}?scanId=${memberId}`;
+    // Always target /verify explicitly — this used to reuse
+    // window.location.pathname, which only worked because this component is
+    // rendered both at /verify and embedded inside the admin dashboard at /.
+    // If it's ever embedded somewhere else, that would've silently generated
+    // a QR code pointing at the wrong page.
+    return `${window.location.origin}/verify?scanId=${memberId}`;
   };
 
   const triggerQrDownload = (member: Member) => {
@@ -243,15 +332,22 @@ export const MalvinAiPersonnelSystem: React.FC = () => {
         preparedDocs.push({ id: `DOC-${Math.floor(Math.random()*900)}`, name: newMemberForm.certificateName, type: 'Certificate', uploadedAt: today, fileSize: '950 KB' });
       }
 
-      // 3. Save Document to Firestore
-      await addDoc(collection(db, "members"), {
+      // 3. Save the PUBLIC profile fields (these are readable by anyone who
+      // scans the badge — kept deliberately minimal).
+      const newMemberRef = await addDoc(collection(db, "members"), {
         fullName: newMemberForm.fullName,
-        contactNumber: newMemberForm.contactNumber || "+1 (555) 000-0000",
-        email: newMemberForm.email,
         role: newMemberForm.role,
-        startingDate: newMemberForm.startingDate || today,
         profileImage: uploadedImageUrl,
         documents: preparedDocs
+      });
+
+      // 4. Save PRIVATE contact details separately — only real, signed-in
+      // users can read this document (see Firestore rules). This is what
+      // keeps email/phone/start-date staff-only instead of public.
+      await setDoc(doc(db, "members", newMemberRef.id, "private", "contact"), {
+        contactNumber: newMemberForm.contactNumber || "+1 (555) 000-0000",
+        email: newMemberForm.email,
+        startingDate: newMemberForm.startingDate || today,
       });
 
       setIsAddModalOpen(false);
@@ -281,6 +377,33 @@ export const MalvinAiPersonnelSystem: React.FC = () => {
       } catch (err) {
         alert("Firestore error executing delete: " + err);
       }
+    }
+  };
+
+  // One-time: moves any existing member's email/contactNumber/startingDate
+  // off the public document into members/{id}/private/contact. Safe to
+  // re-run — already-migrated members are skipped. Run this BEFORE the new
+  // "members/{id} is publicly gettable" Firestore rule goes live.
+  const handleRunContactMigration = async () => {
+    if (currentUserRole !== 'ADMIN') return showToast("Access Denied: Admin credentials required.");
+    if (!confirm("Run the one-time contact data migration now? This moves every existing member's email/phone/start-date into a private, staff-only record.")) return;
+
+    setIsMigratingContacts(true);
+    try {
+      const migrate = httpsCallable(getFunctions(), 'migrateMemberContactData');
+      const result: any = await migrate();
+      const { migrated, skipped, totalMembers, errors } = result.data;
+      if (errors?.length) {
+        console.error('Migration completed with some errors:', errors);
+        showToast(`Migrated ${migrated}/${totalMembers}, ${errors.length} failed — check console.`);
+      } else {
+        showToast(`Migration complete: ${migrated} migrated, ${skipped} already done (of ${totalMembers} total).`);
+      }
+    } catch (err: any) {
+      console.error('Contact migration failed:', err);
+      showToast(`Migration failed: ${err.message || err}`);
+    } finally {
+      setIsMigratingContacts(false);
     }
   };
 
@@ -327,13 +450,14 @@ export const MalvinAiPersonnelSystem: React.FC = () => {
   };
 
   // Operational filters
+  // Note: email is no longer searchable here — it's private contact data now
+  // fetched per-member on demand, not loaded in bulk with the member list.
   const filteredMembers = members.filter(m => {
     const term = searchQuery.toLowerCase();
     return (
       m.fullName.toLowerCase().includes(term) ||
       m.id.toLowerCase().includes(term) ||
-      m.role.toLowerCase().includes(term) ||
-      m.email.toLowerCase().includes(term)
+      m.role.toLowerCase().includes(term)
     );
   });
 
@@ -344,30 +468,56 @@ export const MalvinAiPersonnelSystem: React.FC = () => {
   // CONDITIONAL LANDING DESIGN FOR SCANNED PROFILE REDIRECTS
   // --------------------------------------------------------------------------
   if (currentView === 'public_summary') {
-    const activeScannedPerson = members.find(m => m.id === scannedSummaryId);
     return (
       <div className="min-h-screen bg-[#0A0A0A] text-gray-100 flex flex-col items-center justify-center p-4">
-        {activeScannedPerson ? (
+        {scanLookupState === 'loading' && (
+          <div className="text-center space-y-2">
+            <div className="w-8 h-8 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mx-auto" />
+            <p className="text-xs text-gray-500">Verifying badge…</p>
+          </div>
+        )}
+
+        {scanLookupState === 'found' && scannedPerson && (
           <div className="w-full max-w-md bg-[#111111] border border-blue-500/30 rounded-2xl p-6 shadow-[0_0_50px_rgba(14,165,233,0.15)] backdrop-blur-xl relative overflow-hidden text-center animate-in zoom-in-95 duration-300">
             <div className="w-24 h-24 mx-auto rounded-full overflow-hidden border-2 border-blue-500 mb-4">
-              <img src={activeScannedPerson.profileImage} alt="" className="w-full h-full object-cover" />
+              <img src={scannedPerson.profileImage} alt="" className="w-full h-full object-cover" />
             </div>
             <div className="inline-block px-3 py-0.5 bg-blue-500/10 text-blue-400 text-[10px] font-mono tracking-widest uppercase rounded-full mb-2">Verified Corporate Malvinai Profile</div>
-            <h2 className="text-xl font-black tracking-tight text-white">{activeScannedPerson.fullName}</h2>
-            <p className="text-sm text-red-500 font-bold mb-4">{activeScannedPerson.role}</p>
-            
-            <div className="bg-black/40 border border-white/5 rounded-xl p-4 text-left space-y-2 text-xs text-gray-300 font-mono">
-              <div className="flex justify-between border-b border-white/5 pb-1.5"><span className="text-gray-500">Malvin ID:</span> <span className="text-white font-bold">{activeScannedPerson.id}</span></div>
-              <div className="flex justify-between border-b border-white/5 pb-1.5"><span className="text-gray-500">Corporate Email:</span> <span className="text-white">{activeScannedPerson.email}</span></div>
-              <div className="flex justify-between border-b border-white/5 pb-1.5"><span className="text-gray-500">Commencement Date:</span> <span className="text-white">{activeScannedPerson.startingDate}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">Contact id:</span> <span className="text-white">{activeScannedPerson.contactNumber}</span></div>
-            </div>
+            <h2 className="text-xl font-black tracking-tight text-white">{scannedPerson.fullName}</h2>
+            <p className="text-sm text-red-500 font-bold mb-4">{scannedPerson.role}</p>
+
+            {viewerIsRealUser && scannedContact ? (
+              <div className="bg-black/40 border border-white/5 rounded-xl p-4 text-left space-y-2 text-xs text-gray-300 font-mono">
+                <div className="flex justify-between border-b border-white/5 pb-1.5"><span className="text-gray-500">Malvin ID:</span> <span className="text-white font-bold">{scannedPerson.id}</span></div>
+                <div className="flex justify-between border-b border-white/5 pb-1.5"><span className="text-gray-500">Corporate Email:</span> <span className="text-white">{scannedContact.email}</span></div>
+                <div className="flex justify-between border-b border-white/5 pb-1.5"><span className="text-gray-500">Commencement Date:</span> <span className="text-white">{scannedContact.startingDate}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Contact id:</span> <span className="text-white">{scannedContact.contactNumber}</span></div>
+              </div>
+            ) : viewerIsRealUser && scannedContactLoading ? (
+              <p className="text-[11px] text-gray-600">Loading contact details…</p>
+            ) : authChecked ? (
+              <p className="text-[11px] text-gray-500 leading-relaxed">
+                Contact details are staff-only. <span className="text-blue-400 font-semibold">Log in with your Malvin staff account</span> to view this person's email, phone, and start date.
+              </p>
+            ) : (
+              <p className="text-[11px] text-gray-600">Checking your session…</p>
+            )}
           </div>
-        ) : (
+        )}
+
+        {scanLookupState === 'not_found' && (
           <div className="text-center space-y-2 max-w-sm">
             <AlertCircle size={36} className="text-red-500 mx-auto animate-pulse" />
             <h3 className="text-md font-bold">Index Target Missing</h3>
-            <p className="text-xs text-gray-500">The scanned personnel identity tag sequence does not correspond to an established document configuration item inside Firestore node clusters.</p>
+            <p className="text-xs text-gray-500">This badge ID doesn't match any active Malvin AI personnel record.</p>
+          </div>
+        )}
+
+        {scanLookupState === 'error' && (
+          <div className="text-center space-y-2 max-w-sm">
+            <AlertCircle size={36} className="text-red-500 mx-auto animate-pulse" />
+            <h3 className="text-md font-bold">Couldn't Verify Badge</h3>
+            <p className="text-xs text-gray-500">Something went wrong reaching Malvin's servers. Please try scanning again.</p>
           </div>
         )}
       </div>
@@ -452,10 +602,18 @@ export const MalvinAiPersonnelSystem: React.FC = () => {
                 </button>
                 <button
                   onClick={() => { setIsDeleteModalOpen(true); setIsEditDropdownOpen(false); }}
-                  className="w-full text-left px-4 py-2.5 text-xs text-red-400 hover:bg-red-600/10 flex items-center space-x-2 font-semibold"
+                  className="w-full text-left px-4 py-2.5 text-xs text-red-400 hover:bg-red-600/10 flex items-center space-x-2 font-semibold border-b border-white/5"
                 >
                   <Trash2 size={14} />
                   <span>Delete Member Node</span>
+                </button>
+                <button
+                  onClick={() => { handleRunContactMigration(); setIsEditDropdownOpen(false); }}
+                  disabled={isMigratingContacts}
+                  className="w-full text-left px-4 py-2.5 text-xs text-blue-400 hover:bg-blue-600/10 flex items-center space-x-2 font-semibold disabled:opacity-50"
+                >
+                  <Lock size={14} />
+                  <span>{isMigratingContacts ? 'Migrating…' : 'Migrate Contact Data (One-Time)'}</span>
                 </button>
               </div>
             )}
@@ -518,7 +676,6 @@ export const MalvinAiPersonnelSystem: React.FC = () => {
                   <thead>
                     <tr className="bg-[#161616] text-[10px] uppercase font-bold text-gray-500 border-b border-white/5 tracking-wider">
                       <th className="p-4">Personnel Identity</th>
-                      <th className="p-4">Contact</th>
                       <th className="p-4">Role Title</th>
                       <th className="p-4 text-center">Interactive ID Tag</th>
                     </tr>
@@ -529,10 +686,9 @@ export const MalvinAiPersonnelSystem: React.FC = () => {
                         <td className="p-4">
                           <div className="flex items-center space-x-3">
                             <img src={member.profileImage} alt="" className="w-8 h-8 rounded-lg object-cover" />
-                            <div><div className="font-bold text-white">{member.fullName}</div><div className="text-[10px] text-gray-500 font-mono">{member.email}</div></div>
+                            <div className="font-bold text-white">{member.fullName}</div>
                           </div>
                         </td>
-                        <td className="p-4 font-mono text-[11px] text-gray-400">{member.contactNumber}</td>
                         <td className="p-4 font-bold text-gray-300">{member.role}</td>
                         <td className="p-4 text-center" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center justify-center space-x-3">
@@ -567,8 +723,14 @@ export const MalvinAiPersonnelSystem: React.FC = () => {
                     </div>
 
                     <div className="space-y-2 text-xs bg-black/40 border border-white/5 p-4 rounded-xl font-mono">
-                      <div className="flex justify-between"><span className="text-gray-500">Contact:</span><span className="text-gray-300 font-bold">{selectedMember.contactNumber}</span></div>
-                      <div className="flex justify-between"><span className="text-gray-500">Email:</span><span className="text-gray-300">{selectedMember.email}</span></div>
+                      {selectedMemberContact ? (
+                        <>
+                          <div className="flex justify-between"><span className="text-gray-500">Contact:</span><span className="text-gray-300 font-bold">{selectedMemberContact.contactNumber}</span></div>
+                          <div className="flex justify-between"><span className="text-gray-500">Email:</span><span className="text-gray-300">{selectedMemberContact.email}</span></div>
+                        </>
+                      ) : (
+                        <p className="text-gray-600">Loading contact details…</p>
+                      )}
                     </div>
 
                     <div className="border border-white/5 p-4 bg-black/30 rounded-xl flex items-center justify-between">

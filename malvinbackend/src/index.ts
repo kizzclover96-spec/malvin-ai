@@ -929,3 +929,80 @@ export const deleteStripeAccount = onCall(
     }
   }
 );
+
+/*
+=====================================
+13. ONE-TIME MIGRATION: SPLIT MEMBER CONTACT DATA
+=====================================
+Moves email/contactNumber/startingDate off the public members/{id} document
+and into members/{id}/private/contact, then strips those fields from the
+public document.
+
+RUN THIS ONCE, AS AN ADMIN, BEFORE deploying the new Firestore rule that
+makes members/{id} publicly readable (`allow get: if true`). Until this has
+run, any existing member still has their contact info sitting on the same
+document that rule is about to open up — running this first closes that gap
+before it's ever exposed.
+
+Safe to re-run: any member already migrated (no legacy fields left on their
+public doc) is skipped rather than touched again.
+*/
+function isAdminCaller(request: { auth?: { token?: Record<string, unknown> } }): boolean {
+  const token = request.auth?.token;
+  return !!token && (token.email === "kizzclover96@gmail.com" || token.role === "ADMIN");
+}
+
+export const migrateMemberContactData = onCall(async (request) => {
+  if (!request.auth?.uid) {
+    throw new HttpsError("unauthenticated", "Authentication is required.");
+  }
+  if (!isAdminCaller(request)) {
+    throw new HttpsError("permission-denied", "Admin access is required to run this migration.");
+  }
+
+  const db = getDb();
+  const { FieldValue } = require("firebase-admin/firestore");
+  const membersSnap = await db.collection("members").get();
+
+  let migrated = 0;
+  let skipped = 0;
+  const errors: string[] = [];
+
+  for (const memberDoc of membersSnap.docs) {
+    const data = memberDoc.data();
+    const hasLegacyFields = "email" in data || "contactNumber" in data || "startingDate" in data;
+
+    if (!hasLegacyFields) {
+      skipped++;
+      continue;
+    }
+
+    try {
+      const contactRef = memberDoc.ref.collection("private").doc("contact");
+
+      await contactRef.set({
+        email: data.email || "",
+        contactNumber: data.contactNumber || "",
+        startingDate: data.startingDate || "",
+      }, { merge: true });
+
+      await memberDoc.ref.update({
+        email: FieldValue.delete(),
+        contactNumber: FieldValue.delete(),
+        startingDate: FieldValue.delete(),
+      });
+
+      migrated++;
+    } catch (err: any) {
+      errors.push(`${memberDoc.id}: ${err.message}`);
+    }
+  }
+
+  return {
+    success: true,
+    migrated,
+    skipped,
+    totalMembers: membersSnap.size,
+    errors,
+  };
+});
