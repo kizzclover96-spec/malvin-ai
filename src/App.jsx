@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { onAuthStateChanged } from "firebase/auth";
-import { auth, firestore as db } from "./firebase";
+import { httpsCallable } from "firebase/functions";
+import { auth, firestore as db, functions } from "./firebase";
 import { 
   collection, 
   collectionGroup, 
@@ -14,7 +15,6 @@ import {
 } from "firebase/firestore";
 
 import Login from "./pages/auth/loginscreen"; 
-import Welcomeview from "./pages/auth/welcomeview"; 
 import { UserOption } from "./pages/navigation/UserOption"; 
 import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import AdsManager from "./components/admin/AdsManagment";
@@ -60,8 +60,12 @@ function App() {
   const [uiMode, setUiMode] = useState(localStorage.getItem("ui_mode") || "");
   const [isWorker, setIsWorker] = useState(false);
   const [assignedManagerUid, setAssignedManagerUid] = useState("");
-  const [flowStep, setFlowStep] = useState("welcome");
+  const [flowStep, setFlowStep] = useState("options");
   const [workerSubScreen, setWorkerSubScreen] = useState("dashboard");
+  // 🟢 "checking" until the signed claim resolves, then "premium" or "free".
+  // UserOption reads this to decide what (if anything) to show in its
+  // status pill — it never checks anything itself.
+  const [premiumStatus, setPremiumStatus] = useState("checking");
 
   // 🟢 VINMOMENT DEEP LINK HANDLING
   // When the native app is opened via a malvinai://food/{uid} or
@@ -177,6 +181,7 @@ function App() {
         setHasWokenUp(false);
         setShowLogin(false);
         setDashboardToken("");
+        setPremiumStatus("checking");
         setIsWorker(false);
         setAssignedManagerUid("");
         localStorage.removeItem("ui_mode");
@@ -255,6 +260,45 @@ function App() {
     return () => unsubscribe();
   }, []);
 
+  // 🟢 PREMIUM STATUS — lives here, not in any one screen, so it runs once
+  // per login no matter which flowStep the user lands on. Reads the signed
+  // custom claim off the ID token (tamper-proof — the client can't alter
+  // it), and falls back to the syncPremiumClaims Cloud Function once if the
+  // claim isn't there yet (covers the brief gap right after a webhook
+  // fires, or a legacy account that predates this system). Never blocks
+  // the UI: UserOption mounts immediately regardless of how long this
+  // takes, it just updates the status pill whenever this resolves.
+  useEffect(() => {
+    if (!user) return;
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        let tokenResult = await user.getIdTokenResult(true);
+        let isPremium = tokenResult.claims.premium === true;
+
+        if (!isPremium) {
+          const syncPremiumClaims = httpsCallable(functions, "syncPremiumClaims");
+          const result = await syncPremiumClaims();
+          isPremium = result?.data?.premium === true;
+        }
+
+        if (!cancelled) {
+          setPremiumStatus(isPremium ? "premium" : "free");
+          setDashboardToken(isPremium ? "MVN_PRM_VALID_2026_A9X7" : "");
+        }
+      } catch (error) {
+        console.error("Premium status check failed:", error);
+        if (!cancelled) setPremiumStatus("free");
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
   useEffect(() => {
     if (!user || isWorker) return;
 
@@ -262,7 +306,7 @@ function App() {
     if (location.state?.flowStep) {
       setFlowStep(location.state.flowStep);
     } else {
-      setFlowStep("welcome"); // Keeps your default startup screen
+      setFlowStep("options"); // Keeps your default startup screen
     }
   }, [user, isWorker, location.state]);
 
@@ -276,11 +320,6 @@ function App() {
     location.pathname.startsWith("/salon/") || 
     location.pathname.startsWith("/chat/");
 
-  const handleWakeUpSequence = (tokenFromWelcome) => {
-    setDashboardToken(tokenFromWelcome);
-    setFlowStep("options"); 
-  };
-  
   const handleCategorySelect = (type) => {
     if (type === "food") { setFlowStep("food"); return; }
     if (type === "fashion") { setFlowStep("device"); return; }
@@ -353,12 +392,11 @@ function App() {
                     }} 
                   />
                 )
-              ) : flowStep === "welcome" ? (
-                <Welcomeview onWakeClick={handleWakeUpSequence} />
               ) : flowStep === "options" ? (
                 <UserOption 
                   onSelectCustomer={() => setFlowStep("front")} 
                   onSelectWorker={() => setFlowStep("category")} 
+                  premiumStatus={premiumStatus}
                 />
               ) : flowStep === "front" ? (
                 <Front onExecuteWalletPayment={handleWalletPaymentExecution} />
@@ -391,7 +429,7 @@ function App() {
         </Routes>
       </div>
 
-      {user && !isAdmin && !isStorefrontPath && (isWorker || (flowStep !== "welcome" && flowStep !== "front" && flowStep !== "options")) && (
+      {user && !isAdmin && !isStorefrontPath && (isWorker || (flowStep !== "front" && flowStep !== "options")) && (
         <FloatingTeamHub managerUid={isWorker ? assignedManagerUid : user.uid} />
       )}
 

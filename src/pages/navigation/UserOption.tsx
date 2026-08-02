@@ -1,14 +1,21 @@
 import React from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { createBusinessStripeAccount } from "../../stripe";
 import { app } from "../../firebase";
+
+type PremiumStatus = "checking" | "premium" | "free";
 
 type UserOptionProps = {
   onSelectCustomer: () => void; // 🟢 Trigger state shift for Front view
   onSelectWorker: () => void;   // Trigger state shift for Category view
+  // 🟢 Driven entirely by App.jsx — this component does no auth or network
+  // work of its own. "checking": App.jsx hasn't confirmed status yet, so a
+  // small neutral pill fills that gap. "premium": the signed claim came
+  // back true, pill turns gold. "free": nothing renders here at all.
+  premiumStatus?: PremiumStatus;
 };
 
-export const UserOption: React.FC<UserOptionProps> = ({ onSelectCustomer, onSelectWorker }) => {
+export const UserOption: React.FC<UserOptionProps> = ({ onSelectCustomer, onSelectWorker, premiumStatus = "free" }) => {
 
     const testStripeConnection = async () => {
         try {
@@ -22,12 +29,58 @@ export const UserOption: React.FC<UserOptionProps> = ({ onSelectCustomer, onSele
             console.error("Stripe error:", error);
         }
     };
+
   return (
     <div className="w-full min-h-screen bg-neutral-950 flex flex-col justify-between items-center px-6 py-12 selection:bg-red-500/30 select-none font-sans overflow-hidden relative">
       
       {/* Structural Ambient Glow Backdrop */}
       <div className="absolute -top-20 -right-20 w-96 h-96 bg-red-600/10 rounded-full filter blur-[100px] pointer-events-none" />
       <div className="absolute -bottom-20 -left-20 w-96 h-96 bg-neutral-800/40 rounded-full filter blur-[100px] pointer-events-none" />
+
+      {/* Status pill — top right corner. Same slot morphs from a quiet
+          "checking" dot into a gold "Premium" badge, or disappears
+          entirely if the user isn't premium. */}
+      <AnimatePresence>
+        {premiumStatus === "checking" && (
+          <motion.div
+            key="checking"
+            layoutId="statusPill"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute top-5 right-5 z-20 w-6 h-6 rounded-full border border-neutral-700/60 bg-neutral-900/60 backdrop-blur-md flex items-center justify-center"
+          >
+            <motion.span
+              className="w-1.5 h-1.5 rounded-full bg-neutral-400"
+              animate={{ opacity: [0.3, 1, 0.3] }}
+              transition={{ duration: 1.1, repeat: Infinity, ease: "easeInOut" }}
+            />
+          </motion.div>
+        )}
+
+        {premiumStatus === "premium" && (
+          <motion.div
+            key="premium"
+            layoutId="statusPill"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute top-5 right-5 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-yellow-300/40 backdrop-blur-md"
+            style={{
+              background: 'linear-gradient(135deg, rgba(255,215,0,0.16), rgba(184,134,11,0.16))',
+              boxShadow: '0 0 14px rgba(255,215,0,0.22)',
+            }}
+          >
+            <svg className="w-3 h-3 text-yellow-300" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M10 1.5l2.39 4.84 5.34.78-3.87 3.77.91 5.32L10 13.77l-4.77 2.44.91-5.32-3.87-3.77 5.34-.78L10 1.5z" />
+            </svg>
+            <span className="text-[9px] font-black uppercase tracking-wider text-yellow-300">
+              Premium
+            </span>
+          </motion.div>
+        )}
+        {/* premiumStatus === "free": nothing renders — not hidden via CSS, just absent from the DOM */}
+      </AnimatePresence>
 
       {/* Header Section */}
       <div className="text-center mt-8 z-10">

@@ -21,6 +21,11 @@ const getDb = () => {
   return getFirestore();
 };
 
+const getRtdb = () => {
+  const { getDatabase } = require("firebase-admin/database");
+  return getDatabase();
+};
+
 function hashPin(pin: string, salt: string): string {
   return crypto.pbkdf2Sync(pin, salt, 1000, 64, "sha512").toString("hex");
 }
@@ -1005,4 +1010,54 @@ export const migrateMemberContactData = onCall(async (request) => {
     totalMembers: membersSnap.size,
     errors,
   };
+});
+
+/*
+=====================================
+14. PREMIUM CLAIMS SYNC (SELF-HEAL)
+=====================================
+Why this exists: `users/{uid}/tier` in Realtime Database is only ever
+written by the signature-verified LemonSqueezy webhook, so it's a
+trustworthy record — but a plain database read is still something every
+screen would otherwise need its own listener for.
+
+This mirrors that trusted value into a Firebase Auth *custom claim*
+instead. Claims live inside the user's signed ID token, so the client can
+trust `getIdTokenResult().claims.premium` directly — nothing it can
+tamper with, since only `admin.auth().setCustomUserClaims()`, called from
+trusted backend code, can ever change it.
+
+The webhook sets this claim itself the moment a subscription event
+arrives. This callable is the fallback the client triggers when the claim
+isn't there yet — covers the brief race window right after checkout, and
+lets pre-existing premium accounts self-heal into the claims system.
+
+Safety: `uid` always comes from the verified auth token
+(`request.auth.uid`), never from anything the client sends — a caller can
+only ever resync *their own* status, never anyone else's.
+*/
+export const syncPremiumClaims = onCall(async (request) => {
+  if (!request.auth?.uid) {
+    throw new HttpsError("unauthenticated", "Sign in to check premium status.");
+  }
+
+  const uid = request.auth.uid;
+  const rtdb = getRtdb();
+
+  const snap = await rtdb.ref(`users/${uid}/tier`).get();
+  const tier = snap.exists() ? snap.val() : "free";
+  const isPremium = tier === "premium";
+
+  const { getAuth } = require("firebase-admin/auth");
+  const authAdmin = getAuth();
+  const userRecord = await authAdmin.getUser(uid);
+  const existingClaims = userRecord.customClaims || {};
+
+  await authAdmin.setCustomUserClaims(uid, {
+    ...existingClaims,
+    premium: isPremium,
+    tier,
+  });
+
+  return { premium: isPremium, tier };
 });

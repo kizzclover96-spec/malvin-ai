@@ -84,6 +84,8 @@ export const Front: React.FC = () => {
 
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isRadarOpen, setIsRadarOpen] = useState(false);
+  // Inline-styled to sidestep the global `.icon-button { all: unset }` rule
+  const [isSearchHovered, setIsSearchHovered] = useState(false);
 
   // Active booking receipts state
   const [activeReceipts, setActiveReceipts] = useState<any[]>([]);
@@ -558,7 +560,7 @@ export const Front: React.FC = () => {
         <motion.button 
           whileTap={{ scale: 0.92 }}
           onClick={() => setIsDrawerOpen(true)}
-          className="icon-button p-3 hover:bg-neutral-100 rounded-full transition-colors text-[#E53935]"
+          className="icon-button p-3 bg-white rounded-full border border-neutral-100 shadow-[0_10px_24px_rgba(0,0,0,0.08)] hover:shadow-[0_14px_30px_rgba(0,0,0,0.12)] transition-shadow text-[#E53935]"
         >
           <Menu className="w-6 h-6" />
         </motion.button>
@@ -570,7 +572,7 @@ export const Front: React.FC = () => {
           {momScore > 0 ? (
             <button
               onClick={() => setIsSettingsOpen(true)}
-              className="inline-flex items-center gap-1 mt-0.5 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-cyan-400/15 to-violet-500/15 border border-violet-300/30 hover:from-cyan-400/25 hover:to-violet-500/25 transition-colors"
+              className="inline-flex items-center gap-1.5 mt-1 px-3 py-1 rounded-full bg-white border border-violet-200/70 shadow-[0_6px_16px_rgba(139,92,246,0.12)] hover:shadow-[0_8px_20px_rgba(139,92,246,0.18)] transition-shadow"
               title="Your MomScore"
             >
               <span className="text-[10px]">✦</span>
@@ -580,30 +582,30 @@ export const Front: React.FC = () => {
               </span>
             </button>
           ) : (
-            <p className="text-[11px] font-bold text-neutral-400 uppercase tracking-widest mt-0.5">
+            <p className="inline-flex items-center mt-1 px-3 py-1 rounded-full bg-neutral-50 border border-neutral-200/70 text-[10px] font-bold text-neutral-400 uppercase tracking-widest">
               Welcome back
             </p>
           )}
         </div>
 
-        {/* RIGHT ACTION BUTTONS CONTAINER */}
-        <div className="flex items-center gap-1">
+        {/* RIGHT ACTION BUTTONS — grouped into one pill, matching the bottom nav pill */}
+        <div className="flex items-center gap-1 bg-neutral-50/70 border border-neutral-200/50 backdrop-blur-xl px-2 py-2 rounded-full shadow-[0_10px_24px_rgba(0,0,0,0.05)]">
           {/* RADAR SCANNER BUTTON (Pulsing Radar Wave style) */}
           <motion.button 
             whileTap={{ scale: 0.92 }}
             onClick={() => setIsRadarOpen(true)}
-            className="icon-button relative p-3 hover:bg-neutral-100 rounded-full transition-colors text-[#E53935]"
+            className="icon-button relative p-2.5 hover:bg-white rounded-full transition-colors text-[#E53935]"
             title="Open MalvinAI Radar"
           >
             <Radio className="w-6 h-6 animate-pulse" />
-            <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
           </motion.button>
 
           {/* SETTINGS GEAR BUTTON */}
           <motion.button 
             whileTap={{ scale: 0.92 }}
             onClick={() => setIsSettingsOpen(true)}
-            className="icon-button p-3 hover:bg-neutral-100 rounded-full transition-colors text-[#E53935]"
+            className="icon-button p-2.5 hover:bg-white rounded-full transition-colors text-[#E53935]"
           >
             <Settings className="w-6 h-6" />
           </motion.button>
@@ -645,7 +647,28 @@ export const Front: React.FC = () => {
                 <motion.button
                   whileTap={{ scale: 0.95 }}
                   onClick={handleQueryLaunch}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-3 bg-neutral-100 hover:bg-[#E53935] text-neutral-500 hover:text-white rounded-full transition-all"
+                  onMouseEnter={() => setIsSearchHovered(true)}
+                  onMouseLeave={() => setIsSearchHovered(false)}
+                  style={{
+                    position: 'absolute',
+                    right: '10px',
+                    top: '50%',
+                    marginTop: '-20px',
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '9999px',
+                    border: 'none',
+                    outline: 'none',
+                    boxShadow: 'none',
+                    padding: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    backgroundColor: isSearchHovered ? '#E53935' : '#F5F5F5',
+                    color: isSearchHovered ? '#FFFFFF' : '#737373',
+                    transition: 'background-color 0.2s ease, color 0.2s ease',
+                  }}
                 >
                   <Search className="w-4 h-4" />
                 </motion.button>
@@ -674,8 +697,8 @@ export const Front: React.FC = () => {
       </div>
 
       {/* NAVIGATION PILL */}
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-5">
-        {/* PILL CONTAINER (SCALED UP) */}
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40">
+        {/* PILL CONTAINER — home, wallet, and scanner all live in one centered pill */}
         <div className="bg-neutral-50/70 border border-neutral-200/50 backdrop-blur-xl px-4 py-3 rounded-[2.5rem] flex items-center gap-3 shadow-[0_16px_36px_rgba(0,0,0,0.06)] relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-transparent pointer-events-none" />
           
@@ -700,17 +723,17 @@ export const Front: React.FC = () => {
           >
             <WalletIcon className="w-6 h-6" />
           </button>
-        </div>
 
-        {/* SCANNER BUTTON (SCALED UP) */}
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={() => setIsScannerOpen(true)}
-          className="icon-button w-16 h-16 bg-[#E53935] hover:bg-[#d32f2f] rounded-full flex items-center justify-center text-white shadow-[0_14px_32px_rgba(229,57,53,0.35)] hover:shadow-[0_18px_36px_rgba(229,57,53,0.45)] transition-all"
-        >
-          <QrCode className="w-7 h-7" />
-        </motion.button>
+          {/* SCANNER BUTTON — now inside the pill, still visually the primary action */}
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setIsScannerOpen(true)}
+            className="icon-button w-14 h-14 bg-[#E53935] hover:bg-[#d32f2f] rounded-full flex items-center justify-center text-white shadow-[0_10px_26px_rgba(229,57,53,0.35)] hover:shadow-[0_14px_30px_rgba(229,57,53,0.45)] transition-all"
+          >
+            <QrCode className="w-6 h-6" />
+          </motion.button>
+        </div>
       </div>
 
       {/* SCANNER MODAL WRAPPER LAYER */}
