@@ -148,7 +148,7 @@ export const UserOption: React.FC<UserOptionProps> = ({ onSelectCustomer, onSele
 
       {/* Footer Branding Label */}
       <div className="z-10 text-[10px] font-bold text-neutral-600 tracking-widest uppercase">
-        Malvin Automation System v2.4
+        Malvin business to customer system vBeta
       </div>
     </div>
   );
