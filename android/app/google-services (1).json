@@ -1,0 +1,55 @@
+{
+  "project_info": {
+    "project_number": "581592622100",
+    "firebase_url": "https://malvin-df21d-default-rtdb.firebaseio.com",
+    "project_id": "malvin-df21d",
+    "storage_bucket": "malvin-df21d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:581592622100:android:c087ec587683d9c2a53301",
+        "android_client_info": {
+          "package_name": "com.malvin.agent"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "581592622100-4t798l4en2c1uupt3bv0dop68c2nccaj.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.malvin.agent",
+            "certificate_hash": "7b94c8eddc1fee4f2d0fa1b9a1bb6f97ea9e1c20"
+          }
+        },
+        {
+          "client_id": "581592622100-margm0rpko5f3nmrqqace7l85n9se0so.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCmLh0zGYQERqileDjFCELlpyDoNhCEk5s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "581592622100-margm0rpko5f3nmrqqace7l85n9se0so.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "581592622100-ef7vhar3mr87ret9ntm05bmf9hk9dnk9.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.malvin.agent"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

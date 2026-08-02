@@ -20,6 +20,7 @@ import { Wallet } from '../addons/Wallet';
 import { QRScannerView } from '../addons/QRScannerView';
 import { StoreFront } from './StoreFront';
 import { RecentBusinesses } from './RecentBusinesses';
+import { NearbyBusinesses } from './NearbyBusinesses';
 import { VinMoment, getTierForScore, MOM_MILESTONE_STEP } from './Vinmoment';
 import { ReceiptsDrawer } from './ReceiptsDrawer';
 
@@ -44,7 +45,8 @@ const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     welcomeBack: 'Welcome back',
     scanPrompt1: 'Scan a VINQR or input',
     scanPrompt2: 'to continue.',
-    vinlinkPlaceholder: 'Enter VINLINK...',
+    vinlinkPlaceholder: 'Search businesses, products or VINLINK...',
+    nearby: 'Nearby',
     settings: 'Settings',
     controlPanel: 'Control Panel Matrix',
     personalDetails: 'Personal Details',
@@ -78,7 +80,8 @@ const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     welcomeBack: 'Willkommen zurück',
     scanPrompt1: 'Scanne einen VINQR oder gib',
     scanPrompt2: 'ein, um fortzufahren.',
-    vinlinkPlaceholder: 'VINLINK eingeben...',
+    vinlinkPlaceholder: 'Geschäfte, Produkte oder VINLINK suchen...',
+    nearby: 'In der Nähe',
     settings: 'Einstellungen',
     controlPanel: 'Kontrollzentrum',
     personalDetails: 'Persönliche Daten',
@@ -112,7 +115,8 @@ const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     welcomeBack: 'Content de te revoir',
     scanPrompt1: 'Scanne un VINQR ou saisis',
     scanPrompt2: 'pour continuer.',
-    vinlinkPlaceholder: 'Entrer VINLINK...',
+    vinlinkPlaceholder: 'Rechercher des commerces, produits ou un VINLINK...',
+    nearby: 'À proximité',
     settings: 'Paramètres',
     controlPanel: 'Panneau de contrôle',
     personalDetails: 'Informations personnelles',
@@ -146,7 +150,8 @@ const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     welcomeBack: 'Bienvenido de nuevo',
     scanPrompt1: 'Escanea un VINQR o ingresa',
     scanPrompt2: 'para continuar.',
-    vinlinkPlaceholder: 'Ingresar VINLINK...',
+    vinlinkPlaceholder: 'Buscar negocios, productos o VINLINK...',
+    nearby: 'Cerca de ti',
     settings: 'Ajustes',
     controlPanel: 'Panel de control',
     personalDetails: 'Datos personales',
@@ -180,7 +185,8 @@ const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     welcomeBack: 'Bentornato',
     scanPrompt1: 'Scansiona un VINQR o inserisci',
     scanPrompt2: 'per continuare.',
-    vinlinkPlaceholder: 'Inserisci VINLINK...',
+    vinlinkPlaceholder: 'Cerca attività, prodotti o VINLINK...',
+    nearby: 'Nelle vicinanze',
     settings: 'Impostazioni',
     controlPanel: 'Pannello di controllo',
     personalDetails: 'Dati personali',
@@ -904,7 +910,7 @@ export const Front: React.FC = () => {
         </div>
 
         {/* RIGHT ACTION BUTTONS — grouped into one pill, matching the bottom nav pill */}
-        <div className="flex items-center gap-1 bg-neutral-50/70 dark:bg-neutral-900/70 border border-neutral-200/50 dark:border-neutral-800/60 backdrop-blur-xl px-2 py-2 rounded-full shadow-[0_10px_24px_rgba(0,0,0,0.05)]">
+        <div className="flex items-center gap-2.5 bg-neutral-50/70 dark:bg-neutral-900/70 border border-neutral-200/50 dark:border-neutral-800/60 backdrop-blur-xl px-2.5 py-2 rounded-full shadow-[0_10px_24px_rgba(0,0,0,0.05)]">
           {/* RADAR SCANNER BUTTON (Pulsing Radar Wave style) */}
           <motion.button 
             whileTap={{ scale: 0.92 }}
@@ -996,6 +1002,13 @@ export const Front: React.FC = () => {
               
             </motion.main>
 
+            {/* NEARBY DISCOVERY ROW — gives the home tab a reason to explore,
+                not just a waiting room for search/history */}
+            <NearbyBusinesses
+              onSelectBusiness={(uid) => handleBusinessVisit(uid)}
+              label={t('nearby')}
+            />
+
             {/* HISTORICAL COMPONENT RENDERING ROW */}
             <RecentBusinesses 
               onSelectBusiness={(uid) => handleBusinessVisit(uid)} // 🟢 Changed from setActiveStoreUid
@@ -1017,7 +1030,7 @@ export const Front: React.FC = () => {
       {/* NAVIGATION PILL */}
       <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40">
         {/* PILL CONTAINER — home, wallet, and scanner all live in one centered pill */}
-        <div className="bg-neutral-50/70 dark:bg-neutral-900/70 border border-neutral-200/50 dark:border-neutral-800/60 backdrop-blur-xl px-4 py-3 rounded-[2.5rem] flex items-center gap-3 shadow-[0_16px_36px_rgba(0,0,0,0.06)] relative overflow-hidden">
+        <div className="bg-neutral-50/50 dark:bg-neutral-900/50 border border-neutral-200/40 dark:border-neutral-800/50 backdrop-blur-xl px-4 py-3 rounded-[2.5rem] flex items-center gap-3 shadow-[0_10px_28px_rgba(0,0,0,0.04)] relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 dark:via-white/5 to-transparent pointer-events-none" />
           
           <button

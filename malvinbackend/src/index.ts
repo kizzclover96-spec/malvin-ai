@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { setGlobalOptions } from "firebase-functions/v2";
 import { onCall, onRequest, HttpsError } from "firebase-functions/v2/https";
+import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { initializeApp } from "firebase-admin/app";
 import * as crypto from "crypto";
 
@@ -1061,3 +1062,67 @@ export const syncPremiumClaims = onCall(async (request) => {
 
   return { premium: isPremium, tier };
 });
+
+/*
+=====================================
+15. SEND PUSH ON NEW NOTIFICATION
+=====================================
+The client's pushNotification() helper (see Notification.tsx) only ever
+writes a document to customers/{uid}/notifications — it never talks to a
+device directly. This trigger fires immediately after that write and is
+the piece that actually delivers a push to the customer's phone: it reads
+the device token saved by registerPushNotifications() (see
+src/services/pushNotifications.ts) onto the customer's own doc, and sends
+one FCM message.
+
+Safe to fail loud rather than silently: if there's no token yet (customer
+never opened the app on a native device, or hasn't granted permission),
+this just logs and returns — the in-app notification bell still works
+regardless, since that reads the Firestore doc directly and doesn't
+depend on push delivery at all.
+*/
+export const sendPushOnNewNotification = onDocumentCreated(
+  "customers/{uid}/notifications/{notificationId}",
+  async (event) => {
+    const uid = event.params.uid;
+    const notification = event.data?.data();
+    if (!notification) return;
+
+    const db = getDb();
+    const customerSnap = await db.collection("customers").doc(uid).get();
+    const token = customerSnap.data()?.pushToken;
+
+    if (!token) {
+      console.log(`No push token for customer ${uid} — skipping push, in-app bell still works.`);
+      return;
+    }
+
+    const { getMessaging } = require("firebase-admin/messaging");
+
+    try {
+      await getMessaging().send({
+        token,
+        notification: {
+          title: notification.title || "Malvin AI",
+          body: notification.message || "",
+        },
+        data: {
+          type: notification.type || "",
+        },
+      });
+    } catch (err: any) {
+      // A token can go stale (app uninstalled, permissions revoked, etc).
+      // Firebase reports that as messaging/registration-token-not-registered
+      // — clean it up so future notifications don't keep failing against a
+      // dead token.
+      if (err?.code === "messaging/registration-token-not-registered") {
+        await db.collection("customers").doc(uid).update({
+          pushToken: require("firebase-admin/firestore").FieldValue.delete(),
+        });
+        console.log(`Removed stale push token for customer ${uid}.`);
+      } else {
+        console.error(`Failed to send push to customer ${uid}:`, err);
+      }
+    }
+  }
+);

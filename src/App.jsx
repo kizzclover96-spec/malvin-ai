@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { httpsCallable } from "firebase/functions";
 import { auth, firestore as db, functions } from "./firebase";
+import { registerPushNotifications, clearPushToken } from "./services/pushNotifications";
 import { 
   collection, 
   collectionGroup, 
@@ -66,6 +67,10 @@ function App() {
   // UserOption reads this to decide what (if anything) to show in its
   // status pill — it never checks anything itself.
   const [premiumStatus, setPremiumStatus] = useState("checking");
+  // Tracks the last signed-in uid purely so sign-out can clear that
+  // device's push token — by the time onAuthStateChanged fires with
+  // currentUser === null, the uid it belonged to is already gone.
+  const lastUidRef = useRef(null);
 
   // 🟢 VINMOMENT DEEP LINK HANDLING
   // When the native app is opened via a malvinai://food/{uid} or
@@ -177,6 +182,10 @@ function App() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (!currentUser) {
+        if (lastUidRef.current) {
+          clearPushToken(lastUidRef.current);
+          lastUidRef.current = null;
+        }
         setUser(null);
         setHasWokenUp(false);
         setShowLogin(false);
@@ -191,6 +200,8 @@ function App() {
         setHasWokenUp(false); 
         
         if (currentUser.email === 'kizzclover96@gmail.com') {
+          lastUidRef.current = currentUser.uid;
+          registerPushNotifications(currentUser.uid);
           setUser(currentUser);
           setLoading(false);
           return;
@@ -247,10 +258,14 @@ function App() {
             setAssignedManagerUid("");
           }
           
+          lastUidRef.current = currentUser.uid;
+          registerPushNotifications(currentUser.uid);
           setUser(currentUser);
           setLoading(false);
         } catch (error) {
           console.error("Error executing operational worker check:", error);
+          lastUidRef.current = currentUser.uid;
+          registerPushNotifications(currentUser.uid);
           setUser(currentUser);
           setLoading(false);
         }
