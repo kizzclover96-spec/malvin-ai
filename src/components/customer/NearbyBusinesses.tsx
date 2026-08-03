@@ -43,89 +43,37 @@ interface CardVisual {
   photoUrl?: string;
 }
 
-// Real category photos (restaurant interiors, food, salon/spa) via
-// Unsplash's API — free to use, properly licensed, unlike hardcoding
-// random photo URLs scraped from the web (copyright risk + those links
-// can disappear or block hotlinking anytime). Requires a free Unsplash
-// developer Access Key in VITE_UNSPLASH_ACCESS_KEY; without one, this
-// quietly returns no photos and the existing gradient+icon look is used
-// instead — nothing breaks either way.
-const UNSPLASH_ACCESS_KEY = (import.meta as any).env?.VITE_UNSPLASH_ACCESS_KEY as string | undefined;
-const PHOTO_CACHE_KEY = 'malvin_category_photos_v1';
-// Long TTL on purpose — these are generic category photos (not tied to
-// the user's location), so there's no reason to refetch often and burn
-// through Unsplash's rate limit.
-const PHOTO_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+// Local photos the business owner supplied (placed in /public, so they're
+// served from site root — e.g. /rest.png). Assigned deterministically per
+// business (same business always gets the same photo), independent of the
+// gradient+icon palette below, which now only ever shows as a fallback if
+// a photo file is missing/fails to load.
+const RESTAURANT_PHOTOS = ['/Downloade.png', '/rest.png', '/resturant2.png', '/resturant3.png'];
+const SALON_PHOTOS = ['/nail1.png', '/nail2.png', '/nail4.png', '/nails5.png', '/nails6.png'];
 
-async function fetchUnsplashPhotos(query: string, count: number): Promise<string[]> {
-  if (!UNSPLASH_ACCESS_KEY) return [];
-  try {
-    const res = await fetch(
-      `https://api.unsplash.com/photos/random?query=${encodeURIComponent(query)}&count=${count}&orientation=landscape&client_id=${UNSPLASH_ACCESS_KEY}`
-    );
-    if (!res.ok) return [];
-    const data = await res.json();
-    return (Array.isArray(data) ? data : [])
-      .map((p: any) => p?.urls?.regular)
-      .filter(Boolean);
-  } catch (err) {
-    console.error('Failed to fetch category photos:', err);
-    return [];
-  }
-}
-
-async function getCategoryPhotos(): Promise<{ restaurant: string[]; salon: string[] }> {
-  try {
-    const raw = sessionStorage.getItem(PHOTO_CACHE_KEY);
-    if (raw) {
-      const cached = JSON.parse(raw);
-      if (Date.now() - cached.timestamp < PHOTO_CACHE_TTL_MS) {
-        return { restaurant: cached.restaurant || [], salon: cached.salon || [] };
-      }
-    }
-  } catch {
-    // corrupt/unavailable cache — fall through and refetch
-  }
-
-  const [restaurant, salon] = await Promise.all([
-    fetchUnsplashPhotos('restaurant interior food table', 4),
-    fetchUnsplashPhotos('hair salon beauty spa interior', 4),
-  ]);
-
-  try {
-    sessionStorage.setItem(PHOTO_CACHE_KEY, JSON.stringify({ timestamp: Date.now(), restaurant, salon }));
-  } catch {
-    // sessionStorage full/unavailable — non-fatal, just skip caching
-  }
-
-  return { restaurant, salon };
-}
-
-
-// Assigns a default visual per business, deterministically (same business
-// always gets the same look), while making sure the same visual never
-// appears on two consecutive cards in the swipe order. Now also attaches
-// a real photo per slot when one was successfully fetched for that
-// category — the gradient+icon underneath still exists as an instant
-// fallback (shown while photos are loading, or if none were fetched).
-function assignVisuals(
-  list: NearbyBusiness[],
-  restaurantPhotos: string[],
-  salonPhotos: string[]
-): Array<NearbyBusiness & { visual: CardVisual }> {
-  let prevKey = '';
+// Assigns a photo (from the local sets above) and a fallback gradient+icon
+// per business, deterministically (same business always gets the same
+// look), while making sure the same photo never appears on two consecutive
+// cards in the swipe order. The gradient+icon only ever shows if a photo
+// file is missing or fails to load (see the <img onError> below).
+function assignVisuals(list: NearbyBusiness[]): Array<NearbyBusiness & { visual: CardVisual }> {
+  let prevPhotoKey = '';
   return list.map((biz) => {
     const isSalon = biz.type === 'salon';
     const palette = isSalon ? SALON_VISUALS : RESTAURANT_VISUALS;
-    const photos = isSalon ? salonPhotos : restaurantPhotos;
-    let idx = hashToInt(biz.id) % palette.length;
-    let key = `${biz.type}-${idx}`;
-    if (key === prevKey) {
-      idx = (idx + 1) % palette.length;
-      key = `${biz.type}-${idx}`;
+    const photos = isSalon ? SALON_PHOTOS : RESTAURANT_PHOTOS;
+
+    const gradientIdx = hashToInt(biz.id) % palette.length;
+
+    let photoIdx = hashToInt(`${biz.id}-photo`) % photos.length;
+    let photoKey = `${biz.type}-${photoIdx}`;
+    if (photoKey === prevPhotoKey) {
+      photoIdx = (photoIdx + 1) % photos.length;
+      photoKey = `${biz.type}-${photoIdx}`;
     }
-    prevKey = key;
-    return { ...biz, visual: { ...palette[idx], photoUrl: photos[idx] } };
+    prevPhotoKey = photoKey;
+
+    return { ...biz, visual: { ...palette[gradientIdx], photoUrl: photos[photoIdx] } };
   });
 }
 
@@ -133,16 +81,10 @@ export const NearbyBusinesses: React.FC<NearbyBusinessesProps> = ({ onSelectBusi
   const [businesses, setBusinesses] = useState<NearbyBusiness[]>([]);
   const [status, setStatus] = useState<'idle' | 'loading' | 'ready' | 'denied' | 'error'>('idle');
   const [index, setIndex] = useState(0);
-  const [categoryPhotos, setCategoryPhotos] = useState<{ restaurant: string[]; salon: string[] }>({
-    restaurant: [],
-    salon: [],
-  });
-
-  // Independent of the geolocation-based business fetch below — these are
-  // generic category photos, not tied to the user's actual location.
-  useEffect(() => {
-    getCategoryPhotos().then(setCategoryPhotos);
-  }, []);
+  // Tracks which card ids had their local photo fail to load, so those
+  // specific cards fall back to the gradient+icon look instead of a
+  // broken image, without affecting any other card.
+  const [brokenPhotoIds, setBrokenPhotoIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!navigator.geolocation) {
@@ -155,7 +97,7 @@ export const NearbyBusinesses: React.FC<NearbyBusinessesProps> = ({ onSelectBusi
       async (pos) => {
         try {
           const results = await getNearbyBusinesses(pos.coords.latitude, pos.coords.longitude);
-          setBusinesses(results.slice(0, 10));
+          setBusinesses(results.slice(0, 5));
           setStatus('ready');
         } catch (err) {
           console.error('Failed to load nearby businesses:', err);
@@ -167,15 +109,12 @@ export const NearbyBusinesses: React.FC<NearbyBusinessesProps> = ({ onSelectBusi
     );
   }, []);
 
-  const cards = useMemo(
-    () => assignVisuals(businesses, categoryPhotos.restaurant, categoryPhotos.salon),
-    [businesses, categoryPhotos]
-  );
+  const cards = useMemo(() => assignVisuals(businesses), [businesses]);
 
   if (status !== 'ready' || cards.length === 0) return null;
 
   const current = cards[index];
-  const statusInfo = getStatusLabel(current.hours);
+  const statusInfo = getStatusLabel(current.openingTime, current.closingTime, current.offDays);
   const Icon = current.visual.Icon;
   const BadgeIcon = categoryBadgeIcon(current.type);
 
@@ -217,13 +156,19 @@ export const NearbyBusinesses: React.FC<NearbyBusinessesProps> = ({ onSelectBusi
             className="absolute inset-0 w-full h-full text-left rounded-[1.75rem] overflow-hidden shadow-[0_16px_36px_rgba(0,0,0,0.12)] cursor-grab active:cursor-grabbing"
             style={{ touchAction: 'pan-y' }}
           >
-            {/* Background: real logo if the business has one, then a real
-                fetched category photo, then the illustrated gradient as a
-                last-resort fallback (e.g. no Unsplash key configured) */}
+            {/* Background: real logo if the business has one, then the
+                business owner's own local photo for its category, then the
+                illustrated gradient as a last-resort fallback (only if that
+                photo file is missing or fails to load). */}
             {current.logo ? (
               <img src={current.logo} alt={current.name} className="absolute inset-0 w-full h-full object-cover" />
-            ) : current.visual.photoUrl ? (
-              <img src={current.visual.photoUrl} alt={current.name} className="absolute inset-0 w-full h-full object-cover" />
+            ) : current.visual.photoUrl && !brokenPhotoIds.has(current.id) ? (
+              <img
+                src={current.visual.photoUrl}
+                alt={current.name}
+                className="absolute inset-0 w-full h-full object-cover"
+                onError={() => setBrokenPhotoIds((prev) => new Set(prev).add(current.id))}
+              />
             ) : (
               <div
                 className="absolute inset-0 w-full h-full flex items-center justify-center"
@@ -233,8 +178,11 @@ export const NearbyBusinesses: React.FC<NearbyBusinessesProps> = ({ onSelectBusi
               </div>
             )}
 
-            {/* Darkening gradient so white text stays legible over any image/color */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+            {/* No full-card tint anymore — it was muddying the actual
+                photo's real colors. Legibility for the bottom text now
+                comes from a small backdrop-blur pill behind just that
+                text, same technique as the rating/category badges below,
+                so the photo itself stays untouched. */}
 
             {/* Top-right category badge */}
             <div className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/30 backdrop-blur-md flex items-center justify-center">
@@ -247,12 +195,20 @@ export const NearbyBusinesses: React.FC<NearbyBusinessesProps> = ({ onSelectBusi
               <span className="text-[10px] font-bold text-white">{current.rating.toFixed(1)}</span>
             </div>
 
-            {/* Name + location */}
-            <div className="absolute bottom-9 left-4 right-4">
-              <h4 className="text-white font-black text-base leading-tight truncate">{current.name}</h4>
-              <p className="text-white/80 text-[11px] font-medium truncate mt-0.5">
-                {current.address || `${current.distanceKm.toFixed(1)}km away`}
-              </p>
+            {/* Name + location — own backdrop pill instead of relying on a
+                card-wide dark wash. Icon next to the name makes the
+                restaurant/salon type obvious at a glance, right where the
+                customer is actually looking, not just in the small corner badge. */}
+            <div className="absolute bottom-9 left-4 right-4 flex">
+              <div className="max-w-full bg-black/45 backdrop-blur-md rounded-xl px-3 py-1.5">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <BadgeIcon className="w-3.5 h-3.5 text-white/90 shrink-0" strokeWidth={2.25} />
+                  <h4 className="text-white font-black text-base leading-tight truncate">{current.name}</h4>
+                </div>
+                <p className="text-white/80 text-[11px] font-medium truncate mt-0.5">
+                  {current.address || `${current.distanceKm.toFixed(1)}km away`}
+                </p>
+              </div>
             </div>
 
             {/* Bottom-left open/closed status */}

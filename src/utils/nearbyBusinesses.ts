@@ -13,7 +13,9 @@ export interface NearbyBusiness {
   longitude: number;
   distanceKm: number;
   logo?: string;
-  hours?: any;
+  openingTime?: string;
+  closingTime?: string;
+  offDays?: string[];
   vinLink: string;
   isOpenNow: boolean;
 }
@@ -31,7 +33,7 @@ const PER_COLLECTION_LIMIT = 40;
 // browser session and without the user having moved meaningfully, costs
 // ZERO additional Firestore reads. Cleared automatically when the tab
 // closes (sessionStorage), so it never goes stale across visits.
-const CACHE_KEY = 'malvin_nearby_cache_v1';
+const CACHE_KEY = 'malvin_nearby_cache_v2';
 const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes
 const CACHE_MOVE_THRESHOLD_KM = 1; // refetch if the user has moved ~1km+
 
@@ -48,17 +50,26 @@ function calculateDistanceKm(lat1: number, lon1: number, lat2: number, lon2: num
 // Best-effort open/closed read from a business's stored hours. Returns
 // null (not just "closed") when hours data is missing or malformed — the
 // card should show no badge at all rather than guess wrong.
-export function getStatusLabel(hours: any): { open: boolean; label: string } | null {
-  if (!hours) return null;
+export function getStatusLabel(
+  openingTime?: string,
+  closingTime?: string,
+  offDays?: string[]
+): { open: boolean; label: string } | null {
+  if (!openingTime || !closingTime) return null;
   try {
-    const dayKeys = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
-    const today = dayKeys[new Date().getDay()];
-    const todayHours = hours[today];
-    if (!todayHours?.open || !todayHours?.close) return null;
-
     const now = new Date();
-    const [openH, openM] = todayHours.open.split(':').map(Number);
-    const [closeH, closeM] = todayHours.close.split(':').map(Number);
+
+    if (offDays && offDays.length > 0) {
+      const todayName = new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(now);
+      if (offDays.includes(todayName)) {
+        return { open: false, label: 'Closed today' };
+      }
+    }
+
+    const [openH, openM] = openingTime.split(':').map(Number);
+    const [closeH, closeM] = closingTime.split(':').map(Number);
+    if ([openH, openM, closeH, closeM].some((n) => Number.isNaN(n))) return null;
+
     const nowMinutes = now.getHours() * 60 + now.getMinutes();
     const openMinutes = openH * 60 + openM;
     const closeMinutes = closeH * 60 + closeM;
@@ -66,15 +77,15 @@ export function getStatusLabel(hours: any): { open: boolean; label: string } | n
 
     return {
       open: isOpen,
-      label: isOpen ? `Open till ${todayHours.close}` : `Closed · Opens ${todayHours.open}`,
+      label: isOpen ? `Open till ${closingTime}` : `Closed · Opens ${openingTime}`,
     };
   } catch {
     return null;
   }
 }
 
-function isBusinessOpenNow(hours: any): boolean {
-  const status = getStatusLabel(hours);
+function isBusinessOpenNow(openingTime?: string, closingTime?: string, offDays?: string[]): boolean {
+  const status = getStatusLabel(openingTime, closingTime, offDays);
   return status ? status.open : true; // default to "not flagged closed" if unknown
 }
 
@@ -110,9 +121,11 @@ async function fetchNearbyBusinessesUncached(
         longitude: data.longitude,
         distanceKm,
         logo: data.logo,
-        hours: data.hours,
+        openingTime: data.openingTime,
+        closingTime: data.closingTime,
+        offDays: data.offDays,
         vinLink: data.vinLink || (col.type === 'salon' ? `/salon/${docSnap.id}` : `/food/${docSnap.id}`),
-        isOpenNow: isBusinessOpenNow(data.hours),
+        isOpenNow: isBusinessOpenNow(data.openingTime, data.closingTime, data.offDays),
       });
     });
   }

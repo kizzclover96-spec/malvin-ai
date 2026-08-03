@@ -59,7 +59,7 @@ export const QRScannerView: React.FC<QRScannerViewProps> = ({ onClose, onScanSuc
       <div className="flex items-center justify-between pt-4">
         <div>
           <h3 className="text-lg font-black tracking-tight">Malvin Lens</h3>
-          <p className="text-xs text-neutral-400 font-medium">Align QR matrix sequence inside target frame</p>
+          <p className="text-xs text-neutral-400 font-medium">Please ensure vinqr is in the scanner bracket</p>
         </div>
         <button onClick={onClose} className="p-3 bg-neutral-900 rounded-full text-white/80 hover:text-white transition-colors">
           <X className="w-5 h-5" />
@@ -76,7 +76,7 @@ export const QRScannerView: React.FC<QRScannerViewProps> = ({ onClose, onScanSuc
       {/* SECURE ACTIVE SIGNATURE FOOTER */}
       <div className="w-full text-center pb-6 text-[11px] font-bold text-neutral-500 uppercase tracking-widest flex items-center justify-center gap-2">
         <Camera className="w-3.5 h-3.5" />
-        <span>Secure hardware scanner active</span>
+        <span>Scanner is active</span>
       </div>
     </motion.div>
   );

@@ -7,9 +7,17 @@ import { getAuth, onAuthStateChanged, User } from 'firebase/auth';
 interface StoreFrontProps {
   businessUid: string;
   onExit: () => void;
+  // Passed by Front.tsx alongside businessUid/onExit — accepted here so the
+  // component's prop type actually matches how it's called. Not wired into
+  // any behavior yet (see note below); currently REQUEST_DIRECT_PAYMENT
+  // always goes through the internal createDirectPaymentSession + Stripe
+  // redirect path regardless of these.
+  userUid?: string;
+  userWalletBalance?: number;
+  onExecutePayment?: (amount: number, targetBusinessUid: string, customerUid: string) => Promise<void>;
 }
 
-export const StoreFront: React.FC<StoreFrontProps> = ({ businessUid, onExit }) => {
+export const StoreFront: React.FC<StoreFrontProps> = ({ businessUid, onExit, userUid, userWalletBalance, onExecutePayment }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isUntrustedDomain, setIsUntrustedDomain] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
@@ -29,6 +37,8 @@ export const StoreFront: React.FC<StoreFrontProps> = ({ businessUid, onExit }) =
         parsedUrl.hostname.endsWith('malvin.app') || 
         parsedUrl.hostname.endsWith('web.app') ||
         parsedUrl.hostname.endsWith('firebaseapp.com') ||
+        parsedUrl.hostname === 'malvinai.com' ||
+        parsedUrl.hostname === 'www.malvinai.com' ||
         parsedUrl.hostname === 'localhost';
 
       if (!isAllowedDomain) {

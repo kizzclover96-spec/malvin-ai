@@ -37,3 +37,5 @@ dist-ssr
 *.sw?
 
 functions/.env
+.env
+.env.local

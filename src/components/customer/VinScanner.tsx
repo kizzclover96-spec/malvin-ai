@@ -146,6 +146,69 @@ function calculateRadarCoordinates(
 }
 
 /**
+ * Nudges radar markers apart when two or more land within MIN_SEPARATION_PERCENT
+ * of each other (e.g. neighboring businesses at nearly the same bearing/distance),
+ * so cards never render stacked directly on top of one another. Runs a handful of
+ * simple repulsion passes — cheap, deterministic given the same input order, and
+ * re-clamps everything back inside the radar's usable radius afterward.
+ */
+function resolveRadarOverlaps(
+  points: Array<{ x: number; y: number }>,
+  minSeparationPercent = 16,
+  maxRadiusPercent = 42,
+  iterations = 30
+): Array<{ x: number; y: number }> {
+  const resolved = points.map((p) => ({ ...p }));
+
+  for (let iter = 0; iter < iterations; iter++) {
+    let movedAny = false;
+
+    for (let i = 0; i < resolved.length; i++) {
+      for (let j = i + 1; j < resolved.length; j++) {
+        const dx = resolved[j].x - resolved[i].x;
+        const dy = resolved[j].y - resolved[i].y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < minSeparationPercent) {
+          movedAny = true;
+
+          if (dist < 0.0001) {
+            // Identical coordinates (e.g. two businesses sharing an address) —
+            // nudge apart along the golden angle so any cluster of exact
+            // duplicates fans out evenly rather than all landing on one spot.
+            const angle = (j * 137.5 * Math.PI) / 180;
+            const nudge = minSeparationPercent / 2;
+            resolved[i].x -= Math.cos(angle) * nudge;
+            resolved[i].y -= Math.sin(angle) * nudge;
+            resolved[j].x += Math.cos(angle) * nudge;
+            resolved[j].y += Math.sin(angle) * nudge;
+            continue;
+          }
+
+          const overlap = (minSeparationPercent - dist) / 2;
+          const ux = dx / dist;
+          const uy = dy / dist;
+          resolved[i].x -= ux * overlap;
+          resolved[i].y -= uy * overlap;
+          resolved[j].x += ux * overlap;
+          resolved[j].y += uy * overlap;
+        }
+      }
+    }
+
+    if (!movedAny) break;
+  }
+
+  // Keep every marker inside the radar's visible ring even after nudging.
+  return resolved.map((p) => {
+    const dist = Math.sqrt(p.x * p.x + p.y * p.y);
+    if (dist <= maxRadiusPercent) return p;
+    const scale = maxRadiusPercent / dist;
+    return { x: p.x * scale, y: p.y * scale };
+  });
+}
+
+/**
  * Formats a "HH:MM" 24-hour string into a friendly 12-hour clock string, e.g. "9:00 AM".
  */
 function formatTime12h(time: string): string {
@@ -338,6 +401,15 @@ export const VinScanner: React.FC<VinScannerProps> = ({ onClose, onOpenFavorites
           }
         });
       }
+
+      // Neighboring businesses can land at nearly the same bearing/distance
+      // and stack directly on top of each other on the radar — spread any
+      // that are too close together apart before rendering.
+      const scattered = resolveRadarOverlaps(fetched.map((b) => ({ x: b.radarX ?? 0, y: b.radarY ?? 0 })));
+      fetched.forEach((b, i) => {
+        b.radarX = scattered[i].x;
+        b.radarY = scattered[i].y;
+      });
 
       console.log(`[VinScanner] ✅ Radar Scan Complete! Found ${fetched.length} business(es) within ${RADIUS_KM} km radius.`, fetched);
       setBusinesses(fetched);

@@ -413,9 +413,20 @@ export const Front: React.FC = () => {
         cleanUid = segments.filter(Boolean).pop() || cleanUid;
     }
 
-    const storefrontTarget = rawInput.includes('http') 
-        ? rawInput 
-        : `https://malvinai.com/salon/${rawInput}`;
+    let storefrontTarget: string;
+    if (rawInput.includes('http')) {
+        // Already a full URL — e.g. a QR scan or a shared VinMoment link.
+        storefrontTarget = rawInput;
+    } else if (rawInput.startsWith('/')) {
+        // A relative vinLink from NearbyBusinesses/RecentBusinesses, e.g.
+        // "/food/abc123" or "/salon/abc123" — keep whichever type it
+        // already points to instead of forcing everything to /salon/.
+        storefrontTarget = `https://malvinai.com${rawInput}`;
+    } else {
+        // Bare UID with no type info at all (legacy fallback) — default
+        // to salon, matching the previous behavior for this case only.
+        storefrontTarget = `https://malvinai.com/salon/${rawInput}`;
+    }
 
     setActiveStoreUid(storefrontTarget);
 
@@ -1119,7 +1130,7 @@ export const Front: React.FC = () => {
           <motion.div
             key="home-view"
             initial={{ opacity: 0, scale: 0.99 }}
-            animate={{ opacity: 0.82, scale: 1 }}
+            animate={{ opacity: 1, scale: 1 }}
             className="w-full flex flex-col items-center"
           >
             <motion.main 
