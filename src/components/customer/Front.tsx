@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Menu, Settings, Search, Home, Wallet as WalletIcon, QrCode, X, 
@@ -42,6 +42,10 @@ const LANGUAGES: { code: LanguageCode; label: string }[] = [
 const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
   en: {
     hi: 'Hi',
+    goodMorning: 'Good morning',
+    goodAfternoon: 'Good afternoon',
+    goodEvening: 'Good evening',
+    goodNight: 'Good night',
     welcomeBack: 'Welcome back',
     scanPrompt1: 'Scan a VINQR or input',
     scanPrompt2: 'to continue.',
@@ -77,6 +81,10 @@ const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
   },
   de: {
     hi: 'Hallo',
+    goodMorning: 'Guten Morgen',
+    goodAfternoon: 'Guten Tag',
+    goodEvening: 'Guten Abend',
+    goodNight: 'Gute Nacht',
     welcomeBack: 'Willkommen zurück',
     scanPrompt1: 'Scanne einen VINQR oder gib',
     scanPrompt2: 'ein, um fortzufahren.',
@@ -112,6 +120,10 @@ const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
   },
   fr: {
     hi: 'Salut',
+    goodMorning: 'Bonjour',
+    goodAfternoon: 'Bon après-midi',
+    goodEvening: 'Bonsoir',
+    goodNight: 'Bonne nuit',
     welcomeBack: 'Content de te revoir',
     scanPrompt1: 'Scanne un VINQR ou saisis',
     scanPrompt2: 'pour continuer.',
@@ -147,6 +159,10 @@ const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
   },
   es: {
     hi: 'Hola',
+    goodMorning: 'Buenos días',
+    goodAfternoon: 'Buenas tardes',
+    goodEvening: 'Buenas noches',
+    goodNight: 'Buenas noches',
     welcomeBack: 'Bienvenido de nuevo',
     scanPrompt1: 'Escanea un VINQR o ingresa',
     scanPrompt2: 'para continuar.',
@@ -182,6 +198,10 @@ const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
   },
   it: {
     hi: 'Ciao',
+    goodMorning: 'Buongiorno',
+    goodAfternoon: 'Buon pomeriggio',
+    goodEvening: 'Buonasera',
+    goodNight: 'Buonanotte',
     welcomeBack: 'Bentornato',
     scanPrompt1: 'Scansiona un VINQR o inserisci',
     scanPrompt2: 'per continuare.',
@@ -242,6 +262,11 @@ export const Front: React.FC = () => {
   const [isPersonalDetailsModalOpen, setIsPersonalDetailsModalOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [fullName, setFullName] = useState('');
+  const [profilePicture, setProfilePicture] = useState('');
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [showFullProfilePic, setShowFullProfilePic] = useState(false);
+  const avatarPressTimer = useRef<any>(null);
+  const avatarLongPressFired = useRef(false);
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -258,6 +283,16 @@ export const Front: React.FC = () => {
   // this keeps a typo from ever showing "undefined" on screen).
   const t = (key: string): string =>
     TRANSLATIONS[language]?.[key] ?? TRANSLATIONS.en[key] ?? key;
+  // Time-based greeting for the new header layout — computed fresh on
+  // every render, so it naturally flips from "Good morning" to "Good
+  // afternoon" etc. as the day goes on without needing its own timer.
+  const greeting = (() => {
+    const hour = new Date().getHours();
+    if (hour < 5) return t('goodNight');
+    if (hour < 12) return t('goodMorning');
+    if (hour < 18) return t('goodAfternoon');
+    return t('goodEvening');
+  })();
   const [isFavoritesExpanded, setIsFavoritesExpanded] = useState(false);
   const [isLanguageExpanded, setIsLanguageExpanded] = useState(false);
   const [favoriteStores, setFavoriteStores] = useState<FavoriteItem[]>([]);
@@ -276,6 +311,7 @@ export const Front: React.FC = () => {
   const [isRadarOpen, setIsRadarOpen] = useState(false);
   // Inline-styled to sidestep the global `.icon-button { all: unset }` rule
   const [isSearchHovered, setIsSearchHovered] = useState(false);
+  const [isScannerHovered, setIsScannerHovered] = useState(false);
 
   // Active booking receipts state
   const [activeReceipts, setActiveReceipts] = useState<any[]>([]);
@@ -441,6 +477,17 @@ export const Front: React.FC = () => {
           // rather than trusting it blindly.
           const storedLanguage = LANGUAGES.some(l => l.code === data.language) ? data.language : 'en';
           setLanguage(storedLanguage);
+        }
+
+        // Fetched separately from its own document (customers/{uid}/profile/photo)
+        // — see handlePhotoUpload for why it's kept out of the main doc.
+        try {
+          const photoSnap = await getDoc(doc(db, 'customers', user.uid, 'profile', 'photo'));
+          if (photoSnap.exists()) {
+            setProfilePicture(photoSnap.data().profilePicture || '');
+          }
+        } catch (photoErr) {
+          console.error('Error reading profile picture:', photoErr);
         }
       } catch (err) {
         console.error('Error reading profile ledger data node:', err);
@@ -713,6 +760,89 @@ export const Front: React.FC = () => {
       unsubscribeFood();
     };
   }, [user]);
+
+  // Resizes/compresses the picked image client-side before it ever touches
+  // Firestore — an uncompressed phone photo can be several MB, well past
+  // what's sane to store inline on a document. Downscaling to a small
+  // square avatar keeps this well under Firestore's 1MB doc limit.
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user?.uid) return;
+    setIsUploadingPhoto(true);
+
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const resized = await new Promise<string>((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+          const size = 240; // small, fixed avatar size — plenty for a circular profile pic
+          const canvas = document.createElement('canvas');
+          canvas.width = size;
+          canvas.height = size;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) { reject(new Error('Canvas not supported')); return; }
+
+          // Center-crop to a square before scaling down, so the avatar
+          // isn't stretched/distorted for non-square source photos.
+          const minSide = Math.min(img.width, img.height);
+          const sx = (img.width - minSide) / 2;
+          const sy = (img.height - minSide) / 2;
+          ctx.drawImage(img, sx, sy, minSide, minSide, 0, 0, size, size);
+
+          resolve(canvas.toDataURL('image/jpeg', 0.82));
+        };
+        img.onerror = reject;
+        img.src = dataUrl;
+      });
+
+      // Written to its OWN document — customers/{uid}/profile/photo —
+      // rather than merged into the main customers/{uid} doc. That doc
+      // gets written constantly (dark mode, notifications, language,
+      // MomScore) and also has a live onSnapshot listener on it; Firestore
+      // bills a write by the FULL document's size in 1KB steps regardless
+      // of which field changed, so a 20-60KB image sitting in there was
+      // making every unrelated toggle cost 20-60x what it should, and
+      // re-downloading the photo on every snapshot update. Isolating it
+      // keeps the main doc small and cheap again.
+      await setDoc(doc(db, 'customers', user.uid, 'profile', 'photo'), { profilePicture: resized }, { merge: true });
+      setProfilePicture(resized);
+      showToast('success', 'Profile picture updated.');
+    } catch (err) {
+      console.error('Photo upload failed:', err);
+      showToast('error', 'Could not update your profile picture.');
+    } finally {
+      setIsUploadingPhoto(false);
+      e.target.value = ''; // allow re-selecting the same file later
+    }
+  };
+
+  // Distinguishes a short tap (open Settings, as before) from a long press
+  // (show the profile picture full-size). Uses Pointer Events so the same
+  // logic covers both touch and mouse without double-firing.
+  const AVATAR_LONG_PRESS_MS = 450;
+  const handleAvatarPressStart = () => {
+    avatarLongPressFired.current = false;
+    avatarPressTimer.current = setTimeout(() => {
+      avatarLongPressFired.current = true;
+      if (profilePicture) setShowFullProfilePic(true);
+    }, AVATAR_LONG_PRESS_MS);
+  };
+  const handleAvatarPressEnd = () => {
+    clearTimeout(avatarPressTimer.current);
+    if (!avatarLongPressFired.current) {
+      setIsSettingsOpen(true);
+    }
+  };
+  const handleAvatarPressCancel = () => {
+    clearTimeout(avatarPressTimer.current);
+  };
+
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user?.uid) return;
@@ -851,17 +981,15 @@ export const Front: React.FC = () => {
         transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
         className="w-full flex items-center justify-between z-10"
       >
-        <motion.button 
-          whileTap={{ scale: 0.92 }}
-          onClick={() => setIsDrawerOpen(true)}
-          className="icon-button p-3 bg-white dark:bg-neutral-900 rounded-full border border-neutral-100 dark:border-neutral-800 shadow-[0_10px_24px_rgba(0,0,0,0.08)] hover:shadow-[0_14px_30px_rgba(0,0,0,0.12)] transition-shadow text-[#E53935]"
-        >
-          <Menu className="w-6 h-6" />
-        </motion.button>
-
-        <div className="text-center max-w-[50%] truncate">
-          <h2 className="text-sm font-black text-neutral-900 dark:text-neutral-50 tracking-tight truncate">
-            {t('hi')}, {fullName || user.email}
+        {/* LEFT: greeting / name / MomScore — replaces the old center-text +
+            floating menu circle. The menu/receipts trigger now lives in
+            the bottom pill (see the "dropdown" button there). */}
+        <div className="text-left max-w-[62%]">
+          <p className="text-[11px] font-bold text-neutral-400 dark:text-neutral-500 leading-none mb-1">
+            {greeting}
+          </p>
+          <h2 className="text-sm font-black text-neutral-900 dark:text-neutral-50 tracking-tight truncate leading-none">
+            {fullName || user.email}
           </h2>
           {momScore > 0 ? (
             <button
@@ -871,7 +999,7 @@ export const Front: React.FC = () => {
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '5px',
-                marginTop: '4px',
+                marginTop: '6px',
                 padding: '4px 10px',
                 borderRadius: '9999px',
                 backgroundColor: isDarkMode ? '#1c1917' : '#FFFFFF',
@@ -903,35 +1031,67 @@ export const Front: React.FC = () => {
               </span>
             </button>
           ) : (
-            <p className="inline-flex items-center mt-1 px-2 py-0.5 rounded-full bg-neutral-50 dark:bg-neutral-900 border border-neutral-200/70 dark:border-neutral-800 text-[9px] font-bold text-neutral-400 dark:text-neutral-500 uppercase tracking-widest leading-none">
+            <p className="inline-flex items-center mt-1.5 px-2 py-0.5 rounded-full bg-neutral-50 dark:bg-neutral-900 border border-neutral-200/70 dark:border-neutral-800 text-[9px] font-bold text-neutral-400 dark:text-neutral-500 uppercase tracking-widest leading-none">
               {t('welcomeBack')}
             </p>
           )}
         </div>
 
-        {/* RIGHT ACTION BUTTONS — grouped into one pill, matching the bottom nav pill */}
+        {/* RIGHT: only notifications + profile avatar now — Radar moved to
+            the bottom pill. */}
         <div className="flex items-center gap-2.5 bg-neutral-50/70 dark:bg-neutral-900/70 border border-neutral-200/50 dark:border-neutral-800/60 backdrop-blur-xl px-2.5 py-2 rounded-full shadow-[0_10px_24px_rgba(0,0,0,0.05)]">
-          {/* RADAR SCANNER BUTTON (Pulsing Radar Wave style) */}
-          <motion.button 
-            whileTap={{ scale: 0.92 }}
-            onClick={() => setIsRadarOpen(true)}
-            className="icon-button relative p-2.5 hover:bg-white dark:hover:bg-neutral-800 rounded-full transition-colors text-[#E53935]"
-            title="Open MalvinAI Radar"
-          >
-            <Radio className="w-6 h-6 animate-pulse" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
-          </motion.button>
-
           {/* NOTIFICATIONS BELL — red dot shows only while there's something unread */}
           <NotificationBell userId={user.uid} />
 
-          {/* SETTINGS GEAR BUTTON */}
+          {/* PROFILE AVATAR — short tap opens Settings (same as before);
+              long press shows the picture full-size instead. Stays a small
+              clipped circle either way. Inline styles ONLY here (no
+              className, especially no "icon-button") — that class's
+              `all: unset` was wiping out width/height/border-radius/
+              overflow, which is exactly why the picture was rendering at
+              full size instead of staying a clipped circle. */}
           <motion.button 
             whileTap={{ scale: 0.92 }}
-            onClick={() => setIsSettingsOpen(true)}
-            className="icon-button p-2.5 hover:bg-white dark:hover:bg-neutral-800 rounded-full transition-colors text-[#E53935]"
+            onPointerDown={handleAvatarPressStart}
+            onPointerUp={handleAvatarPressEnd}
+            onPointerLeave={handleAvatarPressCancel}
+            onPointerCancel={handleAvatarPressCancel}
+            title="Tap for Settings · hold to view photo"
+            style={{
+              width: '36px',
+              height: '36px',
+              minWidth: '36px',
+              minHeight: '36px',
+              borderRadius: '9999px',
+              overflow: 'hidden',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: isDarkMode ? '#404040' : '#e5e5e5',
+              color: isDarkMode ? '#d4d4d4' : '#737373',
+              border: isDarkMode ? '1px solid rgba(115,115,115,0.5)' : '1px solid rgba(212,212,212,0.5)',
+              padding: 0,
+              cursor: 'pointer',
+              appearance: 'none',
+              outline: 'none',
+              userSelect: 'none',
+            }}
           >
-            <Settings className="w-6 h-6" />
+            {profilePicture ? (
+              <img
+                src={profilePicture}
+                alt="Profile"
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  pointerEvents: 'none',
+                  display: 'block',
+                }}
+              />
+            ) : (
+              <User style={{ width: '18px', height: '18px', pointerEvents: 'none' }} />
+            )}
           </motion.button>
         </div>
       </motion.header>
@@ -966,7 +1126,7 @@ export const Front: React.FC = () => {
                   value={vinQuery}
                   onChange={(e) => setVinQuery(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleQueryLaunch()}
-                  className="w-full bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-[2rem] pl-6 pr-14 py-4.5 text-sm font-medium text-neutral-900 dark:text-neutral-50 placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none focus:border-[#E53935] focus:bg-white dark:focus:bg-neutral-900 focus:ring-4 focus:ring-[#E53935]/5 transition-all"
+                  className="w-full bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-[2rem] pl-6 pr-14 py-3 text-sm font-medium text-neutral-900 dark:text-neutral-50 placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none focus:border-[#E53935] focus:bg-white dark:focus:bg-neutral-900 focus:ring-4 focus:ring-[#E53935]/5 transition-all"
                 />
                 <motion.button
                   whileTap={{ scale: 0.95 }}
@@ -989,8 +1149,8 @@ export const Front: React.FC = () => {
                     alignItems: 'center',
                     justifyContent: 'center',
                     cursor: 'pointer',
-                    backgroundColor: isSearchHovered ? '#E53935' : (isDarkMode ? '#262626' : '#F5F5F5'),
-                    color: isSearchHovered ? '#FFFFFF' : (isDarkMode ? '#a3a3a3' : '#737373'),
+                    backgroundColor: isSearchHovered ? '#E53935' : (isDarkMode ? '#1a1a1a' : '#E5E5E5'),
+                    color: isSearchHovered ? '#FFFFFF' : (isDarkMode ? '#d4d4d4' : '#525252'),
                     transition: 'background-color 0.2s ease, color 0.2s ease',
                   }}
                 >
@@ -1027,9 +1187,9 @@ export const Front: React.FC = () => {
         )}
       </div>
 
-      {/* NAVIGATION PILL */}
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40">
-        {/* PILL CONTAINER — home, wallet, and scanner all live in one centered pill */}
+      {/* NAVIGATION PILL + SCANNER CIRCLE — kept as one centered group */}
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3">
+        {/* PILL CONTAINER — home, wallet, radar, and the menu/receipts dropdown */}
         <div className="bg-neutral-50/50 dark:bg-neutral-900/50 border border-neutral-200/40 dark:border-neutral-800/50 backdrop-blur-xl px-4 py-3 rounded-[2.5rem] flex items-center gap-3 shadow-[0_10px_28px_rgba(0,0,0,0.04)] relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 dark:via-white/5 to-transparent pointer-events-none" />
           
@@ -1055,17 +1215,67 @@ export const Front: React.FC = () => {
             <WalletIcon className="w-6 h-6" />
           </button>
 
-          {/* SCANNER BUTTON — now inside the pill, still visually the primary action */}
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setIsScannerOpen(true)}
-            className="icon-button w-14 h-14 bg-[#E53935] hover:bg-[#d32f2f] rounded-full flex items-center justify-center text-white shadow-[0_10px_26px_rgba(229,57,53,0.35)] hover:shadow-[0_14px_30px_rgba(229,57,53,0.45)] transition-all"
+          {/* RADAR — moved here from the header */}
+          <motion.button 
+            whileTap={{ scale: 0.92 }}
+            onClick={() => setIsRadarOpen(true)}
+            className="icon-button relative p-4 rounded-full transition-all flex items-center justify-center text-neutral-400 dark:text-neutral-600 hover:text-[#E53935] dark:hover:text-[#E53935]"
+            title="Open MalvinAI Radar"
           >
-            <QrCode className="w-6 h-6" />
+            <Radio className="w-6 h-6" />
+            <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
           </motion.button>
+
+          {/* DROPDOWN — the receipts/history drawer, moved here from its old
+              floating top-left circle so the header could be freed up for
+              the greeting block. */}
+          <button
+            onClick={() => setIsDrawerOpen(true)}
+            className="icon-button p-4 rounded-full transition-all flex items-center justify-center text-neutral-400 dark:text-neutral-600 hover:text-neutral-600 dark:hover:text-neutral-300"
+            title="Receipts & history"
+          >
+            <Menu className="w-6 h-6" />
+          </button>
         </div>
+
+        {/* SCANNER — now its own circle just outside the pill, not inside
+            it. Inline styles ONLY (no className, especially no
+            "icon-button") — same fix as the avatar: that class's
+            `all: unset` was wiping out the background/size/shadow entirely,
+            which is why it wasn't visible. */}
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={() => setIsScannerOpen(true)}
+          onMouseEnter={() => setIsScannerHovered(true)}
+          onMouseLeave={() => setIsScannerHovered(false)}
+          style={{
+            width: '56px',
+            height: '56px',
+            minWidth: '56px',
+            minHeight: '56px',
+            borderRadius: '9999px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: isScannerHovered ? '#C62828' : '#D64545', // a slightly softer, warmer red than the pure brand red
+            color: '#FFFFFF',
+            border: 'none',
+            outline: 'none',
+            appearance: 'none',
+            padding: 0,
+            cursor: 'pointer',
+            flexShrink: 0,
+            boxShadow: isScannerHovered
+              ? '0 14px 30px rgba(198,40,40,0.45)'
+              : '0 10px 26px rgba(214,69,69,0.35)',
+            transition: 'background-color 0.2s ease, box-shadow 0.2s ease',
+          }}
+        >
+          <QrCode style={{ width: '24px', height: '24px' }} />
+        </motion.button>
       </div>
+
 
       {/* SCANNER MODAL WRAPPER LAYER */}
       <AnimatePresence>
@@ -1455,6 +1665,37 @@ export const Front: React.FC = () => {
                 </div>
 
                 <form onSubmit={handleSaveProfile} className="space-y-4 text-xs">
+                  {/* PROFILE PICTURE — what shows in the header avatar */}
+                  <div className="flex flex-col items-center pb-2">
+                    <label className="relative cursor-pointer group">
+                      <div className="w-20 h-20 rounded-full overflow-hidden bg-neutral-200 dark:bg-neutral-700 border border-neutral-300/50 dark:border-neutral-600/50 flex items-center justify-center">
+                        {profilePicture ? (
+                          <img src={profilePicture} alt="Profile" className="w-full h-full object-cover" />
+                        ) : (
+                          <User className="w-8 h-8 text-neutral-500 dark:text-neutral-300" />
+                        )}
+                        {isUploadingPhoto && (
+                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center rounded-full">
+                            <Loader2 className="w-5 h-5 text-white animate-spin" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-[#E53935] border-2 border-white dark:border-neutral-900 flex items-center justify-center group-hover:scale-105 transition-transform">
+                        <Save className="w-3 h-3 text-white" />
+                      </div>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handlePhotoUpload}
+                        disabled={isUploadingPhoto}
+                        className="hidden"
+                      />
+                    </label>
+                    <p className="text-[9px] font-semibold text-neutral-400 dark:text-neutral-500 mt-2 normal-case">
+                      Tap to change your profile picture
+                    </p>
+                  </div>
+
                   <div>
                     <label className="block text-[10px] font-black uppercase text-neutral-400 dark:text-neutral-500 mb-1.5 ml-1">{t('fullName')}</label>
                     <input 
@@ -1520,20 +1761,49 @@ export const Front: React.FC = () => {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.3 }}
-            className="fixed inset-0 z-50 bg-slate-950 flex flex-col"
+            className="fixed inset-0 z-50 flex flex-col"
           >
-            {/* Top Close Bar */}
-            <div className="absolute top-4 right-4 z-50">
-              <button
-                onClick={() => setIsRadarOpen(false)}
-                className="p-3 rounded-full bg-slate-900/80 border border-slate-700/60 text-slate-300 hover:text-white transition-colors"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
+            {/* Embedded VinScanner Component — it now renders its own
+                close/refresh buttons and bottom tab bar, so no external
+                close overlay is needed here anymore. Favorites/Receipts
+                tabs hand off to the screens that already exist for those,
+                rather than duplicating them inside the radar. */}
+            <VinScanner
+              onClose={() => setIsRadarOpen(false)}
+              onOpenFavorites={() => {
+                setIsRadarOpen(false);
+                setIsSettingsOpen(true);
+                setIsFavoritesExpanded(true);
+              }}
+              onOpenReceipts={() => {
+                setIsRadarOpen(false);
+                setIsDrawerOpen(true);
+              }}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-            {/* Embedded VinScanner Component */}
-            <VinScanner />
+      {/* PROFILE PICTURE FULL-VIEW — long-press on the avatar only. Tap
+          anywhere to dismiss. */}
+      <AnimatePresence>
+        {showFullProfilePic && profilePicture && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowFullProfilePic(false)}
+            className="fixed inset-0 z-[95] bg-black/90 backdrop-blur-sm flex items-center justify-center p-8"
+          >
+            <motion.img
+              initial={{ opacity: 0, scale: 0.92 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.92 }}
+              transition={{ type: 'spring', damping: 22, stiffness: 260 }}
+              src={profilePicture}
+              alt="Profile"
+              className="max-w-full max-h-full rounded-[2rem] object-contain shadow-2xl"
+            />
           </motion.div>
         )}
       </AnimatePresence>

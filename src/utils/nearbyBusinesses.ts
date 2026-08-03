@@ -4,6 +4,7 @@ import { firestore as db } from '../firebase';
 export interface NearbyBusiness {
   id: string;
   name: string;
+  type: 'restaurant' | 'salon';
   category: string;
   address: string;
   rating: number;
@@ -44,16 +45,16 @@ function calculateDistanceKm(lat1: number, lon1: number, lat2: number, lon2: num
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// Best-effort "open now" check from a business's stored hours. Defaults to
-// true (don't show a closed badge) if hours data is missing or malformed —
-// an absent badge is a lot less confusing than a wrong one.
-function isBusinessOpenNow(hours: any): boolean {
-  if (!hours) return true;
+// Best-effort open/closed read from a business's stored hours. Returns
+// null (not just "closed") when hours data is missing or malformed — the
+// card should show no badge at all rather than guess wrong.
+export function getStatusLabel(hours: any): { open: boolean; label: string } | null {
+  if (!hours) return null;
   try {
     const dayKeys = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
     const today = dayKeys[new Date().getDay()];
     const todayHours = hours[today];
-    if (!todayHours?.open || !todayHours?.close) return true;
+    if (!todayHours?.open || !todayHours?.close) return null;
 
     const now = new Date();
     const [openH, openM] = todayHours.open.split(':').map(Number);
@@ -61,11 +62,20 @@ function isBusinessOpenNow(hours: any): boolean {
     const nowMinutes = now.getHours() * 60 + now.getMinutes();
     const openMinutes = openH * 60 + openM;
     const closeMinutes = closeH * 60 + closeM;
+    const isOpen = nowMinutes >= openMinutes && nowMinutes <= closeMinutes;
 
-    return nowMinutes >= openMinutes && nowMinutes <= closeMinutes;
+    return {
+      open: isOpen,
+      label: isOpen ? `Open till ${todayHours.close}` : `Closed · Opens ${todayHours.open}`,
+    };
   } catch {
-    return true;
+    return null;
   }
+}
+
+function isBusinessOpenNow(hours: any): boolean {
+  const status = getStatusLabel(hours);
+  return status ? status.open : true; // default to "not flagged closed" if unknown
 }
 
 async function fetchNearbyBusinessesUncached(
@@ -91,6 +101,7 @@ async function fetchNearbyBusinessesUncached(
       results.push({
         id: docSnap.id,
         name: data.brandName || data.salonName || 'Unnamed Business',
+        type: col.type as 'restaurant' | 'salon',
         category: data.category || col.type,
         address: data.address || '',
         rating: typeof data.rating === 'number' ? data.rating : 5.0,
