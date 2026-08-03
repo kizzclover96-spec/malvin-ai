@@ -40,15 +40,84 @@ function hashToInt(str: string): number {
 interface CardVisual {
   gradient: string;
   Icon: React.ElementType;
+  photoUrl?: string;
 }
+
+// Real category photos (restaurant interiors, food, salon/spa) via
+// Unsplash's API — free to use, properly licensed, unlike hardcoding
+// random photo URLs scraped from the web (copyright risk + those links
+// can disappear or block hotlinking anytime). Requires a free Unsplash
+// developer Access Key in VITE_UNSPLASH_ACCESS_KEY; without one, this
+// quietly returns no photos and the existing gradient+icon look is used
+// instead — nothing breaks either way.
+const UNSPLASH_ACCESS_KEY = (import.meta as any).env?.VITE_UNSPLASH_ACCESS_KEY as string | undefined;
+const PHOTO_CACHE_KEY = 'malvin_category_photos_v1';
+// Long TTL on purpose — these are generic category photos (not tied to
+// the user's location), so there's no reason to refetch often and burn
+// through Unsplash's rate limit.
+const PHOTO_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+
+async function fetchUnsplashPhotos(query: string, count: number): Promise<string[]> {
+  if (!UNSPLASH_ACCESS_KEY) return [];
+  try {
+    const res = await fetch(
+      `https://api.unsplash.com/photos/random?query=${encodeURIComponent(query)}&count=${count}&orientation=landscape&client_id=${UNSPLASH_ACCESS_KEY}`
+    );
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (Array.isArray(data) ? data : [])
+      .map((p: any) => p?.urls?.regular)
+      .filter(Boolean);
+  } catch (err) {
+    console.error('Failed to fetch category photos:', err);
+    return [];
+  }
+}
+
+async function getCategoryPhotos(): Promise<{ restaurant: string[]; salon: string[] }> {
+  try {
+    const raw = sessionStorage.getItem(PHOTO_CACHE_KEY);
+    if (raw) {
+      const cached = JSON.parse(raw);
+      if (Date.now() - cached.timestamp < PHOTO_CACHE_TTL_MS) {
+        return { restaurant: cached.restaurant || [], salon: cached.salon || [] };
+      }
+    }
+  } catch {
+    // corrupt/unavailable cache — fall through and refetch
+  }
+
+  const [restaurant, salon] = await Promise.all([
+    fetchUnsplashPhotos('restaurant interior food table', 4),
+    fetchUnsplashPhotos('hair salon beauty spa interior', 4),
+  ]);
+
+  try {
+    sessionStorage.setItem(PHOTO_CACHE_KEY, JSON.stringify({ timestamp: Date.now(), restaurant, salon }));
+  } catch {
+    // sessionStorage full/unavailable — non-fatal, just skip caching
+  }
+
+  return { restaurant, salon };
+}
+
 
 // Assigns a default visual per business, deterministically (same business
 // always gets the same look), while making sure the same visual never
-// appears on two consecutive cards in the swipe order.
-function assignVisuals(list: NearbyBusiness[]): Array<NearbyBusiness & { visual: CardVisual }> {
+// appears on two consecutive cards in the swipe order. Now also attaches
+// a real photo per slot when one was successfully fetched for that
+// category — the gradient+icon underneath still exists as an instant
+// fallback (shown while photos are loading, or if none were fetched).
+function assignVisuals(
+  list: NearbyBusiness[],
+  restaurantPhotos: string[],
+  salonPhotos: string[]
+): Array<NearbyBusiness & { visual: CardVisual }> {
   let prevKey = '';
   return list.map((biz) => {
-    const palette = biz.type === 'salon' ? SALON_VISUALS : RESTAURANT_VISUALS;
+    const isSalon = biz.type === 'salon';
+    const palette = isSalon ? SALON_VISUALS : RESTAURANT_VISUALS;
+    const photos = isSalon ? salonPhotos : restaurantPhotos;
     let idx = hashToInt(biz.id) % palette.length;
     let key = `${biz.type}-${idx}`;
     if (key === prevKey) {
@@ -56,7 +125,7 @@ function assignVisuals(list: NearbyBusiness[]): Array<NearbyBusiness & { visual:
       key = `${biz.type}-${idx}`;
     }
     prevKey = key;
-    return { ...biz, visual: palette[idx] };
+    return { ...biz, visual: { ...palette[idx], photoUrl: photos[idx] } };
   });
 }
 
@@ -64,6 +133,16 @@ export const NearbyBusinesses: React.FC<NearbyBusinessesProps> = ({ onSelectBusi
   const [businesses, setBusinesses] = useState<NearbyBusiness[]>([]);
   const [status, setStatus] = useState<'idle' | 'loading' | 'ready' | 'denied' | 'error'>('idle');
   const [index, setIndex] = useState(0);
+  const [categoryPhotos, setCategoryPhotos] = useState<{ restaurant: string[]; salon: string[] }>({
+    restaurant: [],
+    salon: [],
+  });
+
+  // Independent of the geolocation-based business fetch below — these are
+  // generic category photos, not tied to the user's actual location.
+  useEffect(() => {
+    getCategoryPhotos().then(setCategoryPhotos);
+  }, []);
 
   useEffect(() => {
     if (!navigator.geolocation) {
@@ -88,7 +167,10 @@ export const NearbyBusinesses: React.FC<NearbyBusinessesProps> = ({ onSelectBusi
     );
   }, []);
 
-  const cards = useMemo(() => assignVisuals(businesses), [businesses]);
+  const cards = useMemo(
+    () => assignVisuals(businesses, categoryPhotos.restaurant, categoryPhotos.salon),
+    [businesses, categoryPhotos]
+  );
 
   if (status !== 'ready' || cards.length === 0) return null;
 
@@ -109,7 +191,7 @@ export const NearbyBusinesses: React.FC<NearbyBusinessesProps> = ({ onSelectBusi
   };
 
   return (
-    <div className="w-full max-w-md mx-auto px-4 mb-8">
+    <div className="w-full mb-8">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-black text-neutral-900 dark:text-neutral-50 tracking-tight">
           {label}
@@ -135,10 +217,13 @@ export const NearbyBusinesses: React.FC<NearbyBusinessesProps> = ({ onSelectBusi
             className="absolute inset-0 w-full h-full text-left rounded-[1.75rem] overflow-hidden shadow-[0_16px_36px_rgba(0,0,0,0.12)] cursor-grab active:cursor-grabbing"
             style={{ touchAction: 'pan-y' }}
           >
-            {/* Background: real logo if the business has one, otherwise the
-                assigned default illustrated visual */}
+            {/* Background: real logo if the business has one, then a real
+                fetched category photo, then the illustrated gradient as a
+                last-resort fallback (e.g. no Unsplash key configured) */}
             {current.logo ? (
               <img src={current.logo} alt={current.name} className="absolute inset-0 w-full h-full object-cover" />
+            ) : current.visual.photoUrl ? (
+              <img src={current.visual.photoUrl} alt={current.name} className="absolute inset-0 w-full h-full object-cover" />
             ) : (
               <div
                 className="absolute inset-0 w-full h-full flex items-center justify-center"

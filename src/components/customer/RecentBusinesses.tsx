@@ -28,6 +28,7 @@ export const RecentBusinesses: React.FC<RecentBusinessesProps> = ({ onSelectBusi
   const [editingId, setEditingId] = useState<string | null>(null);
   const [newName, setNewName] = useState('');
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
+  const [isHidden, setIsHidden] = useState(false);
 
   // Long-press glass action sheet: which item it's open for (if any)
   const [actionSheetItem, setActionSheetItem] = useState<RecentBusinessItem | null>(null);
@@ -175,11 +176,20 @@ export const RecentBusinesses: React.FC<RecentBusinessesProps> = ({ onSelectBusi
   if (items.length === 0) return null;
 
   return (
-    <div className="w-full max-w-md mx-auto mt-6 px-4 text-left">
-      <h3 className="text-xs font-black uppercase tracking-wider text-neutral-400 mb-3.5">
-        Recent Businesses
-      </h3>
-      
+    <div className="w-full mt-6 text-left">
+      <div className="flex items-center justify-between mb-3.5">
+        <h3 className="text-xs font-black uppercase tracking-wider text-neutral-400">
+          Recent Businesses
+        </h3>
+        <button
+          onClick={() => setIsHidden((v) => !v)}
+          className="text-[10px] font-bold text-neutral-400 hover:text-neutral-600 dark:text-neutral-500 dark:hover:text-neutral-300 transition-colors"
+        >
+          {isHidden ? '(show recent businesses)' : '(hide recent businesses)'}
+        </button>
+      </div>
+
+      {!isHidden && (
       <div className="space-y-3.5">
         <AnimatePresence>
             {items.map((item) => (
@@ -253,6 +263,7 @@ export const RecentBusinesses: React.FC<RecentBusinessesProps> = ({ onSelectBusi
             ))}
         </AnimatePresence>
       </div>
+      )}
 
       {/* FLOATING GLASS ACTION CARD — Like, Share, Delete */}
       <AnimatePresence>

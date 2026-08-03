@@ -822,9 +822,23 @@ export const Front: React.FC = () => {
     }
   };
 
-  // Distinguishes a short tap (open Settings, as before) from a long press
-  // (show the profile picture full-size). Uses Pointer Events so the same
-  // logic covers both touch and mouse without double-firing.
+  // Distinguishes a short tap (open Settings) from a long press (show the
+  // profile picture full-size).
+  //
+  // 🐛 FIX: this used to decide "open settings" inside onPointerUp — but
+  // real phones frequently fire onPointerCancel or onPointerLeave INSTEAD
+  // of onPointerUp for a perfectly normal tap, any time the browser has
+  // even slight ambiguity about whether the touch might be a scroll
+  // gesture. Since the old handleAvatarPressCancel only cleared the timer
+  // and never opened Settings, a tap that got routed through
+  // cancel/leave (very common on real devices, rare on desktop mouse
+  // testing) silently did nothing — exactly the reported bug.
+  //
+  // Fix: onClick is what reliably fires after every genuine tap on every
+  // platform, so "open Settings" now lives there. The pointer handlers
+  // below only manage the long-press timer; onClick just checks whether
+  // that timer already fired a long press, and if so, treats this click
+  // as already "consumed" instead of opening Settings too.
   const AVATAR_LONG_PRESS_MS = 450;
   const handleAvatarPressStart = () => {
     avatarLongPressFired.current = false;
@@ -835,12 +849,13 @@ export const Front: React.FC = () => {
   };
   const handleAvatarPressEnd = () => {
     clearTimeout(avatarPressTimer.current);
-    if (!avatarLongPressFired.current) {
-      setIsSettingsOpen(true);
-    }
   };
-  const handleAvatarPressCancel = () => {
-    clearTimeout(avatarPressTimer.current);
+  const handleAvatarClick = () => {
+    if (avatarLongPressFired.current) {
+      avatarLongPressFired.current = false; // already handled by the long press
+      return;
+    }
+    setIsSettingsOpen(true);
   };
 
   const handleSaveProfile = async (e: React.FormEvent) => {
@@ -905,7 +920,7 @@ export const Front: React.FC = () => {
   }
 
   return (
-    <div className="malvin-hub min-h-screen bg-white dark:bg-neutral-950 text-neutral-900 dark:text-neutral-50 font-sans relative flex flex-col justify-between p-6 pb-28 transition-colors duration-300">
+    <div className="malvin-hub min-h-screen bg-white dark:bg-neutral-950 text-neutral-900 dark:text-neutral-50 font-sans relative flex flex-col justify-between px-6 pb-28 transition-colors duration-300">
       
       {/* TOAST NOTIFICATION CONTAINER */}
       <AnimatePresence>
@@ -979,7 +994,7 @@ export const Front: React.FC = () => {
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-        className="w-full flex items-center justify-between z-10"
+        className="fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-6 pt-6 pb-4 bg-white/90 dark:bg-neutral-950/90 backdrop-blur-xl border-b border-neutral-100/60 dark:border-neutral-800/60"
       >
         {/* LEFT: greeting / name / MomScore — replaces the old center-text +
             floating menu circle. The menu/receipts trigger now lives in
@@ -1054,8 +1069,9 @@ export const Front: React.FC = () => {
             whileTap={{ scale: 0.92 }}
             onPointerDown={handleAvatarPressStart}
             onPointerUp={handleAvatarPressEnd}
-            onPointerLeave={handleAvatarPressCancel}
-            onPointerCancel={handleAvatarPressCancel}
+            onPointerLeave={handleAvatarPressEnd}
+            onPointerCancel={handleAvatarPressEnd}
+            onClick={handleAvatarClick}
             title="Tap for Settings · hold to view photo"
             style={{
               width: '36px',
@@ -1075,6 +1091,7 @@ export const Front: React.FC = () => {
               appearance: 'none',
               outline: 'none',
               userSelect: 'none',
+              touchAction: 'manipulation',
             }}
           >
             {profilePicture ? (
@@ -1097,12 +1114,12 @@ export const Front: React.FC = () => {
       </motion.header>
 
       {/* BODY WORKSPACE CONTAINER */}
-      <div className="flex-grow flex flex-col justify-start pt-12 w-full">
+      <div className="flex-grow flex flex-col justify-start pt-[150px] w-full">
         {activeTab === 'home' ? (
           <motion.div
             key="home-view"
             initial={{ opacity: 0, scale: 0.99 }}
-            animate={{ opacity: 1, scale: 1 }}
+            animate={{ opacity: 0.82, scale: 1 }}
             className="w-full flex flex-col items-center"
           >
             <motion.main 
