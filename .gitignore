@@ -39,3 +39,4 @@ dist-ssr
 functions/.env
 .env
 .env.local
+google-services.json
