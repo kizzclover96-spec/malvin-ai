@@ -2,10 +2,6 @@
   "appId": "com.malvinai.agent",
   "appName": "Malvin AI",
   "webDir": "dist",
-  "server": {
-    "url": "https://malvin-ai.vercel.app",
-    "cleartext": false
-  },
   "plugins": {
     "GoogleAuth": {
       "scopes": [
