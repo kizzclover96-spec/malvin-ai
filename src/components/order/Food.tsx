@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { shareContent, canOpenShareSheet, copyToClipboard } from '../../services/share';
+import { buildVinLink, publicOrigin } from '../../services/vinLink';
 import { firestore as db, auth } from '../../firebase';
 import { getAuth, onAuthStateChanged, signOut, deleteUser  } from 'firebase/auth';
 import { getFunctions, httpsCallable } from 'firebase/functions';
@@ -22,10 +24,36 @@ import { useRef } from "react";
 import { useBusinessWallet } from "../../hooks/useBusinessWallet";
 import styles from '../appointment/salonDashboard.module.css';
 import ConfirmQRScanner from '../addons/ConfirmQRScanner';
-import { CheckCircle, Download, Trash2, Loader2} from 'lucide-react';
+import {
+  Download, Trash2, Loader2, MoreHorizontal, ShoppingBag,
+  UtensilsCrossed, Package, ChevronDown, ChevronRight,
+  Clock, X, Plus, Check, ScanLine
+} from 'lucide-react';
 import { geocodeAddress } from '../../utils/geocoding';
 import Banned from "../addons/Banned";
 import Suspended from "../addons/Suspended";
+
+// --- Design tokens for the light "momo" style shell ---
+const C = {
+  bg: '#F5F6F8',
+  card: '#FFFFFF',
+  border: '#ECEDF0',
+  text: '#0F172A',
+  textMuted: '#6B7280',
+  green: '#16A34A',
+  greenDark: '#0B3B22',
+  greenLight: '#DCFCE7',
+  greenPale: '#84CC16',
+  orange: '#D97706',
+  orangeLight: '#FEF3C7',
+  blue: '#2563EB',
+  blueLight: '#DBEAFE',
+  gray: '#6B7280',
+  grayLight: '#EEF0F2',
+  red: '#DC2626',
+  redLight: '#FEE2E2',
+  shadow: '0 1px 2px rgba(16,24,40,0.04), 0 8px 24px rgba(16,24,40,0.05)',
+};
 
 // --- Type Definitions ---
 interface RestaurantData {
@@ -70,6 +98,23 @@ const VerifiedBadge = () => (
     </svg>
 );
 
+// Simple, soft "open box" illustration for the empty state — mirrors the
+// reference design's caught-up moment without needing an image asset.
+const EmptyBoxIllustration = () => (
+  <svg width="140" height="120" viewBox="0 0 140 120" fill="none">
+    <g opacity="0.7">
+      <path d="M62 24 L60 36" stroke="#86EFAC" strokeWidth="3" strokeLinecap="round" />
+      <path d="M70 20 L70 34" stroke="#86EFAC" strokeWidth="3" strokeLinecap="round" />
+      <path d="M78 24 L80 36" stroke="#86EFAC" strokeWidth="3" strokeLinecap="round" />
+    </g>
+    <path d="M25 58 L70 42 L115 58 L115 60 L70 76 L25 60 Z" fill="#EAF6EC" stroke="#DCEFDF" strokeWidth="1.5" />
+    <path d="M25 58 L70 76 L70 108 L25 92 Z" fill="#F4F9F4" stroke="#E4EFE5" strokeWidth="1.5" />
+    <path d="M115 58 L70 76 L70 108 L115 92 Z" fill="#DCEFDF" stroke="#CFE6D3" strokeWidth="1.5" />
+    <path d="M40 52 L70 63 L70 42 L52 36 Z" fill="#FFFFFF" stroke="#E4EFE5" strokeWidth="1.5" />
+    <path d="M100 52 L70 63 L70 42 L88 36 Z" fill="#FBFDFB" stroke="#E4EFE5" strokeWidth="1.5" />
+  </svg>
+);
+
 export default function FoodDashboard() {
   // --- Auth State ---
   const [uid, setUid] = useState<string>('');
@@ -82,10 +127,11 @@ export default function FoodDashboard() {
   const rtdb = getDatabase();
   
   // UI States
-  const [dropdownOpen, setDropdownOpen] = useState<boolean>(false);
   const [settingsOpen, setSettingsOpen] = useState<boolean>(false);
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
   const [showAcceptedModal, setShowAcceptedModal] = useState<boolean>(false);
+  // Which bucket of the segmented control is showing under "Orders"
+  const [orderSubTab, setOrderSubTab] = useState<'incoming' | 'accepted' | 'completed'>('incoming');
   
   // --- New Premium Modal State ---
   const [showPremiumPopup, setShowPremiumPopup] = useState<boolean>(false);
@@ -111,8 +157,6 @@ export default function FoodDashboard() {
   const [incomingOrders, setIncomingOrders] = useState<IncomingOrder[]>([]);
   const [orderQrCodes, setOrderQrCodes] = useState<Record<string, string>>({});
   const previousOrderCount = useRef(0);
-
-  const [activeTab, setActiveTab] = useState<"orders" | "analytics">("orders");
 
   const showToast = (msg: string) => console.log(`[Toast Notification]: ${msg}`);
 
@@ -413,9 +457,6 @@ export default function FoodDashboard() {
     }
   };
 
-    
-  
-
   const handleLogout = async () => {
     try {
         const auth = getAuth();
@@ -532,7 +573,6 @@ export default function FoodDashboard() {
   }, [uid, profile]);
 
   // --- Listen for Auth Changes ---
-  // --- Listen for Auth Changes ---
   useEffect(() => {
     const auth = getAuth();
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
@@ -595,7 +635,7 @@ export default function FoodDashboard() {
             address: '', 
             openingTime: '08:00',
             closingTime: '22:00',
-            shareLink: `${window.location.origin}/food/${uid}`,
+            shareLink: `${publicOrigin()}/food/${uid}`,
             vinLink: `/food/${uid}`, // relative VinLink, read directly by the customer scanner
             onlineStatus: true,
             walletBalance: 0, // Initialize balance structure
@@ -617,15 +657,22 @@ export default function FoodDashboard() {
     const unsubscribeDoc = onSnapshot(docRef, (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.data() as RestaurantData;
-        setProfile(data);
-        
+        const shareLink = `${publicOrigin()}/food/${uid}`;
+
+        // Always derive the share link rather than trusting the stored field.
+        // Docs written before this fix hold a https://localhost/... link that
+        // was captured from window.location.origin inside the native WebView,
+        // and that value is useless to anyone it's sent to. Overwriting it
+        // here means the displayed link, the copy button, the QR code and the
+        // next profile save all pick up the corrected one.
+        setProfile({ ...data, shareLink });
+
         setFormBrandName(data.brandName || '');
         setFormBrandBio(data.brandBio || '');
-        setFormAddress(data.address || ''); 
+        setFormAddress(data.address || '');
         setFormOpeningTime(data.openingTime || '');
         setFormClosingTime(data.closingTime || '');
 
-        const shareLink = `${window.location.origin}/food/${uid}`;
         QRCode.toDataURL(shareLink).then(url => setQrCodeUrl(url));
       }
       setLoading(false);
@@ -635,24 +682,24 @@ export default function FoodDashboard() {
   }, [uid, authLoading]);
 
   // --- UI Action Handlers ---
+  // window.location.origin is https://localhost inside the native WebView, so
+  // building the link from it produces something nobody else can open.
+  const shareUrl = () => buildVinLink(uid, 'food');
+
   const handleCopyLink = () => {
-    navigator.clipboard.writeText(`${window.location.origin}/food/${uid}`);
+    copyToClipboard(shareUrl());
   };
 
   const handleShareLink = async () => {
-    if (navigator.share && profile?.shareLink) {
-      try {
-        await navigator.share({
-          title: profile.brandName || "My Restaurant",
-          text: profile.brandBio || "Check out our menu!",
-          url: `${window.location.origin}/food/${uid}`,
-        });
-      } catch (err) {
-        console.log("Error sharing:", err);
-      }
-    } else {
-      handleCopyLink();
-    }
+    if (!canOpenShareSheet()) { handleCopyLink(); return; }
+
+    const result = await shareContent({
+      title: profile?.brandName || "My Restaurant",
+      text: profile?.brandBio || "Check out our menu!",
+      url: shareUrl(),
+    });
+
+    if (result === 'failed' || result === 'unsupported') handleCopyLink();
   };
 
   useEffect(() => {
@@ -675,7 +722,6 @@ export default function FoodDashboard() {
         }
   }, [incomingOrders]);
 
-  // --- Order Snapshot listener with Daily Limit Logic & Firestore Sync ---
   // --- Order Snapshot listener with Daily Limit Logic & Firestore Sync ---
   useEffect(() => {
         if (!uid) return;
@@ -764,6 +810,15 @@ export default function FoodDashboard() {
         }
   };
 
+  // 🟢 Moves an accepted order into the Completed bucket
+  const handleCompleteOrder = async (orderId: string) => {
+        try {
+            await updateDoc(doc(db, "orders", orderId), { status: "completed" });
+        } catch (err) {
+            console.error(err);
+        }
+  };
+
   const handleSaveChanges = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!uid || !profile) return;
@@ -796,7 +851,6 @@ export default function FoodDashboard() {
   const [showScanner, setShowScanner] = useState(false);
   const [scanResultMsg, setScanResultMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
-  // Handler to verify and delete processed receipts 
   // Handler to verify and delete processed receipts 
   const handleScanReceiptCode = async (scannedOutput: string) => {
     if (!scannedOutput) return;
@@ -857,13 +911,12 @@ export default function FoodDashboard() {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-white text-black flex items-center justify-center font-sans">
-        <p className="font-bold tracking-wider animate-pulse text-lg">LOADING DASHBOARD...</p>
+      <div style={{ minHeight: '100vh', backgroundColor: C.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Loader2 style={{ width: '22px', height: '22px', color: C.green }} className="animate-spin" />
       </div>
     );
   }
 
-  // AFTER:
   if (isBanned) {
     return <Banned userBrand={brandStatusData} />;
   }
@@ -872,42 +925,73 @@ export default function FoodDashboard() {
     return <Suspended userBrand={brandStatusData} />;
   }
   if (page === 'catalogue') { return <RestaurantCatalogue onBack={() => setPage('dashboard')} />;}
-  
+
+  // --- Derived order buckets for the segmented control + overview card ---
+  const pendingOrders = incomingOrders.filter(o => o.status !== 'accepted' && o.status !== 'rejected' && o.status !== 'completed');
+  const acceptedOrdersList = incomingOrders.filter(o => o.status === 'accepted');
+  const completedOrdersList = incomingOrders.filter(o => o.status === 'completed');
+  const recentActivity = incomingOrders
+    .filter(o => o.status === 'accepted' || o.status === 'rejected' || o.status === 'completed')
+    .slice(-3)
+    .reverse();
+
+  const orderTotal = (o: IncomingOrder) => o.items.reduce((sum, i) => sum + i.price * i.quantity, 0).toFixed(2);
+  const orderNumber = (o: IncomingOrder) => (o.fourDigitCode || o.id).toString().slice(-3);
+
+  const activityVisual = (status: string) => {
+    if (status === 'completed') return { bg: C.greenLight, color: C.green, Icon: Check, label: 'completed' };
+    if (status === 'accepted') return { bg: C.orangeLight, color: C.orange, Icon: Clock, label: 'accepted' };
+    return { bg: C.grayLight, color: C.gray, Icon: X, label: 'cancelled' };
+  };
+
+  const tabList: { key: 'incoming' | 'accepted' | 'completed'; label: string; count: number }[] = [
+    { key: 'incoming', label: 'Incoming', count: pendingOrders.length },
+    { key: 'accepted', label: 'Accepted', count: acceptedOrdersList.length },
+    { key: 'completed', label: 'Completed', count: completedOrdersList.length },
+  ];
+
+  const activeOrderList =
+    orderSubTab === 'incoming' ? pendingOrders :
+    orderSubTab === 'accepted' ? acceptedOrdersList :
+    completedOrdersList;
+
   return (
-    <div className="min-h-screen bg-white text-black font-sans antialiased p-4 relative overflow-x-hidden select-none pb-24">
-      
-      {/* --- POPUP OVERLAY MODAL --- */}
+    <div style={{ minHeight: '100vh', backgroundColor: C.bg, color: C.text, fontFamily: 'inherit', paddingBottom: '110px', position: 'relative' }}>
+
       {/* --- POPUP OVERLAY MODAL --- */}
       {showPremiumPopup && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white border-[4px] border-black rounded-3xl p-6 max-w-sm w-full shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] text-center space-y-4 animate-fadeIn">
-            <div className="w-16 h-16 bg-red-200 border-[3px] border-black rounded-full flex items-center justify-center text-2xl mx-auto">
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15,23,42,0.55)', backdropFilter: 'blur(4px)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+          <div style={{ backgroundColor: C.card, borderRadius: '28px', padding: '24px', maxWidth: '380px', width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.25)', textAlign: 'center' }}>
+            <div style={{ width: '64px', height: '64px', backgroundColor: C.redLight, borderRadius: '9999px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', margin: '0 auto 16px' }}>
               ⚠️
             </div>
-            <h2 className="text-2xl font-black uppercase tracking-tight">Order Limit Reached</h2>
-            <p className="text-sm font-bold text-gray-700">
-              Unverified accounts are capped at <span className="underline">10 orders a day</span>. Go Premium to unlock infinite incoming streams!
+            <h2 style={{ fontSize: '20px', fontWeight: 800, letterSpacing: '-0.01em', margin: '0 0 8px' }}>Order Limit Reached</h2>
+            <p style={{ fontSize: '13px', fontWeight: 600, color: C.textMuted, margin: '0 0 16px', lineHeight: 1.5 }}>
+              Unverified accounts are capped at <span style={{ textDecoration: 'underline' }}>10 orders a day</span>. Go Premium to unlock infinite incoming streams!
             </p>
 
-            {/* ⏳ RENDERS THE COOLDOWN TIMER FOR THE MERCHANT */}
             {cooldownCountdown && (
-              <div className="bg-red-100 border-[2px] border-red-500 rounded-xl p-2 text-xs font-black text-red-700 uppercase tracking-wider">
+              <div style={{ backgroundColor: C.redLight, borderRadius: '14px', padding: '10px', fontSize: '11px', fontWeight: 800, color: C.red, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '14px' }}>
                 Reset Cooldown in: {cooldownCountdown}
               </div>
             )}
 
-            <div className="bg-lime-200 border-[3px] border-black rounded-2xl p-3 font-black text-lg">
+            <div style={{ backgroundColor: C.greenLight, borderRadius: '18px', padding: '14px', fontWeight: 800, fontSize: '17px', color: C.greenDark, marginBottom: '14px' }}>
               €10 / month
             </div>
-            <p className="text-xs font-semibold text-gray-500">
+            <p style={{ fontSize: '11px', fontWeight: 600, color: C.textMuted, marginBottom: '18px' }}>
               Need assistance? Contact us at: <br/>
-              <a href="mailto:malvinai.partnerships@gmail.com" className="font-bold underline text-black">
+              <a href="mailto:malvinai.partnerships@gmail.com" style={{ fontWeight: 700, textDecoration: 'underline', color: C.text }}>
                 malvinai.partnerships@gmail.com
               </a>
             </p>
             <button 
               onClick={() => setShowPremiumPopup(false)}
-              className="w-full py-3 bg-black text-white rounded-xl text-xs font-black uppercase tracking-wider hover:bg-neutral-800 transition-all active:translate-y-0.5"
+              style={{
+                width: '100%', padding: '13px', backgroundColor: C.green, color: '#FFFFFF', borderRadius: '14px',
+                fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em',
+                border: 'none', outline: 'none', cursor: 'pointer',
+              }}
             >
               Acknowledge
             </button>
@@ -915,8 +999,6 @@ export default function FoodDashboard() {
         </div>
       )}
 
-      {/* --- QR CODE SCANNER MODAL OVERLAY --- */}
-      {/* --- INLINE SATELLITE SCANNER DROPDOWN PANEL --- */}
       {showScanner && (
         <ConfirmQRScanner 
           onClose={() => { 
@@ -924,232 +1006,421 @@ export default function FoodDashboard() {
             setScanResultMsg(null); 
           }} 
           onCrosscheck={(data) => {
-            // Passes the text straight to your verification handler
             handleScanReceiptCode(data);
           }} 
         />
       )}
 
-      {/* --- ALERT BANNER ALIGNMENT --- */}
+      {/* --- ALERT BANNER --- */}
       {scanResultMsg && (
-        <div className={`w-full max-w-2xl mx-auto mt-2 border-[3px] border-black rounded-2xl p-4 text-center font-black text-sm uppercase shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] tracking-wide animate-fadeIn ${
-          scanResultMsg.type === 'success' ? 'bg-lime-300 text-black' : 'bg-red-300 text-black'
-        }`}>
+        <div style={{
+          maxWidth: '640px', margin: '8px auto 0', borderRadius: '18px', padding: '14px', textAlign: 'center',
+          fontWeight: 800, fontSize: '13px', letterSpacing: '0.01em',
+          backgroundColor: scanResultMsg.type === 'success' ? C.greenLight : C.redLight,
+          color: scanResultMsg.type === 'success' ? C.greenDark : C.red,
+        }}>
           {scanResultMsg.text}
         </div>
       )}
 
-      {/* --- ACCEPTED ORDERS OVERLAY MODAL --- */}
+      {/* --- ORDER HISTORY MODAL ("See All") --- */}
       {showAcceptedModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white border-[4px] border-black rounded-3xl p-6 max-w-xl w-full max-h-[80vh] overflow-y-auto shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] space-y-4">
-            <div className="flex justify-between items-center border-b-[3px] border-black pb-2">
-              <h2 className="text-2xl font-black uppercase tracking-tight">Accepted Orders</h2>
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15,23,42,0.55)', backdropFilter: 'blur(4px)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+          <div style={{ backgroundColor: C.card, borderRadius: '28px', padding: '22px', maxWidth: '460px', width: '100%', maxHeight: '80vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${C.border}`, paddingBottom: '12px', marginBottom: '14px' }}>
+              <h2 style={{ fontSize: '18px', fontWeight: 800, margin: 0 }}>Order History</h2>
               <button 
                 onClick={() => setShowAcceptedModal(false)}
-                className="w-8 h-8 border-2 border-black rounded-xl bg-red-200 font-bold"
+                style={{ width: '32px', height: '32px', borderRadius: '9999px', backgroundColor: C.grayLight, border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
               >
-                ✕
+                <X style={{ width: '16px', height: '16px' }} />
               </button>
             </div>
             
-            <div className="space-y-4">
-              {incomingOrders.filter(order => order.status === "accepted").length === 0 ? (
-                <p className="text-center font-bold text-gray-500 py-6">No accepted orders yet.</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {[...acceptedOrdersList, ...completedOrdersList].length === 0 ? (
+                <p style={{ textAlign: 'center', fontWeight: 700, color: C.textMuted, padding: '24px 0' }}>No order history yet.</p>
               ) : (
-                incomingOrders
-                  .filter(order => order.status === "accepted")
-                  .map(order => (
-                    <div key={order.id} className="border-[2px] border-black rounded-2xl bg-lime-50 p-4">
-                      <div className="flex justify-between items-start">
+                [...completedOrdersList, ...acceptedOrdersList].map(order => {
+                  const v = activityVisual(order.status);
+                  return (
+                    <div key={order.id} style={{ borderRadius: '18px', backgroundColor: C.bg, padding: '14px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                         <div>
-                          <h4 className="font-black text-md">{order.customerName}</h4>
-                          <p className="text-xs text-gray-600">Pickup: {order.pickupTime}</p>
+                          <h4 style={{ fontWeight: 800, fontSize: '14px', margin: 0 }}>{order.customerName}</h4>
+                          <p style={{ fontSize: '11px', color: C.textMuted, margin: '2px 0 0' }}>Pickup: {order.pickupTime}</p>
                         </div>
-                        <span className="text-sm font-mono font-black text-lime-700">{order.fourDigitCode || "----"}</span>
+                        <span style={{ fontSize: '12px', fontFamily: 'monospace', fontWeight: 800, color: v.color }}>{order.fourDigitCode || "----"}</span>
                       </div>
-                      <div className="mt-2 border-t border-black/10 pt-2 space-y-1">
+                      <div style={{ marginTop: '8px', borderTop: `1px solid ${C.border}`, paddingTop: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                         {order.items.map((item, index) => (
-                          <div key={index} className="flex justify-between text-xs">
+                          <div key={index} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
                             <span>{item.quantity}x {item.name}</span>
                             <span>€{(item.price * item.quantity).toFixed(2)}</span>
                           </div>
                         ))}
                       </div>
                     </div>
-                  ))
+                  );
+                })
               )}
             </div>
           </div>
         </div>
       )}
 
-      {/* --- TOP NAVIGATION SECTION --- */}
-      <header className="w-full flex items-center justify-between gap-3 max-w-2xl mx-auto z-40 relative">
-        <button 
-          onClick={() => setDropdownOpen(!dropdownOpen)}
-          className="w-12 h-12 flex items-center justify-center bg-lime-300 border-[3px] border-black rounded-2xl active:translate-y-0.5 active:bg-lime-400 transition-all duration-150"
-        >
-          <span className={`text-xs transform transition-transform duration-200 block ${dropdownOpen ? 'rotate-180' : ''}`}>▼</span>
-        </button>
-
-        <div className="flex-1 bg-white border-[3px] border-black rounded-full py-2.5 px-4 flex items-center justify-center text-center">
-          <span className="font-extrabold text-sm tracking-tight truncate max-w-[180px] sm:max-w-xs">
-            {profile?.brandName || "My Restaurant"} {isVerified && <VerifiedBadge />}
-          </span>
+      {/* --- TOP HEADER --- */}
+      <header style={{ maxWidth: '640px', margin: '0 auto', padding: '20px 16px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+          <div style={{
+            position: 'relative', width: '52px', height: '52px', borderRadius: '16px', backgroundColor: C.greenDark,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+          }}>
+            <span style={{ color: C.greenPale, fontWeight: 900, fontSize: '20px' }}>
+              {(profile?.brandName || 'R').trim().charAt(0).toUpperCase()}
+            </span>
+            {/* Small restaurant badge so the tile reads as a store logo, not just an initial */}
+            <div style={{
+              position: 'absolute', bottom: '-4px', right: '-4px', width: '22px', height: '22px', borderRadius: '9999px',
+              backgroundColor: C.greenPale, border: `2px solid ${C.bg}`, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <UtensilsCrossed style={{ width: '11px', height: '11px', color: C.greenDark }} />
+            </div>
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', fontSize: '17px', fontWeight: 800, letterSpacing: '-0.01em' }}>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '160px' }}>
+                {profile?.brandName || "My Restaurant"}
+              </span>
+              {isVerified && <VerifiedBadge />}
+            </div>
+            <p style={{ fontSize: '13px', color: C.textMuted, margin: '2px 0 0', fontWeight: 500 }}>
+              {profile?.brandBio || 'Restaurant'}
+            </p>
+          </div>
         </div>
 
-        {/* 🎛️ NEW: Added QR Scanner Trigger Icon button */}
-        <button
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+          <button
             onClick={() => setShowScanner(true)}
-            className="w-12 h-12 flex items-center justify-center border-[3px] border-black bg-cyan-200 rounded-2xl active:translate-y-0.5 transition-all text-lg font-black"
             title="Scan Receipt Code"
-        >
-          🔲
-        </button>
-
-        <button
-            onClick={handleLogout}
-            className="w-12 h-12 flex items-center justify-center border-[3px] border-black bg-red-200 rounded-2xl active:translate-y-0.5 transition-all"
-        >
-            ⎋
-        </button>
-        <button
-            onClick={() => setSettingsOpen(!settingsOpen)}
-            style={{ backgroundColor: "#bef264" }}
-            className="w-12 h-12 flex items-center justify-center border-[3px] border-black rounded-2xl"
-        >
-          <svg className={`w-6 h-6 transition-transform duration-500 ${settingsOpen ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-          </svg>
-        </button>
+            style={{
+              width: '44px', height: '44px', borderRadius: '14px', backgroundColor: C.card,
+              border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: C.shadow,
+            }}
+          >
+            <ScanLine style={{ width: '18px', height: '18px', color: C.text }} />
+          </button>
+          <button
+            onClick={() => setSettingsOpen(true)}
+            title="More"
+            style={{
+              width: '44px', height: '44px', borderRadius: '14px', backgroundColor: C.card,
+              border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: C.shadow,
+            }}
+          >
+            <MoreHorizontal style={{ width: '18px', height: '18px', color: C.text }} />
+          </button>
+        </div>
       </header>
 
-      {/* --- DROPDOWN GLASS MENU --- */}
-      {dropdownOpen && (
-        <div className="absolute top-20 left-4 right-4 max-w-xs z-50 bg-white/70 backdrop-blur-md border-[3px] border-black rounded-2xl overflow-hidden transition-all duration-300 animate-fadeIn origin-top">
-          <ul className="flex flex-col divide-y-[2.5px] divide-black font-bold">
-            <li className="p-3 hover:bg-lime-300 cursor-pointer transition-colors" onClick={() => { setActiveTab("orders"); setDropdownOpen(false); }}>Orders ({incomingOrders.filter(o => o.status !== "accepted" && o.status !== "rejected").length})</li>
-            <li className="p-3 hover:bg-lime-300 cursor-pointer transition-colors" onClick={() => { setActiveTab("analytics"); setDropdownOpen(false); }}>Analysis</li>
-          </ul>
-        </div>
-      )}
+      {!settingsOpen ? (
+        <main style={{ maxWidth: '640px', margin: '0 auto', padding: '0 16px' }}>
+          {/* --- TITLE + SEGMENTED CONTROL --- */}
+          <h1 style={{ fontSize: '30px', fontWeight: 900, letterSpacing: '-0.02em', margin: '22px 0 14px' }}>Orders</h1>
 
-      {/* --- MAIN INTERFACE PANELS --- */}
-      <main className="max-w-2xl mx-auto mt-8 space-y-6">
-        
-        {!settingsOpen && activeTab !== "orders" && activeTab !== "analytics" && (
-          <div className="text-center py-12 animate-fadeIn">
-            <h1 className="text-4xl font-black uppercase tracking-tight mb-2">Welcome Back.</h1>
-            <p className="text-sm font-medium text-gray-600 max-w-xs mx-auto">Tap the gear icon on the top right to deploy and manage your premium SaaS configurations.</p>
+          <div style={{ display: 'flex', backgroundColor: '#E9EBEE', borderRadius: '9999px', padding: '4px', gap: '2px' }}>
+            {tabList.map(tab => {
+              const active = orderSubTab === tab.key;
+              return (
+                <button
+                  key={tab.key}
+                  onClick={() => setOrderSubTab(tab.key)}
+                  style={{
+                    flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                    padding: '10px 6px', borderRadius: '9999px', border: 'none', cursor: 'pointer',
+                    backgroundColor: active ? '#FFFFFF' : 'transparent',
+                    boxShadow: active ? '0 1px 3px rgba(16,24,40,0.12)' : 'none',
+                    transition: 'background-color 0.15s ease',
+                  }}
+                >
+                  <span style={{ fontSize: '13px', fontWeight: 800, color: active ? C.text : C.textMuted, whiteSpace: 'nowrap' }}>{tab.label}</span>
+                  <span style={{
+                    backgroundColor: C.green, color: '#FFFFFF', fontSize: '11px', fontWeight: 800, borderRadius: '9999px',
+                    minWidth: '20px', height: '20px', padding: '0 5px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    {tab.count}
+                  </span>
+                </button>
+              );
+            })}
           </div>
-        )}
 
-        {settingsOpen && (
-          <div className="space-y-6 animate-fadeIn origin-top">
+          {/* --- LIST OR EMPTY STATE --- */}
+          {activeOrderList.length === 0 ? (
+            <div style={{ backgroundColor: C.card, borderRadius: '28px', padding: '36px 20px', marginTop: '16px', textAlign: 'center', boxShadow: C.shadow }}>
+              <EmptyBoxIllustration />
+              <h3 style={{ fontSize: '19px', fontWeight: 800, margin: '4px 0 6px' }}>
+                {orderSubTab === 'incoming' ? "You're all caught up" : orderSubTab === 'accepted' ? 'No accepted orders' : 'No completed orders yet'}
+              </h3>
+              <p style={{ fontSize: '13px', color: C.textMuted, margin: 0, fontWeight: 500 }}>
+                {orderSubTab === 'incoming' ? 'New orders will appear here instantly.' : orderSubTab === 'accepted' ? 'Accepted orders will show up here.' : 'Completed orders will show up here.'}
+              </p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '16px' }}>
+              {activeOrderList.map(order => (
+                <div key={order.id} style={{ backgroundColor: C.card, borderRadius: '24px', padding: '16px', boxShadow: C.shadow }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <h3 style={{ fontWeight: 800, fontSize: '15px', margin: 0 }}>{order.customerName}</h3>
+                      <p style={{ fontSize: '12px', color: C.textMuted, margin: '4px 0 0' }}>Pickup: {order.pickupTime}</p>
+                      {order.userMobilityStatus && (
+                        <p style={{
+                          fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.03em', marginTop: '6px',
+                          padding: '3px 8px', borderRadius: '8px', backgroundColor: C.orangeLight, color: C.orange, display: 'inline-block',
+                        }}>
+                          {order.userMobilityStatus}{order.userMobilityStatus === 'in store' && order.tableNumber && ` (Table ${order.tableNumber})`}
+                        </p>
+                      )}
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '76px' }}>
+                      <p style={{ fontSize: '13px', fontWeight: 800, color: C.green, margin: '0 0 4px' }}>{order.fourDigitCode || "----"}</p>
+                      {orderQrCodes?.[order.id] && (
+                        <img src={orderQrCodes[order.id]} alt="Order QR" style={{ width: '56px', height: '56px', borderRadius: '10px', border: `1px solid ${C.border}`, padding: '3px', backgroundColor: '#FFF' }} />
+                      )}
+                    </div>
+                  </div>
+
+                  <div style={{ marginTop: '10px', borderTop: `1px solid ${C.border}`, paddingTop: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    {order.items.map((item, index) => (
+                      <div key={index} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                        <span>{item.quantity}x {item.name}</span>
+                        <span>€{(item.price * item.quantity).toFixed(2)}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {orderSubTab === 'incoming' && (
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                      <button
+                        onClick={() => handleRejectOrder(order.id)}
+                        style={{ flex: 1, padding: '10px', borderRadius: '14px', border: 'none', backgroundColor: C.redLight, color: C.red, fontWeight: 800, fontSize: '12px', textTransform: 'uppercase', cursor: 'pointer' }}
+                      >
+                        Reject
+                      </button>
+                      <button
+                        onClick={() => handleAcceptOrder(order.id)}
+                        style={{ flex: 1, padding: '10px', borderRadius: '14px', border: 'none', backgroundColor: C.green, color: '#FFFFFF', fontWeight: 800, fontSize: '12px', textTransform: 'uppercase', cursor: 'pointer' }}
+                      >
+                        Accept
+                      </button>
+                    </div>
+                  )}
+
+                  {orderSubTab === 'accepted' && (
+                    <button
+                      onClick={() => handleCompleteOrder(order.id)}
+                      style={{ width: '100%', marginTop: '12px', padding: '10px', borderRadius: '14px', border: 'none', backgroundColor: C.greenLight, color: C.greenDark, fontWeight: 800, fontSize: '12px', textTransform: 'uppercase', cursor: 'pointer' }}
+                    >
+                      Mark Completed
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* --- TODAY'S OVERVIEW --- */}
+          <div style={{ backgroundColor: C.card, borderRadius: '26px', padding: '20px', marginTop: '18px', boxShadow: C.shadow }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ fontSize: '15px', fontWeight: 800, margin: 0 }}>Today's Overview</h3>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '13px', color: C.textMuted, fontWeight: 600 }}>
+                Today <ChevronDown style={{ width: '14px', height: '14px' }} />
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', marginTop: '16px' }}>
+              {[
+                { label: 'Incoming', value: pendingOrders.length, bg: C.greenLight, color: C.green, Icon: ShoppingBag },
+                { label: 'Accepted', value: acceptedOrdersList.length, bg: C.orangeLight, color: C.orange, Icon: Clock },
+                { label: 'Completed', value: completedOrdersList.length, bg: C.blueLight, color: C.blue, Icon: Check },
+              ].map((stat, i) => (
+                <React.Fragment key={stat.label}>
+                  {i !== 0 && <div style={{ width: '1px', height: '48px', backgroundColor: C.border }} />}
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+                    <div style={{ width: '34px', height: '34px', borderRadius: '9999px', backgroundColor: stat.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <stat.Icon style={{ width: '16px', height: '16px', color: stat.color }} />
+                    </div>
+                    <span style={{ fontSize: '22px', fontWeight: 900 }}>{stat.value}</span>
+                    <span style={{ fontSize: '12px', color: C.textMuted, fontWeight: 600 }}>{stat.label}</span>
+                  </div>
+                </React.Fragment>
+              ))}
+            </div>
+          </div>
+
+          {/* --- RECENT ACTIVITY --- */}
+          <div style={{ marginTop: '22px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+              <h3 style={{ fontSize: '15px', fontWeight: 800, margin: 0 }}>Recent Activity</h3>
+              <button
+                onClick={() => setShowAcceptedModal(true)}
+                style={{ background: 'none', border: 'none', color: C.green, fontSize: '13px', fontWeight: 700, cursor: 'pointer', padding: 0 }}
+              >
+                See All
+              </button>
+            </div>
+
+            <div style={{ backgroundColor: C.card, borderRadius: '22px', boxShadow: C.shadow, overflow: 'hidden' }}>
+              {recentActivity.length === 0 ? (
+                <p style={{ textAlign: 'center', fontWeight: 600, color: C.textMuted, padding: '20px', margin: 0, fontSize: '13px' }}>No activity yet today.</p>
+              ) : (
+                recentActivity.map((order, idx) => {
+                  const v = activityVisual(order.status);
+                  return (
+                    <div
+                      key={order.id}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 16px',
+                        borderTop: idx === 0 ? 'none' : `1px solid ${C.border}`,
+                      }}
+                    >
+                      <div style={{ width: '36px', height: '36px', borderRadius: '9999px', backgroundColor: v.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <v.Icon style={{ width: '16px', height: '16px', color: v.color }} />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: '14px', fontWeight: 700, margin: 0 }}>Order #{orderNumber(order)} {v.label}</p>
+                        <p style={{ fontSize: '12px', color: C.textMuted, margin: '2px 0 0' }}>{order.pickupTime}</p>
+                      </div>
+                      <span style={{ fontSize: '14px', fontWeight: 800 }}>€{orderTotal(order)}</span>
+                      <ChevronRight style={{ width: '16px', height: '16px', color: C.textMuted }} />
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </main>
+      ) : (
+        <main style={{ maxWidth: '640px', margin: '0 auto', padding: '0 16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: '22px 0 16px' }}>
+            <button
+              onClick={() => setSettingsOpen(false)}
+              style={{ width: '36px', height: '36px', borderRadius: '12px', backgroundColor: C.card, border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+            >
+              <ChevronRight style={{ width: '16px', height: '16px', transform: 'rotate(180deg)' }} />
+            </button>
+            <h1 style={{ fontSize: '24px', fontWeight: 900, letterSpacing: '-0.01em', margin: 0 }}>More</h1>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {/* CARD 1: SHARE STORE */}
-            <section className="bg-white/75 backdrop-blur-md border-[3px] border-black rounded-3xl p-5 transition-transform hover:scale-[1.01]">
-              <h2 className="text-lg font-black uppercase tracking-wider mb-4 border-b-[2.5px] border-black pb-2">Share Store</h2>
-              <div className="flex flex-col sm:flex-row items-center gap-5">
-                <div className="w-40 h-40 border-[3px] border-black bg-white rounded-2xl flex items-center justify-center p-2">
+            <section style={{ backgroundColor: C.card, borderRadius: '24px', padding: '20px', boxShadow: C.shadow }}>
+              <h2 style={{ fontSize: '15px', fontWeight: 800, margin: '0 0 14px' }}>Share Store</h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ width: '140px', height: '140px', borderRadius: '18px', backgroundColor: C.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px', margin: '0 auto' }}>
                   {qrCodeUrl ? (
-                    <img src={qrCodeUrl} alt="Store QR Code" className="w-full h-full object-contain bg-lime-300" />
+                    <img src={qrCodeUrl} alt="Store QR Code" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                   ) : (
-                    <div className="w-4 h-4 bg-black rounded-full animate-ping" />
+                    <div style={{ width: '16px', height: '16px', backgroundColor: C.green, borderRadius: '9999px' }} className="animate-ping" />
                   )}
                 </div>
                 
-                <div className="w-full flex-1 space-y-3">
-                    <div className="bg-lime-300 border-[3px] border-black rounded-xl p-2.5 text-xs font-mono break-all font-bold text-black">
-                        {profile?.shareLink}
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                        <button onClick={handleCopyLink} className="py-2 px-3 border-[2.5px] border-black bg-lime-300 text-black rounded-xl text-xs font-black uppercase active:translate-y-0.5 transition-all">
-                          Copy Link
-                        </button>
-                        <a href={`${window.location.origin}/food/${uid}`} target="_blank" rel="noreferrer" className="py-2 px-3 border-[2.5px] border-black bg-lime-300 text-black rounded-xl text-xs font-black uppercase text-center active:translate-y-0.5 transition-all">
-                          Open Store
-                        </a>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                        <button onClick={handleShareLink} className="w-full py-2.5 border-[2.5px] border-black bg-lime-300 text-black rounded-xl text-xs font-black uppercase active:translate-y-0.5 transition-all">
-                          ⚡ Share Link
-                        </button>
-                        <button 
-                          onClick={handleDownloadQR} 
-                          disabled={!qrCodeUrl}
-                          className="w-full py-2.5 border-[2.5px] border-black bg-white text-black rounded-xl text-xs font-black uppercase active:translate-y-0.5 transition-all disabled:opacity-50 disabled:pointer-events-none"
-                        >
-                          💾 Download QR
-                        </button>
-                    </div>
+                <div style={{ backgroundColor: C.bg, borderRadius: '14px', padding: '10px', fontSize: '11px', fontFamily: 'monospace', fontWeight: 700, wordBreak: 'break-all' }}>
+                  {profile?.shareLink}
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                  <button onClick={handleCopyLink} style={{ padding: '10px', borderRadius: '14px', border: 'none', backgroundColor: C.greenLight, color: C.greenDark, fontSize: '12px', fontWeight: 800, cursor: 'pointer' }}>
+                    Copy Link
+                  </button>
+                  <a href={`${publicOrigin()}/food/${uid}`} target="_blank" rel="noreferrer" style={{ padding: '10px', borderRadius: '14px', backgroundColor: C.greenLight, color: C.greenDark, fontSize: '12px', fontWeight: 800, textAlign: 'center', textDecoration: 'none' }}>
+                    Open Store
+                  </a>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                  <button onClick={handleShareLink} style={{ padding: '11px', borderRadius: '14px', border: 'none', backgroundColor: C.green, color: '#FFFFFF', fontSize: '12px', fontWeight: 800, cursor: 'pointer' }}>
+                    Share Link
+                  </button>
+                  <button
+                    onClick={handleDownloadQR}
+                    disabled={!qrCodeUrl}
+                    style={{ padding: '11px', borderRadius: '14px', border: `1px solid ${C.border}`, backgroundColor: '#FFFFFF', color: C.text, fontSize: '12px', fontWeight: 800, cursor: qrCodeUrl ? 'pointer' : 'default', opacity: qrCodeUrl ? 1 : 0.5 }}
+                  >
+                    Download QR
+                  </button>
                 </div>
               </div>
             </section>
 
             {/* CARD 2: RESTAURANT PROFILE */}
-            <section className="bg-white/75 backdrop-blur-md border-[3px] border-black rounded-3xl p-5">
-              <h2 className="text-lg font-black uppercase tracking-wider mb-4 border-b-[2.5px] border-black pb-2">Restaurant Profile</h2>
-              <form onSubmit={handleSaveChanges} className="space-y-4">
+            <section style={{ backgroundColor: C.card, borderRadius: '24px', padding: '20px', boxShadow: C.shadow }}>
+              <h2 style={{ fontSize: '15px', fontWeight: 800, margin: '0 0 14px' }}>Restaurant Profile</h2>
+              <form onSubmit={handleSaveChanges} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 <div>
-                  <label className="block text-xs font-black uppercase tracking-wider mb-1">Brand Name {isVerified && <VerifiedBadge />}</label>
+                  <label style={{ display: 'flex', alignItems: 'center', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', color: C.textMuted, marginBottom: '6px' }}>
+                    Brand Name {isVerified && <VerifiedBadge />}
+                  </label>
                   <input 
                     type="text" 
                     value={formBrandName} 
                     onChange={(e) => setFormBrandName(e.target.value)}
-                    className="w-full bg-white border-[3px] border-black rounded-xl p-2.5 text-sm font-bold focus:bg-lime-300/10 focus:outline-none transition-colors"
+                    style={{ width: '100%', backgroundColor: C.bg, border: `1px solid ${C.border}`, borderRadius: '14px', padding: '11px', fontSize: '14px', fontWeight: 600, outline: 'none' }}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-black uppercase tracking-wider mb-1">Brand Bio</label>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', color: C.textMuted, marginBottom: '6px' }}>Brand Bio</label>
                   <textarea 
                     value={formBrandBio}
                     onChange={(e) => setFormBrandBio(e.target.value)}
                     rows={2}
-                    className="w-full bg-white border-[3px] border-black rounded-xl p-2.5 text-sm font-bold focus:bg-lime-300/10 focus:outline-none transition-colors resize-none"
+                    style={{ width: '100%', backgroundColor: C.bg, border: `1px solid ${C.border}`, borderRadius: '14px', padding: '11px', fontSize: '14px', fontWeight: 600, outline: 'none', resize: 'none' }}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-black uppercase tracking-wider mb-1">Store Address</label>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', color: C.textMuted, marginBottom: '6px' }}>Store Address</label>
                   <input 
                     type="text" 
                     value={formAddress} 
                     placeholder="e.g. 123 Foodie Street, Suite 4B"
                     onChange={(e) => setFormAddress(e.target.value)}
-                    className="w-full bg-white border-[3px] border-black rounded-xl p-2.5 text-sm font-bold focus:bg-lime-300/10 focus:outline-none transition-colors"
+                    style={{ width: '100%', backgroundColor: C.bg, border: `1px solid ${C.border}`, borderRadius: '14px', padding: '11px', fontSize: '14px', fontWeight: 600, outline: 'none' }}
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                   <div>
-                    <label className="block text-xs font-black uppercase tracking-wider mb-1">Opening Time</label>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', color: C.textMuted, marginBottom: '6px' }}>Opening Time</label>
                     <input 
                       type="time" 
                       value={formOpeningTime}
                       onChange={(e) => setFormOpeningTime(e.target.value)}
-                      className="w-full bg-white border-[3px] border-black rounded-xl p-2.5 text-sm font-bold focus:outline-none focus:bg-lime-300/10"
+                      style={{ width: '100%', backgroundColor: C.bg, border: `1px solid ${C.border}`, borderRadius: '14px', padding: '11px', fontSize: '14px', fontWeight: 600, outline: 'none' }}
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-black uppercase tracking-wider mb-1">Closing Time</label>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', color: C.textMuted, marginBottom: '6px' }}>Closing Time</label>
                     <input 
                       type="time" 
                       value={formClosingTime}
                       onChange={(e) => setFormClosingTime(e.target.value)}
-                      className="w-full bg-white border-[3px] border-black rounded-xl p-2.5 text-sm font-bold focus:outline-none focus:bg-lime-300/10"
+                      style={{ width: '100%', backgroundColor: C.bg, border: `1px solid ${C.border}`, borderRadius: '14px', padding: '11px', fontSize: '14px', fontWeight: 600, outline: 'none' }}
                     />
                   </div>
                 </div>
-                <button type="submit" className="w-full py-3 mt-2 border-[2.5px] border-black bg-lime-300 rounded-xl text-sm font-black uppercase active:translate-y-0.5 transition-all">
+                <button
+                  type="submit"
+                  style={{ width: '100%', padding: '13px', marginTop: '4px', borderRadius: '14px', border: 'none', backgroundColor: C.green, color: '#FFFFFF', fontSize: '13px', fontWeight: 800, cursor: 'pointer' }}
+                >
                   Save Changes
                 </button>
               </form>
             </section>
 
             {/* CARD 3: ACCOUNT INFORMATION */}
-            <section className="bg-white/75 backdrop-blur-md border-[3px] border-black rounded-3xl p-5">
-              <h2 className="text-lg font-black uppercase tracking-wider mb-4 border-b-[2.5px] border-black pb-2">Account Information</h2>
-              <div className="space-y-2.5">
+            <section style={{ backgroundColor: C.card, borderRadius: '24px', padding: '20px', boxShadow: C.shadow }}>
+              <h2 style={{ fontSize: '15px', fontWeight: 800, margin: '0 0 14px' }}>Account Information</h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {[
                   { label: "User Email", value: email || "N/A" },
                   { label: "Online Status", value: profile?.onlineStatus ? "🟢 ONLINE" : "🔴 OFFLINE" },
@@ -1158,53 +1429,66 @@ export default function FoodDashboard() {
                   { label: "Created Date", value: profile?.createdAt ? profile.createdAt.toDate().toLocaleString() : "N/A" },
                   { label: "Last Updated Date", value: profile?.updatedAt ? profile.updatedAt.toDate().toLocaleString() : "N/A" }
                 ].map((row, i) => (
-                  <div key={i} className="flex flex-col sm:flex-row sm:justify-between sm:items-center bg-white/50 p-2 border-[2.5px] border-black rounded-xl">
-                    <span className="text-[10px] font-black uppercase text-gray-500 tracking-wider">{row.label}</span>
-                    <span className="text-xs font-bold font-mono truncate max-w-full sm:max-w-xs">{row.value}</span>
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: C.bg, padding: '10px 12px', borderRadius: '14px', gap: '10px' }}>
+                    <span style={{ fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', color: C.textMuted, letterSpacing: '0.04em' }}>{row.label}</span>
+                    <span style={{ fontSize: '12px', fontWeight: 700, fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '60%' }}>{row.value}</span>
                   </div>
                 ))}
               </div>
             </section>
+
+            {/* CARD: ANALYTICS (folded in from the old dedicated tab) */}
+            <section style={{ backgroundColor: C.card, borderRadius: '24px', padding: '20px', boxShadow: C.shadow }}>
+              <h2 style={{ fontSize: '15px', fontWeight: 800, margin: '0 0 14px' }}>Analytics</h2>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '13px', fontWeight: 700 }}>
+                <div style={{ padding: '12px', borderRadius: '14px', backgroundColor: C.bg }}>Total Orders: {analytics.totalOrders}</div>
+                <div style={{ padding: '12px', borderRadius: '14px', backgroundColor: C.greenLight, color: C.greenDark }}>Accepted: {analytics.acceptedOrders}</div>
+                <div style={{ padding: '12px', borderRadius: '14px', backgroundColor: C.redLight, color: C.red, gridColumn: '1 / -1' }}>Rejected: {analytics.rejectedOrders}</div>
+                <div style={{ padding: '12px', borderRadius: '14px', backgroundColor: C.bg, gridColumn: '1 / -1' }}>
+                  🔥 Most Accepted: <strong>{analytics.mostAcceptedItem}</strong> ({analytics.mostAcceptedCount} units)
+                </div>
+                <div style={{ padding: '12px', borderRadius: '14px', backgroundColor: C.bg, gridColumn: '1 / -1' }}>
+                  ⚠️ Most Rejected: <strong>{analytics.mostRejectedItem}</strong> ({analytics.mostRejectedCount} units)
+                </div>
+              </div>
+            </section>
+
             {/* CARD: DATA & ACCOUNT MANAGEMENT */}
-            <section className="bg-white/75 backdrop-blur-md border-[3px] border-black rounded-3xl p-5">
-              <h2 className="text-lg font-black uppercase tracking-wider mb-4 border-b-[2.5px] border-black pb-2">
-                Data & Account Actions
-              </h2>
-              <p className="text-xs font-semibold text-gray-600 mb-4">
+            <section style={{ backgroundColor: C.card, borderRadius: '24px', padding: '20px', boxShadow: C.shadow }}>
+              <h2 style={{ fontSize: '15px', fontWeight: 800, margin: '0 0 6px' }}>Data & Account Actions</h2>
+              <p style={{ fontSize: '12px', fontWeight: 600, color: C.textMuted, margin: '0 0 14px' }}>
                 Export your store parameters and order logs, or permanently delete your account data.
               </p>
               
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <button
                   type="button"
                   onClick={handleDownloadData}
                   disabled={isDownloading}
-                  className="py-3 px-4 border-[2.5px] border-black bg-lime-300 hover:bg-lime-400 text-black rounded-2xl text-xs font-black uppercase flex items-center justify-center gap-2 active:translate-y-0.5 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all disabled:opacity-50"
+                  style={{ padding: '12px', borderRadius: '16px', border: 'none', backgroundColor: C.greenLight, color: C.greenDark, fontSize: '12px', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: isDownloading ? 'default' : 'pointer', opacity: isDownloading ? 0.6 : 1 }}
                 >
-                  {isDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                  <span>{isDownloading ? "Exporting..." : "Download My Data"}</span>
+                  {isDownloading ? <Loader2 style={{ width: '16px', height: '16px' }} className="animate-spin" /> : <Download style={{ width: '16px', height: '16px' }} />}
+                  <span>{isDownloading ? "Exporting..." : "Download Data"}</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setIsDeleteModalOpen(true)}
-                  className="py-3 px-4 border-[2.5px] border-black bg-red-100 hover:bg-red-200 text-red-700 rounded-2xl text-xs font-black uppercase flex items-center justify-center gap-2 active:translate-y-0.5 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all"
+                  style={{ padding: '12px', borderRadius: '16px', border: 'none', backgroundColor: C.redLight, color: C.red, fontSize: '12px', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: 'pointer' }}
                 >
-                  <Trash2 className="w-4 h-4 text-red-600" />
-                  <span>Delete Account & Data</span>
+                  <Trash2 style={{ width: '16px', height: '16px' }} />
+                  <span>Delete Account</span>
                 </button>
               </div>
             </section>
 
-            {/* CARD 4: VIN WALLET */}
-            {/* CARD 4: STRIPE LIVE EARNINGS */}
-            <section className="bg-white/75 backdrop-blur-md border-[3px] border-black rounded-3xl p-5">
+            {/* CARD: STRIPE LIVE EARNINGS */}
+            <section style={{ backgroundColor: C.card, borderRadius: '24px', padding: '20px', boxShadow: C.shadow }}>
               <div className={styles.glassCard}>
                 <h3>Account & Ledger</h3>
                 <div className={styles.metaRow}><strong>UID:</strong> <span className={styles.codeText}>{uid}</span></div>
                 <div className={styles.metaRow}><strong>Status:</strong> <span>{profile?.status || 'Active'}</span></div>
                 
-                {/* Stripe Connector Sub-section */}
                 <div className={styles.card} style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #222' }}>
                   <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#fff' }}>Direct Credit Card Payments</h4>
 
@@ -1236,7 +1520,6 @@ export default function FoodDashboard() {
                           {isSettingUpStripe ? "Connecting..." : "Link Stripe Account"}
                         </button>
 
-                        {/* VERIFY CONNECTION BUTTON FOR UNONBOARDED ACCOUNTS */}
                         {(profile as any)?.stripeAccountId && (
                           <button 
                             type="button" 
@@ -1262,7 +1545,6 @@ export default function FoodDashboard() {
                     </div>
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      {/* Total Sales Balance Metric Block */}
                       <div 
                         style={{
                           display: 'flex',
@@ -1284,9 +1566,7 @@ export default function FoodDashboard() {
                         </span>
                       </div>
 
-                      {/* Liquid and Pending Breakdown Section */}
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '12px', border: '1px solid #1a1a1a' }}>
-                        {/* 1. Liquid Available Balance */}
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <span style={{ color: '#22c55e', fontSize: '12px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <span style={{ width: '6px', height: '6px', background: '#22c55e', borderRadius: '50%' }}></span>
@@ -1297,7 +1577,6 @@ export default function FoodDashboard() {
                           </span>
                         </div>
 
-                        {/* 2. Pending Clearance Settlement Pool */}
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '4px', borderTop: '1px solid #222' }}>
                           <span style={{ color: '#eab308', fontSize: '12px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <span style={{ width: '6px', height: '6px', background: '#eab308', borderRadius: '50%' }}></span>
@@ -1309,7 +1588,6 @@ export default function FoodDashboard() {
                         </div>
                       </div>
                       
-                      {/* Footnote explanation text container regarding clearance windows */}
                       <p style={{ fontSize: '11px', color: '#555', lineHeight: '1.4', margin: '4px 0 0 0', textAlign: 'left' }}>
                         ℹ️ Standard card clearing requires 1–3 business days. Pending funds automatically transfer into your available balance pool upon verification settlement.
                       </p>
@@ -1330,142 +1608,60 @@ export default function FoodDashboard() {
               </div>
             </section>
 
-            {/* CARD 5: CATALOGUE */}
-            <section className="bg-white/75 backdrop-blur-md border-[3px] border-black rounded-3xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            {/* CARD: CATALOGUE */}
+            <section style={{ backgroundColor: C.card, borderRadius: '24px', padding: '20px', boxShadow: C.shadow, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px' }}>
                 <div>
-                  <h2 className="text-lg font-black uppercase tracking-wider">Catalogue</h2>
-                  <div className="flex items-center gap-3 mt-1.5 text-xs font-bold">
-                    <span style={{ backgroundColor: "#bef264" }} className="border-[1px] border-black px-2 py-0.5 rounded-md">
-                      Status: Active
-                    </span>
-                    <span>•</span>
+                  <h2 style={{ fontSize: '15px', fontWeight: 800, margin: '0 0 4px' }}>Catalogue</h2>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: 700, color: C.textMuted }}>
+                    <span style={{ backgroundColor: C.greenLight, color: C.greenDark, padding: '2px 8px', borderRadius: '8px' }}>Active</span>
                     <span>{catalogueCount} Products Live</span>
                   </div>
                 </div>
                 <button
                     onClick={() => setPage('catalogue')}
-                    style={{ backgroundColor: "#bef264" }}
-                    className="py-2.5 px-4 border-[1px] border-black rounded-xl text-xs font-black uppercase active:translate-y-0.5 transition-all whitespace-nowrap self-stretch sm:self-center text-center"
+                    style={{ backgroundColor: C.green, color: '#FFFFFF', padding: '11px 16px', borderRadius: '14px', border: 'none', fontSize: '12px', fontWeight: 800, whiteSpace: 'nowrap', cursor: 'pointer' }}
                 >
-                  Manage Items →
+                  Manage →
                 </button>
             </section>
+
+            {/* LOGOUT */}
+            <button
+              onClick={handleLogout}
+              style={{ width: '100%', padding: '14px', borderRadius: '18px', border: `1px solid ${C.border}`, backgroundColor: C.card, color: C.text, fontSize: '13px', fontWeight: 800, cursor: 'pointer', boxShadow: C.shadow }}
+            >
+              Log Out
+            </button>
           </div>
-        )}
+        </main>
+      )}
 
-        {/* --- ORDERS STREAM CONTAINER --- */}
-        {!settingsOpen && activeTab === "orders" && (
-          <section className="space-y-4 max-w-2xl mx-auto mt-6 animate-fadeIn">
-            <h2 className="text-xl font-black">
-              Incoming Orders {!isVerified && <span className="text-xs font-normal text-gray-500">(Daily Cap: {incomingOrders.filter(o => o.status !== "accepted" && o.status !== "rejected").length}/10)</span>}
-            </h2>
+      
 
-            {incomingOrders.filter(order => order.status !== "accepted" && order.status !== "rejected").length === 0 ? (
-              <p className="text-center font-bold text-gray-500 py-6">No incoming orders right now.</p>
-            ) : (
-              incomingOrders
-                .filter((order) => order.status !== "accepted" && order.status !== "rejected")
-                .map((order) => (
-                  <div
-                      key={order.id}
-                      className="border-[3px] border-black rounded-3xl p-4 bg-white dynamic-neubrutalism-card transition-all duration-300"
-                  >
-                      <div className="flex justify-between items-start mb-3">
-                          <div className="flex-1">
-                              <h3 className="font-black text-lg">{order.customerName}</h3>
-                              <p className="text-sm mt-1">Pickup: {order.pickupTime}</p>
-                              <p className="text-sm mt-1">Status: {order.status}</p>
-                              
-                              {order.userMobilityStatus && (
-                                <p className="text-xs font-black uppercase tracking-wide mt-1.5 px-2 py-0.5 rounded-md border border-black bg-amber-100 inline-block">
-                                  Context: {order.userMobilityStatus} 
-                                  {order.userMobilityStatus === 'in store' && order.tableNumber && ` (Table ${order.tableNumber})`}
-                                </p>
-                              )}
-                          </div>
+      {/* --- BOTTOM NAVIGATION --- */}
+      <nav style={{
+        position: 'fixed', bottom: 0, left: 0, right: 0, backgroundColor: C.card, borderTop: `1px solid ${C.border}`,
+        display: 'flex', justifyContent: 'space-around', alignItems: 'center', padding: '10px 8px calc(env(safe-area-inset-bottom, 0px) + 8px)', zIndex: 30,
+      }}>
+        {[
+          { key: 'orders', label: 'Orders', Icon: ShoppingBag, active: page === 'dashboard' && !settingsOpen, onClick: () => { setPage('dashboard'); setSettingsOpen(false); } },
+          { key: 'products', label: 'Products', Icon: Package, active: false, onClick: () => setPage('catalogue') },
+        ].map(item => (
+          <button
+            key={item.key}
+            onClick={item.onClick}
+            style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px',
+              background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px',
+              color: item.active ? C.green : '#9CA3AF',
+            }}
+          >
+            <item.Icon style={{ width: '22px', height: '22px' }} />
+            <span style={{ fontSize: '10px', fontWeight: 700 }}>{item.label}</span>
+          </button>
+        ))}
+      </nav>
 
-                          <div className="flex flex-col items-center mx-4 min-w-[90px]">
-                              <p className="text-sm font-black text-lime-600 mb-1">
-                                {order.fourDigitCode || "----"}
-                              </p>
-                              {orderQrCodes?.[order.id] && (
-                                <img
-                                    src={orderQrCodes[order.id]}
-                                    alt="Order QR"
-                                    className="w-16 h-16 border-2 border-black rounded-lg p-1 bg-white"
-                                />
-                              )}
-                          </div>
-
-                          <div className="flex gap-2">
-                              <button
-                                onClick={() => handleRejectOrder(order.id)}
-                                className="w-10 h-10 border-2 border-black rounded-xl bg-red-200 font-bold hover:bg-red-300 transition-colors"
-                              >
-                                ✕
-                              </button>
-                              <button
-                                onClick={() => handleAcceptOrder(order.id)}
-                                className="w-10 h-10 border-2 border-black rounded-xl bg-lime-300 font-bold hover:bg-lime-400 transition-colors"
-                              >
-                                ✓
-                              </button>
-                          </div>
-                      </div>
-
-                      <div className="space-y-2 border-t border-black/10 pt-2">
-                        {order.items.map((item, index) => (
-                            <div key={index} className="flex justify-between text-sm">
-                              <span>{item.quantity}x {item.name}</span>
-                              <span>€{(item.price * item.quantity).toFixed(2)}</span>
-                            </div>
-                        ))}
-                      </div>
-                  </div>
-                ))
-            )}
-          </section>
-        )}
-
-        {/* --- ANALYTICS WORKSPACE --- */}
-        {!settingsOpen && activeTab === "analytics" && (
-            <section className="max-w-2xl mx-auto mt-6 bg-white border-[3px] border-black rounded-3xl p-5 space-y-3 animate-fadeIn">
-                <h2 className="text-lg font-black uppercase">Analytics Workspace</h2>
-                <div className="grid grid-cols-2 gap-3 text-sm font-bold">
-                  <div className="p-3 border-[2px] border-black rounded-xl bg-gray-50">
-                      Total Orders: {analytics?.totalOrders || 0}
-                  </div>
-                  <div className="p-3 border-[2px] border-black rounded-xl bg-lime-50 text-lime-700">
-                      Accepted Total: {analytics?.acceptedOrders || 0}
-                  </div>
-                  <div className="p-3 border-[2px] border-black rounded-xl bg-red-50 text-red-700">
-                      Rejected Total: {analytics?.rejectedOrders || 0}
-                  </div>
-                  
-                  <div className="p-3 border-[2px] border-black rounded-xl col-span-2 bg-lime-100/50">
-                      🔥 Most Accepted Item: <span className="font-black">{analytics?.mostAcceptedItem || "N/A"}</span> ({analytics?.mostAcceptedCount || 0} units)
-                  </div>
-
-                  <div className="p-3 border-[2px] border-black rounded-xl col-span-2 bg-red-100/50">
-                      ⚠️ Most Rejected Item: <span className="font-black">{analytics?.mostRejectedItem || "N/A"}</span> ({analytics?.mostRejectedCount || 0} units)
-                  </div>
-                </div>
-            </section>
-        )}
-      </main>
-
-      {/* --- FLOATING BOTTOM RIGHT ACCEPTED ORDERS BUTTON --- */}
-      <div className="fixed bottom-6 right-6 z-40">
-        <button
-          onClick={() => setShowAcceptedModal(true)}
-          className="bg-lime-400 text-black border-[3px] border-black font-black uppercase tracking-wider text-xs px-4 py-3 rounded-2xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:bg-lime-300 active:translate-x-0.5 active:translate-y-0.5 active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all flex items-center gap-2"
-        >
-          <span>Accepted Orders</span>
-          <span className="bg-black text-white rounded-full px-1.5 py-0.5 text-[10px]">
-            {incomingOrders.filter(order => order.status === "accepted").length}
-          </span>
-        </button>
-      </div>
       {/* FORGOT PIN & RESET OVERLAY */}
       {isForgotPinOpen && (
         <div className={styles.modalOverlay} style={{ zIndex: 3000 }}>
@@ -1500,8 +1696,18 @@ export default function FoodDashboard() {
             </div>
 
             <div style={{ display: 'flex', gap: '12px' }}>
-              <button className={styles.glassButtonSecondary} onClick={() => setIsForgotPinOpen(false)} style={{ flex: 1 }}>Cancel</button>
-              <button className={styles.glassButtonPrimary} onClick={handleConfirmNewPin} style={{ flex: 1 }}>Reset PIN</button>
+              <button
+                onClick={() => setIsForgotPinOpen(false)}
+                style={{ flex: 1, padding: '10px', borderRadius: '10px', border: '1px solid #333', backgroundColor: 'transparent', color: '#ffffff', fontSize: '13px', fontWeight: 700, cursor: 'pointer', outline: 'none' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmNewPin}
+                style={{ flex: 1, padding: '10px', borderRadius: '10px', border: 'none', backgroundColor: C.green, color: '#ffffff', fontSize: '13px', fontWeight: 700, cursor: 'pointer', outline: 'none' }}
+              >
+                Reset PIN
+              </button>
             </div>
           </div>
         </div>
@@ -1523,25 +1729,23 @@ export default function FoodDashboard() {
 
             <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
               <button 
-                className={styles.glassButtonSecondary} 
                 onClick={() => setIsPinModalOpen(false)}
                 disabled={isProcessingPayout}
-                style={{ flex: 1 }}
+                style={{ flex: 1, padding: '10px', borderRadius: '10px', border: '1px solid #333', backgroundColor: 'transparent', color: '#ffffff', fontSize: '13px', fontWeight: 700, cursor: isProcessingPayout ? 'default' : 'pointer', outline: 'none', opacity: isProcessingPayout ? 0.5 : 1 }}
               >
                 Cancel
               </button>
               <button 
-                className={styles.glassButtonPrimary} 
                 onClick={handleConfirmPayout}
                 disabled={isProcessingPayout || pinInput.length !== 4}
-                style={{ flex: 1 }}
+                style={{ flex: 1, padding: '10px', borderRadius: '10px', border: 'none', backgroundColor: C.green, color: '#ffffff', fontSize: '13px', fontWeight: 700, cursor: (isProcessingPayout || pinInput.length !== 4) ? 'default' : 'pointer', outline: 'none', opacity: (isProcessingPayout || pinInput.length !== 4) ? 0.5 : 1 }}
               >
                 {isProcessingPayout ? "Verifying..." : "Confirm"}
               </button>
               <button 
                 type="button" 
                 onClick={handleForgotPinRequest}
-                style={{ background: 'none', border: 'none', color: '#E53935', fontSize: '11px', cursor: 'pointer', marginTop: '8px', textDecoration: 'underline' }}
+                style={{ background: 'none', border: 'none', color: C.red, fontSize: '11px', cursor: 'pointer', marginTop: '8px', textDecoration: 'underline', outline: 'none' }}
               >
                 Forgot PIN?
               </button>
@@ -1585,12 +1789,17 @@ export default function FoodDashboard() {
             </div>
 
             <div style={{ display: 'flex', gap: '12px' }}>
-              <button className={styles.glassButtonSecondary} disabled={isRegisteringPin} onClick={() => setIsPinSetupModalOpen(false)} style={{ flex: 1 }}>Cancel</button>
+              <button
+                disabled={isRegisteringPin}
+                onClick={() => setIsPinSetupModalOpen(false)}
+                style={{ flex: 1, padding: '10px', borderRadius: '10px', border: '1px solid #333', backgroundColor: 'transparent', color: '#ffffff', fontSize: '13px', fontWeight: 700, cursor: isRegisteringPin ? 'default' : 'pointer', outline: 'none', opacity: isRegisteringPin ? 0.5 : 1 }}
+              >
+                Cancel
+              </button>
               <button 
-                className={styles.glassButtonPrimary} 
                 disabled={isRegisteringPin || setupPin.length !== 4 || setupPin !== confirmSetupPin} 
                 onClick={handleRegisterSetupPin} 
-                style={{ flex: 1 }}
+                style={{ flex: 1, padding: '10px', borderRadius: '10px', border: 'none', backgroundColor: C.green, color: '#ffffff', fontSize: '13px', fontWeight: 700, cursor: (isRegisteringPin || setupPin.length !== 4 || setupPin !== confirmSetupPin) ? 'default' : 'pointer', outline: 'none', opacity: (isRegisteringPin || setupPin.length !== 4 || setupPin !== confirmSetupPin) ? 0.5 : 1 }}
               >
                 {isRegisteringPin ? "Saving..." : "Set PIN"}
               </button>
@@ -1600,23 +1809,23 @@ export default function FoodDashboard() {
       )}
       {/* --- DELETE ACCOUNT CONFIRMATION MODAL --- */}
       {isDeleteModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white border-[4px] border-black rounded-3xl p-6 max-w-sm w-full shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] text-center space-y-4 animate-fadeIn">
-            <div className="w-14 h-14 bg-red-100 border-[3px] border-black rounded-full flex items-center justify-center mx-auto text-red-600">
-              <Trash2 className="w-7 h-7" />
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15,23,42,0.55)', backdropFilter: 'blur(4px)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+          <div style={{ backgroundColor: C.card, borderRadius: '28px', padding: '24px', maxWidth: '380px', width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.25)', textAlign: 'center' }}>
+            <div style={{ width: '56px', height: '56px', backgroundColor: C.redLight, borderRadius: '9999px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px', color: C.red }}>
+              <Trash2 style={{ width: '26px', height: '26px' }} />
             </div>
 
-            <h3 className="text-xl font-black uppercase tracking-tight">Delete Account?</h3>
+            <h3 style={{ fontSize: '19px', fontWeight: 800, margin: '0 0 10px' }}>Delete Account?</h3>
             
-            <p className="text-xs font-bold text-gray-700 leading-relaxed">
-              Are you sure you want to delete your store profile and account? This action is <strong className="text-black underline">permanent</strong> and cannot be undone.
+            <p style={{ fontSize: '13px', fontWeight: 600, color: C.textMuted, lineHeight: 1.5, margin: '0 0 18px' }}>
+              Are you sure you want to delete your store profile and account? This action is <strong style={{ color: C.text }}>permanent</strong> and cannot be undone.
             </p>
 
-            <div className="flex gap-3 pt-2">
+            <div style={{ display: 'flex', gap: '10px' }}>
               <button
                 type="button"
                 onClick={() => setIsDeleteModalOpen(false)}
-                className="flex-1 py-3 border-[2.5px] border-black bg-gray-100 text-black rounded-xl text-xs font-black uppercase hover:bg-gray-200 transition-all"
+                style={{ flex: 1, padding: '13px', border: 'none', backgroundColor: C.grayLight, color: C.text, borderRadius: '14px', fontSize: '12px', fontWeight: 800, cursor: 'pointer' }}
               >
                 Cancel
               </button>
@@ -1624,9 +1833,9 @@ export default function FoodDashboard() {
                 type="button"
                 onClick={handleDeleteAccountAndData}
                 disabled={isDeleting}
-                className="flex-1 py-3 border-[2.5px] border-black bg-red-500 text-white rounded-xl text-xs font-black uppercase hover:bg-red-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                style={{ flex: 1, padding: '13px', border: 'none', backgroundColor: C.red, color: '#ffffff', borderRadius: '14px', fontSize: '12px', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: isDeleting ? 'default' : 'pointer', opacity: isDeleting ? 0.6 : 1 }}
               >
-                {isDeleting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                {isDeleting && <Loader2 style={{ width: '14px', height: '14px' }} className="animate-spin" />}
                 <span>{isDeleting ? "Deleting..." : "Confirm Delete"}</span>
               </button>
             </div>

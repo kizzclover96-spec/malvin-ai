@@ -2,9 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { collection, onSnapshot, query, orderBy, doc, deleteDoc, setDoc, limit, serverTimestamp } from 'firebase/firestore';
 import { firestore as db } from '../../firebase'; 
 import { auth } from "../../firebase";  
-import { Loader2, Store, Trash2, Heart, Share2, X } from 'lucide-react';
+import { Loader2, Store, Trash2, Heart, Share2, X, Send } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { VinMoment } from './Vinmoment';
+import { resolveVinLink } from '../../services/vinLink';
+import { copyToClipboard } from '../../services/share';
 
 interface RecentBusinessItem {
   id: string;
@@ -34,6 +36,9 @@ export const RecentBusinesses: React.FC<RecentBusinessesProps> = ({ onSelectBusi
   const [actionSheetItem, setActionSheetItem] = useState<RecentBusinessItem | null>(null);
   // VinMoment share card: which item it's open for (if any)
   const [momentItem, setMomentItem] = useState<RecentBusinessItem | null>(null);
+  // Transient confirmation after a VinShare copy
+  const [vinShareToast, setVinShareToast] = useState<string | null>(null);
+  const [isCopyingVin, setIsCopyingVin] = useState(false);
 
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
   const isLongPressActive = useRef(false);
@@ -141,6 +146,30 @@ export const RecentBusinesses: React.FC<RecentBusinessesProps> = ({ onSelectBusi
       console.error('Error saving favorite:', err);
     }
   };
+
+  // VinShare — copies the business's deep link straight to the clipboard so it
+  // can be pasted anywhere, without going through the full VinMoment card.
+  const handleVinShare = async (item: RecentBusinessItem) => {
+    setIsCopyingVin(true);
+    try {
+      const link = await resolveVinLink(item.businessUid);
+      const copied = await copyToClipboard(link);
+      setVinShareToast(copied ? 'Vin link copied to clipboard' : "Couldn't copy the link");
+    } catch (err) {
+      console.error('VinShare failed:', err);
+      setVinShareToast("Couldn't copy the link");
+    } finally {
+      setIsCopyingVin(false);
+      setActionSheetItem(null);
+    }
+  };
+
+  // Auto-dismiss the copy confirmation.
+  useEffect(() => {
+    if (!vinShareToast) return;
+    const id = setTimeout(() => setVinShareToast(null), 2200);
+    return () => clearTimeout(id);
+  }, [vinShareToast]);
 
   const handleDeleteRecent = async (item: RecentBusinessItem) => {
     if (!user?.uid) return;
@@ -338,6 +367,24 @@ export const RecentBusinesses: React.FC<RecentBusinessesProps> = ({ onSelectBusi
                 <div className="h-px bg-neutral-900/[0.06] mx-3 my-1" />
 
                 <button
+                  onClick={() => handleVinShare(actionSheetItem)}
+                  disabled={isCopyingVin}
+                  className="icon-button w-full flex items-center gap-3 px-3 py-3 rounded-2xl hover:bg-neutral-900/[0.04] transition-colors text-left disabled:opacity-60"
+                >
+                  <span className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 bg-gradient-to-br from-sky-400/25 to-cyan-500/25">
+                    {isCopyingVin
+                      ? <Loader2 className="w-4 h-4 text-sky-600 animate-spin" />
+                      : <Send className="w-4 h-4 text-sky-600" />}
+                  </span>
+                  <span className="flex flex-col">
+                    <span className="text-[13px] font-bold text-neutral-800">VinShare</span>
+                    <span className="text-[10px] font-semibold text-neutral-400">Copy this store's vin link</span>
+                  </span>
+                </button>
+
+                <div className="h-px bg-neutral-900/[0.06] mx-3 my-1" />
+
+                <button
                   onClick={() => { handleDeleteRecent(actionSheetItem); setActionSheetItem(null); }}
                   className="icon-button w-full flex items-center gap-3 px-3 py-3 rounded-2xl hover:bg-rose-500/[0.06] transition-colors text-left"
                 >
@@ -348,6 +395,21 @@ export const RecentBusinesses: React.FC<RecentBusinessesProps> = ({ onSelectBusi
                 </button>
               </div>
             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* VINSHARE COPY CONFIRMATION */}
+      <AnimatePresence>
+        {vinShareToast && (
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 16 }}
+            className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[80] px-4 py-2.5 rounded-full bg-neutral-900/95 backdrop-blur-xl text-white text-[12px] font-bold shadow-2xl flex items-center gap-2 pointer-events-none"
+          >
+            <Send className="w-3.5 h-3.5 text-sky-400" />
+            {vinShareToast}
           </motion.div>
         )}
       </AnimatePresence>

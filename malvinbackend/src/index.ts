@@ -2,6 +2,7 @@ import "dotenv/config";
 import { setGlobalOptions } from "firebase-functions/v2";
 import { onCall, onRequest, HttpsError } from "firebase-functions/v2/https";
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
+import { onSchedule } from "firebase-functions/v2/scheduler";
 import { initializeApp } from "firebase-admin/app";
 import * as crypto from "crypto";
 
@@ -26,6 +27,82 @@ const getRtdb = () => {
   const { getDatabase } = require("firebase-admin/database");
   return getDatabase();
 };
+
+// Notification channel id. Must match the one created client-side in
+// src/services/pushNotifications.ts and declared in AndroidManifest.xml —
+// if it doesn't, Android files the push under a channel the user can't
+// manage and it arrives silently.
+const PUSH_CHANNEL_ID = "malvin_default";
+
+interface PushPayload {
+  title: string;
+  body: string;
+  /** Routed to the app in the data payload so it can deep-link on tap. */
+  type?: string;
+  data?: Record<string, string>;
+}
+
+/**
+ * Single send path for every push in the app.
+ *
+ * Sound has to be requested explicitly per-message: FCM defaults to a silent
+ * notification, and Android only plays audio when the message names a sound
+ * AND lands on a channel whose importance is HIGH. Priority "high" is what
+ * gets it delivered promptly while the device is dozing, which matters for
+ * "an order just came in".
+ *
+ * Tokens live on customers/{uid} regardless of whether that account is a
+ * shopper or a merchant — registerPushNotifications() writes there for both.
+ */
+async function sendPushToUser(uid: string, payload: PushPayload): Promise<boolean> {
+  if (!uid) return false;
+
+  const db = getDb();
+  const snap = await db.collection("customers").doc(uid).get();
+  const token = snap.data()?.pushToken;
+
+  if (!token) {
+    console.log(`No push token for ${uid} — skipping push, in-app bell still works.`);
+    return false;
+  }
+
+  const { getMessaging } = require("firebase-admin/messaging");
+
+  try {
+    await getMessaging().send({
+      token,
+      notification: { title: payload.title, body: payload.body },
+      data: { type: payload.type || "", ...(payload.data || {}) },
+      android: {
+        priority: "high",
+        notification: {
+          channelId: PUSH_CHANNEL_ID,
+          sound: "default",
+          defaultVibrateTimings: true,
+          visibility: "public",
+        },
+      },
+      apns: {
+        payload: { aps: { sound: "default" } },
+      },
+    });
+    return true;
+  } catch (err: any) {
+    // A token can go stale (app uninstalled, permissions revoked, etc).
+    // Firebase reports that as messaging/registration-token-not-registered
+    // — clean it up so future notifications don't keep failing against a
+    // dead token.
+    if (err?.code === "messaging/registration-token-not-registered") {
+      await db.collection("customers").doc(uid).update({
+        pushToken: require("firebase-admin/firestore").FieldValue.delete(),
+      });
+      console.log(`Removed stale push token for ${uid}.`);
+    } else {
+      console.error(`Failed to send push to ${uid}:`, err);
+    }
+    return false;
+  }
+}
 
 function hashPin(pin: string, salt: string): string {
   return crypto.pbkdf2Sync(pin, salt, 1000, 64, "sha512").toString("hex");
@@ -1088,41 +1165,242 @@ export const sendPushOnNewNotification = onDocumentCreated(
     const notification = event.data?.data();
     if (!notification) return;
 
-    const db = getDb();
-    const customerSnap = await db.collection("customers").doc(uid).get();
-    const token = customerSnap.data()?.pushToken;
-
-    if (!token) {
-      console.log(`No push token for customer ${uid} — skipping push, in-app bell still works.`);
-      return;
-    }
-
-    const { getMessaging } = require("firebase-admin/messaging");
-
-    try {
-      await getMessaging().send({
-        token,
-        notification: {
-          title: notification.title || "Malvin AI",
-          body: notification.message || "",
-        },
-        data: {
-          type: notification.type || "",
-        },
-      });
-    } catch (err: any) {
-      // A token can go stale (app uninstalled, permissions revoked, etc).
-      // Firebase reports that as messaging/registration-token-not-registered
-      // — clean it up so future notifications don't keep failing against a
-      // dead token.
-      if (err?.code === "messaging/registration-token-not-registered") {
-        await db.collection("customers").doc(uid).update({
-          pushToken: require("firebase-admin/firestore").FieldValue.delete(),
-        });
-        console.log(`Removed stale push token for customer ${uid}.`);
-      } else {
-        console.error(`Failed to send push to customer ${uid}:`, err);
-      }
-    }
+    await sendPushToUser(uid, {
+      title: notification.title || "Malvin AI",
+      body: notification.message || "",
+      type: notification.type || "",
+    });
   }
 );
+
+/*
+=====================================
+MERCHANT ACTIVITY PUSHES
+=====================================
+Three triggers that fire the moment work lands on a merchant, plus one
+scheduled digest for work that has been left sitting.
+
+Where the data lives (taken from the dashboards that read it):
+  orders        -> `orders`, tied to a business by `restaurantUid`
+  appointments  -> `customers/{customerUid}/appointments/{id}`,
+                   tied to a business by `businessId`
+  chats         -> `conversations`, tied by `brandId`, with
+                   `viewedByManager === false` meaning unread
+
+All of these push to the business owner's auth uid, which is also the
+document id of their `restaurantprofile` / `salons` profile doc.
+*/
+
+/** New order hits a restaurant's dashboard. */
+export const notifyOnNewOrder = onDocumentCreated(
+  "orders/{orderId}",
+  async (event) => {
+    const order = event.data?.data();
+    const ownerUid = order?.restaurantUid;
+    if (!ownerUid) return;
+
+    const customer = order?.customerName ? ` from ${order.customerName}` : "";
+    await sendPushToUser(ownerUid, {
+      title: "New order received",
+      body: `You have a new order${customer}. Open Malvin to accept it.`,
+      type: "new_order",
+      data: { orderId: event.params.orderId },
+    });
+  }
+);
+
+/** New booking hits a salon's dashboard. */
+export const notifyOnNewAppointment = onDocumentCreated(
+  "customers/{customerUid}/appointments/{appointmentId}",
+  async (event) => {
+    const appointment = event.data?.data();
+    const ownerUid = appointment?.businessId;
+    if (!ownerUid) return;
+
+    const who = appointment?.customerName ? ` - ${appointment.customerName}` : "";
+    const when = appointment?.time ? ` at ${appointment.time}` : "";
+    await sendPushToUser(ownerUid, {
+      title: "New appointment booked",
+      body: `A new appointment was just booked${who}${when}.`,
+      type: "new_appointment",
+      data: { appointmentId: event.params.appointmentId },
+    });
+  }
+);
+
+/** Customer sends a chat message to a business. */
+export const notifyOnNewChatMessage = onDocumentCreated(
+  "conversations/{conversationId}/messages/{messageId}",
+  async (event) => {
+    const message = event.data?.data();
+    if (!message) return;
+
+    // Only the customer's side should alert the merchant, otherwise the
+    // merchant gets pushed for their own replies.
+    if (message.sender !== "customer") return;
+
+    const db = getDb();
+    const convoSnap = await db
+      .collection("conversations")
+      .doc(event.params.conversationId)
+      .get();
+
+    const ownerUid = message.brandId || convoSnap.data()?.brandId;
+    if (!ownerUid) return;
+
+    const preview = String(message.text || "").slice(0, 120);
+    await sendPushToUser(ownerUid, {
+      title: "New message from a customer",
+      body: preview || "You have a new message.",
+      type: "new_chat_message",
+      data: { conversationId: event.params.conversationId },
+    });
+  }
+);
+
+interface PendingCounts {
+  orders: number;
+  appointments: number;
+  chats: number;
+  total: number;
+}
+
+/**
+ * Counts work still waiting on a business.
+ *
+ * "Pending" mirrors how each dashboard already filters: an order counts until
+ * it has been accepted/rejected/finished, an appointment counts while its
+ * record still exists, and a conversation counts while viewedByManager is
+ * false.
+ */
+async function countPendingWork(ownerUid: string): Promise<PendingCounts> {
+  const db = getDb();
+  const HANDLED = ["accepted", "rejected", "finished", "completed", "cancelled"];
+
+  const [orderSnap, apptSnap, chatSnap] = await Promise.all([
+    db.collection("orders").where("restaurantUid", "==", ownerUid).get(),
+    db.collectionGroup("appointments").where("businessId", "==", ownerUid).get(),
+    db
+      .collection("conversations")
+      .where("brandId", "==", ownerUid)
+      .where("viewedByManager", "==", false)
+      .get(),
+  ]);
+
+  // Status vocabulary differs between the food and retail dashboards, so
+  // filter on "not yet handled" rather than matching one specific value.
+  const orders = orderSnap.docs.filter((d: any) => {
+    const status = String(d.data()?.status || "").toLowerCase();
+    return !HANDLED.includes(status);
+  }).length;
+
+  const appointments = apptSnap.size;
+  const chats = chatSnap.size;
+
+  return { orders, appointments, chats, total: orders + appointments + chats };
+}
+
+/** Turns the counts into one readable line. */
+export function describePendingWork(counts: PendingCounts): string {
+  const parts: string[] = [];
+  if (counts.orders) {
+    parts.push(`${counts.orders} order${counts.orders === 1 ? "" : "s"}`);
+  }
+  if (counts.appointments) {
+    parts.push(`${counts.appointments} appointment${counts.appointments === 1 ? "" : "s"}`);
+  }
+  if (counts.chats) {
+    parts.push(`${counts.chats} unread chat${counts.chats === 1 ? "" : "s"}`);
+  }
+
+  if (parts.length === 0) return "";
+  if (parts.length === 1) return parts[0];
+  const last = parts.pop();
+  return `${parts.join(", ")} and ${last}`;
+}
+
+/**
+ * Hourly nudge for anything still sitting in a merchant's dashboard.
+ *
+ * This runs server-side on purpose. A repeating *local* notification would
+ * also fire with the app closed, but its text would be frozen at whatever was
+ * true when it was scheduled - it cannot re-count. Running it here means the
+ * numbers are right at the moment the notification lands, and it stops on its
+ * own once the queue is clear.
+ *
+ * Needs Cloud Scheduler, which requires the Blaze plan.
+ */
+export const remindPendingWork = onSchedule(
+  {
+    schedule: "every 60 minutes",
+    timeZone: "Europe/Berlin",
+    // Fanning out over every business is the slow part; give it room.
+    timeoutSeconds: 540,
+    memory: "512MiB",
+  },
+  async () => {
+    const db = getDb();
+
+    // A business owner's uid is the id of their profile doc.
+    const [restaurants, salons] = await Promise.all([
+      db.collection("restaurantprofile").get(),
+      db.collection("salons").get(),
+    ]);
+
+    const ownerUids = new Set<string>();
+    restaurants.docs.forEach((d: any) => ownerUids.add(d.id));
+    salons.docs.forEach((d: any) => ownerUids.add(d.id));
+
+    console.log(`remindPendingWork: checking ${ownerUids.size} businesses.`);
+
+    let notified = 0;
+    const uids = Array.from(ownerUids);
+    const BATCH = 10;
+
+    // Batched rather than one giant Promise.all, so a large merchant base
+    // cannot exhaust the Firestore connection pool.
+    for (let i = 0; i < uids.length; i += BATCH) {
+      const batch = uids.slice(i, i + BATCH);
+      await Promise.all(
+        batch.map(async (uid) => {
+          try {
+            const counts = await countPendingWork(uid);
+            if (counts.total === 0) return;
+
+            const sent = await sendPushToUser(uid, {
+              title: "You still have work waiting",
+              body: `${describePendingWork(counts)} still need your attention.`,
+              type: "pending_work",
+              data: {
+                orders: String(counts.orders),
+                appointments: String(counts.appointments),
+                chats: String(counts.chats),
+              },
+            });
+            if (sent) notified++;
+          } catch (err) {
+            console.error(`remindPendingWork: failed for ${uid}:`, err);
+          }
+        })
+      );
+    }
+
+    console.log(`remindPendingWork: notified ${notified} businesses.`);
+  }
+);
+
+/**
+ * The same digest on demand. The app calls this right after a merchant signs
+ * in, so the reminder is accurate at that moment instead of waiting for the
+ * top of the hour. Returns the counts as well, so the caller can decide
+ * whether to surface anything in-app.
+ */
+export const getPendingWorkSummary = onCall(async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) {
+    throw new HttpsError("unauthenticated", "You must be signed in.");
+  }
+
+  const counts = await countPendingWork(uid);
+  return { ...counts, summary: describePendingWork(counts) };
+});

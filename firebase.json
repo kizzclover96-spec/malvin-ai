@@ -17,7 +17,8 @@
     }
   ],
   "hosting": {
-    "public": "public",
+    "//": "Serves the Vite build. This was previously 'public', which holds only loose images and has no index.html — deploying that shipped a site with nothing to serve.",
+    "public": "dist",
     "rewrites": [
       {
         "source": "**",
@@ -29,8 +30,9 @@
         "source": "**",
         "headers": [
           {
+            "//": "connect-src previously listed only Stripe and Cloud Functions while default-src was 'self', which blocks Firebase Auth (identitytoolkit/securetoken), Firestore, Storage and the Realtime Database — i.e. sign-in and all data fail on the hosted site. img-src likewise blocked Storage-hosted logos and Google profile photos.",
             "key": "Content-Security-Policy",
-            "value": "default-src 'self'; script-src 'self' https://js.stripe.com https://*.stripe.com 'unsafe-inline'; connect-src 'self' https://*.stripe.com https://*.stripe.dev https://*.stripe.global https://us-central1-malvin-df21d.cloudfunctions.net; frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://*.stripe.com; img-src 'self' https://*.stripe.com data:; style-src 'self' 'unsafe-inline';"
+            "value": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://*.stripe.com https://apis.google.com https://app.lemonsqueezy.com; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://*.firebaseapp.com https://*.cloudfunctions.net https://*.stripe.com https://*.stripe.dev https://*.stripe.global https://*.lemonsqueezy.com https://api.ipify.org; frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://*.stripe.com https://*.lemonsqueezy.com https://*.firebaseapp.com; img-src 'self' data: blob: https://*.googleapis.com https://*.gstatic.com https://lh3.googleusercontent.com https://*.stripe.com; media-src 'self' data: blob:; font-src 'self' data:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; base-uri 'self'; form-action 'self'; object-src 'none'; frame-ancestors 'none'"
           },
           {
             "key": "X-Frame-Options",

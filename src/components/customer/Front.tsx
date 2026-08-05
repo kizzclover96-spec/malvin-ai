@@ -271,6 +271,9 @@ export const Front: React.FC = () => {
   const [address, setAddress] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
+ 
+  const [isSaveHovered, setIsSaveHovered] = useState(false);
+
   // Settings: notifications, language, favorites
   // `prefsLoaded` guards toggles until the real saved values arrive from Firestore,
   // so a fast tap can't race a write before we know the current state.
@@ -1763,9 +1766,37 @@ export const Front: React.FC = () => {
                     whileTap={{ scale: 0.98 }}
                     type="submit"
                     disabled={isSaving}
-                    className="w-full bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 rounded-xl py-3.5 font-bold hover:bg-neutral-950 dark:hover:bg-white transition-colors flex items-center justify-center gap-2 mt-2 shadow-lg shadow-neutral-900/5"
+                    onMouseEnter={() => setIsSaveHovered(true)}
+                    onMouseLeave={() => setIsSaveHovered(false)}
+                    style={{
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      marginTop: '8px',
+                      padding: '14px',
+                      borderRadius: '12px',
+                      border: 'none',
+                      outline: 'none',
+                      appearance: 'none',
+                      cursor: isSaving ? 'default' : 'pointer',
+                      fontWeight: 700,
+                      fontSize: '12px',
+                      color: isDarkMode ? '#171717' : '#FFFFFF',
+                      backgroundColor: isDarkMode
+                        ? (isSaveHovered ? '#FFFFFF' : '#f5f5f5')
+                        : (isSaveHovered ? '#0a0a0a' : '#171717'),
+                      boxShadow: '0 10px 25px rgba(23,23,23,0.15)',
+                      opacity: isSaving ? 0.7 : 1,
+                      transition: 'background-color 0.2s ease, opacity 0.2s ease',
+                    }}
                   >
-                    {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                    {isSaving ? (
+                      <Loader2 style={{ width: '16px', height: '16px' }} className="animate-spin" />
+                    ) : (
+                      <Save style={{ width: '16px', height: '16px' }} />
+                    )}
                     <span>{t('saveParameters')}</span>
                   </motion.button>
                 </form>

@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import React, { useCallback } from 'react';
+import { useQrScanner, scannerStatusMessage } from '../../hooks/useQrScanner';
 
 interface QrScannerViewProps {
   onScanSuccess: (decodedText: string) => void;
@@ -7,31 +7,18 @@ interface QrScannerViewProps {
 }
 
 export const QrScannerView: React.FC<QrScannerViewProps> = ({ onScanSuccess, onBack }) => {
-  useEffect(() => {
-    // Automatically initializes the device camera inside the div element below
-    const scanner = new Html5QrcodeScanner(
-      "qr-reader-target",
-      { fps: 10, qrbox: { width: 250, height: 250 } },
-      /* verbose= */ false
-    );
-
-    scanner.render(
-      (decodedText) => {
-        // Stop the scanner after a successful scan
-        scanner.clear();
-        onScanSuccess(decodedText);
-      },
-      (error) => {
-        // Optional: handle scan errors silently or log them
-        console.warn(error);
-      }
-    );
-
-    // Clean up and turn off the camera when the component unmounts
-    return () => {
-      scanner.clear().catch((error) => console.error("Failed to clear scanner", error));
-    };
+  const handleDecode = useCallback((decodedText: string) => {
+    onScanSuccess(decodedText);
   }, [onScanSuccess]);
+
+  const { status, retry } = useQrScanner({
+    elementId: 'qr-reader-target',
+    active: true,
+    onDecode: handleDecode,
+  });
+
+  const message = scannerStatusMessage(status);
+  const failed = status === 'denied' || status === 'unavailable' || status === 'error';
 
   return (
     <div style={{ padding: '24px', backgroundColor: '#0b0f19', minHeight: '100vh', color: '#fff' }}>
@@ -39,9 +26,25 @@ export const QrScannerView: React.FC<QrScannerViewProps> = ({ onScanSuccess, onB
         ← Back to Terminal
       </button>
       <h2 style={{ textAlign: 'center' }}>Scan Client QR Code</h2>
-      
+
       {/* The camera stream will render right inside this container */}
       <div id="qr-reader-target" style={{ maxWidth: '500px', margin: '0 auto', background: '#111827', borderRadius: '12px', overflow: 'hidden' }}></div>
+
+      {message && (
+        <div style={{ maxWidth: '500px', margin: '16px auto 0 auto', textAlign: 'center' }}>
+          <p style={{ fontSize: '13px', color: failed ? '#f87171' : '#9ca3af', lineHeight: 1.5, margin: 0 }}>
+            {message}
+          </p>
+          {failed && (
+            <button
+              onClick={retry}
+              style={{ marginTop: '12px', background: '#fff', color: '#000', border: 'none', padding: '8px 20px', borderRadius: '999px', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer' }}
+            >
+              Try again
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 };

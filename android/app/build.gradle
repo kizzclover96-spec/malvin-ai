@@ -1,5 +1,18 @@
 apply plugin: 'com.android.application'
 
+// Release signing credentials, loaded from a file that is NOT in version
+// control (android/keystore.properties), falling back to environment
+// variables for CI. They used to sit in the tracked gradle.properties, which
+// meant the signing password shipped with every push.
+def keystorePropsFile = rootProject.file("keystore.properties")
+def keystoreProps = new Properties()
+if (keystorePropsFile.exists()) {
+    keystorePropsFile.withInputStream { keystoreProps.load(it) }
+}
+def signingValue = { String key ->
+    keystoreProps.getProperty(key) ?: System.getenv(key)
+}
+
 android {
     namespace = "com.malvinaibeta.agent"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -24,11 +37,11 @@ android {
             keyPassword 'android'
         }
         release {
-            if (project.hasProperty('MYAPP_UPLOAD_STORE_FILE')) {
-                storeFile file(MYAPP_UPLOAD_STORE_FILE)
-                storePassword MYAPP_UPLOAD_STORE_PASSWORD
-                keyAlias MYAPP_UPLOAD_KEY_ALIAS
-                keyPassword MYAPP_UPLOAD_KEY_PASSWORD
+            if (signingValue('MYAPP_UPLOAD_STORE_FILE') != null) {
+                storeFile file(signingValue('MYAPP_UPLOAD_STORE_FILE'))
+                storePassword signingValue('MYAPP_UPLOAD_STORE_PASSWORD')
+                keyAlias signingValue('MYAPP_UPLOAD_KEY_ALIAS')
+                keyPassword signingValue('MYAPP_UPLOAD_KEY_PASSWORD')
             }
         }
     }

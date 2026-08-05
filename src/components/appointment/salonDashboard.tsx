@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { shareContent, canOpenShareSheet } from '../../services/share';
+import { publicOrigin } from '../../services/vinLink';
 import { useNavigate } from 'react-router-dom';
 import { firestore as db } from '../../firebase'; 
 import { auth } from "../../firebase"; 
@@ -249,7 +251,10 @@ export default function SalonDashboard() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const runtimeQrLink = uid ? `${window.location.origin}/salon/${uid}` : '';
+  // publicOrigin(), not window.location.origin — see services/vinLink.ts. On
+  // device the latter is https://localhost, which would bake an unscannable
+  // link into every generated VinQR.
+  const runtimeQrLink = uid ? `${publicOrigin()}/salon/${uid}` : '';
 
   useEffect(() => {
     if (!runtimeQrLink) return;
@@ -588,9 +593,17 @@ export default function SalonDashboard() {
   };
 
   const handleShareLink = async () => {
-    if (navigator.share) {
-      try { await navigator.share({ title: salon?.salonName, text: salon?.bio, url: runtimeQrLink }); } catch {}
-    } else { handleCopyLink(); }
+    // navigator.share doesn't exist in the Android WebView, so this has to go
+    // through the native plugin — see services/share.ts.
+    if (!canOpenShareSheet()) { handleCopyLink(); return; }
+
+    const result = await shareContent({
+      title: salon?.salonName,
+      text: salon?.bio,
+      url: runtimeQrLink,
+    });
+
+    if (result === 'failed' || result === 'unsupported') handleCopyLink();
   };
 
   const toggleOffDay = (day: string) => {

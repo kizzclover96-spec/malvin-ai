@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { publicOrigin } from '../../services/vinLink';
 import { 
   Shield, Users, User, ArrowLeft, MoreVertical, Plus, Trash2, 
   Search, Download, Eye, FileText, Upload, Calendar, Phone, 
@@ -263,7 +264,7 @@ export const MalvinAiPersonnelSystem: React.FC = () => {
     // rendered both at /verify and embedded inside the admin dashboard at /.
     // If it's ever embedded somewhere else, that would've silently generated
     // a QR code pointing at the wrong page.
-    return `${window.location.origin}/verify?scanId=${memberId}`;
+    return `${publicOrigin()}/verify?scanId=${memberId}`;
   };
 
   const triggerQrDownload = (member: Member) => {

@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useCallback } from 'react';
 import { ShieldCheck, X, Camera, VideoOff } from 'lucide-react';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import { useQrScanner, scannerStatusMessage } from '../../hooks/useQrScanner';
 
 interface ConfirmQRScannerProps {
   onCrosscheck: (id: string) => void;
@@ -10,35 +10,20 @@ interface ConfirmQRScannerProps {
 export default function ConfirmQRScanner({ onCrosscheck, onClose }: ConfirmQRScannerProps) {
   const [ticketInput, setTicketInput] = useState('');
   const [isCameraActive, setIsCameraActive] = useState(false);
-  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
 
-  useEffect(() => {
-    if (isCameraActive) {
-      // Initialize the scanner layer on the reader div element
-      scannerRef.current = new Html5QrcodeScanner(
-        "qr-reader",
-        { fps: 10, qrbox: { width: 250, height: 250 } },
-        /* verbose= */ false
-      );
+  const handleDecode = useCallback((decodedText: string) => {
+    onCrosscheck(decodedText);
+    setIsCameraActive(false);
+  }, [onCrosscheck]);
 
-      scannerRef.current.render(
-        (decodedText) => {
-          onCrosscheck(decodedText);
-          setIsCameraActive(false);
-        },
-        (error) => {
-          // Silent fallback for scanning noise frame drops
-        }
-      );
-    }
+  const { status, retry } = useQrScanner({
+    elementId: 'qr-reader',
+    active: isCameraActive,
+    onDecode: handleDecode,
+  });
 
-    return () => {
-      if (scannerRef.current) {
-        scannerRef.current.clear().catch(err => console.error(err));
-        scannerRef.current = null;
-      }
-    };
-  }, [isCameraActive, onCrosscheck]);
+  const scannerMessage = scannerStatusMessage(status);
+  const scannerFailed = status === 'denied' || status === 'unavailable' || status === 'error';
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -126,6 +111,23 @@ export default function ConfirmQRScanner({ onCrosscheck, onClose }: ConfirmQRSca
       {isCameraActive && (
         <div style={{ width: "100%", maxWidth: "400px", margin: "12px auto 0 auto", background: "#111", borderRadius: "12px", overflow: "hidden", border: "1px solid #222" }}>
           <div id="qr-reader" style={{ width: "100%" }}></div>
+
+          {scannerMessage && (
+            <div style={{ padding: "12px 16px", textAlign: "center" }}>
+              <p style={{ fontSize: "12px", color: scannerFailed ? "#f87171" : "#888", lineHeight: 1.5, margin: 0 }}>
+                {scannerMessage}
+              </p>
+              {scannerFailed && (
+                <button
+                  type="button"
+                  onClick={retry}
+                  style={{ marginTop: "10px", background: "#E53935", color: "#fff", border: "none", padding: "6px 18px", borderRadius: "999px", fontWeight: "bold", fontSize: "11px", cursor: "pointer" }}
+                >
+                  Try again
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>

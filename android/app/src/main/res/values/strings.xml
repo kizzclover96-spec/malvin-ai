@@ -2,6 +2,6 @@
 <resources>
     <string name="app_name">Malvin AI</string>
     <string name="title_activity_main">Malvin AI</string>
-    <string name="package_name">com.malvinai.agent</string>
-    <string name="custom_url_scheme">com.malvinai.agent</string>
+    <string name="package_name">com.malvinaibeta.agent</string>
+    <string name="custom_url_scheme">com.malvinaibeta.agent</string>
 </resources>

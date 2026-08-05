@@ -2,8 +2,8 @@ import React, { useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 
 // TODO: swap this for your real Play Store listing once published
-// (this one already matches your capacitor.config appId, so it's correct as-is).
-const ANDROID_STORE_URL = 'https://play.google.com/store/apps/details?id=com.malvinai.agent';
+// (tracks the capacitor.config appId / Android applicationId).
+const ANDROID_STORE_URL = 'https://play.google.com/store/apps/details?id=com.malvinaibeta.agent';
 // TODO: replace with your real App Store numeric id once MalvinAI ships on iOS.
 const IOS_STORE_URL = 'https://apps.apple.com/app/id0000000000';
 

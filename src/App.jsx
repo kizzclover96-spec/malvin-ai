@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { httpsCallable } from "firebase/functions";
 import { auth, firestore as db, functions } from "./firebase";
-import { registerPushNotifications, clearPushToken } from "./services/pushNotifications";
+import { registerPushNotifications, clearPushToken, sendSignInNotification, resetSignInGreeting, notifyPendingWorkOnSignIn, resetPendingWorkReminder } from "./services/pushNotifications";
 import { 
   collection, 
   collectionGroup, 
@@ -184,6 +184,10 @@ function App() {
       if (!currentUser) {
         if (lastUidRef.current) {
           clearPushToken(lastUidRef.current);
+          // Signing out re-arms both, so the next sign-in on this device gets
+          // them even without restarting the app.
+          resetSignInGreeting(lastUidRef.current);
+          resetPendingWorkReminder(lastUidRef.current);
           lastUidRef.current = null;
         }
         setUser(null);
@@ -197,8 +201,15 @@ function App() {
         setUiMode("");
         setLoading(false);
       } else {
-        setHasWokenUp(false); 
-        
+        setHasWokenUp(false);
+
+        // One per sign-in, ahead of the role branching below so every kind of
+        // account gets it. Both self-guard against repeat fires.
+        sendSignInNotification(currentUser.uid, currentUser.displayName);
+        // Merchants also get their outstanding orders/appointments/chats now,
+        // rather than waiting up to an hour for the scheduled reminder.
+        notifyPendingWorkOnSignIn(currentUser.uid);
+
         if (currentUser.email === 'kizzclover96@gmail.com') {
           lastUidRef.current = currentUser.uid;
           registerPushNotifications(currentUser.uid);

@@ -1,7 +1,7 @@
-import React, { useEffect } from 'react';
+import React, { useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { X, Camera } from 'lucide-react';
-import { Html5QrcodeScanner } from 'html5-qrcode'; 
+import { X, Camera, AlertCircle } from 'lucide-react';
+import { useQrScanner, scannerStatusMessage } from '../../hooks/useQrScanner';
 
 interface QRScannerViewProps {
   onClose: () => void;
@@ -10,46 +10,30 @@ interface QRScannerViewProps {
 
 export const QRScannerView: React.FC<QRScannerViewProps> = ({ onClose, onScanSuccess }) => {
 
-  useEffect(() => {
-    // Initialize the client-side hardware scanner instance
-    const scanner = new Html5QrcodeScanner(
-      "qr-reader-target",
-      { fps: 10, qrbox: { width: 250, height: 250 } },
-      false
-    );
+  const handleDecode = useCallback((decodedText: string) => {
+    let scannedText = decodedText.trim();
+    if (!scannedText) return;
 
-    const handleScanSuccess = async (decodedText: string) => {
-        let scannedText = decodedText.trim();
-        if (!scannedText) return;
+    // If it's already just the ID, reconstruct the full URL that your app expects
+    if (!scannedText.startsWith('http://') && !scannedText.startsWith('https://')) {
+        scannedText = `https://malvinai.com/salon/${scannedText}`;
+    }
 
-        // If it's already just the ID, reconstruct the full URL that your app expects
-        if (!scannedText.startsWith('http://') && !scannedText.startsWith('https://')) {
-            scannedText = `https://malvinai.com/salon/${scannedText}`;
-        }
-
-        try {
-            // Kill the scanner active stream instantly upon acquiring data matrix string
-            await scanner.clear();
-        } catch (e) {
-            console.warn("Scanner camera instance cleanup skipped:", e);
-        }
-
-        // Pass the full URL to change screen states in Front.tsx
-        console.log("🔍 Full URL passed to app:", scannedText);
-        onScanSuccess(scannedText);
-    };
-
-    scanner.render(handleScanSuccess, (_) => {
-      // Verbose scanning logging can be passed here if required for console streams
-    });
-
-    return () => {
-      scanner.clear().catch((e) => console.warn("Scanner resource release skipped:", e));
-    };
+    console.log("🔍 Full URL passed to app:", scannedText);
+    onScanSuccess(scannedText);
   }, [onScanSuccess]);
 
+  const { status, retry } = useQrScanner({
+    elementId: 'qr-reader-target',
+    active: true,
+    onDecode: handleDecode,
+  });
+
+  const message = scannerStatusMessage(status);
+  const failed = status === 'denied' || status === 'unavailable' || status === 'error';
+
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -70,13 +54,31 @@ export const QRScannerView: React.FC<QRScannerViewProps> = ({ onClose, onScanSuc
       <div className="w-full max-w-sm mx-auto flex flex-col items-center justify-center my-auto gap-6">
         <div className="w-full aspect-square bg-neutral-950 rounded-[2.5rem] border border-neutral-800 relative overflow-hidden flex items-center justify-center shadow-2xl">
           <div id="qr-reader-target" className="w-full h-full" />
+
+          {/* Sits over the (empty) preview whenever the camera isn't running,
+              so a denied permission reads as an explanation instead of a
+              black square. */}
+          {status !== 'scanning' && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center bg-neutral-950/90">
+              {failed && <AlertCircle className="w-7 h-7 text-red-500" />}
+              <p className="text-xs text-neutral-300 leading-relaxed">{message}</p>
+              {failed && (
+                <button
+                  onClick={retry}
+                  className="mt-1 px-4 py-2 rounded-full bg-white text-black text-xs font-bold"
+                >
+                  Try again
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
       {/* SECURE ACTIVE SIGNATURE FOOTER */}
       <div className="w-full text-center pb-6 text-[11px] font-bold text-neutral-500 uppercase tracking-widest flex items-center justify-center gap-2">
         <Camera className="w-3.5 h-3.5" />
-        <span>Scanner is active</span>
+        <span>{status === 'scanning' ? 'Scanner is active' : 'Scanner idle'}</span>
       </div>
     </motion.div>
   );

@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, ImagePlus, Camera, Loader2, Share2, Download, Trash2, Sparkles } from 'lucide-react';
 import { doc, getDoc, setDoc, increment } from 'firebase/firestore';
 import { firestore as db, auth } from '../../firebase';
+import { shareContent, canOpenShareSheet, copyToClipboard } from '../../services/share';
+import { extractUid, buildVinLink } from '../../services/vinLink';
 
 // ============================================================================
 // VINMOMENT
@@ -83,20 +85,6 @@ function getTheme(category: string) {
   const key = (category || '').toLowerCase();
   const variants = THEME_VARIANTS[key] || THEME_VARIANTS.default;
   return variants[Math.floor(Math.random() * variants.length)];
-}
-
-function extractUid(rawInput: string): string {
-  let clean = rawInput.trim();
-  if (clean.includes('/')) {
-    const segments = clean.split('/');
-    clean = segments.filter(Boolean).pop() || clean;
-  }
-  return clean;
-}
-
-function buildVinLink(uid: string, category: string): string {
-  const kind = category.toLowerCase() === 'salon' ? 'salon' : 'food';
-  return `https://malvinai.com/${kind}/${uid}`;
 }
 
 // --- MomScore: a small, fun running counter of how many VinMoments someone
@@ -498,63 +486,68 @@ export const VinMoment: React.FC<VinMomentProps> = ({ businessUid, storeName, lo
     canvas.toBlob(async (mainBlob) => {
       if (!mainBlob) { setIsSharing(false); return; }
 
-      const mainFile = new File([mainBlob], 'vinmoment.png', { type: 'image/png' });
-
       // Build the full-size, watermarked version of every photo the person
       // added — these are what actually get shared, not the small preview.
       const photoBlobs = await Promise.all(userPhotos.map(p => buildWatermarkedPhotoBlob(p.img)));
       const photoFiles = photoBlobs
-        .map((blob, i) => blob ? new File([blob], `vinmoment-photo-${i + 1}.jpg`, { type: 'image/jpeg' }) : null)
-        .filter((f): f is File => f !== null);
+        .map((blob, i) => blob ? { blob, name: `vinmoment-photo-${i + 1}.jpg` } : null)
+        .filter((f): f is { blob: Blob; name: string } => f !== null);
 
-      const allFiles = [mainFile, ...photoFiles];
       const shareText = `Check out ${profile.name} — I found it on Malvin.`;
 
+      // Everything — the card and every full photo — goes out together in one
+      // share, so whoever receives it sees the real photos too.
+      const shareFiles = [
+        { blob: mainBlob, name: 'vinmoment.png' },
+        ...photoFiles,
+      ];
+
+      // Saves every image and copies the link. Used on desktop, and as a
+      // genuine fallback if the OS share sheet refuses to open.
+      const saveEverythingLocally = async () => {
+        const downloadBlob = (blob: Blob, filename: string) => {
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = filename;
+          a.click();
+          URL.revokeObjectURL(a.href);
+        };
+        downloadBlob(mainBlob, `${profile.name.replace(/\s+/g, '-').toLowerCase()}-vinmoment.png`);
+        for (const file of photoFiles) {
+          await new Promise(r => setTimeout(r, 300)); // avoid the browser blocking rapid downloads
+          downloadBlob(file.blob, file.name);
+        }
+        await copyToClipboard(profile.vinLink);
+      };
+
       try {
-        if (navigator.canShare && navigator.canShare({ files: allFiles })) {
-          // Everything — the card and every full photo — goes out together
-          // in one share, so whoever receives it sees the real photos too.
-          await navigator.share({ title: `${profile.name} on Malvin`, text: shareText, url: profile.vinLink, files: allFiles });
-          await finishShare(true, 700);
-        } else if (navigator.canShare && navigator.canShare({ files: [mainFile] })) {
-          // This browser can share files, just not this many at once —
-          // share the main card and let them know the photos didn't fit.
-          await navigator.share({ title: `${profile.name} on Malvin`, text: shareText, url: profile.vinLink, files: [mainFile] });
-          if (photoFiles.length > 0) {
-            setShareFeedback("Shared the moment — this browser couldn't attach every photo though.");
-          }
-          await finishShare(true, 900);
-        } else if (navigator.share) {
-          await navigator.share({ title: `${profile.name} on Malvin`, text: shareText, url: profile.vinLink });
-          await finishShare(true, 700);
-        } else {
-          // Desktop fallback: download every image (main card + each full
-          // photo) and copy the link, since there's no native share sheet.
-          const downloadBlob = (blob: Blob, filename: string) => {
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = filename;
-            a.click();
-            URL.revokeObjectURL(a.href);
-          };
-          downloadBlob(mainBlob, `${profile.name.replace(/\s+/g, '-').toLowerCase()}-vinmoment.png`);
-          for (let i = 0; i < photoBlobs.length; i++) {
-            const blob = photoBlobs[i];
-            if (!blob) continue;
-            await new Promise(r => setTimeout(r, 300)); // avoid the browser blocking rapid downloads
-            downloadBlob(blob, `vinmoment-photo-${i + 1}.jpg`);
-          }
-          await navigator.clipboard?.writeText(profile.vinLink).catch(() => {});
+        if (!canOpenShareSheet()) {
+          await saveEverythingLocally();
           setShareFeedback('Images saved and link copied — share them anywhere!');
           await finishShare(false); // wipes photos + bumps score; stays open to show the save/copy feedback
+          return;
         }
-      } catch (err: any) {
-        // AbortError = the person just cancelled the native share sheet —
-        // let them keep their photos and try again rather than wiping them.
-        if (err?.name !== 'AbortError') {
-          console.error('VinMoment share failed:', err);
-          setShareFeedback('Could not open the share sheet — try again.');
+
+        const result = await shareContent({
+          title: `${profile.name} on Malvin`,
+          text: shareText,
+          url: profile.vinLink,
+          files: shareFiles,
+        });
+
+        if (result === 'shared') {
+          await finishShare(true, 700);
+        } else if (result === 'cancelled') {
+          // They backed out of the sheet — keep their photos so they can
+          // retry, and don't count it as a share.
+        } else {
+          await saveEverythingLocally();
+          setShareFeedback("Share sheet wouldn't open — images saved and link copied instead.");
+          await finishShare(false);
         }
+      } catch (err) {
+        console.error('VinMoment share failed:', err);
+        setShareFeedback('Could not open the share sheet — try again.');
       } finally {
         setIsSharing(false);
       }

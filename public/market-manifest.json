@@ -1,18 +1,25 @@
-
 {
   "name": "Malvin AI",
   "short_name": "Malvin AI",
   "orientation": "portrait",
   "icons": [
     {
-      "src": "malvinmain.png",
+      "src": "/malvinmain.png",
       "type": "image/png",
-      "sizes": "192x192"
+      "sizes": "192x192",
+      "purpose": "any"
     },
     {
-      "src": "malvinghost.png",
+      "src": "/malvinghost.png",
       "type": "image/png",
-      "sizes": "512x512"
+      "sizes": "512x512",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "maskable"
     }
   ],
   "start_url": "/",

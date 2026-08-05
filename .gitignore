@@ -40,3 +40,17 @@ functions/.env
 .env
 .env.local
 google-services.json
+
+# --- Signing material and credentials: never commit ---
+# The release keystore password was previously living in the tracked
+# android/gradle.properties. It now lives in keystore.properties, which must
+# stay out of git along with the keystores themselves.
+android/keystore.properties
+keystore.properties
+*.jks
+*.keystore
+GoogleService-Info.plist
+
+# Firebase service-account / admin credentials
+serviceAccount*.json
+firebase-adminsdk*.json
