@@ -47,6 +47,13 @@ import {
 import Banned from '../addons/Banned';
 import Suspended from '../addons/Suspended';
 import ConfirmQRScanner from '../addons/ConfirmQRScanner';
+import IntakeLimitBanner from '../addons/IntakeLimitBanner';
+import { useAccountStanding } from '../../hooks/useAccountStanding';
+import {
+  evaluateIntakeLimit,
+  syncIntakeLimitState,
+  formatCooldownRemaining,
+} from '../../utils/businessLimits';
 import { releaseExpiredHotelHolds, HOLD_DURATION_OPTIONS } from '../../utils/hotelReservations';
 import { geocodeAddress } from '../../utils/geocoding';
 import { resolveVerifiedFlag } from '../../utils/verification';
@@ -172,11 +179,40 @@ export default function HotelDashboard() {
   // the VINQR. See services/vinLink.ts.
   const runtimeQrLink = uid ? `${publicOrigin()}/hotel/${uid}` : '';
   const isVerified = resolveVerifiedFlag(rtdbUser, hotel);
+  const { isPremium } = useAccountStanding(uid);
+
+  // Free-tier intake cap. Cancelled and expired reservations don't hold a
+  // slot — only live bookings count against the allowance.
+  const activeReservationCount = reservations.filter(
+    (r) => r.status === 'held' || r.status === 'confirmed'
+  ).length;
+  const intakeState = evaluateIntakeLimit(
+    activeReservationCount,
+    { isPremium, isVerified },
+    (hotel as any)?.cooldownExpiresAt
+  );
+  const [cooldownLabel, setCooldownLabel] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 3000);
   };
+
+  useEffect(() => {
+    if (!uid) return;
+    syncIntakeLimitState('hotel', uid, intakeState, { isPremium, isVerified });
+  }, [uid, intakeState.limitReached, intakeState.cooldownExpiresAt, isPremium, isVerified]);
+
+  useEffect(() => {
+    if (!intakeState.cooldownExpiresAt) {
+      setCooldownLabel(null);
+      return;
+    }
+    const tick = () => setCooldownLabel(formatCooldownRemaining(intakeState.cooldownExpiresAt));
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [intakeState.cooldownExpiresAt]);
 
   // --- Auth ---
   useEffect(() => {
@@ -721,6 +757,14 @@ export default function HotelDashboard() {
       )}
 
       <div className={styles.mainContent}>
+        <IntakeLimitBanner
+          merchantType="hotel"
+          state={intakeState}
+          cooldownLabel={cooldownLabel}
+          isPremium={isPremium}
+          isVerified={isVerified}
+        />
+
         {/* --- QR / share card --- */}
         <div className={styles.heroGlassCard}>
           {qrCodeUrl && <img src={qrCodeUrl} alt="Hotel VINQR" className={styles.qrImage} />}

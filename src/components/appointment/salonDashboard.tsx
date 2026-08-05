@@ -27,6 +27,13 @@ import SalonStation from './salonStation';
 import QRCode from 'qrcode';
 import { useBusinessWallet } from "../../hooks/useBusinessWallet";
 import ConfirmQRScanner from '../addons/ConfirmQRScanner'; // Imported custom validation scanner
+import IntakeLimitBanner from '../addons/IntakeLimitBanner';
+import { useAccountStanding } from '../../hooks/useAccountStanding';
+import {
+  evaluateIntakeLimit,
+  syncIntakeLimitState,
+  formatCooldownRemaining,
+} from '../../utils/businessLimits';
 import { signOut, deleteUser } from 'firebase/auth'; // <--- Added deleteUser
 import { Bell, Sparkles, Clock, User, QrCode, CheckCircle, Download, Trash2, Loader2, LogOut } from 'lucide-react';
 
@@ -83,6 +90,9 @@ export default function SalonDashboard() {
   const { balance, currency } = useBusinessWallet({ merchantType: "salon" });
   const [salon, setSalon] = useState<SalonData | null>(null);
   const [incomingAppointments, setIncomingAppointments] = useState<LiveAppointment[]>([]);
+  // Free-tier intake cap — the same rule every other category now runs.
+  const { isPremium } = useAccountStanding(uid);
+  const [cooldownLabel, setCooldownLabel] = useState<string | null>(null);
 
   // Verification Details Modal State
   const [scannedResult, setScannedResult] = useState<LiveAppointment | null>(null);
@@ -583,6 +593,31 @@ export default function SalonDashboard() {
     setTimeout(() => setToast(null), 3000);
   };
 
+  // --- Free-tier intake cap (shared rule, see utils/businessLimits.ts) ---
+  // Declared down here rather than beside the other state because it reads
+  // isVerified, which is initialised further up the component.
+  const intakeState = evaluateIntakeLimit(
+    incomingAppointments.length,
+    { isPremium, isVerified },
+    (salon as any)?.cooldownExpiresAt
+  );
+
+  useEffect(() => {
+    if (!uid) return;
+    syncIntakeLimitState('salon', uid, intakeState, { isPremium, isVerified });
+  }, [uid, intakeState.limitReached, intakeState.cooldownExpiresAt, isPremium, isVerified]);
+
+  useEffect(() => {
+    if (!intakeState.cooldownExpiresAt) {
+      setCooldownLabel(null);
+      return;
+    }
+    const tick = () => setCooldownLabel(formatCooldownRemaining(intakeState.cooldownExpiresAt));
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [intakeState.cooldownExpiresAt]);
+
   const handleCopyLink = async () => {
     try {
       await navigator.clipboard.writeText(runtimeQrLink);
@@ -849,7 +884,15 @@ export default function SalonDashboard() {
 
       {/* LAYOUT CONTENT WRAPPER */}
       <main className={styles.mainContent} style={{ padding: "32px", width: "100%", boxSizing: "border-box", flex: 1 }}>
-        
+
+        <IntakeLimitBanner
+          merchantType="salon"
+          state={intakeState}
+          cooldownLabel={cooldownLabel}
+          isPremium={isPremium}
+          isVerified={isVerified}
+        />
+
         {/* HERO BANNER BLOCK */}
         <div className={styles.heroGlassCard} style={{ background: "#0c0c0c", border: "1px solid #1a1a1a", padding: "32px", borderRadius: "24px", marginBottom: "32px", width: "100%", boxSizing: "border-box" }}>
           <h1 className={styles.salonTitle} style={{ margin: "0 0 8px 0", fontSize: "32px", fontWeight: 900 }}>{salon.salonName}{isVerified && <VerifiedBadge />}</h1>

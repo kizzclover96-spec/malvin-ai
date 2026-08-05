@@ -32,6 +32,14 @@ import {
 import { geocodeAddress } from '../../utils/geocoding';
 import Banned from "../addons/Banned";
 import Suspended from "../addons/Suspended";
+import IntakeLimitBanner from "../addons/IntakeLimitBanner";
+import { useAccountStanding } from "../../hooks/useAccountStanding";
+import {
+  evaluateIntakeLimit,
+  syncIntakeLimitState,
+  formatCooldownRemaining,
+  FREE_TIER_INTAKE_LIMIT,
+} from "../../utils/businessLimits";
 
 // --- Design tokens for the light "momo" style shell ---
 const C = {
@@ -468,6 +476,11 @@ export default function FoodDashboard() {
   };
 
   const [isVerified, setIsVerified] = useState(false);
+  // Premium half of the exemption. isVerified above is still read from this
+  // component's own RTDB listener (it also drives the name badge); this adds
+  // the paid-tier half, which the cap now requires as well.
+  const { isPremium } = useAccountStanding(uid);
+  const [cooldownLabel, setCooldownLabel] = useState<string | null>(null);
   const [analytics, setAnalytics] = useState({
         totalOrders: 0,
         acceptedOrders: 0,
@@ -591,6 +604,25 @@ export default function FoodDashboard() {
 
     return () => unsubscribeAuth();
   }, []);
+
+  // Current cap state, recomputed on every render from the live flags so an
+  // unsubscribe or a revoked verification mark re-applies it immediately.
+  const intakeState = evaluateIntakeLimit(
+    incomingOrders.length,
+    { isPremium, isVerified },
+    profile?.cooldownExpiresAt
+  );
+
+  useEffect(() => {
+    if (!intakeState.cooldownExpiresAt) {
+      setCooldownLabel(null);
+      return;
+    }
+    const tick = () => setCooldownLabel(formatCooldownRemaining(intakeState.cooldownExpiresAt));
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [intakeState.cooldownExpiresAt]);
 
   // ⏳ Live countdown timer for the merchant cooldown popup
   useEffect(() => {
@@ -753,38 +785,22 @@ export default function FoodDashboard() {
             previousOrderCount.current = orders.length;
             calculateAnalytics(orders);
 
-            // 1. Determine if the unverified limit is reached
-            const limitReached = !isVerified && orders.length >= 10;
+            // The free-tier intake cap. This used to be decided inline here
+            // and keyed on isVerified alone, which meant a verified but
+            // non-paying restaurant was already exempt, and no other business
+            // category was capped at all. Both now come from the one shared
+            // rule — the cap lifts only while premium AND verified.
+            const limitState = evaluateIntakeLimit(
+              orders.length,
+              { isPremium, isVerified },
+              profile?.cooldownExpiresAt
+            );
 
-            // 2. Manage cooldown timestamps
-            let expiresAt = profile?.cooldownExpiresAt || null;
-            const now = new Date();
-
-            if (limitReached && !expiresAt) {
-              // Newly reached limit: Set expiration to 24 hours from now
-              const futureDate = new Date();
-              futureDate.setHours(futureDate.getHours() + 24);
-              expiresAt = futureDate.toISOString();
-            } else if (expiresAt && now > new Date(expiresAt)) {
-              // Timer has naturally expired: reset fields
-              expiresAt = null;
-            }
-
-            // 🌟 SYNC COOLDOWN STATE TO THE PUBLIC RESTAURANT PROFILE
-            try {
-              const profileDocRef = doc(db, 'restaurantprofile', uid);
-              await setDoc(profileDocRef, {
-                orderLimitReached: expiresAt ? true : false,
-                cooldownExpiresAt: expiresAt,
-                isVerified: isVerified
-              }, { merge: true });
-            } catch (error) {
-              console.error("Failed to sync limit state to Firestore:", error);
-            }
+            await syncIntakeLimitState('food', uid, limitState, { isPremium, isVerified });
 
             // If a valid cooldown is in place, cap the stream and alert the merchant
-            if (expiresAt) {
-              setIncomingOrders(orders.slice(0, 10));
+            if (limitState.limitReached) {
+              setIncomingOrders(orders.slice(0, FREE_TIER_INTAKE_LIMIT));
               setShowPremiumPopup(true);
             } else {
               setIncomingOrders(orders);
@@ -792,7 +808,7 @@ export default function FoodDashboard() {
         });
 
         return () => unsubscribe();
-  }, [uid, isVerified, profile?.cooldownExpiresAt]);
+  }, [uid, isPremium, isVerified, profile?.cooldownExpiresAt]);
 
   const handleAcceptOrder = async (orderId: string) => {
         try {
@@ -1022,6 +1038,16 @@ export default function FoodDashboard() {
           {scanResultMsg.text}
         </div>
       )}
+
+      <div style={{ maxWidth: '640px', margin: '12px auto 0' }}>
+        <IntakeLimitBanner
+          merchantType="food"
+          state={intakeState}
+          cooldownLabel={cooldownLabel}
+          isPremium={isPremium}
+          isVerified={isVerified}
+        />
+      </div>
 
       {/* --- ORDER HISTORY MODAL ("See All") --- */}
       {showAcceptedModal && (

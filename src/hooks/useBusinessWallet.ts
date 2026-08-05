@@ -1,7 +1,13 @@
 import { useState, useEffect } from "react";
 import { getFunctions, httpsCallable } from "firebase/functions";
 
-export function useBusinessWallet({ merchantType }: { merchantType: "food" | "salon" }) {
+// The backend resolves these to a profile collection (see the merchantType
+// switches in malvinbackend/src/index.ts), so every category the app supports
+// belongs here — hotelDashboard and mechanicDashboard were both passing a
+// value this type didn't allow.
+export type WalletMerchantType = "food" | "salon" | "hotel" | "mechanic";
+
+export function useBusinessWallet({ merchantType }: { merchantType: WalletMerchantType }) {
   const [balance, setBalance] = useState<number | null>(null);
   const [currency, setCurrency] = useState<string>("EUR");
   

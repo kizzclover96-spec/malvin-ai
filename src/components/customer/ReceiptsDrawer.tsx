@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, Calendar, DollarSign, QrCode, Trash2, Maximize2,
   BedDouble, UtensilsCrossed, Scissors, Moon, Users, LogIn, LogOut, Timer,
+  Wrench, Car, Gauge,
 } from 'lucide-react';
 
 /** "12m 04s" — the remaining life of an unpaid hold. */
@@ -22,7 +23,7 @@ interface ReceiptsDrawerProps {
   onDeleteReceipt?: (receiptId: string, isFoodOrder: boolean) => Promise<void> | void;
 }
 
-type ReceiptKind = 'hotel' | 'food' | 'salon';
+type ReceiptKind = 'hotel' | 'food' | 'salon' | 'mechanic';
 
 /**
  * Which kind of pass this is.
@@ -34,9 +35,15 @@ type ReceiptKind = 'hotel' | 'food' | 'salon';
  * neither of the other two do.
  */
 function receiptKind(receipt: any): ReceiptKind {
-  if (receipt.receiptType === 'hotel' || receipt.receiptType === 'food' || receipt.receiptType === 'salon') {
+  if (
+    receipt.receiptType === 'hotel' ||
+    receipt.receiptType === 'food' ||
+    receipt.receiptType === 'salon' ||
+    receipt.receiptType === 'mechanic'
+  ) {
     return receipt.receiptType;
   }
+  if (receipt.vehicleMake || receipt.problemCategory || receipt.requestId) return 'mechanic';
   if (receipt.checkIn || receipt.roomCategory || receipt.reservationId) return 'hotel';
   if (Array.isArray(receipt.items) && receipt.items.length > 0) return 'food';
   return 'salon';
@@ -78,6 +85,16 @@ const RECEIPT_THEME: Record<ReceiptKind, {
     chip: 'text-violet-700 bg-violet-100',
     accentText: 'text-violet-700',
     detailBox: 'bg-white border-neutral-100/80',
+  },
+  // Steel blue with a dashed border — the only card in the drawer that isn't
+  // a paid receipt, so it reads as a work order rather than a payment.
+  mechanic: {
+    label: 'Mechanic Job',
+    Icon: Wrench,
+    card: 'bg-sky-50/50 border-sky-300/70 border-dashed',
+    chip: 'text-sky-800 bg-sky-100',
+    accentText: 'text-sky-700',
+    detailBox: 'bg-white border-sky-100',
   },
 };
 
@@ -244,11 +261,20 @@ export const ReceiptsDrawer: React.FC<ReceiptsDrawerProps> = ({
                                   isHeldHold ? 'text-amber-700 bg-amber-100' : 'text-emerald-600 bg-emerald-50'
                                 }`}
                               >
-                                {isHeldHold ? 'Reserved · Unpaid' : receipt.status || 'Paid'}
+                                {isHeldHold
+                                  ? 'Reserved · Unpaid'
+                                  : kind === 'mechanic'
+                                    ? 'Accepted'
+                                    : receipt.status || 'Paid'}
                               </span>
                             </div>
                             <p className="text-xs font-black text-neutral-900 truncate mt-1">
-                              {kind === 'hotel' ? 'Guest' : 'Client'}: {receipt.guestName || receipt.customerName || 'Customer Receipt'}
+                              {/* A mechanic job is identified by the garage
+                                  that took it, not by the customer's own name
+                                  — the receipt carries no customerName. */}
+                              {kind === 'mechanic'
+                                ? receipt.businessName || 'Mechanic'
+                                : `${kind === 'hotel' ? 'Guest' : 'Client'}: ${receipt.guestName || receipt.customerName || 'Customer Receipt'}`}
                             </p>
                             <p className="text-[10px] font-mono text-neutral-400 truncate">
                               Ref: <span className={`${theme.accentText} font-bold`}>{refId}</span>
@@ -272,6 +298,53 @@ export const ReceiptsDrawer: React.FC<ReceiptsDrawerProps> = ({
                             <div className="w-12 h-12 bg-neutral-100 animate-pulse rounded-xl mt-3" />
                           )}
                         </div>
+
+                        {/* 🔧 OPTION 0: Mechanic job — vehicle, fault, slot */}
+                        {kind === 'mechanic' && (
+                          <div className={`${theme.detailBox} border rounded-xl p-2.5 space-y-2`}>
+                            <div className="flex items-center gap-1.5">
+                              <Car className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                              <span className="text-[10.5px] font-black text-neutral-900 truncate">
+                                {[receipt.vehicleYear, receipt.vehicleMake, receipt.vehicleModel]
+                                  .filter(Boolean).join(' ') || 'Vehicle'}
+                              </span>
+                            </div>
+
+                            {receipt.problemCategory && (
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-neutral-600 truncate">
+                                  <Gauge className="w-3 h-3 text-sky-600 shrink-0" />
+                                  {receipt.problemCategory}
+                                </span>
+                                {receipt.urgency && (
+                                  <span className="text-[9px] font-black uppercase tracking-wider text-sky-800 bg-sky-100 px-1.5 py-0.5 rounded shrink-0">
+                                    {receipt.urgency}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+
+                            {(receipt.suggestedTime || receipt.preferredDate) && (
+                              <div className="flex items-center gap-1.5 text-[10px] pt-1.5 border-t border-sky-50">
+                                <Calendar className="w-3 h-3 text-sky-600 shrink-0" />
+                                <span className="truncate">
+                                  <span className="block text-[8.5px] font-black uppercase tracking-wider text-neutral-400">
+                                    {receipt.suggestedTime ? 'Garage slot' : 'Requested'}
+                                  </span>
+                                  <span className="font-bold text-neutral-800">
+                                    {receipt.suggestedTime || receipt.preferredDate}
+                                  </span>
+                                </span>
+                              </div>
+                            )}
+
+                            {receipt.description && (
+                              <p className="text-[10px] text-neutral-500 leading-relaxed italic border-t border-sky-50 pt-1.5">
+                                “{receipt.description}”
+                              </p>
+                            )}
+                          </div>
+                        )}
 
                         {/* 🏨 OPTION A: Hotel Stay — room, dates, nights, guests */}
                         {kind === 'hotel' && (
@@ -388,14 +461,24 @@ export const ReceiptsDrawer: React.FC<ReceiptsDrawerProps> = ({
                               </span>
                             </div>
                           )}
-                          <div className="flex items-center gap-1.5 text-neutral-800 font-extrabold mt-1">
-                            <DollarSign className={`w-3.5 h-3.5 ${theme.accentText}`} />
-                            {/* Nothing has been charged on an unpaid hold —
-                                labelling it "Total Paid" would be a lie. */}
-                            <span>
-                              {isHeldHold ? 'Total due' : 'Total Paid'}: €{Number(displayTotal).toFixed(2)}
-                            </span>
-                          </div>
+                          {/* A mechanic job is priced after inspection, so
+                              there is no figure to show at all — printing
+                              "Total Paid: €0.00" would be worse than nothing. */}
+                          {kind === 'mechanic' ? (
+                            <div className="flex items-center gap-1.5 text-neutral-500 font-bold mt-1">
+                              <Wrench className={`w-3.5 h-3.5 ${theme.accentText}`} />
+                              <span>Quoted after inspection · pay at the garage</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1.5 text-neutral-800 font-extrabold mt-1">
+                              <DollarSign className={`w-3.5 h-3.5 ${theme.accentText}`} />
+                              {/* Nothing has been charged on an unpaid hold —
+                                  labelling it "Total Paid" would be a lie. */}
+                              <span>
+                                {isHeldHold ? 'Total due' : 'Total Paid'}: €{Number(displayTotal).toFixed(2)}
+                              </span>
+                            </div>
+                          )}
                         </div>
                       </div>
                     );

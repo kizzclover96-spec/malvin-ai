@@ -38,11 +38,15 @@ export function extractUid(rawInput: string): string {
 
 export function buildVinLink(uid: string, category: string): string {
   const normalized = category.toLowerCase();
-  const kind = normalized === 'salon' ? 'salon' : normalized === 'hotel' ? 'hotel' : 'food';
+  const kind =
+    normalized === 'salon' ? 'salon'
+      : normalized === 'hotel' ? 'hotel'
+      : normalized === 'mechanic' ? 'mechanic'
+      : 'food';
   return `${PUBLIC_ORIGIN}/${kind}/${uid}`;
 }
 
-export type BusinessKind = 'restaurant' | 'salon' | 'hotel';
+export type BusinessKind = 'restaurant' | 'salon' | 'hotel' | 'mechanic';
 
 export interface ResolvedBusiness {
   uid: string;
@@ -76,7 +80,8 @@ export async function resolveBusiness(businessUid: string): Promise<ResolvedBusi
     kind,
     link: buildVinLink(uid, kind),
     found: true,
-    storeName: data.brandName || data.salonName || data.hotelName || 'Unnamed Store',
+    storeName:
+      data.brandName || data.salonName || data.hotelName || data.garageName || 'Unnamed Store',
     bio: data.brandBio || data.bio || '',
     address: data.address || '',
     logoUrl: data.logo || data.logoUrl || '',
@@ -91,6 +96,9 @@ export async function resolveBusiness(businessUid: string): Promise<ResolvedBusi
 
     const hotelSnap = await getDoc(doc(db, 'hotels', uid));
     if (hotelSnap.exists()) return shape('hotel', hotelSnap.data());
+
+    const mechanicSnap = await getDoc(doc(db, 'mechanics', uid));
+    if (mechanicSnap.exists()) return shape('mechanic', mechanicSnap.data());
   } catch (err) {
     console.error('vinLink: failed to resolve business category:', err);
   }

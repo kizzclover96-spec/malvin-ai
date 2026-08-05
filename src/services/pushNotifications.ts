@@ -226,6 +226,49 @@ export function resetPendingWorkReminder(uid?: string | null): void {
   else remindedUids.clear();
 }
 
+/**
+ * Posts a one-off device notification for something that just happened while
+ * the app is running — a mechanic accepting a booking, say.
+ *
+ * This is a LOCAL notification, so it only fires on a device that currently
+ * has the app open or backgrounded. Reaching a device with the app closed
+ * needs a server-side FCM send from a Cloud Function, which this deliberately
+ * isn't: the accepting mechanic can't write to the customer's device, and
+ * Firestore rules rightly stop them notifying another user directly.
+ *
+ * No-ops on the web, where LocalNotifications isn't available.
+ */
+export async function postLocalAlert(title: string, body: string): Promise<void> {
+  if (!Capacitor.isNativePlatform()) return;
+
+  try {
+    let permission = await LocalNotifications.checkPermissions();
+    if (permission.display !== 'granted') {
+      permission = await LocalNotifications.requestPermissions();
+    }
+    if (permission.display !== 'granted') return;
+
+    await ensureChannel();
+
+    await LocalNotifications.schedule({
+      notifications: [
+        {
+          // A distinct id per post, so a second alert doesn't overwrite the
+          // first the way the fixed-id welcome notification intends to.
+          id: Math.floor(Math.random() * 1_000_000) + 1000,
+          channelId: CHANNEL_ID,
+          title,
+          body,
+          smallIcon: 'ic_stat_malvin',
+          iconColor: '#0066FF',
+        },
+      ],
+    });
+  } catch (err) {
+    console.error('Failed to post local alert:', err);
+  }
+}
+
 // Call on sign-out so a device that gets shared or re-logged-into doesn't
 // keep receiving another person's notifications.
 export async function clearPushToken(uid: string): Promise<void> {

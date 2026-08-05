@@ -1,7 +1,7 @@
 import { collection, getDocs, query, limit } from 'firebase/firestore';
 import { firestore as db } from '../firebase';
 
-export type NearbyBusinessType = 'restaurant' | 'salon' | 'hotel';
+export type NearbyBusinessType = 'restaurant' | 'salon' | 'hotel' | 'mechanic';
 
 export interface NearbyBusiness {
   id: string;
@@ -38,7 +38,7 @@ const PER_COLLECTION_LIMIT = 40;
 // v3: hotels were added to the scanned collections. The bump matters —
 // a v2 entry written minutes ago holds a hotel-less result set that would
 // otherwise keep hotels hidden for the rest of the TTL.
-const CACHE_KEY = 'malvin_nearby_cache_v3';
+const CACHE_KEY = 'malvin_nearby_cache_v4';
 const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes
 const CACHE_MOVE_THRESHOLD_KM = 1; // refetch if the user has moved ~1km+
 
@@ -105,6 +105,7 @@ async function fetchNearbyBusinessesUncached(
     // Hotels only surface here once their dashboard has geocoded an address
     // into latitude/longitude — same precondition the other two have.
     { name: 'hotels', type: 'hotel', path: 'hotel' },
+    { name: 'mechanics', type: 'mechanic', path: 'mechanic' },
   ];
 
   // One failing collection (missing index, rules change, a collection that
@@ -132,7 +133,13 @@ async function fetchNearbyBusinessesUncached(
 
       results.push({
         id: docSnap.id,
-        name: data.brandName || data.salonName || data.hotelName || 'Unnamed Business',
+        name:
+          data.brandName ||
+          data.salonName ||
+          data.hotelName ||
+          data.garageName ||
+          data.businessName ||
+          'Unnamed Business',
         type: col.type,
         category: data.category || col.type,
         address: data.address || '',

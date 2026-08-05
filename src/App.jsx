@@ -42,7 +42,9 @@ import { StoreFrontend } from './components/order/Store';
 import SalonStore from "./components/appointment/salonStore";
 import HotelDashboard from "./components/hotel/hotelDashboard";
 import HotelStore from "./components/hotel/hotelStore";
-import { FoodDeepLinkGate, SalonDeepLinkGate, HotelDeepLinkGate } from "./components/addons/AppOpenGate";
+import MechanicDashboard from "./components/mechanic/mechanicDashboard";
+import MechanicStore from "./components/mechanic/mechanicStore";
+import { FoodDeepLinkGate, SalonDeepLinkGate, HotelDeepLinkGate, MechanicDeepLinkGate } from "./components/addons/AppOpenGate";
 import { FloatingTeamHub } from "./components/addons/FloatingTeamHub";
 import { WorkerDashboard } from './components/team/workerDashboard';
 import { QrScannerView } from './components/addons/QR Scanner'; 
@@ -402,7 +404,8 @@ function App() {
   const isStorefrontPath = 
     location.pathname.startsWith("/food/") || 
     location.pathname.startsWith("/salon/") || 
-    location.pathname.startsWith("/hotel/") || 
+    location.pathname.startsWith("/hotel/") ||
+    location.pathname.startsWith("/mechanic/") ||
     location.pathname.startsWith("/chat/");
 
   const handleCategorySelect = (type) => {
@@ -410,6 +413,7 @@ function App() {
     if (type === "fashion") { setFlowStep("device"); return; }
     if (type === "explore") { setFlowStep("SalonDashboard"); return; }
     if (type === "hotel") { setFlowStep("HotelDashboard"); return; }
+    if (type === "mechanic") { setFlowStep("MechanicDashboard"); return; }
     if (type === "records") { setFlowStep("recordsDashboard"); return; }
     if (type === "premium") { setFlowStep("premiumView"); return; }
   };
@@ -424,6 +428,7 @@ function App() {
           <Route path="/food/:Uid" element={<><FoodDeepLinkGate /><StoreFrontend onExecuteWalletPayment={handleWalletPaymentExecution} /></>} />
           <Route path="/salon/:uid" element={<><SalonDeepLinkGate /><SalonStore onExecuteWalletPayment={handleWalletPaymentExecution} /></>} />
           <Route path="/hotel/:uid" element={<><HotelDeepLinkGate /><HotelStore /></>} />
+          <Route path="/mechanic/:uid" element={<><MechanicDeepLinkGate /><MechanicStore /></>} />
           
           <Route path="/terms" element={<Terms />} />
           <Route path="/cookiePolicy" element={<CookiePolicy />} />
@@ -486,6 +491,8 @@ function App() {
                 <SalonDashboard userEmail={user?.email} currentUserId={user?.uid} />
               ) : flowStep === "HotelDashboard" ? (
                 <HotelDashboard />
+              ) : flowStep === "MechanicDashboard" ? (
+                <MechanicDashboard />
               ) : flowStep === "recordsDashboard" ? (
                 <MalvinSystemDashboard userEmail={user?.email} currentUserId={user?.uid} />
               ) : flowStep === "device" ? (

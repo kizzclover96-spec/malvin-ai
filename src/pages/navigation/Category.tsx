@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
 import { db, auth } from "../../firebase";
 import { ref, push, serverTimestamp, onValue } from "firebase/database";
+import PremiumMemberPanel from "../../components/addons/PremiumMemberPanel";
+import { resolvePremiumFlag } from "../../hooks/useAccountStanding";
 
 type Props = {
   onSelect: (
-    type: "food" | "fashion" | "explore" | "hotel" | "records" | "premium"
+    type: "food" | "fashion" | "explore" | "hotel" | "records" | "mechanic" | "premium"
   ) => void;
   isPremium?: boolean;
   userBrand?: { id: string; name?: string; isPremium?: boolean };
@@ -25,8 +27,10 @@ interface StarParticle {
 const Category: React.FC<Props> = ({ onSelect, isPremium: isPremiumProp, userBrand: userBrandProp }) => {
   // Add these new state hooks:
   const [isVerified, setIsVerified] = useState(false);
+  const [isPremiumState, setIsPremiumState] = useState(false);
   const [userBrandState, setUserBrandState] = useState<any>(userBrandProp || null);
   const [verificationPopup, setVerificationPopup] = useState(false);
+  const [memberPanelOpen, setMemberPanelOpen] = useState(false);
   const [stars, setStars] = useState<StarParticle[]>([]);
   const lastSpawnTime = useRef<number>(Date.now());
   const pillRef = useRef<HTMLButtonElement>(null);
@@ -82,8 +86,14 @@ const Category: React.FC<Props> = ({ onSelect, isPremium: isPremiumProp, userBra
 
   // 3. handle tap bursts explicitly for user-triggered "active" effects
   const handlePremiumClick = (e: React.MouseEvent<HTMLButtonElement>) => {
-    // Trigger parent state routine
-    onSelect("premium");
+    // A subscriber must never be shown the sales page again. The gold pill
+    // routes to the upsell; the blue "Premiumed" pill opens the member panel
+    // instead, which is where managing or cancelling actually lives.
+    if (isPremium) {
+      setMemberPanelOpen(true);
+    } else {
+      onSelect("premium");
+    }
 
     // Obtain strict coordinates to position origin particles
     const rect = e.currentTarget.getBoundingClientRect();
@@ -114,18 +124,24 @@ const Category: React.FC<Props> = ({ onSelect, isPremium: isPremiumProp, userBra
     if (!user) return;
 
     const brandId = user.uid;
-    const profileRef = ref(db, `users/${brandId}/profile`);
+    // Listens at the user ROOT, not users/{uid}/profile. Premium lives at
+    // users/{uid}/tier — that's what the backend mints the `premium` custom
+    // claim from — while the old code read profile.isPremium, a field nothing
+    // ever writes. That's why the pill never switched to its premium state
+    // no matter what the account had paid for.
+    const userRef = ref(db, `users/${brandId}`);
 
     setUserBrandState({ id: brandId, name: user.displayName || "UNKNOWN" });
 
     // Store previous premium state to catch the change moment
     let prevIsPremium: boolean | null = null;
 
-    const unsub = onValue(profileRef, async (snapshot) => {
+    const unsub = onValue(userRef, async (snapshot) => {
       const data = snapshot.val();
       if (data) {
-        setIsVerified(!!data.isVerified);
-        const currentIsPremium = !!data.isPremium;
+        setIsVerified(!!(data.profile?.isVerified || data.isVerified));
+        const currentIsPremium = resolvePremiumFlag(data);
+        setIsPremiumState(currentIsPremium);
 
         // 🚨 Webhook revoked premium (Transition from true -> false)
         if (prevIsPremium === true && currentIsPremium === false) {
@@ -151,7 +167,7 @@ const Category: React.FC<Props> = ({ onSelect, isPremium: isPremiumProp, userBra
     return () => unsub();
   }, []);
 
-  const isPremium = isPremiumProp ?? userBrandState?.isPremium ?? false;
+  const isPremium = isPremiumProp ?? isPremiumState;
 
   const getVerificationState = (): "verified" | "premium" | "locked" => {
     if (isVerified) return "verified";
@@ -261,10 +277,13 @@ const Category: React.FC<Props> = ({ onSelect, isPremium: isPremiumProp, userBra
               top: star.y,
               fontSize: `${star.size}px`,
               opacity: star.opacity,
-              color: "#FFD700",
+              // Falls from the pill, so it tracks the pill's colour.
+              color: isPremium ? "#4F7CFF" : "#FFD700",
               pointerEvents: "none",
               transform: `translate(-50%, -50%) rotate(${star.rotation || 0}deg)`,
-              textShadow: "0 0 8px rgba(255, 215, 0, 0.6)",
+              textShadow: isPremium
+                ? "0 0 8px rgba(79, 124, 255, 0.65)"
+                : "0 0 8px rgba(255, 215, 0, 0.6)",
               transition: "opacity 0.2s linear",
               zIndex: 9999,
             }}
@@ -273,8 +292,6 @@ const Category: React.FC<Props> = ({ onSelect, isPremium: isPremiumProp, userBra
           </span>
         ))}
       </div>
-
-      
 
       {/* Toast confirmation */}
       {verificationPopup && (
@@ -285,8 +302,12 @@ const Category: React.FC<Props> = ({ onSelect, isPremium: isPremiumProp, userBra
 
       {/* TOP RIGHT CONTROLS WRAPPER (PREMIUM + VERIFICATION BELOW IT) */}
       <div style={topRightControlsContainer}>
-        <button ref={pillRef} style={premiumPillStyle} onClick={handlePremiumClick}>
-          ✨ Premium
+        <button
+          ref={pillRef}
+          style={isPremium ? premiumedPillStyle : premiumPillStyle}
+          onClick={handlePremiumClick}
+        >
+          {isPremium ? "◆ Premiumed" : "✨ Premium"}
         </button>
 
         <VerificationButton
@@ -299,6 +320,16 @@ const Category: React.FC<Props> = ({ onSelect, isPremium: isPremiumProp, userBra
         />
       </div>
 
+      {memberPanelOpen && (
+        <PremiumMemberPanel
+          isVerified={isVerified}
+          onClose={() => setMemberPanelOpen(false)}
+          onRequestVerification={() => {
+            requestVerification();
+            setMemberPanelOpen(false);
+          }}
+        />
+      )}
 
       <div style={wrapper}>
         {/* FOOD */}
@@ -355,6 +386,22 @@ const Category: React.FC<Props> = ({ onSelect, isPremium: isPremiumProp, userBra
           <span style={labelStyle}>Hotel</span>
         </div>
 
+        {/* MECHANIC */}
+        <div style={circleStyle} onClick={() => onSelect("mechanic")}>
+          <svg width="80" height="80" viewBox="0 0 100 100" fill="none">
+            {/* Wrench icon */}
+            <path
+              d="M30 70 L60 40 M55 35 C50 30 50 20 60 15 C65 20 75 20 80 25 C85 30 85 40 80 45 C75 50 65 50 60 45 Z"
+              stroke="white"
+              strokeWidth="4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <circle cx="30" cy="70" r="6" stroke="white" strokeWidth="4" />
+          </svg>
+          <span style={labelStyle}>Mechanic</span>
+        </div>
+
         {/* MALVIN RECORDS SYSTEM INTERFACE */}
         <div style={recordsCircleStyle} onClick={() => onSelect("records")}>
           <svg width="80" height="80" viewBox="0 0 100 100" fill="none">
@@ -397,15 +444,17 @@ const container: React.CSSProperties = {
   overflow: "hidden",
 };
 
-// 🟢 Golden Premium Button Style Overlay Map
-// 1. Container that positions both buttons at top right stacked vertically
+// `fixed`, not `absolute`. Absolute pinned these to the top of the category
+// container, so on a short screen — or once the grid wraps to several rows —
+// they scrolled away with the content. Fixed keeps them against the viewport.
+// The safe-area inset stops them landing under a notch on iOS.
 const topRightControlsContainer: React.CSSProperties = {
-  position: "absolute",
-  top: "24px",
+  position: "fixed",
+  top: "max(24px, env(safe-area-inset-top))",
   right: "24px",
   display: "flex",
   flexDirection: "column",
-  alignItems: "flex-end", // or "center" if you want the verification pill centered under Premium
+  alignItems: "flex-end",
   gap: "6px",
   zIndex: 100,
 };
@@ -427,7 +476,17 @@ const premiumPillStyle: React.CSSProperties = {
   alignItems: "center",
   gap: "6px",
   transition: "transform 0.1s ease, box-shadow 0.2s ease",
-  // Note: remove position: "absolute", top, and right from here because topRightControlsContainer handles positioning now
+};
+
+// The subscriber's version of the pill: purple → blue instead of gold, so
+// the state is readable at a glance without opening anything.
+const premiumedPillStyle: React.CSSProperties = {
+  ...premiumPillStyle,
+  background: "linear-gradient(135deg, #8B5CF6 0%, #2563EB 55%, #00C2FF 100%)",
+  border: "2px solid rgba(255,255,255,0.85)",
+  color: "#FFFFFF",
+  boxShadow:
+    "0 4px 16px rgba(79, 124, 255, 0.45), inset 0 1px 0 rgba(255,255,255,0.35)",
 };
 
 const particlesContainer: React.CSSProperties = {

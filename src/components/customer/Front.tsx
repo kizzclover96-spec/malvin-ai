@@ -24,6 +24,7 @@ import { NearbyBusinesses } from './NearbyBusinesses';
 import { VinMoment, getTierForScore, MOM_MILESTONE_STEP } from './Vinmoment';
 import { ReceiptsDrawer } from './ReceiptsDrawer';
 import { resolveBusiness, extractUid } from '../../services/vinLink';
+import { postLocalAlert } from '../../services/pushNotifications';
 
 // Fixed allow-list — the language row can only ever pick one of these,
 // which is what keeps the stored value safe even before Firestore rules see it.
@@ -761,18 +762,37 @@ export const Front: React.FC = () => {
       updateUnifiedReceipts(hotelList, 'hotel');
     });
 
+    // 4. Listen to Mechanic Appointments Subcollection
+    // Mechanics take no payment — the garage accepting the repair request is
+    // what issues the receipt, and acceptance is what writes this document
+    // (see utils/mechanicAppointments.ts). So unlike the other three there's
+    // no payment flag to test: existence here already means "accepted".
+    const mechanicAppointmentsRef = collection(db, 'customers', user.uid, 'mechanicAppointments');
+    const unsubscribeMechanic = onSnapshot(mechanicAppointmentsRef, async (snapshot) => {
+      const mechanicList = snapshot.docs.map(doc => ({
+        id: doc.id,
+        receiptType: 'mechanic',
+        ...doc.data()
+      })).filter((appt: any) => appt.status !== 'cancelled' && appt.status !== 'declined');
+
+      updateUnifiedReceipts(mechanicList, 'mechanic');
+    });
+
     // Unified state compiler
-    const rawReceiptsRef = { salon: [] as any[], food: [] as any[], hotel: [] as any[] };
+    const rawReceiptsRef = { salon: [] as any[], food: [] as any[], hotel: [] as any[], mechanic: [] as any[] };
     // Tracks which receipt ids we've already surfaced, so the *first*
     // snapshot (every pre-existing active receipt) doesn't fire a wall of
     // notifications — only receipts that show up *after* that count as new.
-    const initialized = { salon: false, food: false, hotel: false };
+    const initialized = { salon: false, food: false, hotel: false, mechanic: false };
     let allInitialized = false;
     const seenReceiptIds = new Set<string>();
 
     const newReceiptMessage = (item: any): string => {
       if (item.receiptType === 'food') return 'You have a new food order receipt.';
       if (item.receiptType === 'salon') return 'You have a new salon booking receipt.';
+      if (item.receiptType === 'mechanic') {
+        return `${item.businessName || 'The garage'} accepted your repair booking — your pass is in Receipts.`;
+      }
       if (item.receiptType === 'hotel') {
         // A hold and a paid stay are both receipts, but only one of them is
         // finished business — don't tell someone their room is confirmed
@@ -784,12 +804,17 @@ export const Front: React.FC = () => {
       return 'You have a new receipt.';
     };
 
-    const updateUnifiedReceipts = async (newList: any[], type: 'salon' | 'food' | 'hotel') => {
+    const updateUnifiedReceipts = async (newList: any[], type: 'salon' | 'food' | 'hotel' | 'mechanic') => {
       rawReceiptsRef[type] = newList;
       initialized[type] = true;
-      const combined = [...rawReceiptsRef.salon, ...rawReceiptsRef.food, ...rawReceiptsRef.hotel];
+      const combined = [
+        ...rawReceiptsRef.salon,
+        ...rawReceiptsRef.food,
+        ...rawReceiptsRef.hotel,
+        ...rawReceiptsRef.mechanic,
+      ];
 
-      if (initialized.salon && initialized.food && initialized.hotel) {
+      if (initialized.salon && initialized.food && initialized.hotel && initialized.mechanic) {
         if (!allInitialized) {
           combined.forEach((c) => seenReceiptIds.add(c.id));
           allInitialized = true;
@@ -798,12 +823,17 @@ export const Front: React.FC = () => {
             .filter((c) => !seenReceiptIds.has(c.id))
             .forEach((item) => {
               seenReceiptIds.add(item.id);
-              pushNotification(
-                user.uid,
-                'new_receipt',
-                'New receipt',
-                newReceiptMessage(item)
-              );
+              const message = newReceiptMessage(item);
+              pushNotification(user.uid, 'new_receipt', 'New receipt', message);
+
+              // A mechanic acceptance is the one receipt the customer isn't
+              // already expecting — they submitted a request and then waited
+              // on the garage, so it gets a device-level alert on top of the
+              // in-app bell. (Local notification: only reaches a device with
+              // the app running — see postLocalAlert.)
+              if (item.receiptType === 'mechanic') {
+                postLocalAlert('Repair booking accepted', message);
+              }
             });
         }
       }
@@ -838,6 +868,7 @@ export const Front: React.FC = () => {
       unsubscribeSalon();
       unsubscribeFood();
       unsubscribeHotel();
+      unsubscribeMechanic();
     };
   }, [user]);
 

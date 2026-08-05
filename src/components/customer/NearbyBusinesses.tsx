@@ -3,6 +3,7 @@ import { motion, AnimatePresence, PanInfo } from 'framer-motion';
 import {
   Star, Store, Scissors, Utensils, Coffee, ChefHat, Pizza, Sparkles, Wand2, Gem,
   BedDouble, Hotel, Luggage, ConciergeBell,
+  Wrench, Car, Cog, Gauge,
 } from 'lucide-react';
 import { getNearbyBusinesses, getStatusLabel, NearbyBusiness } from '../../utils/nearbyBusinesses';
 
@@ -36,8 +37,18 @@ const HOTEL_VISUALS = [
   { gradient: 'linear-gradient(135deg, #78909C, #37474F)', Icon: ConciergeBell },
 ];
 
+const MECHANIC_VISUALS = [
+  { gradient: 'linear-gradient(135deg, #0EA5E9, #075985)', Icon: Wrench },     // the garage's steel blue
+  { gradient: 'linear-gradient(135deg, #64748B, #1E293B)', Icon: Cog },        // workshop
+  { gradient: 'linear-gradient(135deg, #F97316, #9A3412)', Icon: Car },        // bodywork
+  { gradient: 'linear-gradient(135deg, #14B8A6, #0F766E)', Icon: Gauge },      // diagnostics
+];
+
 const categoryBadgeIcon = (type: string) =>
-  type === 'salon' ? Scissors : type === 'hotel' ? BedDouble : Utensils;
+  type === 'salon' ? Scissors
+    : type === 'hotel' ? BedDouble
+    : type === 'mechanic' ? Wrench
+    : Utensils;
 
 function hashToInt(str: string): number {
   let hash = 0;
@@ -65,6 +76,7 @@ const SALON_PHOTOS = ['/nail1.png', '/nail2.png', '/nail4.png', '/nails5.png', '
 // through to the gradient+icon look below until one is (or until the hotel
 // uploads its own logo, which takes priority over both anyway).
 const HOTEL_PHOTOS: string[] = [];
+const MECHANIC_PHOTOS: string[] = [];
 
 // Assigns a photo (from the local sets above) and a fallback gradient+icon
 // per business, deterministically (same business always gets the same
@@ -75,9 +87,15 @@ function assignVisuals(list: NearbyBusiness[]): Array<NearbyBusiness & { visual:
   let prevPhotoKey = '';
   return list.map((biz) => {
     const palette =
-      biz.type === 'salon' ? SALON_VISUALS : biz.type === 'hotel' ? HOTEL_VISUALS : RESTAURANT_VISUALS;
+      biz.type === 'salon' ? SALON_VISUALS
+        : biz.type === 'hotel' ? HOTEL_VISUALS
+        : biz.type === 'mechanic' ? MECHANIC_VISUALS
+        : RESTAURANT_VISUALS;
     const photos =
-      biz.type === 'salon' ? SALON_PHOTOS : biz.type === 'hotel' ? HOTEL_PHOTOS : RESTAURANT_PHOTOS;
+      biz.type === 'salon' ? SALON_PHOTOS
+        : biz.type === 'hotel' ? HOTEL_PHOTOS
+        : biz.type === 'mechanic' ? MECHANIC_PHOTOS
+        : RESTAURANT_PHOTOS;
 
     const gradientIdx = hashToInt(biz.id) % palette.length;
 
