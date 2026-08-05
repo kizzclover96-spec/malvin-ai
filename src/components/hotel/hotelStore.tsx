@@ -23,6 +23,9 @@ import {
 import Banned from '../addons/Banned';
 import Suspended from '../addons/Suspended';
 import { resolveVerifiedFlag } from '../../utils/verification';
+import { useAccountStanding } from '../../hooks/useAccountStanding';
+import { evaluateIntakeLimit, formatCooldownRemaining } from '../../utils/businessLimits';
+import IntakeLimitBanner from '../addons/IntakeLimitBanner';
 import styles from './hotelStore.module.css';
 
 // --- Types ---
@@ -35,6 +38,7 @@ interface HotelProfile {
   isVerified?: boolean;
   openingTime?: string;
   closingTime?: string;
+  cooldownExpiresAt?: string | null;
 }
 
 interface Room {
@@ -159,6 +163,24 @@ export default function HotelStore() {
   // Accepts the RTDB flag or the profile doc's, so the badge shows whichever
   // source this hotel happens to have set.
   const isVerified = resolveVerifiedFlag(rtdbUser, profile);
+  const { isPremium } = useAccountStanding(uid);
+  const [cooldownLabel, setCooldownLabel] = useState<string | null>(null);
+
+  // Cooldown/limit state is precomputed by hotelDashboard.tsx and synced
+  // onto this same profile doc — the store just reflects it, never starts
+  // a fresh cooldown itself (hence activeCount fixed at 0 here).
+  const intakeState = evaluateIntakeLimit(0, { isPremium, isVerified }, profile?.cooldownExpiresAt);
+
+  useEffect(() => {
+    if (!intakeState.cooldownExpiresAt) {
+      setCooldownLabel(null);
+      return;
+    }
+    const tick = () => setCooldownLabel(formatCooldownRemaining(intakeState.cooldownExpiresAt));
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [intakeState.cooldownExpiresAt]);
 
   // --- Handshake with parent StoreFront iframe (VINQR scan flow) ---
   useEffect(() => {
@@ -545,6 +567,16 @@ export default function HotelStore() {
             <span className={`${styles.hoursDot} ${openStatus.isOpen ? styles.dotOpen : styles.dotClosed}`} />
             <Clock size={13} />
             <span>{openStatus.isOpen ? 'Open now' : 'Closed now'} · {openStatus.label}</span>
+          </div>
+
+          <div style={{ marginTop: '14px' }}>
+            <IntakeLimitBanner
+              merchantType="hotel"
+              state={intakeState}
+              cooldownLabel={cooldownLabel}
+              isPremium={isPremium}
+              isVerified={isVerified}
+            />
           </div>
         </div>
       </div>

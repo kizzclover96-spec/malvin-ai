@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Menu, Settings, Search, Home, Wallet as WalletIcon, QrCode, X, 
   User, Save, Mail, Loader2, CheckCircle2, AlertCircle,
-  Clock, Heart, Bell, Moon, Globe, LogOut, ChevronRight, ChevronDown, Calendar, DollarSign,  Download, Trash2, Store, Sparkles, Share2 
+  Clock, Heart, Bell, Moon, Globe, LogOut, ChevronRight, ChevronDown, Calendar, DollarSign,  Download, Trash2, Store, Sparkles, Share2, Tag 
 } from 'lucide-react';
 import { doc, getDoc, getDocs, setDoc, deleteDoc, collection, collectionGroup, query, where, orderBy, limit, serverTimestamp, onSnapshot } from 'firebase/firestore';
 import { signOut, deleteUser } from 'firebase/auth';
@@ -25,6 +25,8 @@ import { VinMoment, getTierForScore, MOM_MILESTONE_STEP } from './Vinmoment';
 import { ReceiptsDrawer } from './ReceiptsDrawer';
 import { resolveBusiness, extractUid } from '../../services/vinLink';
 import { postLocalAlert } from '../../services/pushNotifications';
+import VinBackTagCreate from '../vinback/VinBackTagCreate';
+import VinBackTagList from '../vinback/VinBackTagList';
 
 // Fixed allow-list — the language row can only ever pick one of these,
 // which is what keeps the stored value safe even before Firestore rules see it.
@@ -299,6 +301,8 @@ export const Front: React.FC = () => {
     return t('goodEvening');
   })();
   const [isFavoritesExpanded, setIsFavoritesExpanded] = useState(false);
+  const [isVinBackCreateOpen, setIsVinBackCreateOpen] = useState(false);
+  const [isVinBackListOpen, setIsVinBackListOpen] = useState(false);
   const [isLanguageExpanded, setIsLanguageExpanded] = useState(false);
   const [favoriteStores, setFavoriteStores] = useState<FavoriteItem[]>([]);
   const [isFavoritesLoading, setIsFavoritesLoading] = useState(true);
@@ -1535,6 +1539,32 @@ export const Front: React.FC = () => {
                     <div className="flex items-center gap-2.5"><Clock className="w-4 h-4 text-neutral-400 dark:text-neutral-500" /><span>{t('recentBusinesses')}</span></div>
                   </div>
 
+                  <div className="my-2 border-t border-neutral-200 dark:border-neutral-800" />
+
+                  {/* VINBACK TAG — generate a lost-and-found QR tag for a personal item */}
+                  <button
+                    type="button"
+                    onClick={() => { setIsSettingsOpen(false); setIsVinBackCreateOpen(true); }}
+                    className="icon-button w-full flex items-center justify-between py-3 hover:text-neutral-900 dark:hover:text-neutral-50"
+                  >
+                    <div className="flex items-center gap-2.5"><QrCode className="w-4 h-4 text-neutral-400 dark:text-neutral-500" /><span>VinBack Tag</span></div>
+                    <ChevronRight className="w-3.5 h-3.5 text-neutral-400 dark:text-neutral-600" />
+                  </button>
+
+                  <div className="my-2 border-t border-neutral-200 dark:border-neutral-800" />
+
+                  {/* ALL TAGS — manage previously generated VinBack tags */}
+                  <button
+                    type="button"
+                    onClick={() => { setIsSettingsOpen(false); setIsVinBackListOpen(true); }}
+                    className="icon-button w-full flex items-center justify-between py-3 hover:text-neutral-900 dark:hover:text-neutral-50"
+                  >
+                    <div className="flex items-center gap-2.5"><Tag className="w-4 h-4 text-neutral-400 dark:text-neutral-500" /><span>All Tags</span></div>
+                    <ChevronRight className="w-3.5 h-3.5 text-neutral-400 dark:text-neutral-600" />
+                  </button>
+
+                  <div className="my-2 border-t border-neutral-200 dark:border-neutral-800" />
+
                   {/* FAVORITE STORES — expandable, backed by customers/{uid}/favorites */}
                   <div className="py-1">
                     <button
@@ -1990,6 +2020,13 @@ export const Front: React.FC = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {isVinBackCreateOpen && (
+        <VinBackTagCreate onClose={() => setIsVinBackCreateOpen(false)} />
+      )}
+      {isVinBackListOpen && (
+        <VinBackTagList onClose={() => setIsVinBackListOpen(false)} />
+      )}
     </div>
   );
 };

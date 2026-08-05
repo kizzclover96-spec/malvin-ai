@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Bell, Share2, User, Smartphone, Moon, Store, Receipt, Sparkles, X,
+  Bell, Share2, User, Smartphone, Moon, Store, Receipt, Sparkles, X, AlertTriangle,
 } from 'lucide-react';
 import {
   collection, query, orderBy, limit, onSnapshot, doc, writeBatch,
@@ -20,7 +20,8 @@ export type NotificationType =
   | 'new_device'
   | 'dark_mode'
   | 'store_visited'
-  | 'new_receipt';
+  | 'new_receipt'
+  | 'property_scanned';
 
 interface NotificationDoc {
   type: NotificationType;
@@ -64,6 +65,7 @@ const ICONS: Record<NotificationType, React.ElementType> = {
   dark_mode: Moon,
   store_visited: Store,
   new_receipt: Receipt,
+  property_scanned: AlertTriangle,
 };
 
 function timeAgo(date: Date): string {
@@ -184,28 +186,35 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ userId }) =>
                 {items.map((n) => {
                   const Icon = ICONS[n.type] || Sparkles;
                   const date = n.createdAt?.toDate ? n.createdAt.toDate() : new Date();
+                  const isUrgent = n.type === 'property_scanned';
                   return (
                     <div
                       key={n.id}
                       className={`flex items-start gap-3 px-4 py-3 ${
-                        !n.read ? 'bg-rose-50/50 dark:bg-rose-500/5' : ''
+                        isUrgent
+                          ? 'bg-red-600 dark:bg-red-700'
+                          : !n.read
+                            ? 'bg-rose-50/50 dark:bg-rose-500/5'
+                            : ''
                       }`}
                     >
-                      <div className="w-8 h-8 rounded-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center flex-shrink-0 text-[#E53935]">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                        isUrgent ? 'bg-white/20 text-white' : 'bg-neutral-100 dark:bg-neutral-800 text-[#E53935]'
+                      }`}>
                         <Icon className="w-4 h-4" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-[11px] font-black text-neutral-800 dark:text-neutral-100 leading-snug">
+                        <p className={`text-[11px] font-black leading-snug ${isUrgent ? 'text-white' : 'text-neutral-800 dark:text-neutral-100'}`}>
                           {n.title}
                         </p>
-                        <p className="text-[10px] font-medium text-neutral-500 dark:text-neutral-400 leading-snug mt-0.5">
+                        <p className={`text-[10px] font-medium leading-snug mt-0.5 ${isUrgent ? 'text-white/90' : 'text-neutral-500 dark:text-neutral-400'}`}>
                           {n.message}
                         </p>
-                        <p className="text-[9px] font-bold text-neutral-300 dark:text-neutral-600 mt-1 uppercase tracking-wide">
+                        <p className={`text-[9px] font-bold mt-1 uppercase tracking-wide ${isUrgent ? 'text-white/70' : 'text-neutral-300 dark:text-neutral-600'}`}>
                           {timeAgo(date)}
                         </p>
                       </div>
-                      {!n.read && (
+                      {!n.read && !isUrgent && (
                         <span className="w-1.5 h-1.5 rounded-full bg-[#E53935] mt-1.5 flex-shrink-0" />
                       )}
                     </div>

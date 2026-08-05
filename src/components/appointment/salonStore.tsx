@@ -9,6 +9,10 @@ import { Star, AlertTriangle } from 'lucide-react';
 import { getDatabase, ref, onValue } from 'firebase/database';
 import Banned from '../addons/Banned';
 import Suspended from '../addons/Suspended';
+import { resolveVerifiedFlag } from '../../utils/verification';
+import { useAccountStanding } from '../../hooks/useAccountStanding';
+import { evaluateIntakeLimit, formatCooldownRemaining } from '../../utils/businessLimits';
+import IntakeLimitBanner from '../addons/IntakeLimitBanner';
 
 // --- Types & Interfaces ---
 interface SalonProfile {
@@ -18,7 +22,8 @@ interface SalonProfile {
   openingTime: string; // HH:MM
   closingTime: string; // HH:MM
   offDays: string[];   // ['Sunday', 'Monday']
-  isVerified?: boolean; 
+  isVerified?: boolean;
+  cooldownExpiresAt?: string | null;
 }
 
 interface Service {
@@ -96,6 +101,8 @@ export default function SalonStore() {
 
 
   const [isVerified, setIsVerified] = useState(false);
+  const { isPremium } = useAccountStanding(uid);
+  const [cooldownLabel, setCooldownLabel] = useState<string | null>(null);
 
   // Ban / Suspension States
   const [isBanned, setIsBanned] = useState(false);
@@ -172,7 +179,7 @@ export default function SalonStore() {
         const isBannedUser = status === "Banned" || data.banned === true || data.isBanned === true;
         const isSuspendedUser = status === "Suspended" || data.suspended === true || data.isSuspended === true;
 
-        setIsVerified(data.profile?.isVerified || data.isVerified || false);
+        setIsVerified(resolveVerifiedFlag(data, profile));
         setIsBanned(isBannedUser);
         setIsSuspended(isSuspendedUser);
 
@@ -188,6 +195,22 @@ export default function SalonStore() {
 
     return () => unsubscribe();
   }, [uid, profile]);
+
+  // Cooldown/limit state is precomputed by salonDashboard.tsx and synced
+  // onto this same profile doc — the store just reflects it, never starts
+  // a fresh cooldown itself (hence activeCount fixed at 0 here).
+  const intakeState = evaluateIntakeLimit(0, { isPremium, isVerified }, profile?.cooldownExpiresAt);
+
+  useEffect(() => {
+    if (!intakeState.cooldownExpiresAt) {
+      setCooldownLabel(null);
+      return;
+    }
+    const tick = () => setCooldownLabel(formatCooldownRemaining(intakeState.cooldownExpiresAt));
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [intakeState.cooldownExpiresAt]);
 
   // 1. Listen for store average rating
   useEffect(() => {
@@ -771,6 +794,16 @@ export default function SalonStore() {
               <span>✓ Instant Wallet Pay</span>
               <span>✓ Secure Booking</span>
               <span>✓ Free Cancellation</span>
+            </div>
+
+            <div style={{ marginTop: '14px' }}>
+              <IntakeLimitBanner
+                merchantType="salon"
+                state={intakeState}
+                cooldownLabel={cooldownLabel}
+                isPremium={isPremium}
+                isVerified={isVerified}
+              />
             </div>
           </div>
         </section>

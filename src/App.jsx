@@ -42,6 +42,7 @@ import { StoreFrontend } from './components/order/Store';
 import SalonStore from "./components/appointment/salonStore";
 import HotelDashboard from "./components/hotel/hotelDashboard";
 import HotelStore from "./components/hotel/hotelStore";
+import VinBackScan from "./components/vinback/VinBackScan";
 import MechanicDashboard from "./components/mechanic/mechanicDashboard";
 import MechanicStore from "./components/mechanic/mechanicStore";
 import { FoodDeepLinkGate, SalonDeepLinkGate, HotelDeepLinkGate, MechanicDeepLinkGate } from "./components/addons/AppOpenGate";
@@ -406,6 +407,7 @@ function App() {
     location.pathname.startsWith("/salon/") || 
     location.pathname.startsWith("/hotel/") ||
     location.pathname.startsWith("/mechanic/") ||
+    location.pathname.startsWith("/vinback/") ||
     location.pathname.startsWith("/chat/");
 
   const handleCategorySelect = (type) => {
@@ -428,6 +430,7 @@ function App() {
           <Route path="/food/:Uid" element={<><FoodDeepLinkGate /><StoreFrontend onExecuteWalletPayment={handleWalletPaymentExecution} /></>} />
           <Route path="/salon/:uid" element={<><SalonDeepLinkGate /><SalonStore onExecuteWalletPayment={handleWalletPaymentExecution} /></>} />
           <Route path="/hotel/:uid" element={<><HotelDeepLinkGate /><HotelStore /></>} />
+          <Route path="/vinback/:tagId" element={<VinBackScan />} />
           <Route path="/mechanic/:uid" element={<><MechanicDeepLinkGate /><MechanicStore /></>} />
           
           <Route path="/terms" element={<Terms />} />

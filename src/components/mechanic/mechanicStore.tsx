@@ -9,6 +9,10 @@ import { Star, AlertTriangle, Wrench, ShieldCheck, Clock, Camera, Car, CheckCirc
 import { getDatabase, ref, onValue } from 'firebase/database';
 import Banned from '../addons/Banned';
 import Suspended from '../addons/Suspended';
+import { resolveVerifiedFlag } from '../../utils/verification';
+import { useAccountStanding } from '../../hooks/useAccountStanding';
+import { evaluateIntakeLimit, formatCooldownRemaining } from '../../utils/businessLimits';
+import IntakeLimitBanner from '../addons/IntakeLimitBanner';
 
 interface GarageProfile {
   garageName: string;
@@ -18,6 +22,7 @@ interface GarageProfile {
   closingTime: string;
   offDays: string[];
   isVerified?: boolean;
+  cooldownExpiresAt?: string | null;
   heroImage?: string;
 }
 
@@ -58,6 +63,8 @@ export default function MechanicStore() {
 
   const [customerUid, setCustomerUid] = useState<string | null>(null);
   const [isVerified, setIsVerified] = useState(false);
+  const { isPremium } = useAccountStanding(uid);
+  const [cooldownLabel, setCooldownLabel] = useState<string | null>(null);
   const [isBanned, setIsBanned] = useState(false);
   const [isSuspended, setIsSuspended] = useState(false);
 
@@ -152,7 +159,7 @@ export default function MechanicStore() {
     onValue(userRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
-        setIsVerified(data.profile?.isVerified || false);
+        setIsVerified(resolveVerifiedFlag(data, garage));
         setIsBanned(data.status === "Banned" || data.banned === true);
         setIsSuspended(data.status === "Suspended" || data.suspended === true);
       }
@@ -163,6 +170,22 @@ export default function MechanicStore() {
       unsubRatings();
     };
   }, [uid]);
+
+  // Cooldown/limit state is precomputed by mechanicDashboard.tsx and synced
+  // onto this same garage profile — the store just reflects it, never
+  // starts a fresh cooldown itself (hence activeCount fixed at 0 here).
+  const intakeState = evaluateIntakeLimit(0, { isPremium, isVerified }, garage?.cooldownExpiresAt);
+
+  useEffect(() => {
+    if (!intakeState.cooldownExpiresAt) {
+      setCooldownLabel(null);
+      return;
+    }
+    const tick = () => setCooldownLabel(formatCooldownRemaining(intakeState.cooldownExpiresAt));
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [intakeState.cooldownExpiresAt]);
 
   // Fetch Customer Live Repair Statuses
   useEffect(() => {
@@ -293,6 +316,16 @@ export default function MechanicStore() {
               <AlertTriangle size={12} /> Report
             </button>
           </div>
+        </div>
+
+        <div style={{ marginTop: '14px' }}>
+          <IntakeLimitBanner
+            merchantType="mechanic"
+            state={intakeState}
+            cooldownLabel={cooldownLabel}
+            isPremium={isPremium}
+            isVerified={isVerified}
+          />
         </div>
       </div>
 

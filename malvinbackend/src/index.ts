@@ -1282,6 +1282,57 @@ export const notifyOnNewChatMessage = onDocumentCreated(
   }
 );
 
+/**
+ * VINBACK — a scan report on a lost item.
+ *
+ * The finder (often a total stranger with no relationship to the owner) can
+ * only write into vinbackTags/{tagId}/scans — Firestore rules don't allow
+ * them anywhere near the owner's own customers/{ownerId}/notifications tree.
+ * This trigger is what bridges the two: it reads the scan, looks up the
+ * tag's owner, and writes the actual in-app notification server-side (Admin
+ * SDK, so it isn't subject to those rules). That write is itself what
+ * sendPushOnNewNotification above is listening for, so the real push rides
+ * the existing pipeline for free — no separate sendPushToUser call needed
+ * here.
+ */
+export const notifyOnVinbackScan = onDocumentCreated(
+  "vinbackTags/{tagId}/scans/{scanId}",
+  async (event) => {
+    const scan = event.data?.data();
+    const tagId = event.params.tagId;
+    if (!scan?.ownerId) return;
+
+    const db = getDb();
+    const tagRef = db.collection("vinbackTags").doc(tagId);
+    const tagSnap = await tagRef.get();
+    const tag = tagSnap.data();
+    if (!tag) return;
+
+    const propertyName = tag.propertyName || "Your property";
+    const location = scan.location || "an unknown location";
+    const finder = scan.finderName ? ` by ${scan.finderName}` : "";
+    const noteSuffix = scan.message ? ` Message: "${scan.message}"` : "";
+
+    await db.collection("customers").doc(scan.ownerId).collection("notifications").add({
+      type: "property_scanned",
+      title: `${propertyName} was just scanned`,
+      message: `Scanned at ${location}${finder}.${noteSuffix}`,
+      read: false,
+      createdAt: require("firebase-admin/firestore").FieldValue.serverTimestamp(),
+    });
+
+    // A finder actively reporting a "missing" item is someone offering to
+    // return it — flip the tag to "found" so the owner immediately sees the
+    // status change alongside the notification, and so the scan page stops
+    // asking the next person who scans it to file a duplicate report. This
+    // has to happen here (not client-side): a finder is never allowed to
+    // update the tag directly, only the owner is — see the rules.
+    if (tag.status === "missing") {
+      await tagRef.update({ status: "found" });
+    }
+  }
+);
+
 interface PendingCounts {
   orders: number;
   appointments: number;
