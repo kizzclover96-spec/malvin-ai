@@ -21,6 +21,7 @@ import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-
 import AdsManager from "./components/admin/AdsManagment";
 import LandingPage from "./pages/system/LandingPage";
 import CookieBanner from "./components/addons/CookieBanner";
+import PaymentResultScreen from "./components/addons/PaymentResultScreen";
 import Terms from "./pages/system/Terms";
 import Privacy from "./pages/system/Privacy";
 import CookiePolicy from "./pages/system/CookiePolicy";
@@ -39,7 +40,9 @@ import SalonDashboard from "./components/appointment/salonDashboard";
 import Category from "./pages/navigation/Category";
 import { StoreFrontend } from './components/order/Store';
 import SalonStore from "./components/appointment/salonStore";
-import { FoodDeepLinkGate, SalonDeepLinkGate } from "./components/addons/AppOpenGate";
+import HotelDashboard from "./components/hotel/hotelDashboard";
+import HotelStore from "./components/hotel/hotelStore";
+import { FoodDeepLinkGate, SalonDeepLinkGate, HotelDeepLinkGate } from "./components/addons/AppOpenGate";
 import { FloatingTeamHub } from "./components/addons/FloatingTeamHub";
 import { WorkerDashboard } from './components/team/workerDashboard';
 import { QrScannerView } from './components/addons/QR Scanner'; 
@@ -63,6 +66,9 @@ function App() {
   const [assignedManagerUid, setAssignedManagerUid] = useState("");
   const [flowStep, setFlowStep] = useState("options");
   const [workerSubScreen, setWorkerSubScreen] = useState("dashboard");
+  // { status: 'success' | 'failed', message?: string } — drives the
+  // four-second confirmation screen after any customer payment.
+  const [paymentResult, setPaymentResult] = useState(null);
   // 🟢 "checking" until the signed claim resolves, then "premium" or "free".
   // UserOption reads this to decide what (if anything) to show in its
   // status pill — it never checks anything itself.
@@ -87,16 +93,21 @@ function App() {
         const { App: CapacitorApp } = await import("@capacitor/app");
         const handle = CapacitorApp.addListener("appUrlOpen", ({ url }) => {
           try {
-            // url looks like "malvinai://food/abc123" or "malvinai://salon/abc123"
+            // url looks like "malvinai://food/abc123", "malvinai://salon/abc123",
+            // or "malvinai://hotel/abc123"
             const parsed = new URL(url);
             const uid = parsed.pathname.replace(/^\/+/, "") || parsed.host;
             if (parsed.protocol === "malvinai:" || url.startsWith("malvinai://")) {
-              const kind = url.includes("/salon/") || url.includes("salon:") ? "salon" : "food";
+              const kind = url.includes("/salon/") || url.includes("salon:")
+                ? "salon"
+                : url.includes("/hotel/") || url.includes("hotel:")
+                ? "hotel"
+                : "food";
               // Fall back to whatever segment actually follows the host, since
               // some Android versions parse custom-scheme URLs inconsistently.
               const segments = url.replace("malvinai://", "").split("/").filter(Boolean);
               const routeUid = segments[1] || uid;
-              const routeKind = segments[0] === "salon" ? "salon" : "food";
+              const routeKind = segments[0] === "salon" ? "salon" : segments[0] === "hotel" ? "hotel" : "food";
               navigate(`/${routeKind || kind}/${routeUid}`);
             }
           } catch (err) {
@@ -158,8 +169,16 @@ function App() {
         });
       });
       console.log(`Internal transfer finalized cleanly for ${collectionName}.`);
+      setPaymentResult({ status: "success" });
     } catch (error) {
       console.error("Payment settlement error trace:", error);
+      // Surface the real reason where it's useful ("Insufficient wallet
+      // balance."), since unlike a Stripe failure the customer can often act
+      // on it directly.
+      setPaymentResult({ status: "failed", message: error?.message || undefined });
+      // Still rethrow — callers (salonStore, Store, Front) have their own
+      // recovery to run, and swallowing it here would leave their submit
+      // buttons stuck mid-flight.
       throw error;
     }
   };
@@ -176,6 +195,45 @@ function App() {
       navigate(`/verify?scanId=${scanId}`, { replace: true });
     }
   }, [location, navigate]);
+
+  // A payment that never reached Stripe at all: the StoreFront shell failed
+  // to create the checkout session and posted the reason back down into the
+  // store iframe. There's no redirect in this case, so the return handler
+  // below would never fire and the customer would otherwise get nothing.
+  useEffect(() => {
+    const handleShellMessage = (event) => {
+      if (event.data?.type !== "DIRECT_PAYMENT_FAILURE") return;
+      setPaymentResult({ status: "failed", message: event.data.error || undefined });
+    };
+    window.addEventListener("message", handleShellMessage);
+    return () => window.removeEventListener("message", handleShellMessage);
+  }, []);
+
+  // 🟢 STRIPE RETURN HANDLER
+  // Stripe sends the customer back to /?checkout=success|cancel (see
+  // success_url / cancel_url in malvinbackend). Land them on the Customer
+  // Hub, strip the query param, and raise the confirmation screen.
+  //
+  // This runs in an effect rather than in the render body, where it used to
+  // live: setFlowStep + navigate during render are side effects, and the
+  // bare `return` that followed them handed React an undefined render
+  // result. It also has to be an effect now because it sets the payment
+  // result state that PaymentResultScreen reads.
+  useEffect(() => {
+    const checkoutStatus = new URLSearchParams(location.search).get("checkout");
+    if (checkoutStatus !== "success" && checkoutStatus !== "cancel") return;
+
+    setFlowStep("front"); // straight to Customer Hub
+    setPaymentResult(
+      checkoutStatus === "success"
+        ? { status: "success" }
+        : // Stripe's cancel_url means the customer backed out at the payment
+          // sheet, not that a charge was attempted and rejected — so say that
+          // rather than claiming a failure they didn't cause.
+          { status: "failed", message: "Payment was cancelled. Nothing was charged." }
+    );
+    navigate(location.pathname, { replace: true, state: {} }); // clean the URL
+  }, [location.search, location.pathname, navigate]);
 
   
 
@@ -344,24 +402,17 @@ function App() {
   const isStorefrontPath = 
     location.pathname.startsWith("/food/") || 
     location.pathname.startsWith("/salon/") || 
+    location.pathname.startsWith("/hotel/") || 
     location.pathname.startsWith("/chat/");
 
   const handleCategorySelect = (type) => {
     if (type === "food") { setFlowStep("food"); return; }
     if (type === "fashion") { setFlowStep("device"); return; }
     if (type === "explore") { setFlowStep("SalonDashboard"); return; }
+    if (type === "hotel") { setFlowStep("HotelDashboard"); return; }
     if (type === "records") { setFlowStep("recordsDashboard"); return; }
     if (type === "premium") { setFlowStep("premiumView"); return; }
   };
-
-  const params = new URLSearchParams(location.search);
-  const checkoutStatus = params.get("checkout");
-
-  if (checkoutStatus === "success" || checkoutStatus === "cancel") {
-    setFlowStep("front"); // straight to Customer Hub
-    navigate(location.pathname, { replace: true, state: {} }); // clean the URL
-    return;
-  }
 
   return (
     <>
@@ -372,6 +423,7 @@ function App() {
           {/* 🟢 Passing the wallet execution mechanism directly down into routing subcomponents */}
           <Route path="/food/:Uid" element={<><FoodDeepLinkGate /><StoreFrontend onExecuteWalletPayment={handleWalletPaymentExecution} /></>} />
           <Route path="/salon/:uid" element={<><SalonDeepLinkGate /><SalonStore onExecuteWalletPayment={handleWalletPaymentExecution} /></>} />
+          <Route path="/hotel/:uid" element={<><HotelDeepLinkGate /><HotelStore /></>} />
           
           <Route path="/terms" element={<Terms />} />
           <Route path="/cookiePolicy" element={<CookiePolicy />} />
@@ -432,6 +484,8 @@ function App() {
                 <FoodDashboard userEmail={user?.email} currentUserId={user?.uid} />
               ) : flowStep === "SalonDashboard" ? (
                 <SalonDashboard userEmail={user?.email} currentUserId={user?.uid} />
+              ) : flowStep === "HotelDashboard" ? (
+                <HotelDashboard />
               ) : flowStep === "recordsDashboard" ? (
                 <MalvinSystemDashboard userEmail={user?.email} currentUserId={user?.uid} />
               ) : flowStep === "device" ? (
@@ -461,7 +515,10 @@ function App() {
 
       <CookieBanner />
 
-      <CookieBanner />
+      {/* Four-second payment confirmation. Mounted last so it layers over
+          every flow, and outside <Routes> so a redirect on return from
+          Stripe can't unmount it mid-countdown. */}
+      <PaymentResultScreen result={paymentResult} onDismiss={() => setPaymentResult(null)} />
     </>
   );
 }

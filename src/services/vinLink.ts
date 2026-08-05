@@ -37,29 +37,84 @@ export function extractUid(rawInput: string): string {
 }
 
 export function buildVinLink(uid: string, category: string): string {
-  const kind = category.toLowerCase() === 'salon' ? 'salon' : 'food';
+  const normalized = category.toLowerCase();
+  const kind = normalized === 'salon' ? 'salon' : normalized === 'hotel' ? 'hotel' : 'food';
   return `${PUBLIC_ORIGIN}/${kind}/${uid}`;
 }
 
+export type BusinessKind = 'restaurant' | 'salon' | 'hotel';
+
+export interface ResolvedBusiness {
+  uid: string;
+  kind: BusinessKind;
+  /** Absolute, shareable deep link pointing at the correct store type. */
+  link: string;
+  /** True when the uid actually matched a business document. */
+  found: boolean;
+  /** Display fields, normalized across the three profile shapes. */
+  storeName: string;
+  bio: string;
+  address: string;
+  logoUrl: string;
+}
+
 /**
- * Looks the business up to decide whether it's a salon or a food store, then
- * builds its link. Falls back to the food path if the lookup fails, since a
- * slightly wrong link still beats no link at all.
+ * Single lookup that answers both "what kind of business is this, so where
+ * does its link point" and "what is it called", so a caller needing both
+ * (logging a visit to recentBusinesses) doesn't read the same document
+ * twice.
+ *
+ * The three profile collections spell their fields differently —
+ * brandName/salonName/hotelName, brandBio/bio — so they're normalized here
+ * rather than at every call site.
  */
-export async function resolveVinLink(businessUid: string): Promise<string> {
+export async function resolveBusiness(businessUid: string): Promise<ResolvedBusiness> {
   const uid = extractUid(businessUid);
+
+  const shape = (kind: BusinessKind, data: any): ResolvedBusiness => ({
+    uid,
+    kind,
+    link: buildVinLink(uid, kind),
+    found: true,
+    storeName: data.brandName || data.salonName || data.hotelName || 'Unnamed Store',
+    bio: data.brandBio || data.bio || '',
+    address: data.address || '',
+    logoUrl: data.logo || data.logoUrl || '',
+  });
 
   try {
     const restaurantSnap = await getDoc(doc(db, 'restaurantprofile', uid));
-    if (restaurantSnap.exists()) {
-      return buildVinLink(uid, restaurantSnap.data().category || 'restaurant');
-    }
+    if (restaurantSnap.exists()) return shape('restaurant', restaurantSnap.data());
 
     const salonSnap = await getDoc(doc(db, 'salons', uid));
-    if (salonSnap.exists()) return buildVinLink(uid, 'salon');
+    if (salonSnap.exists()) return shape('salon', salonSnap.data());
+
+    const hotelSnap = await getDoc(doc(db, 'hotels', uid));
+    if (hotelSnap.exists()) return shape('hotel', hotelSnap.data());
   } catch (err) {
     console.error('vinLink: failed to resolve business category:', err);
   }
 
-  return buildVinLink(uid, 'restaurant');
+  // Nothing matched. Fall back to the food path — a slightly wrong link
+  // still beats no link at all — but flag it so callers can avoid writing a
+  // junk row into someone's history.
+  return {
+    uid,
+    kind: 'restaurant',
+    link: buildVinLink(uid, 'restaurant'),
+    found: false,
+    storeName: '',
+    bio: '',
+    address: '',
+    logoUrl: '',
+  };
+}
+
+/**
+ * Looks the business up to decide whether it's a salon, hotel, or food
+ * store, then builds its link. Falls back to the food path if the lookup
+ * fails, since a slightly wrong link still beats no link at all.
+ */
+export async function resolveVinLink(businessUid: string): Promise<string> {
+  return (await resolveBusiness(businessUid)).link;
 }

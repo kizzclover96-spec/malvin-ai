@@ -77,8 +77,8 @@ export const StoreFront: React.FC<StoreFrontProps> = ({ businessUid, onExit, use
         return;
       }
 
-      // Handshake Request from Child (SalonStore / Store / MarketFront)
-      if (event.data?.type === "SALON_READY" || event.data?.type === "STORE_READY") {
+      // Handshake Request from Child (SalonStore / Store / HotelStore / MarketFront)
+      if (event.data?.type === "SALON_READY" || event.data?.type === "STORE_READY" || event.data?.type === "HOTEL_READY") {
         if (!currentUser) {
           console.warn("Storefront requested identity, but user is not authenticated.");
           return;

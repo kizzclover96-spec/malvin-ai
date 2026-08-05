@@ -1,10 +1,12 @@
 import { collection, getDocs, query, limit } from 'firebase/firestore';
 import { firestore as db } from '../firebase';
 
+export type NearbyBusinessType = 'restaurant' | 'salon' | 'hotel';
+
 export interface NearbyBusiness {
   id: string;
   name: string;
-  type: 'restaurant' | 'salon';
+  type: NearbyBusinessType;
   category: string;
   address: string;
   rating: number;
@@ -33,7 +35,10 @@ const PER_COLLECTION_LIMIT = 40;
 // browser session and without the user having moved meaningfully, costs
 // ZERO additional Firestore reads. Cleared automatically when the tab
 // closes (sessionStorage), so it never goes stale across visits.
-const CACHE_KEY = 'malvin_nearby_cache_v2';
+// v3: hotels were added to the scanned collections. The bump matters —
+// a v2 entry written minutes ago holds a hotel-less result set that would
+// otherwise keep hotels hidden for the rest of the TTL.
+const CACHE_KEY = 'malvin_nearby_cache_v3';
 const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes
 const CACHE_MOVE_THRESHOLD_KM = 1; // refetch if the user has moved ~1km+
 
@@ -94,13 +99,29 @@ async function fetchNearbyBusinessesUncached(
   userLng: number
 ): Promise<NearbyBusiness[]> {
   const results: NearbyBusiness[] = [];
-  const collections: Array<{ name: string; type: string }> = [
-    { name: 'restaurantprofile', type: 'restaurant' },
-    { name: 'salons', type: 'salon' },
+  const collections: Array<{ name: string; type: NearbyBusinessType; path: string }> = [
+    { name: 'restaurantprofile', type: 'restaurant', path: 'food' },
+    { name: 'salons', type: 'salon', path: 'salon' },
+    // Hotels only surface here once their dashboard has geocoded an address
+    // into latitude/longitude — same precondition the other two have.
+    { name: 'hotels', type: 'hotel', path: 'hotel' },
   ];
 
-  for (const col of collections) {
-    const snap = await getDocs(query(collection(db, col.name), limit(PER_COLLECTION_LIMIT)));
+  // One failing collection (missing index, rules change, a collection that
+  // doesn't exist yet in this project) shouldn't blank out the whole strip —
+  // keep whatever the other collections returned.
+  const snaps = await Promise.all(
+    collections.map((col) =>
+      getDocs(query(collection(db, col.name), limit(PER_COLLECTION_LIMIT))).catch((err) => {
+        console.error(`nearbyBusinesses: failed to read "${col.name}":`, err);
+        return null;
+      })
+    )
+  );
+
+  snaps.forEach((snap, i) => {
+    if (!snap) return;
+    const col = collections[i];
 
     snap.forEach((docSnap) => {
       const data = docSnap.data();
@@ -111,12 +132,12 @@ async function fetchNearbyBusinessesUncached(
 
       results.push({
         id: docSnap.id,
-        name: data.brandName || data.salonName || 'Unnamed Business',
-        type: col.type as 'restaurant' | 'salon',
+        name: data.brandName || data.salonName || data.hotelName || 'Unnamed Business',
+        type: col.type,
         category: data.category || col.type,
         address: data.address || '',
         rating: typeof data.rating === 'number' ? data.rating : 5.0,
-        verified: data.verified ?? true,
+        verified: data.verified ?? data.isVerified ?? true,
         latitude: data.latitude,
         longitude: data.longitude,
         distanceKm,
@@ -124,11 +145,11 @@ async function fetchNearbyBusinessesUncached(
         openingTime: data.openingTime,
         closingTime: data.closingTime,
         offDays: data.offDays,
-        vinLink: data.vinLink || (col.type === 'salon' ? `/salon/${docSnap.id}` : `/food/${docSnap.id}`),
+        vinLink: data.vinLink || `/${col.path}/${docSnap.id}`,
         isOpenNow: isBusinessOpenNow(data.openingTime, data.closingTime, data.offDays),
       });
     });
-  }
+  });
 
   return results.sort((a, b) => a.distanceKm - b.distanceKm);
 }

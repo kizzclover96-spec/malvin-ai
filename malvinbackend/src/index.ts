@@ -179,7 +179,7 @@ export const createBusinessStripeAccount = onCall(
       throw new HttpsError("invalid-argument", "Email, businessId, and merchantType are required"); 
     }
 
-    const targetCollection = merchantType === "food" ? "restaurantprofile" : "salons";
+    const targetCollection = merchantType === "food" ? "restaurantprofile" : merchantType === "hotel" ? "hotels" : "salons";
 
     // 🟢 Wrapped so real Stripe/Firestore errors reach the client instead of
     // being swallowed into a generic "INTERNAL" by Firebase Functions.
@@ -257,7 +257,7 @@ export const checkStripeAccount = onCall(
     }
 
     const account = await stripe.accounts.retrieve(stripeAccountId);
-    const targetCollection = merchantType === "food" ? "restaurantprofile" : "salons";
+    const targetCollection = merchantType === "food" ? "restaurantprofile" : merchantType === "hotel" ? "hotels" : "salons";
 
     // 🟢 Keep database keys perfectly aligned with createDirectPaymentSession validator (snake_case)
     await db.collection(targetCollection).doc(businessId).update({
@@ -299,7 +299,8 @@ export const createDirectPaymentSession = onCall(
     }
 
     const isFood = merchantType === "food";
-    const targetCollection = isFood ? "restaurantprofile" : "salons";
+    const isHotel = merchantType === "hotel";
+    const targetCollection = isFood ? "restaurantprofile" : isHotel ? "hotels" : "salons";
     const businessDoc = await db.collection(targetCollection).doc(targetBusinessUid).get();
 
     if (!businessDoc.exists) {
@@ -325,7 +326,7 @@ export const createDirectPaymentSession = onCall(
           price_data: {
             currency: "eur",
             product_data: {
-              name: businessData?.brandName || businessData?.name || businessData?.salonName || "Malvin Service Payment",
+              name: businessData?.brandName || businessData?.name || businessData?.salonName || businessData?.hotelName || "Malvin Service Payment",
               description: `Direct payment via Malvin App`,
             },
             unit_amount: amountInCents,
@@ -423,6 +424,29 @@ export const stripeWebhook = onRequest(
               createdAt: new Date().toISOString()
             });
 
+          } else if (merchantType === "hotel") {
+            // 🏨 HOTEL FLOW: the reservation was already staged client-side
+            // (status: "held", paymentStatus: false, availableUnits already
+            // decremented) before the Stripe redirect — see hotelStore.tsx's
+            // confirmReservation(). Payment confirmation here is an UPDATE
+            // of that existing doc, not a new record, keyed off the
+            // reservationId carried through in appointmentDetails.
+            const reservationId = appointmentDetails?.reservationId;
+            if (reservationId) {
+              const reservationRef = db
+                .collection("customers").doc(userId)
+                .collection("hotelReservations").doc(reservationId);
+
+              batch.update(reservationRef, {
+                status: "confirmed",
+                paymentStatus: true,
+                paidAmount: amount,
+                confirmedAt: FieldValue.serverTimestamp()
+              });
+            } else {
+              console.error("Hotel direct payment webhook fired with no reservationId in metadata — nothing to confirm.");
+            }
+
           } else {
             // 💇 SALON FLOW: Maintain nested collection flow
             const appointmentRef = db.collection("salonAppointments").doc(userId).collection("appointments").doc();
@@ -444,7 +468,7 @@ export const stripeWebhook = onRequest(
           // Log payment transaction inside the customer's wallet history
           const txRef = userDocRef.collection("walletTransactions").doc();
           batch.set(txRef, {
-            storeName: isFood ? "Food Order" : "Direct Payment",
+            storeName: isFood ? "Food Order" : merchantType === "hotel" ? "Hotel Reservation" : "Direct Payment",
             amount: amount,
             type: "spent",
             timestamp: FieldValue.serverTimestamp()
@@ -769,7 +793,7 @@ export const requestPinReset = onCall(
     }
 
     const { merchantType } = request.data;
-    const targetCollection = merchantType === "food" ? "restaurantprofile" : "salons";
+    const targetCollection = merchantType === "food" ? "restaurantprofile" : merchantType === "hotel" ? "hotels" : "salons";
 
     const { getAuth } = require("firebase-admin/auth");
     const db = getDb();
@@ -833,7 +857,7 @@ export const confirmPinReset = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "Valid validation token and a 4-digit PIN are required.");
   }
 
-  const targetCollection = merchantType === "food" ? "restaurantprofile" : "salons";
+  const targetCollection = merchantType === "food" ? "restaurantprofile" : merchantType === "hotel" ? "hotels" : "salons";
   const db = getDb();
   const securityRef = db.collection(targetCollection).doc(uid).collection("private").doc("security");
   const securitySnap = await securityRef.get();
@@ -898,7 +922,7 @@ export const initializeMerchantPin = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "A valid 4-digit numeric PIN is required.");
   }
 
-  const targetCollection = merchantType === "food" ? "restaurantprofile" : "salons";
+  const targetCollection = merchantType === "food" ? "restaurantprofile" : merchantType === "hotel" ? "hotels" : "salons";
   const db = getDb();
   const securityRef = db.collection(targetCollection).doc(uid).collection("private").doc("security");
 
@@ -941,7 +965,7 @@ export const getStripeAccountBalance = onCall(
     const stripe = getStripe();
     const db = getDb();
 
-    const targetCollection = merchantType === "food" ? "restaurantprofile" : "salons";
+    const targetCollection = merchantType === "food" ? "restaurantprofile" : merchantType === "hotel" ? "hotels" : "salons";
     const businessDoc = await db.collection(targetCollection).doc(uid).get();
 
     if (!businessDoc.exists) {

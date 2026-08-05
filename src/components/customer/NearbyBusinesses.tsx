@@ -1,6 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence, PanInfo } from 'framer-motion';
-import { Star, Store, Scissors, Utensils, Coffee, ChefHat, Pizza, Sparkles, Wand2, Gem } from 'lucide-react';
+import {
+  Star, Store, Scissors, Utensils, Coffee, ChefHat, Pizza, Sparkles, Wand2, Gem,
+  BedDouble, Hotel, Luggage, ConciergeBell,
+} from 'lucide-react';
 import { getNearbyBusinesses, getStatusLabel, NearbyBusiness } from '../../utils/nearbyBusinesses';
 
 interface NearbyBusinessesProps {
@@ -26,7 +29,15 @@ const SALON_VISUALS = [
   { gradient: 'linear-gradient(135deg, #7E57C2, #4527A0)', Icon: Gem },
 ];
 
-const categoryBadgeIcon = (type: string) => (type === 'salon' ? Scissors : Utensils);
+const HOTEL_VISUALS = [
+  { gradient: 'linear-gradient(135deg, #D4AF37, #8A6D1F)', Icon: BedDouble },   // the hotel dashboard's gold
+  { gradient: 'linear-gradient(135deg, #5C6BC0, #283593)', Icon: Hotel },       // night / city stay
+  { gradient: 'linear-gradient(135deg, #26C6DA, #00838F)', Icon: Luggage },     // travel
+  { gradient: 'linear-gradient(135deg, #78909C, #37474F)', Icon: ConciergeBell },
+];
+
+const categoryBadgeIcon = (type: string) =>
+  type === 'salon' ? Scissors : type === 'hotel' ? BedDouble : Utensils;
 
 function hashToInt(str: string): number {
   let hash = 0;
@@ -50,6 +61,10 @@ interface CardVisual {
 // a photo file is missing/fails to load.
 const RESTAURANT_PHOTOS = ['/Downloade.png', '/rest.png', '/resturant2.png', '/resturant3.png'];
 const SALON_PHOTOS = ['/nail1.png', '/nail2.png', '/nail4.png', '/nails5.png', '/nails6.png'];
+// No hotel photo set has been supplied to /public yet, so hotel cards fall
+// through to the gradient+icon look below until one is (or until the hotel
+// uploads its own logo, which takes priority over both anyway).
+const HOTEL_PHOTOS: string[] = [];
 
 // Assigns a photo (from the local sets above) and a fallback gradient+icon
 // per business, deterministically (same business always gets the same
@@ -59,11 +74,18 @@ const SALON_PHOTOS = ['/nail1.png', '/nail2.png', '/nail4.png', '/nails5.png', '
 function assignVisuals(list: NearbyBusiness[]): Array<NearbyBusiness & { visual: CardVisual }> {
   let prevPhotoKey = '';
   return list.map((biz) => {
-    const isSalon = biz.type === 'salon';
-    const palette = isSalon ? SALON_VISUALS : RESTAURANT_VISUALS;
-    const photos = isSalon ? SALON_PHOTOS : RESTAURANT_PHOTOS;
+    const palette =
+      biz.type === 'salon' ? SALON_VISUALS : biz.type === 'hotel' ? HOTEL_VISUALS : RESTAURANT_VISUALS;
+    const photos =
+      biz.type === 'salon' ? SALON_PHOTOS : biz.type === 'hotel' ? HOTEL_PHOTOS : RESTAURANT_PHOTOS;
 
     const gradientIdx = hashToInt(biz.id) % palette.length;
+
+    // A type with no photo set (hotels, today) skips straight to the
+    // gradient+icon look — modulo against an empty array would be NaN.
+    if (photos.length === 0) {
+      return { ...biz, visual: { ...palette[gradientIdx], photoUrl: undefined } };
+    }
 
     let photoIdx = hashToInt(`${biz.id}-photo`) % photos.length;
     let photoKey = `${biz.type}-${photoIdx}`;

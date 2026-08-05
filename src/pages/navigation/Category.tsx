@@ -4,7 +4,7 @@ import { ref, push, serverTimestamp, onValue } from "firebase/database";
 
 type Props = {
   onSelect: (
-    type: "food" | "fashion" | "explore" | "records" | "premium"
+    type: "food" | "fashion" | "explore" | "hotel" | "records" | "premium"
   ) => void;
   isPremium?: boolean;
   userBrand?: { id: string; name?: string; isPremium?: boolean };
@@ -341,6 +341,18 @@ const Category: React.FC<Props> = ({ onSelect, isPremium: isPremiumProp, userBra
             <circle cx="50" cy="50" r="4" fill="#0f172a" />
           </svg>
           <span style={labelStyle}>Explore</span>
+        </div>
+
+        {/* HOTEL */}
+        <div style={circleStyle} onClick={() => onSelect("hotel")}>
+          <svg width="80" height="80" viewBox="0 0 100 100" fill="none">
+            <rect x="20" y="38" width="60" height="42" rx="3" stroke="white" strokeWidth="4" />
+            <path d="M20 38 L50 18 L80 38" stroke="white" strokeWidth="4" strokeLinejoin="round" />
+            <rect x="32" y="52" width="14" height="14" stroke="rgba(255,255,255,0.7)" strokeWidth="3" />
+            <rect x="54" y="52" width="14" height="14" stroke="rgba(255,255,255,0.7)" strokeWidth="3" />
+            <rect x="44" y="70" width="12" height="10" stroke="rgba(255,255,255,0.7)" strokeWidth="3" />
+          </svg>
+          <span style={labelStyle}>Hotel</span>
         </div>
 
         {/* MALVIN RECORDS SYSTEM INTERFACE */}

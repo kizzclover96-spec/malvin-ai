@@ -1,0 +1,114 @@
+.dashboardContainer {
+  --glass-bg: rgba(255, 255, 255, 0.07);
+  --glass-border: rgba(255, 255, 255, 0.15);
+  --glass-blur: blur(20px);
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.65);
+  --accent-color: #d4af37;
+
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0b1420 0%, #10243a 50%, #060b12 100%);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  padding: 24px;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+.spin { animation: spin 1s linear infinite; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+.toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #111; color: var(--accent-color); border: 1px solid var(--accent-color); border-radius: 12px; padding: 10px 18px; font-size: 13px; font-weight: 600; z-index: 3000; }
+
+.header { display: flex; justify-content: space-between; align-items: center; max-width: 720px; margin: 0 auto 24px auto; width: 100%; }
+.hotelTitle { font-size: 22px; font-weight: 700; margin: 0; }
+.headerSub { font-size: 12px; color: var(--text-secondary); margin: 2px 0 0 0; }
+
+.iconButton { background: var(--glass-bg); border: 1px solid var(--glass-border); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); padding: 12px; border-radius: 50%; color: var(--text-primary); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.25s ease; }
+.iconButton:hover { background: rgba(255,255,255,0.15); }
+.iconButtonSmall { background: var(--glass-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 10px; padding: 6px 10px; font-size: 12px; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; text-decoration: none; }
+.iconButtonSmall:hover { background: rgba(255,255,255,0.15); }
+.headerActions { display: flex; align-items: center; gap: 10px; }
+
+/* --- Receipt scanner panel + result banner --- */
+.scannerSlot { max-width: 720px; margin: 0 auto 16px auto; width: 100%; border-radius: 16px; overflow: hidden; }
+.scanBannerSuccess, .scanBannerError {
+  max-width: 720px; margin: 0 auto 16px auto; width: 100%; box-sizing: border-box;
+  border-radius: 14px; padding: 14px; text-align: center; font-size: 13px; font-weight: 700;
+  cursor: pointer;
+}
+.scanBannerSuccess { background: rgba(70, 200, 130, 0.18); border: 1px solid rgba(70, 200, 130, 0.4); color: #6be3a4; }
+.scanBannerError { background: rgba(255, 90, 90, 0.15); border: 1px solid rgba(255, 90, 90, 0.4); color: #ff9a9a; }
+
+.mainContent { max-width: 720px; margin: 0 auto; width: 100%; }
+
+.heroGlassCard { background: var(--glass-bg); border: 1px solid var(--glass-border); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); border-radius: 20px; padding: 20px; display: flex; flex-direction: column; align-items: center; gap: 14px; margin-bottom: 20px; }
+.qrImage { width: 130px; height: 130px; border-radius: 12px; background: #fff; padding: 8px; }
+.qrLinkRow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.qrLinkText { font-size: 12px; color: var(--text-secondary); word-break: break-all; text-align: center; }
+
+.tabRow { display: flex; gap: 8px; margin-bottom: 18px; overflow-x: auto; }
+.tab, .tabActive { flex: 1; text-align: center; padding: 10px 12px; border-radius: 12px; font-size: 13px; font-weight: 600; border: 1px solid var(--glass-border); background: transparent; color: var(--text-secondary); cursor: pointer; white-space: nowrap; }
+.tabActive { background: rgba(212, 175, 55, 0.15); border-color: var(--accent-color); color: var(--accent-color); }
+
+.listStack { display: flex; flex-direction: column; gap: 14px; }
+.emptyState { text-align: center; padding: 40px 20px; color: var(--text-secondary); font-size: 14px; }
+
+/* --- Reservation cards --- */
+.reservationCard { background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 16px; padding: 16px; }
+.reservationTopLine { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.reservationMeta { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+.statusPill { font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 4px 10px; border-radius: 20px; white-space: nowrap; }
+.status_held { background: rgba(212, 175, 55, 0.18); color: #e7c158; }
+.status_confirmed { background: rgba(70, 200, 130, 0.18); color: #6be3a4; }
+.status_expired { background: rgba(255,255,255,0.08); color: var(--text-secondary); }
+.status_cancelled { background: rgba(255, 90, 90, 0.15); color: #ff9a9a; }
+.holdCountdownRow { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #e7c158; margin-top: 8px; }
+.reservationActions { display: flex; gap: 10px; margin-top: 12px; }
+.confirmBtn, .cancelBtn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px; border-radius: 10px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; }
+.confirmBtn { background: rgba(70, 200, 130, 0.18); color: #6be3a4; }
+.cancelBtn { background: rgba(255, 90, 90, 0.15); color: #ff9a9a; }
+
+/* --- Rooms manage list --- */
+.addRoomBtn { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 14px; border-radius: 14px; border: 1px dashed var(--accent-color); background: rgba(212, 175, 55, 0.08); color: var(--accent-color); font-weight: 600; font-size: 14px; cursor: pointer; }
+.roomManageCard { display: flex; gap: 12px; background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 16px; padding: 12px; align-items: center; }
+.roomManageThumb { width: 60px; height: 60px; border-radius: 10px; overflow: hidden; flex-shrink: 0; background: rgba(255,255,255,0.06); display: flex; align-items: center; justify-content: center; color: var(--accent-color); }
+.roomManageThumb img { width: 100%; height: 100%; object-fit: cover; }
+.roomManageBody { flex: 1; min-width: 0; }
+.roomIconRow { display: flex; flex-wrap: wrap; gap: 8px; font-size: 11px; color: var(--text-secondary); margin: 6px 0; }
+.roomIconRow span { display: flex; align-items: center; gap: 4px; }
+.roomManageActions { display: flex; flex-direction: column; gap: 6px; }
+
+/* --- Settings form --- */
+.settingsForm { display: flex; flex-direction: column; gap: 18px; background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 18px; padding: 20px; }
+.inputBlock { display: flex; flex-direction: column; gap: 6px; }
+.inputBlock label { font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.4px; }
+.input, .textarea, select.input {
+  width: 100%; border: 1px solid var(--glass-border); background: rgba(0,0,0,0.25); color: var(--text-primary);
+  border-radius: 10px; padding: 10px 12px; font-size: 14px; box-sizing: border-box; outline: none;
+}
+.textarea { min-height: 80px; resize: vertical; }
+.formRow { display: flex; gap: 12px; }
+.formRow > div { flex: 1; }
+.checkboxRow { display: flex; gap: 20px; font-size: 13px; color: var(--text-secondary); }
+.checkboxRow label { display: flex; align-items: center; gap: 6px; }
+
+.holdOptionRow { display: flex; flex-wrap: wrap; gap: 8px; }
+.holdOption, .holdOptionActive { padding: 8px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; border: 1px solid var(--glass-border); background: transparent; color: var(--text-secondary); cursor: pointer; }
+.holdOptionActive { background: rgba(212, 175, 55, 0.18); border-color: var(--accent-color); color: var(--accent-color); }
+.hint { font-size: 12px; color: var(--text-secondary); line-height: 1.4; margin: 4px 0 0 0; }
+
+.saveBtn { border: none; background: var(--accent-color); color: #1a1400; font-weight: 700; font-size: 14px; border-radius: 12px; padding: 14px; cursor: pointer; }
+.saveBtn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* --- Room modal --- */
+.modalOverlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: flex-end; justify-content: center; z-index: 4000; }
+.modalCard { width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto; background: #0f1a28; border: 1px solid var(--glass-border); border-radius: 24px 24px 0 0; padding: 20px; display: flex; flex-direction: column; gap: 16px; box-sizing: border-box; }
+.modalHeader { display: flex; justify-content: space-between; align-items: center; }
+.modalHeader h3 { margin: 0; font-size: 17px; }
+
+.photoGrid { display: flex; flex-wrap: wrap; gap: 10px; }
+.photoThumb { position: relative; width: 68px; height: 68px; border-radius: 10px; overflow: hidden; }
+.photoThumb img { width: 100%; height: 100%; object-fit: cover; }
+.photoRemoveBtn { position: absolute; top: 3px; right: 3px; background: rgba(0,0,0,0.6); border: none; color: #fff; border-radius: 50%; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.photoUploadTile { width: 68px; height: 68px; border-radius: 10px; border: 1px dashed var(--glass-border); display: flex; align-items: center; justify-content: center; color: var(--accent-color); cursor: pointer; }

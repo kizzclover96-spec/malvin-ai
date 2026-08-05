@@ -11,7 +11,10 @@ import { copyToClipboard } from '../../services/share';
 interface RecentBusinessItem {
   id: string;
   businessUid: string;
-  customName?: string; 
+  /** Resolved deep link ("https://malvinai.com/hotel/<uid>"). Absent on rows
+   *  written before the store type was resolved at visit time. */
+  vinLink?: string;
+  customName?: string;
   storeName: string;
   logoUrl: string;
   bio: string;
@@ -85,8 +88,9 @@ export const RecentBusinesses: React.FC<RecentBusinessesProps> = ({ onSelectBusi
           id: docSnapshot.id,
           // Fallback directly to document ID to keep tracking keys unique
           businessUid: data.businessUid || docSnapshot.id,
-          customName: data.customName || '', 
-          storeName: data.storeName || 'Unnamed Store', 
+          vinLink: data.vinLink || '',
+          customName: data.customName || '',
+          storeName: data.storeName || 'Unnamed Store',
           logoUrl: data.logoUrl || '',
           bio: data.bio || 'Hold down for options.',
           address: data.address || '',
@@ -235,7 +239,13 @@ export const RecentBusinesses: React.FC<RecentBusinessesProps> = ({ onSelectBusi
                     onContextMenu={(e) => e.preventDefault()}
                     onClick={() => {
                       if (!isLongPressActive.current && editingId !== item.id) {
-                          onSelectBusiness(item.businessUid);
+                          // Prefer the resolved link so the row reopens the
+                          // right store type. Rows saved before vinLink
+                          // existed fall back to businessUid, which the
+                          // handler re-resolves — so an old row that used to
+                          // land on the blank/landing screen repairs itself
+                          // the first time it's tapped.
+                          onSelectBusiness(item.vinLink || item.businessUid);
                       }
                     }}
                     className="bg-neutral-50/60 border border-neutral-200/40 rounded-[1.75rem] p-4 flex items-center justify-between cursor-pointer hover:bg-neutral-50 transition-colors shadow-sm relative group overflow-hidden select-none"

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Menu, Settings, Search, Home, Wallet as WalletIcon, QrCode, X, 
@@ -23,6 +23,7 @@ import { RecentBusinesses } from './RecentBusinesses';
 import { NearbyBusinesses } from './NearbyBusinesses';
 import { VinMoment, getTierForScore, MOM_MILESTONE_STEP } from './Vinmoment';
 import { ReceiptsDrawer } from './ReceiptsDrawer';
+import { resolveBusiness, extractUid } from '../../services/vinLink';
 
 // Fixed allow-list — the language row can only ever pick one of these,
 // which is what keeps the stored value safe even before Firestore rules see it.
@@ -319,6 +320,9 @@ export const Front: React.FC = () => {
   // Active booking receipts state
   const [activeReceipts, setActiveReceipts] = useState<any[]>([]);
   const [receiptQrs, setReceiptQrs] = useState<Record<string, string>>({});
+  // Drives the live countdown on unpaid hotel holds, and the moment one
+  // drops out of the list.
+  const [nowTick, setNowTick] = useState(() => Date.now());
 
   // Data Download and Account Deletion state
   const [isDownloading, setIsDownloading] = useState(false);
@@ -409,56 +413,80 @@ export const Front: React.FC = () => {
     if (!user?.uid) return;
 
     const rawInput = inputUidOrUrl.trim();
-    let cleanUid = rawInput;
+    if (!rawInput) return;
 
-    if (cleanUid.includes('/')) {
-        const segments = cleanUid.split('/');
-        cleanUid = segments.filter(Boolean).pop() || cleanUid;
-    }
+    const cleanUid = extractUid(rawInput);
 
-    let storefrontTarget: string;
-    if (rawInput.includes('http')) {
-        // Already a full URL — e.g. a QR scan or a shared VinMoment link.
-        storefrontTarget = rawInput;
-    } else if (rawInput.startsWith('/')) {
-        // A relative vinLink from NearbyBusinesses/RecentBusinesses, e.g.
-        // "/food/abc123" or "/salon/abc123" — keep whichever type it
-        // already points to instead of forcing everything to /salon/.
-        storefrontTarget = `https://malvinai.com${rawInput}`;
+    // An external link (a VinMoment shared from somewhere else, say) is
+    // passed through untouched — StoreFront vets the origin itself.
+    // Everything else gets looked up rather than guessed at.
+    //
+    // The old code defaulted a bare uid to `/salon/<uid>`, so opening a
+    // restaurant or hotel by uid loaded SalonStore against a document that
+    // doesn't exist — the blank/landing screen. Worse, that wrong URL was
+    // then saved as the history entry's businessUid, so every later tap on
+    // that row reopened the same dead link. Resolving here fixes the visit
+    // AND repairs the stored row, since what gets written below is the
+    // resolved link, not the raw input.
+    const isExternalUrl = /^https?:\/\//i.test(rawInput) && !rawInput.includes('malvinai.com');
+
+    let storefrontTarget = rawInput;
+    let business: Awaited<ReturnType<typeof resolveBusiness>> | null = null;
+
+    if (isExternalUrl) {
+      setActiveStoreUid(rawInput);
     } else {
-        // Bare UID with no type info at all (legacy fallback) — default
-        // to salon, matching the previous behavior for this case only.
-        storefrontTarget = `https://malvinai.com/salon/${rawInput}`;
+      business = await resolveBusiness(cleanUid);
+      storefrontTarget = business.link;
+      setActiveStoreUid(storefrontTarget);
     }
 
-    setActiveStoreUid(storefrontTarget);
+    // Don't write a history row for something that resolved to nothing —
+    // a typo in the VinLink box would otherwise leave a permanent dead
+    // entry that can never open anything.
+    if (business && !business.found) {
+      showToast('error', "That VinLink doesn't match any business.");
+      return;
+    }
 
     try {
         const recentDocRef = doc(db, 'customers', user.uid, 'recentBusinesses', cleanUid);
         const docSnap = await getDoc(recentDocRef);
         const isFirstVisit = !docSnap.exists();
-        const resolvedName = isFirstVisit ? 'Saved Store' : (docSnap.data().customName || 'Saved Store');
+
+        const storeName = business?.storeName || docSnap.data()?.storeName || 'Saved Store';
+        // The label shown in history: the user's own nickname wins, then the
+        // business's real name. Previously every row was stamped with the
+        // literal 'Saved Store' as its customName, which meant every store
+        // the customer opened showed up as an identical, unidentifiable row.
+        const displayName = docSnap.data()?.customName || storeName;
 
         // 🟢 Save cleanly without blocking prompt modals
         await setDoc(recentDocRef, {
-        businessUid: storefrontTarget,
+        // The bare uid, matching what this field is named. The resolved
+        // deep link is kept separately so opening the row doesn't have to
+        // re-derive the store type.
+        businessUid: cleanUid,
+        vinLink: storefrontTarget,
+        storeName,
+        logoUrl: business?.logoUrl || '',
+        bio: business?.bio || '',
+        address: business?.address || '',
         lastVisited: new Date().toISOString(),
-        // Keep existing customName if it's already there, otherwise default to 'Saved Store'
-        customName: resolvedName
         }, { merge: true });
 
         pushNotification(
           user.uid,
           'store_visited',
           'Store visited',
-          `You visited ${resolvedName}.`
+          `You visited ${displayName}.`
         );
 
         // First time seeing this business — nudge them toward VinMoment a
         // couple seconds later, once the "Opening..." toast has cleared.
         if (isFirstVisit) {
           setTimeout(() => {
-            setShareNudge({ uid: storefrontTarget, storeName: resolvedName });
+            setShareNudge({ uid: cleanUid, storeName: displayName });
           }, 2200);
         }
 
@@ -677,7 +705,7 @@ export const Front: React.FC = () => {
   };
 
   // Sync user active receipts / booking tickets in real-time
-  // 🟢 SYNC BOTH SALON & FOOD RECEIPTS IN REAL-TIME
+  // 🟢 SYNC SALON, FOOD & HOTEL RECEIPTS IN REAL-TIME
   useEffect(() => {
     if (!user?.uid) return;
     console.log("Listening to receipts for customer:", user.uid);
@@ -708,26 +736,63 @@ export const Front: React.FC = () => {
       updateUnifiedReceipts(foodList, 'food');
     });
 
+    // 3. Listen to Hotel Reservations Subcollection
+    // The doc is written client-side at hold time (status "held",
+    // paymentStatus false) and then UPDATED by the Stripe webhook on
+    // success — see malvinbackend/src/index.ts.
+    //
+    // Both states belong in the drawer: a paid reservation is a permanent
+    // pass, and an unpaid hold is a temporary one the guest needs in front
+    // of them while the clock runs. The time-based cutoff for holds is NOT
+    // applied here — it's applied at render (see visibleReceipts), because
+    // a hold expiring is the passage of time rather than a document change,
+    // and no snapshot fires to tell us about it.
+    const hotelReservationsRef = collection(db, 'customers', user.uid, 'hotelReservations');
+    const unsubscribeHotel = onSnapshot(hotelReservationsRef, async (snapshot) => {
+      const hotelList = snapshot.docs.map(doc => ({
+        id: doc.id,
+        receiptType: 'hotel',
+        ...doc.data()
+      })).filter((res: any) => {
+        if (res.status === 'cancelled' || res.status === 'expired') return false;
+        return res.paymentStatus === true || res.status === 'confirmed' || res.status === 'held';
+      });
+
+      updateUnifiedReceipts(hotelList, 'hotel');
+    });
+
     // Unified state compiler
-    const rawReceiptsRef = { salon: [] as any[], food: [] as any[] };
+    const rawReceiptsRef = { salon: [] as any[], food: [] as any[], hotel: [] as any[] };
     // Tracks which receipt ids we've already surfaced, so the *first*
     // snapshot (every pre-existing active receipt) doesn't fire a wall of
     // notifications — only receipts that show up *after* that count as new.
-    let salonInitialized = false;
-    let foodInitialized = false;
-    let bothInitialized = false;
+    const initialized = { salon: false, food: false, hotel: false };
+    let allInitialized = false;
     const seenReceiptIds = new Set<string>();
 
-    const updateUnifiedReceipts = async (newList: any[], type: 'salon' | 'food') => {
-      rawReceiptsRef[type] = newList;
-      if (type === 'salon') salonInitialized = true;
-      if (type === 'food') foodInitialized = true;
-      const combined = [...rawReceiptsRef.salon, ...rawReceiptsRef.food];
+    const newReceiptMessage = (item: any): string => {
+      if (item.receiptType === 'food') return 'You have a new food order receipt.';
+      if (item.receiptType === 'salon') return 'You have a new salon booking receipt.';
+      if (item.receiptType === 'hotel') {
+        // A hold and a paid stay are both receipts, but only one of them is
+        // finished business — don't tell someone their room is confirmed
+        // when the clock is still running on an unpaid hold.
+        return item.status === 'held'
+          ? 'Your room is on hold — pay before the timer ends to confirm it.'
+          : 'Your hotel reservation is confirmed — the pass is in your receipts.';
+      }
+      return 'You have a new receipt.';
+    };
 
-      if (salonInitialized && foodInitialized) {
-        if (!bothInitialized) {
+    const updateUnifiedReceipts = async (newList: any[], type: 'salon' | 'food' | 'hotel') => {
+      rawReceiptsRef[type] = newList;
+      initialized[type] = true;
+      const combined = [...rawReceiptsRef.salon, ...rawReceiptsRef.food, ...rawReceiptsRef.hotel];
+
+      if (initialized.salon && initialized.food && initialized.hotel) {
+        if (!allInitialized) {
           combined.forEach((c) => seenReceiptIds.add(c.id));
-          bothInitialized = true;
+          allInitialized = true;
         } else {
           combined
             .filter((c) => !seenReceiptIds.has(c.id))
@@ -737,9 +802,7 @@ export const Front: React.FC = () => {
                 user.uid,
                 'new_receipt',
                 'New receipt',
-                item.receiptType === 'food'
-                  ? 'You have a new food order receipt.'
-                  : 'You have a new salon booking receipt.'
+                newReceiptMessage(item)
               );
             });
         }
@@ -747,16 +810,18 @@ export const Front: React.FC = () => {
 
       setActiveReceipts(combined);
 
-      // Generate local QR codes for both salon and food tickets
+      // Generate local QR codes for salon, food and hotel tickets
       const qrMap: Record<string, string> = {};
       for (const item of combined) {
         const refId = item.referenceId || item.ticketId || item.fourDigitCode || item.id;
         if (refId) {
           try {
             qrMap[item.id] = await QRCode.toDataURL(
-              JSON.stringify({ 
-                ticketId: item.id,
-                referenceId: refId, 
+              JSON.stringify({
+                // Hotels key off reservationId — that's the doc id the desk
+                // scanner and the Stripe webhook both address the record by.
+                ticketId: item.reservationId || item.id,
+                referenceId: refId,
                 businessUid: item.businessId || item.targetBusinessUid || item.restaurantUid || "",
                 receiptType: item.receiptType
               })
@@ -772,8 +837,36 @@ export const Front: React.FC = () => {
     return () => {
       unsubscribeSalon();
       unsubscribeFood();
+      unsubscribeHotel();
     };
   }, [user]);
+
+  // An unpaid hold is only valid until holdExpiresAt. Nothing pushes an
+  // update at that instant — the hotel's sweep marks the document "expired"
+  // only while a manager has the dashboard open — so the guest's copy has to
+  // age out on its own clock. Ticking is gated on there actually being a
+  // live hold, so the common case (no holds) costs no re-renders.
+  const hasLiveHold = activeReceipts.some(
+    (r) => r.receiptType === 'hotel' && r.status === 'held' && typeof r.holdExpiresAt === 'number'
+  );
+
+  useEffect(() => {
+    if (!hasLiveHold) return;
+    const interval = setInterval(() => setNowTick(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, [hasLiveHold]);
+
+  // What the drawer actually shows. A hold past its expiry disappears
+  // completely — not greyed out, not "expired", just gone, matching what
+  // the room's availability has already done on the hotel's side.
+  const visibleReceipts = useMemo(
+    () =>
+      activeReceipts.filter((r) => {
+        if (r.receiptType !== 'hotel' || r.status !== 'held') return true;
+        return typeof r.holdExpiresAt === 'number' && r.holdExpiresAt > nowTick;
+      }),
+    [activeReceipts, nowTick]
+  );
 
   // Resizes/compresses the picked image client-side before it ever touches
   // Firestore — an uncompressed phone photo can be several MB, well past
@@ -1808,7 +1901,7 @@ export const Front: React.FC = () => {
       <ReceiptsDrawer 
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
-        activeReceipts={activeReceipts}
+        activeReceipts={visibleReceipts}
         receiptQrs={receiptQrs}
       />
 
