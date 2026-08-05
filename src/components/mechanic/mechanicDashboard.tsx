@@ -5,7 +5,10 @@ import { getDatabase, ref, onValue } from 'firebase/database';
 import { 
   doc, getDoc, setDoc, updateDoc, onSnapshot, collection, query, where, deleteDoc, serverTimestamp 
 } from 'firebase/firestore';
-import { Wrench, Car, Clock, CheckCircle, AlertTriangle, QrCode, Trash2, DollarSign, Image as ImageIcon } from 'lucide-react';
+import { Wrench, Car, Clock, CheckCircle, AlertTriangle, QrCode, Trash2, DollarSign, Image as ImageIcon, Copy, Share2, Download, BadgeCheck, Plus, Pencil } from 'lucide-react';
+import QRCodeLib from 'qrcode';
+import { shareContent, canOpenShareSheet } from '../../services/share';
+import { publicOrigin } from '../../services/vinLink';
 import { useBusinessWallet } from "../../hooks/useBusinessWallet";
 import ConfirmQRScanner from '../addons/ConfirmQRScanner';
 import Banned from '../addons/Banned';
@@ -20,6 +23,15 @@ import {
   formatCooldownRemaining,
   FREE_TIER_INTAKE_LIMIT,
 } from '../../utils/businessLimits';
+
+interface MechanicService {
+  serviceId: string;
+  serviceName: string;
+  price: number;
+  estimatedHours: number;
+  description: string;
+  category: string;
+}
 
 interface RepairRequest {
   id: string;
@@ -64,6 +76,20 @@ export default function MechanicDashboard() {
   const [formClosing, setFormClosing] = useState('18:00');
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [hasCoords, setHasCoords] = useState(false);
+  const [qrCodeUrl, setQrCodeUrl] = useState('');
+  const [copied, setCopied] = useState(false);
+
+  // Services this garage offers — managed here, no longer hardcoded on the
+  // customer side.
+  const [services, setServices] = useState<MechanicService[]>([]);
+  const [serviceModalOpen, setServiceModalOpen] = useState(false);
+  const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
+  const [svcName, setSvcName] = useState('');
+  const [svcPrice, setSvcPrice] = useState('');
+  const [svcHours, setSvcHours] = useState('1');
+  const [svcCategory, setSvcCategory] = useState('Engine');
+  const [svcDescription, setSvcDescription] = useState('');
+  const [isSavingService, setIsSavingService] = useState(false);
 
   // Free-tier intake cap, shared with every other business category.
   const { isPremium, isVerified, unlimited } = useAccountStanding(uid);
@@ -96,6 +122,18 @@ export default function MechanicDashboard() {
       setLoading(false);
     });
 
+    // Listen to the services this garage publishes
+    const unsubServices = onSnapshot(
+      collection(db, 'mechanics', uid, 'services'),
+      (snap) => {
+        const items: MechanicService[] = [];
+        snap.forEach((d) => items.push({ serviceId: d.id, ...d.data() } as MechanicService));
+        items.sort((a, b) => a.serviceName.localeCompare(b.serviceName));
+        setServices(items);
+      },
+      (err) => console.error('Failed to load garage services:', err)
+    );
+
     // Realtime Database Ban/Suspensions
     const rtdb = getDatabase();
     const userRef = ref(rtdb, `users/${uid}`);
@@ -126,7 +164,10 @@ export default function MechanicDashboard() {
       })
       .catch((err) => console.error('Failed to read garage profile:', err));
 
-    return () => unsubSnap();
+    return () => {
+      unsubSnap();
+      unsubServices();
+    };
   }, [uid]);
 
   // --- Free-tier intake cap (shared rule, see utils/businessLimits.ts) ---
@@ -280,16 +321,121 @@ export default function MechanicDashboard() {
     await deleteDoc(doc(db, 'mechanics', uid, 'repair_requests', id));
   };
 
+  // --- VINQR: same link customers scan to land on this garage's storefront ---
+  const vinLink = uid ? `${publicOrigin()}/mechanic/${uid}` : '';
+
+  useEffect(() => {
+    if (!vinLink) return;
+    QRCodeLib.toDataURL(vinLink, { width: 250, margin: 2 })
+      .then((url) => setQrCodeUrl(url))
+      .catch((err) => console.error('Error generating garage QR code:', err));
+  }, [vinLink]);
+
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(vinLink);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy garage link:', err);
+    }
+  };
+
+  const handleShareLink = async () => {
+    if (!canOpenShareSheet()) {
+      handleCopyLink();
+      return;
+    }
+    const result = await shareContent({ title: garageName, text: 'Book a repair with us on Malvin', url: vinLink });
+    if (result === 'failed' || result === 'unsupported') handleCopyLink();
+  };
+
+  const handleDownloadQr = () => {
+    if (!qrCodeUrl) return;
+    const anchor = document.createElement('a');
+    anchor.href = qrCodeUrl;
+    anchor.download = `${garageName.replace(/\s+/g, '-').toLowerCase() || 'garage'}-qr.png`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+  };
+
+  const openAddService = () => {
+    setEditingServiceId(null);
+    setSvcName('');
+    setSvcPrice('');
+    setSvcHours('1');
+    setSvcCategory('Engine');
+    setSvcDescription('');
+    setServiceModalOpen(true);
+  };
+
+  const openEditService = (s: MechanicService) => {
+    setEditingServiceId(s.serviceId);
+    setSvcName(s.serviceName);
+    setSvcPrice(String(s.price));
+    setSvcHours(String(s.estimatedHours));
+    setSvcCategory(s.category);
+    setSvcDescription(s.description);
+    setServiceModalOpen(true);
+  };
+
+  const handleSaveService = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!uid) return;
+    const price = parseFloat(svcPrice);
+    const estimatedHours = parseFloat(svcHours);
+    if (!svcName.trim() || isNaN(price) || price <= 0 || isNaN(estimatedHours) || estimatedHours <= 0) {
+      alert('Please fill in a valid service name, price, and estimated hours.');
+      return;
+    }
+    setIsSavingService(true);
+    try {
+      const targetId = editingServiceId || `svc_${Date.now()}`;
+      await setDoc(
+        doc(db, 'mechanics', uid, 'services', targetId),
+        {
+          serviceName: svcName.trim(),
+          price,
+          estimatedHours,
+          category: svcCategory,
+          description: svcDescription.trim(),
+          ...(editingServiceId ? {} : { createdAt: serverTimestamp() }),
+        },
+        { merge: true }
+      );
+      setServiceModalOpen(false);
+    } catch (err) {
+      console.error('Failed to save service:', err);
+      alert('Could not save this service. Please try again.');
+    } finally {
+      setIsSavingService(false);
+    }
+  };
+
+  const handleDeleteService = async (serviceId: string) => {
+    if (!uid || !window.confirm('Remove this service from your garage listing?')) return;
+    await deleteDoc(doc(db, 'mechanics', uid, 'services', serviceId));
+  };
+
   if (isBanned) return <Banned />;
   if (isSuspended) return <Suspended />;
 
   return (
     <div style={dashboardStyle}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
         <div>
           <h1 style={{ margin: 0, fontSize: '22px', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Wrench color="#0284c7" /> Mechanic Workbench Dashboard
+            {isVerified && (
+              <span
+                title="Verified garage"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.4px', background: 'rgba(56,189,248,0.14)', color: '#38bdf8', border: '1px solid rgba(56,189,248,0.35)', borderRadius: '20px', padding: '4px 9px' }}
+              >
+                <BadgeCheck size={12} /> Verified
+              </span>
+            )}
           </h1>
           <p style={{ margin: '4px 0 0', color: '#94a3b8', fontSize: '13px' }}>Garage Repair Management & Pipeline</p>
         </div>
@@ -302,6 +448,32 @@ export default function MechanicDashboard() {
             />
           )}
         </button>
+      </div>
+
+      {/* VINQR / share card — same link customers scan to reach this garage */}
+      <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '18px', marginBottom: '20px', display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+        {qrCodeUrl ? (
+          <img src={qrCodeUrl} alt="Garage VINQR" style={{ width: '110px', height: '110px', borderRadius: '10px', background: '#fff', padding: '6px', flexShrink: 0 }} />
+        ) : (
+          <div style={{ width: '110px', height: '110px', borderRadius: '10px', background: '#1e293b', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <QrCode size={28} color="#475569" />
+          </div>
+        )}
+        <div style={{ flex: 1, minWidth: '180px' }}>
+          <p style={{ margin: '0 0 4px', fontSize: '12px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Your garage's VINQR</p>
+          <p style={{ margin: '0 0 12px', fontSize: '12px', color: '#64748b', wordBreak: 'break-all' }}>{vinLink}</p>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <button onClick={handleCopyLink} style={secondaryBtn}>
+              <Copy size={13} /> {copied ? 'Copied' : 'Copy link'}
+            </button>
+            <button onClick={handleShareLink} style={secondaryBtn}>
+              <Share2 size={13} /> Share
+            </button>
+            <button onClick={handleDownloadQr} disabled={!qrCodeUrl} style={{ ...secondaryBtn, opacity: qrCodeUrl ? 1 : 0.5, cursor: qrCodeUrl ? 'pointer' : 'not-allowed' }}>
+              <Download size={13} /> Download QR
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* GARAGE PROFILE MODAL */}
@@ -384,6 +556,91 @@ export default function MechanicDashboard() {
           <h2 style={{ ...cardValueStyle, color: '#a78bfa' }}>€{balance || 0}</h2>
         </div>
       </div>
+
+      {/* Services & Pricing */}
+      <div style={{ background: '#0f172a', padding: '20px', borderRadius: '16px', border: '1px solid #1e293b', marginBottom: '20px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
+          <h3 style={{ margin: 0, fontSize: '16px', color: '#f8fafc' }}>Services & Pricing</h3>
+          <button onClick={openAddService} style={{ ...secondaryBtn, background: '#0284c7', color: '#fff' }}>
+            <Plus size={13} /> Add service
+          </button>
+        </div>
+
+        {services.length === 0 ? (
+          <p style={{ color: '#64748b', textAlign: 'center', padding: '16px', fontSize: '13px' }}>
+            No services published yet — customers can't request work until you add at least one.
+          </p>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '10px' }}>
+            {services.map((s) => (
+              <div key={s.serviceId} style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '10px', padding: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                  <h4 style={{ margin: 0, fontSize: '13px', color: '#f8fafc' }}>{s.serviceName}</h4>
+                  <span style={{ color: '#38bdf8', fontWeight: 700, fontSize: '13px', whiteSpace: 'nowrap' }}>€{s.price}</span>
+                </div>
+                <p style={{ margin: '6px 0', fontSize: '11px', color: '#94a3b8' }}>{s.description}</p>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '10px', color: '#64748b' }}>~{s.estimatedHours}h · {s.category}</span>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <button onClick={() => openEditService(s)} style={{ ...secondaryBtn, padding: '4px 8px' }}><Pencil size={12} /></button>
+                    <button onClick={() => handleDeleteService(s.serviceId)} style={{ ...secondaryBtn, padding: '4px 8px', color: '#f87171' }}><Trash2 size={12} /></button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Service Add/Edit Modal */}
+      {serviceModalOpen && (
+        <div style={modalOverlayStyle} onClick={() => setServiceModalOpen(false)}>
+          <form onClick={(e) => e.stopPropagation()} onSubmit={handleSaveService} style={{ ...modalCardStyle, display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <h3 style={{ margin: 0 }}>{editingServiceId ? 'Edit service' : 'Add service'}</h3>
+
+            <label style={mechFieldLabel}>Service name *</label>
+            <input value={svcName} onChange={(e) => setSvcName(e.target.value)} required style={mechInput} placeholder="e.g., Oil Change" />
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <div style={{ flex: 1 }}>
+                <label style={mechFieldLabel}>Price (€) *</label>
+                <input type="number" min="0" step="0.01" value={svcPrice} onChange={(e) => setSvcPrice(e.target.value)} required style={mechInput} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={mechFieldLabel}>Est. hours *</label>
+                <input type="number" min="0" step="0.5" value={svcHours} onChange={(e) => setSvcHours(e.target.value)} required style={mechInput} />
+              </div>
+            </div>
+
+            <label style={mechFieldLabel}>Category</label>
+            <select value={svcCategory} onChange={(e) => setSvcCategory(e.target.value)} style={mechInput}>
+              <option value="Engine">Engine</option>
+              <option value="Maintenance">Maintenance</option>
+              <option value="Brakes">Brakes</option>
+              <option value="Battery">Battery</option>
+              <option value="Tires">Tires</option>
+              <option value="AC">AC / Climate</option>
+              <option value="Electrical">Electrical</option>
+              <option value="Diagnostics">Diagnostics</option>
+              <option value="Other">Other</option>
+            </select>
+
+            <label style={mechFieldLabel}>Description</label>
+            <textarea value={svcDescription} onChange={(e) => setSvcDescription(e.target.value)} rows={2} style={{ ...mechInput, resize: 'vertical' }} />
+
+            <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
+              <button type="button" onClick={() => setServiceModalOpen(false)} style={{ ...secondaryBtn, flex: 1, justifyContent: 'center' }}>Cancel</button>
+              <button
+                type="submit"
+                disabled={isSavingService}
+                style={{ flex: 1, border: 'none', borderRadius: '10px', padding: '10px', fontWeight: 700, fontSize: '13px', cursor: 'pointer', background: '#0284c7', color: '#fff', opacity: isSavingService ? 0.6 : 1 }}
+              >
+                {isSavingService ? 'Saving…' : editingServiceId ? 'Save changes' : 'Add service'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {/* Requests & Repair Pipeline */}
       <div style={{ background: '#0f172a', padding: '20px', borderRadius: '16px', border: '1px solid #1e293b' }}>

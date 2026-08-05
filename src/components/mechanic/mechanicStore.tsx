@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { firestore as db, auth } from '../../firebase';
+import { firestore as db, auth, storage } from '../../firebase';
 import { doc, getDoc, setDoc, updateDoc, onSnapshot, collection, serverTimestamp, query, where } from 'firebase/firestore';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import QRCode from 'qrcode';
 import Report from "../addons/report";
-import { Star, AlertTriangle, Wrench, ShieldCheck, Clock, Camera, Car, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Star, AlertTriangle, Wrench, ShieldCheck, Clock, Camera, Car, CheckCircle2, AlertCircle, Loader2, X } from 'lucide-react';
 import { getDatabase, ref, onValue } from 'firebase/database';
 import Banned from '../addons/Banned';
 import Suspended from '../addons/Suspended';
@@ -53,14 +54,7 @@ export default function MechanicStore() {
 
   const [loading, setLoading] = useState(true);
   const [garage, setGarage] = useState<GarageProfile | null>(null);
-  const [services, setServices] = useState<MechanicService[]>([
-    { serviceId: 's1', serviceName: 'Engine Repair', price: 150, estimatedHours: 3, description: 'Complete diagnostic and mechanical overhaul', category: 'Engine' },
-    { serviceId: 's2', serviceName: 'Oil Change', price: 45, estimatedHours: 1, description: 'Full synthetic oil replacement & filter check', category: 'Maintenance' },
-    { serviceId: 's3', serviceName: 'Brake Repair', price: 120, estimatedHours: 2, description: 'Pads, rotors, and brake fluid pressure tune', category: 'Brakes' },
-    { serviceId: 's4', serviceName: 'Battery Replacement', price: 90, estimatedHours: 1, description: 'Heavy-duty AGM battery install & alternator scan', category: 'Battery' },
-    { serviceId: 's5', serviceName: 'Tire Service', price: 60, estimatedHours: 1, description: 'Rotation, balancing, and alignment calibration', category: 'Tires' },
-    { serviceId: 's6', serviceName: 'Full Diagnostics', price: 80, estimatedHours: 1, description: 'Comprehensive OBD-II scan & electrical check', category: 'Diagnostics' },
-  ]);
+  const [services, setServices] = useState<MechanicService[]>([]);
 
   const [customerUid, setCustomerUid] = useState<string | null>(null);
   const [isVerified, setIsVerified] = useState(false);
@@ -68,8 +62,8 @@ export default function MechanicStore() {
   const [isSuspended, setIsSuspended] = useState(false);
 
   // Ratings & Report
-  const [averageRating, setAverageRating] = useState<number>(4.9);
-  const [totalRatingsCount, setTotalRatingsCount] = useState<number>(128);
+  const [averageRating, setAverageRating] = useState<number>(0);
+  const [totalRatingsCount, setTotalRatingsCount] = useState<number>(0);
   const [userRating, setUserRating] = useState<number>(0);
   const [showRateModal, setShowRateModal] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
@@ -90,6 +84,7 @@ export default function MechanicStore() {
   const [preferredDate, setPreferredDate] = useState('');
   const [description, setDescription] = useState('');
   const [photoUrl, setPhotoUrl] = useState('');
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -108,18 +103,49 @@ export default function MechanicStore() {
         setGarage(snap.data() as GarageProfile);
       } else {
         setGarage({
-          garageName: "Apex Auto Repair & Engineering",
-          bio: "Certified precision mechanics specializing in diagnostics, engine builds, brake service, and standard vehicle maintenance.",
-          address: "742 Industrial Tech Way, Bay 4",
+          garageName: "This Garage",
+          bio: "This garage hasn't finished setting up its profile yet.",
+          address: "",
           openingTime: "08:00",
           closingTime: "18:00",
-          offDays: ["Sunday"],
-          isVerified: true,
-          heroImage: "https://images.unsplash.com/photo-1617814076367-b759c7d7e738?auto=format&fit=crop&w=1200&q=80"
+          offDays: [],
+          isVerified: false,
         });
       }
       setLoading(false);
     });
+
+    // Services this garage actually offers — set by the manager in
+    // mechanicDashboard.tsx, no more hardcoded seed list here.
+    const unsubServices = onSnapshot(
+      collection(db, 'mechanics', uid, 'services'),
+      (snap) => {
+        const list: MechanicService[] = [];
+        snap.forEach((d) => list.push({ serviceId: d.id, ...d.data() } as MechanicService));
+        list.sort((a, b) => a.serviceName.localeCompare(b.serviceName));
+        setServices(list);
+      },
+      (err) => console.error('Failed to load garage services:', err)
+    );
+
+    // Real rating average/count, computed from the same user_ratings
+    // subcollection handleRateStore already writes into — no more fake
+    // 4.9 / 128 placeholders.
+    const unsubRatings = onSnapshot(
+      collection(db, 'store_ratings', uid, 'user_ratings'),
+      (snap) => {
+        if (snap.empty) {
+          setAverageRating(0);
+          setTotalRatingsCount(0);
+          return;
+        }
+        let total = 0;
+        snap.forEach((d) => { total += Number(d.data().stars || 0); });
+        setAverageRating(total / snap.size);
+        setTotalRatingsCount(snap.size);
+      },
+      (err) => console.error('Failed to load garage ratings:', err)
+    );
 
     const rtdb = getDatabase();
     const userRef = ref(rtdb, `users/${uid}`);
@@ -131,6 +157,11 @@ export default function MechanicStore() {
         setIsSuspended(data.status === "Suspended" || data.suspended === true);
       }
     });
+
+    return () => {
+      unsubServices();
+      unsubRatings();
+    };
   }, [uid]);
 
   // Fetch Customer Live Repair Statuses
@@ -158,9 +189,26 @@ export default function MechanicStore() {
     setShowRateModal(false);
   };
 
+  const handlePhotoSelect = async (file: File | null) => {
+    if (!file || !uid) return;
+    setIsUploadingPhoto(true);
+    try {
+      const path = `mechanics/${uid}/repair-photos/${customerUid || 'guest'}_${Date.now()}_${file.name}`;
+      const fileRef = storageRef(storage, path);
+      const snap = await uploadBytes(fileRef, file);
+      const url = await getDownloadURL(snap.ref);
+      setPhotoUrl(url);
+    } catch (err) {
+      console.error('Failed to upload repair photo:', err);
+      alert('Could not upload that photo. Please try again.');
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
+
   const handleSubmitRequest = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!uid) return;
+    if (!uid || isUploadingPhoto) return;
     setIsSubmitting(true);
     try {
       const requestId = `rep_${Date.now()}`;
@@ -203,11 +251,17 @@ export default function MechanicStore() {
       {/* Garage Hero Section */}
       <div style={heroCardStyle}>
         <div style={{ position: 'relative', width: '100%', height: '220px', borderRadius: '16px', overflow: 'hidden', marginBottom: '16px' }}>
-          <img 
-            src={garage?.heroImage || "https://images.unsplash.com/photo-1617814076367-b759c7d7e738?auto=format&fit=crop&w=1200&q=80"} 
-            alt="Garage Hero" 
-            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-          />
+          {garage?.heroImage ? (
+            <img
+              src={garage.heroImage}
+              alt="Garage"
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+          ) : (
+            <div style={{ width: '100%', height: '100%', background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Car size={56} color="#334155" />
+            </div>
+          )}
           <div style={overlayStyle} />
           <div style={heroContentStyle}>
             <h1 style={{ fontSize: '24px', fontWeight: 'bold', margin: 0, display: 'flex', alignItems: 'center' }}>
@@ -218,13 +272,27 @@ export default function MechanicStore() {
         </div>
 
         {/* Status Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#1e293b', padding: '12px 16px', borderRadius: '12px', border: '1px solid #334155' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#1e293b', padding: '12px 16px', borderRadius: '12px', border: '1px solid #334155', flexWrap: 'wrap', gap: '8px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ color: '#f59e0b', fontWeight: 'bold', fontSize: '16px' }}>⭐ {averageRating}</span>
-            <span style={{ color: '#64748b', fontSize: '12px' }}>({totalRatingsCount} reviews)</span>
+            {totalRatingsCount > 0 ? (
+              <>
+                <span style={{ color: '#f59e0b', fontWeight: 'bold', fontSize: '16px' }}>⭐ {averageRating.toFixed(1)}</span>
+                <span style={{ color: '#64748b', fontSize: '12px' }}>({totalRatingsCount} review{totalRatingsCount === 1 ? '' : 's'})</span>
+              </>
+            ) : (
+              <span style={{ color: '#64748b', fontSize: '12px' }}>No reviews yet</span>
+            )}
           </div>
           <span style={openBadgeStyle}>🟢 Open Now</span>
-          <button onClick={() => setShowRateModal(true)} style={smallButtonStyle}>Rate Garage</button>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button onClick={() => setShowRateModal(true)} style={smallButtonStyle}>Rate Garage</button>
+            <button
+              onClick={() => setIsReportOpen(true)}
+              style={{ ...smallButtonStyle, background: 'rgba(248,113,113,0.12)', color: '#f87171', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+            >
+              <AlertTriangle size={12} /> Report
+            </button>
+          </div>
         </div>
       </div>
 
@@ -281,25 +349,44 @@ export default function MechanicStore() {
 
       {/* Services List */}
       <div style={sectionCardStyle}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
           <h2 style={sectionTitleStyle}>Available Garage Services</h2>
-          <button onClick={() => setIsRequestModalOpen(true)} style={actionButtonStyle}>
-            🔧 Request Service
+          <button
+            onClick={() => setIsRequestModalOpen(true)}
+            disabled={services.length === 0}
+            title={services.length === 0 ? "This garage hasn't published any services yet" : undefined}
+            style={{
+              ...actionButtonStyle,
+              flex: 'none',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              opacity: services.length === 0 ? 0.5 : 1,
+              cursor: services.length === 0 ? 'not-allowed' : 'pointer',
+            }}
+          >
+            <Wrench size={14} /> Request Service
           </button>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px' }}>
-          {services.map((s) => (
-            <div key={s.serviceId} style={serviceCardStyle}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <h3 style={{ margin: 0, fontSize: '15px', color: '#f8fafc' }}>• {s.serviceName}</h3>
-                <span style={{ color: '#38bdf8', fontWeight: 'bold' }}>€{s.price}</span>
+        {services.length === 0 ? (
+          <p style={{ color: '#64748b', textAlign: 'center', padding: '24px 12px', fontSize: '13px' }}>
+            This garage hasn't published its services yet — check back soon.
+          </p>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px' }}>
+            {services.map((s) => (
+              <div key={s.serviceId} style={serviceCardStyle}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <h3 style={{ margin: 0, fontSize: '15px', color: '#f8fafc' }}>• {s.serviceName}</h3>
+                  <span style={{ color: '#38bdf8', fontWeight: 'bold' }}>€{s.price}</span>
+                </div>
+                <p style={{ margin: '6px 0', fontSize: '12px', color: '#94a3b8' }}>{s.description}</p>
+                <span style={{ fontSize: '11px', color: '#64748b' }}>⏱ Approx ~{s.estimatedHours} hrs</span>
               </div>
-              <p style={{ margin: '6px 0', fontSize: '12px', color: '#94a3b8' }}>{s.description}</p>
-              <span style={{ fontSize: '11px', color: '#64748b' }}>⏱ Approx ~{s.estimatedHours} hrs</span>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Request Service Modal */}
@@ -405,17 +492,43 @@ export default function MechanicStore() {
                 style={{ ...inputStyle, height: '70px' }}
               />
 
-              <input
-                type="url"
-                placeholder="Upload Photos (Image Link)"
-                value={photoUrl}
-                onChange={(e) => setPhotoUrl(e.target.value)}
-                style={inputStyle}
-              />
+              <div>
+                <label style={labelStyle}>Photo of the issue</label>
+                <div style={{ marginTop: '6px' }}>
+                  {photoUrl ? (
+                    <div style={{ position: 'relative', width: '100px', height: '100px' }}>
+                      <img src={photoUrl} alt="Repair issue" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '10px', border: '1px solid #334155' }} />
+                      <button
+                        type="button"
+                        onClick={() => setPhotoUrl('')}
+                        style={{ position: 'absolute', top: '-6px', right: '-6px', width: '22px', height: '22px', borderRadius: '50%', background: '#0f172a', border: '1px solid #334155', color: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  ) : (
+                    <label
+                      style={{
+                        width: '100px', height: '100px', borderRadius: '10px', border: '1px dashed #334155',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#64748b',
+                      }}
+                    >
+                      {isUploadingPhoto ? <Loader2 size={20} className="animate-spin" /> : <Camera size={20} />}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        hidden
+                        onChange={(e) => handlePhotoSelect(e.target.files?.[0] || null)}
+                      />
+                    </label>
+                  )}
+                </div>
+              </div>
 
               <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
                 <button type="button" onClick={() => setIsRequestModalOpen(false)} style={cancelButtonStyle}>Cancel</button>
-                <button type="submit" disabled={isSubmitting} style={actionButtonStyle}>
+                <button type="submit" disabled={isSubmitting || isUploadingPhoto} style={actionButtonStyle}>
                   {isSubmitting ? 'Submitting...' : 'Submit Request'}
                 </button>
               </div>
@@ -445,6 +558,15 @@ export default function MechanicStore() {
             <button onClick={() => setShowRateModal(false)} style={cancelButtonStyle}>Close</button>
           </div>
         </div>
+      )}
+      {/* Report Modal */}
+      {isReportOpen && uid && (
+        <Report
+          isOpen={isReportOpen}
+          onClose={() => setIsReportOpen(false)}
+          reportedUserUid={uid}
+          currentUserUid={auth.currentUser?.uid || customerUid || localStorage.getItem('guest_id') || 'anonymous_guest'}
+        />
       )}
     </div>
   );
