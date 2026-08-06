@@ -105,12 +105,18 @@ function App() {
                 ? "salon"
                 : url.includes("/hotel/") || url.includes("hotel:")
                 ? "hotel"
+                : url.includes("/mechanic/") || url.includes("mechanic:")
+                ? "mechanic"
                 : "food";
               // Fall back to whatever segment actually follows the host, since
               // some Android versions parse custom-scheme URLs inconsistently.
               const segments = url.replace("malvinai://", "").split("/").filter(Boolean);
               const routeUid = segments[1] || uid;
-              const routeKind = segments[0] === "salon" ? "salon" : segments[0] === "hotel" ? "hotel" : "food";
+              const routeKind =
+                segments[0] === "salon" ? "salon"
+                : segments[0] === "hotel" ? "hotel"
+                : segments[0] === "mechanic" ? "mechanic"
+                : "food";
               navigate(`/${routeKind || kind}/${routeUid}`);
             }
           } catch (err) {

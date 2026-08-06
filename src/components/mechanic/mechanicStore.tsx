@@ -101,6 +101,26 @@ export default function MechanicStore() {
     return () => unsub();
   }, []);
 
+  // 🤝 STOREFRONT HANDSHAKE — tells the parent StoreFront wrapper this page
+  // actually mounted (it uses this to cancel its "did this load correctly"
+  // failure timer), and picks up identity via postMessage too. Auth state
+  // alone isn't reliable here: when this page is loaded inside StoreFront's
+  // iframe, it's a fresh browsing context that may not share the parent
+  // app's Firebase Auth session, so onAuthStateChanged above can come back
+  // empty even for a signed-in customer.
+  useEffect(() => {
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({ type: 'MECHANIC_READY' }, '*');
+    }
+    const handler = (event: MessageEvent) => {
+      if (event.data?.type === 'MALVIN_USER' && event.data?.uid) {
+        setCustomerUid(event.data.uid);
+      }
+    };
+    window.addEventListener('message', handler);
+    return () => window.removeEventListener('message', handler);
+  }, []);
+
   // Fetch Garage Details & Status
   useEffect(() => {
     if (!uid) return;

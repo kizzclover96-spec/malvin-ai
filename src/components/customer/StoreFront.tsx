@@ -15,12 +15,28 @@ interface StoreFrontProps {
   userUid?: string;
   userWalletBalance?: number;
   onExecutePayment?: (amount: number, targetBusinessUid: string, customerUid: string) => Promise<void>;
+  // 🚨 Called once, at most, if the iframe never announces itself ready
+  // within a few seconds, or if we can tell (same-origin only) that it
+  // ended up on "/" instead of the storefront it was pointed at. This is
+  // the "escaped the sandbox and landed on the marketing page" case —
+  // Front.tsx uses this to close the frame and show the retry popup
+  // instead of silently leaving a dead landing page on screen.
+  onLoadFailure?: () => void;
 }
 
-export const StoreFront: React.FC<StoreFrontProps> = ({ businessUid, onExit, userUid, userWalletBalance, onExecutePayment }) => {
+// How long we give the iframe to announce itself (SALON_READY / STORE_READY
+// / HOTEL_READY / MECHANIC_READY / CHAT_READY) before assuming something
+// went wrong — a route that quietly bounced to "/", a doc that doesn't
+// exist, a network hiccup, etc.
+const READY_TIMEOUT_MS = 4500;
+
+export const StoreFront: React.FC<StoreFrontProps> = ({ businessUid, onExit, userUid, userWalletBalance, onExecutePayment, onLoadFailure }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isUntrustedDomain, setIsUntrustedDomain] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  // Guards against firing onLoadFailure more than once for the same load,
+  // and against firing it after the frame already proved itself fine.
+  const settledRef = useRef(false);
 
   // 1. Sanitize & Parse Target URL
   const targetUrl = businessUid.startsWith('http://') || businessUid.startsWith('https://') 
@@ -61,7 +77,71 @@ export const StoreFront: React.FC<StoreFrontProps> = ({ businessUid, onExit, use
     return () => unsubscribe();
   }, []);
 
-  // 3. Secure Handshake Event Listener
+  // 3. ⏱️ READY TIMEOUT + SAME-ORIGIN FAST CHECK
+  // Two independent ways to catch "this didn't actually open the store":
+  //  a) if nothing ever announces *_READY within READY_TIMEOUT_MS, and
+  //  b) on web (same-origin), the instant the iframe's own address bar
+  //     shows it landed on "/" instead of the path we sent it to — this
+  //     fires immediately rather than waiting out the timeout.
+  // (b) can't run cross-origin — e.g. inside the native app, where the
+  // outer shell and malvinai.com are different origins — so (a) is the
+  // real safety net there.
+  //
+  // onLoadFailure is kept in a ref rather than an effect dependency. It's
+  // passed down as an inline arrow function from Front.tsx, so it's a new
+  // reference on every one of Front.tsx's re-renders — and Front.tsx
+  // re-renders constantly in the background (receipts/notifications/nearby
+  // listeners). Depending on it directly meant any of those unrelated
+  // updates canceled and restarted this whole effect, resetting
+  // settledRef back to false and silently discarding a handshake that had
+  // already succeeded — a real store visibly loading, then bouncing back
+  // out to the retry popup moments later for no reason tied to the link
+  // itself.
+  const onLoadFailureRef = useRef(onLoadFailure);
+  useEffect(() => { onLoadFailureRef.current = onLoadFailure; }, [onLoadFailure]);
+
+  useEffect(() => {
+    settledRef.current = false;
+    if (isUntrustedDomain) return;
+
+    let expectedPath = '/';
+    try {
+      expectedPath = new URL(targetUrl).pathname;
+    } catch {
+      /* malformed — isUntrustedDomain already handles this case */
+    }
+
+    const fail = () => {
+      if (settledRef.current) return;
+      settledRef.current = true;
+      onLoadFailureRef.current?.();
+    };
+
+    const timer = setTimeout(fail, READY_TIMEOUT_MS);
+
+    const handleIframeLoad = () => {
+      try {
+        const actualPath = iframeRef.current?.contentWindow?.location?.pathname;
+        // Same-origin read succeeded. If it lands exactly on root while we
+        // asked for a deeper path, that's the router's catch-all bouncing
+        // an unmatched/failed route back to the marketing landing page.
+        if (actualPath === '/' && expectedPath !== '/') {
+          clearTimeout(timer);
+          fail();
+        }
+      } catch {
+        // Cross-origin — can't peek, fall back to the *_READY timeout above.
+      }
+    };
+    iframeRef.current?.addEventListener('load', handleIframeLoad);
+
+    return () => {
+      clearTimeout(timer);
+      iframeRef.current?.removeEventListener('load', handleIframeLoad);
+    };
+  }, [targetUrl, isUntrustedDomain]);
+
+  // 4. Secure Handshake Event Listener
   useEffect(() => {
     const listener = async (event: MessageEvent) => {
       // 🛑 Block handshake if target domain was marked dangerous
@@ -77,8 +157,15 @@ export const StoreFront: React.FC<StoreFrontProps> = ({ businessUid, onExit, use
         return;
       }
 
-      // Handshake Request from Child (SalonStore / Store / HotelStore / MarketFront)
-      if (event.data?.type === "SALON_READY" || event.data?.type === "STORE_READY" || event.data?.type === "HOTEL_READY") {
+      // Handshake Request from Child (SalonStore / Store / HotelStore /
+      // MechanicStore / MarketFront chat) — matched generically on the
+      // "*_READY" suffix so a new store type doesn't need this file
+      // touched, just its own postMessage call.
+      if (typeof event.data?.type === 'string' && event.data.type.endsWith('_READY')) {
+        // The frame proved itself alive and on the right page — cancel the
+        // failure timeout/fast-check above.
+        settledRef.current = true;
+
         if (!currentUser) {
           console.warn("Storefront requested identity, but user is not authenticated.");
           return;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Menu, Settings, Search, Home, Wallet as WalletIcon, QrCode, X, 
@@ -7,7 +7,8 @@ import {
 } from 'lucide-react';
 import { doc, getDoc, getDocs, setDoc, deleteDoc, collection, collectionGroup, query, where, orderBy, limit, serverTimestamp, onSnapshot } from 'firebase/firestore';
 import { signOut, deleteUser } from 'firebase/auth';
-import { firestore as db } from '../../firebase'; 
+import { ref as rtdbRef, get as rtdbGet } from 'firebase/database';
+import { firestore as db, db as rtdb } from '../../firebase'; 
 import { auth } from "../../firebase"; 
 import QRCode from 'qrcode'; // Add QRCode to render the scan-ready ticket receipts
 
@@ -256,6 +257,13 @@ export const Front: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'home' | 'wallet'>('home');
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [activeStoreUid, setActiveStoreUid] = useState<string | null>(null);
+
+  // 🤖 LINK-RESOLUTION RETRY POPUP — shown instead of silently falling
+  // through to the fallback link (the old "blank/landing screen" bug).
+  // Tracks consecutive failures so the copy can escalate from "try again"
+  // to "this link might actually be broken" after a few in a row.
+  const [linkFailPopup, setLinkFailPopup] = useState<'retry' | 'broken' | null>(null);
+  const consecutiveFailsRef = useRef(0);
   
   // State tracking whether historical list has rendering records
   const [hasRecentItems, setHasRecentItems] = useState(false);
@@ -318,6 +326,15 @@ export const Front: React.FC = () => {
 
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isRadarOpen, setIsRadarOpen] = useState(false);
+  // 🤖 AI QUICK-MENU — the half-circle category picker fanning out from the
+  // AI face in the top-left corner. radarCategoryFilter carries the pick
+  // through to VinScanner's initialCategoryFilter.
+  // Opens automatically every time Front.tsx mounts (i.e. every time the
+  // customer lands on this screen — App.jsx unmounts/remounts Front when
+  // flowStep changes away and back, so this naturally re-fires each visit,
+  // not just the very first one) rather than waiting for a tap.
+  const [isAiMenuOpen, setIsAiMenuOpen] = useState(true);
+  const [radarCategoryFilter, setRadarCategoryFilter] = useState<'all' | 'restaurant' | 'salon' | 'mechanic' | 'services'>('all');
   // Inline-styled to sidestep the global `.icon-button { all: unset }` rule
   const [isSearchHovered, setIsSearchHovered] = useState(false);
   const [isScannerHovered, setIsScannerHovered] = useState(false);
@@ -422,6 +439,15 @@ export const Front: React.FC = () => {
 
     const cleanUid = extractUid(rawInput);
 
+    // 🗨️ CHAT LINKS — a business's /chat/:brandId link (from a dashboard's
+    // "share chat" button) points at Realtime Database data (users/{uid}/
+    // brandData), not any of the four storefront collections resolveBusiness
+    // checks. Running it through resolveBusiness always came back "not
+    // found" — the link would just silently fail to open. Detected purely
+    // by path shape, independent of domain, so it works the same on
+    // malvinai.com and on a local dev server.
+    const isChatLink = /\/chat\//i.test(rawInput);
+
     // An external link (a VinMoment shared from somewhere else, say) is
     // passed through untouched — StoreFront vets the origin itself.
     // Everything else gets looked up rather than guessed at.
@@ -437,29 +463,55 @@ export const Front: React.FC = () => {
 
     let storefrontTarget = rawInput;
     let business: Awaited<ReturnType<typeof resolveBusiness>> | null = null;
+    // Chat links resolve their display info from Realtime Database instead
+    // of one of the four Firestore storefront collections — populated below
+    // only when isChatLink is true, and merged into the recentBusinesses
+    // write the same way `business` is for storefront visits, so a chat
+    // brand shows its real name/logo in history instead of "Saved Store".
+    let chatBrandInfo: { storeName: string; logoUrl: string; bio: string } | null = null;
 
-    if (isExternalUrl) {
-      setActiveStoreUid(rawInput);
-    } else {
+    if (!isExternalUrl && !isChatLink) {
       business = await resolveBusiness(cleanUid);
       storefrontTarget = business.link;
-      setActiveStoreUid(storefrontTarget);
     }
 
-    // Don't write a history row for something that resolved to nothing —
-    // a typo in the VinLink box would otherwise leave a permanent dead
-    // entry that can never open anything.
+    if (isChatLink) {
+      try {
+        const brandSnap = await rtdbGet(rtdbRef(rtdb, `users/${cleanUid}/brandData`));
+        if (brandSnap.exists()) {
+          const data = brandSnap.val() || {};
+          chatBrandInfo = {
+            storeName: data.brandName || data.name || 'Chat',
+            logoUrl: data.logo || data.logoUrl || '',
+            bio: data.bio || data.tagline || '',
+          };
+        }
+      } catch (err) {
+        console.error('Failed to load chat brand info for history:', err);
+      }
+    }
+
+    // Don't open the storefront (or write a history row) for something that
+    // resolved to nothing — a typo, an unpublished business, or a link that
+    // failed to match any collection. Opening it anyway is what produces the
+    // "blank/landing screen": a /food/<uid> link built from the fallback
+    // kind, pointing at a document that doesn't exist.
     if (business && !business.found) {
-      showToast('error', "That VinLink doesn't match any business.");
+      consecutiveFailsRef.current += 1;
+      setLinkFailPopup(consecutiveFailsRef.current >= 3 ? 'broken' : 'retry');
       return;
     }
+
+    // Success — clear the streak so a later failure starts counting fresh.
+    consecutiveFailsRef.current = 0;
+    setActiveStoreUid(storefrontTarget);
 
     try {
         const recentDocRef = doc(db, 'customers', user.uid, 'recentBusinesses', cleanUid);
         const docSnap = await getDoc(recentDocRef);
         const isFirstVisit = !docSnap.exists();
 
-        const storeName = business?.storeName || docSnap.data()?.storeName || 'Saved Store';
+        const storeName = business?.storeName || chatBrandInfo?.storeName || docSnap.data()?.storeName || 'Saved Store';
         // The label shown in history: the user's own nickname wins, then the
         // business's real name. Previously every row was stamped with the
         // literal 'Saved Store' as its customName, which meant every store
@@ -474,8 +526,8 @@ export const Front: React.FC = () => {
         businessUid: cleanUid,
         vinLink: storefrontTarget,
         storeName,
-        logoUrl: business?.logoUrl || '',
-        bio: business?.bio || '',
+        logoUrl: business?.logoUrl || chatBrandInfo?.logoUrl || '',
+        bio: business?.bio || chatBrandInfo?.bio || '',
         address: business?.address || '',
         lastVisited: new Date().toISOString(),
         }, { merge: true });
@@ -1000,6 +1052,29 @@ export const Front: React.FC = () => {
     setIsSettingsOpen(true);
   };
 
+  // 🤖 AI QUICK-MENU — the 5 category buttons in the half-circle fan.
+  // "Home services" and "Shopping" don't have a dedicated Firestore
+  // collection the way food/salon/mechanic do, so both currently fall back
+  // to the radar's general "services" bucket rather than a real filtered
+  // category — worth a dedicated collection later if those categories grow.
+  const AI_QUICK_CATEGORIES: Array<{
+    key: 'restaurant' | 'salon' | 'mechanic' | 'services';
+    emoji: string;
+    label: string;
+  }> = [
+    { key: 'restaurant', emoji: '🍕', label: 'Food' },
+    { key: 'mechanic', emoji: '🛠', label: 'Repairs' },
+    { key: 'salon', emoji: '💇', label: 'Beauty' },
+    { key: 'services', emoji: '🧹', label: 'Home services' },
+    { key: 'services', emoji: '🛒', label: 'Shopping' },
+  ];
+
+  const handleAiCategoryPick = (key: 'restaurant' | 'salon' | 'mechanic' | 'services') => {
+    setIsAiMenuOpen(false);
+    setRadarCategoryFilter(key);
+    setIsRadarOpen(true);
+  };
+
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user?.uid) return;
@@ -1023,6 +1098,17 @@ export const Front: React.FC = () => {
       setIsSaving(false);
     }
   };
+
+  // 🚨 Passed to StoreFront as a STABLE reference (useCallback, empty deps —
+  // it only touches setState functions and a ref, neither of which change
+  // identity between renders). Keeping this stable is what lets StoreFront
+  // trust it in a dependency array without its own effects restarting on
+  // every unrelated re-render of Front.tsx (receipts/notifications/etc).
+  const handleStoreLoadFailure = useCallback(() => {
+    setActiveStoreUid(null);
+    consecutiveFailsRef.current += 1;
+    setLinkFailPopup(consecutiveFailsRef.current >= 3 ? 'broken' : 'retry');
+  }, []);
 
   // Handles manual link submissions identically to the QR Camera scan pipeline
   const handleQueryLaunch = () => {
@@ -1057,6 +1143,7 @@ export const Front: React.FC = () => {
         userWalletBalance={0}
         onExecutePayment={async () => {}}
         onExit={() => setActiveStoreUid(null)}
+        onLoadFailure={handleStoreLoadFailure}
       />
     );
   }
@@ -1078,6 +1165,76 @@ export const Front: React.FC = () => {
             {toast.type === 'success' ? <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" /> : <AlertCircle className="w-5 h-5 text-rose-600 flex-shrink-0" />}
             <span className="text-xs font-semibold tracking-wide leading-tight">{toast.message}</span>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 🤖 LINK-RESOLUTION FAILURE POPUP — replaces the old silent
+          fallback that used to quietly open a broken /food/<uid> link (the
+          "blank/landing screen" bug). Shows a worried little AI face; after
+          3 misses in a row the copy admits the link/QR itself might be bad. */}
+      <AnimatePresence>
+        {linkFailPopup && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              onClick={() => setLinkFailPopup(null)}
+              className="fixed inset-0 bg-black/40 backdrop-blur-[1px] z-[60]"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.92, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.92, y: 10 }}
+              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[61] w-[85vw] max-w-xs bg-white dark:bg-neutral-900 rounded-3xl shadow-2xl border border-neutral-100 dark:border-neutral-800 px-6 py-7 flex flex-col items-center text-center"
+            >
+              {/* Little worried AI face — bobs gently, eyes dart side to
+                  side, eyebrows angled in, mouth a small wavy "uh-oh" line. */}
+              <motion.svg
+                width="72" height="72" viewBox="0 0 100 100"
+                animate={{ y: [0, -5, 0], rotate: [-2, 2, -2] }}
+                transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+                className="mb-4"
+              >
+                <circle cx="50" cy="50" r="42" fill={isDarkMode ? '#262626' : '#F5F5F5'} stroke="#E53935" strokeWidth="3" />
+                {/* worried eyebrows */}
+                <line x1="28" y1="38" x2="42" y2="43" stroke="#E53935" strokeWidth="3" strokeLinecap="round" />
+                <line x1="72" y1="38" x2="58" y2="43" stroke="#E53935" strokeWidth="3" strokeLinecap="round" />
+                {/* eyes, darting */}
+                <motion.circle
+                  cy="52" r="4.5" fill="#E53935"
+                  initial={{ cx: 38 }}
+                  animate={{ cx: [38, 41, 35, 38] }}
+                  transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+                />
+                <motion.circle
+                  cy="52" r="4.5" fill="#E53935"
+                  initial={{ cx: 62 }}
+                  animate={{ cx: [62, 65, 59, 62] }}
+                  transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+                />
+                {/* small wavy worried mouth */}
+                <path d="M40 68 Q45 63 50 68 Q55 73 60 68" stroke="#E53935" strokeWidth="3" strokeLinecap="round" fill="none" />
+              </motion.svg>
+
+              <h4 className="text-sm font-black text-neutral-900 dark:text-neutral-50 mb-1.5">
+                {linkFailPopup === 'broken' ? "Hmm, I think something's wrong" : 'Oops, can you retry that?'}
+              </h4>
+              <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400 leading-snug mb-5">
+                {linkFailPopup === 'broken'
+                  ? "That link or QR code hasn't worked a few times in a row now — it might genuinely be broken or point at a business that isn't set up yet."
+                  : "That VinLink didn't match a business. Might've just been a hiccup — give it another go."}
+              </p>
+              <button
+                onClick={() => setLinkFailPopup(null)}
+                className="w-full py-2.5 rounded-xl bg-[#E53935] text-white text-xs font-black active:scale-[0.98] transition-transform"
+              >
+                {linkFailPopup === 'broken' ? 'Got it' : 'Okay, I\'ll retry'}
+              </button>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
 
@@ -1138,10 +1295,16 @@ export const Front: React.FC = () => {
         transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
         className="fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-6 pt-6 pb-4 bg-white/90 dark:bg-neutral-950/90 backdrop-blur-xl border-b border-neutral-100/60 dark:border-neutral-800/60"
       >
-        {/* LEFT: greeting / name / MomScore — replaces the old center-text +
-            floating menu circle. The menu/receipts trigger now lives in
-            the bottom pill (see the "dropdown" button there). */}
-        <div className="text-left max-w-[62%]">
+        {/* LEFT: greeting / name / MomScore. The face used to live inside
+            this button, but that meant blurring the menu backdrop also had
+            to blur (or exempt) the whole header to keep the face sharp —
+            wrong shape. The face is now a fully separate fixed element
+            (rendered right after this header, at the very end of this
+            component's JSX) that just happens to sit visually in this same
+            corner via matching coordinates + left padding here. This div
+            purely reserves the space; it doesn't render or handle the
+            face at all. */}
+        <div className="text-left max-w-[62%]" style={{ paddingLeft: '30px' }}>
           <p className="text-[11px] font-bold text-neutral-400 dark:text-neutral-500 leading-none mb-1">
             {greeting}
           </p>
@@ -1254,6 +1417,164 @@ export const Front: React.FC = () => {
           </motion.button>
         </div>
       </motion.header>
+
+      {/* 🤖 AI FACE — deliberately its own element, not part of the header.
+          Vertically centered on the username/email row — i.e. between the
+          "Good afternoon" greeting line above it and the "Welcome back"
+          pill below it — visually aligned via that paddingLeft above but
+          structurally separate, at a z-index above the menu's blur
+          backdrop/panel. So when the menu opens, the header behind it
+          (name, notifications, avatar) blurs normally while the face stays
+          crisp and tappable. Static now — no bobbing — only the eyes
+          blink. */}
+      <button
+        onClick={() => setIsAiMenuOpen((open) => !open)}
+        title="What do you need today?"
+        style={{
+          position: 'fixed',
+          top: '48px',
+          left: '36px',
+          transform: 'translate(-50%, -50%)',
+          zIndex: 48,
+          width: '24px',
+          height: '24px',
+          padding: 0,
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
+          appearance: 'none',
+        }}
+      >
+        <svg width="24" height="24" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="42" fill="#3B82F6" />
+          <motion.ellipse
+            cx="36" cy="46" rx="5" fill="#FFFFFF"
+            initial={{ ry: 6 }}
+            animate={{ ry: [6, 6, 0.5, 6] }}
+            transition={{ duration: 3.4, repeat: Infinity, times: [0, 0.85, 0.9, 1], ease: 'easeInOut' }}
+          />
+          <motion.ellipse
+            cx="64" cy="46" rx="5" fill="#FFFFFF"
+            initial={{ ry: 6 }}
+            animate={{ ry: [6, 6, 0.5, 6] }}
+            transition={{ duration: 3.4, repeat: Infinity, times: [0, 0.85, 0.9, 1], ease: 'easeInOut' }}
+          />
+          <path d="M35 62 Q50 76 65 62" stroke="#FFFFFF" strokeWidth="4.5" strokeLinecap="round" fill="none" />
+        </svg>
+      </button>
+
+      {/* 🤖 AI QUICK-MENU — half-circle of category buttons fanning out
+          from the face in the header's top-left corner. The backdrop blurs
+          everything behind it; tapping the backdrop or the face again
+          closes it without picking anything. */}
+      <AnimatePresence>
+        {isAiMenuOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.18 }}
+              onClick={() => setIsAiMenuOpen(false)}
+              className="fixed inset-0 z-[44] backdrop-blur-md bg-black/10 dark:bg-black/30"
+            />
+            {/* Big soft rounded panel bulging in from the corner — the
+                "half circle" backdrop the buttons sit on. Sized to wrap
+                around the face while staying clear of it (the header
+                renders above this panel — see the z-[46] bump above — so
+                the face stays visible through the middle of the bulge). */}
+            <motion.div
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0, opacity: 0 }}
+              transition={{ type: 'spring', damping: 22, stiffness: 240 }}
+              style={{
+                position: 'fixed',
+                top: '-195px',
+                left: '-195px',
+                width: '480px',
+                height: '480px',
+                borderRadius: '9999px',
+                transformOrigin: 'top left',
+                background: isDarkMode ? 'rgba(23,23,23,0.94)' : 'rgba(255,255,255,0.96)',
+                boxShadow: '0 25px 70px rgba(0,0,0,0.28)',
+                zIndex: 45,
+              }}
+            />
+            <motion.p
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ delay: 0.05 }}
+              style={{ position: 'fixed', top: '76px', left: '24px', maxWidth: '190px', zIndex: 46 }}
+              className="text-[12px] font-black text-neutral-800 dark:text-neutral-100 leading-snug"
+            >
+              What do you need today, {(fullName || user.email || 'there').split(/[\s@]/)[0]}?
+            </motion.p>
+
+            {AI_QUICK_CATEGORIES.map((cat, i) => {
+              // Fans across a ~110° arc below-right of the face (0° = due
+              // east, 90° = due south) — reads as a half-circle hugging the
+              // corner without any button landing off-screen. Radius is
+              // generous relative to the panel so each button gets real
+              // breathing room from its neighbors instead of crowding.
+              const angleDeg = 8 + i * 24;
+              const rad = (angleDeg * Math.PI) / 180;
+              const radius = 150;
+              const faceX = 36;
+              const faceY = 48;
+              const x = faceX + radius * Math.cos(rad);
+              const y = faceY + radius * Math.sin(rad);
+              return (
+                <motion.button
+                  key={`${cat.key}-${cat.label}`}
+                  initial={{ scale: 0, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0, opacity: 0 }}
+                  transition={{ delay: 0.04 * i, type: 'spring', stiffness: 260, damping: 18 }}
+                  whileTap={{ scale: 0.92 }}
+                  onClick={() => handleAiCategoryPick(cat.key)}
+                  title={cat.label}
+                  style={{
+                    position: 'fixed',
+                    top: `${y}px`,
+                    left: `${x}px`,
+                    transform: 'translate(-50%, -50%)',
+                    zIndex: 47,
+                    width: '58px',
+                    height: '58px',
+                    borderRadius: '9999px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '2px',
+                    background: isDarkMode ? '#262626' : '#FFFFFF',
+                    border: isDarkMode ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.05)',
+                    boxShadow: '0 8px 22px rgba(0,0,0,0.18)',
+                    cursor: 'pointer',
+                    appearance: 'none',
+                  }}
+                >
+                  <span style={{ fontSize: '18px', lineHeight: 1 }}>{cat.emoji}</span>
+                  <span
+                    style={{
+                      fontSize: '7px',
+                      fontWeight: 800,
+                      color: isDarkMode ? '#a3a3a3' : '#737373',
+                      lineHeight: 1,
+                      textAlign: 'center',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {cat.label}
+                  </span>
+                </motion.button>
+              );
+            })}
+          </>
+        )}
+      </AnimatePresence>
 
       {/* BODY WORKSPACE CONTAINER */}
       <div className="flex-grow flex flex-col justify-start pt-[150px] w-full">
@@ -1983,6 +2304,7 @@ export const Front: React.FC = () => {
                 rather than duplicating them inside the radar. */}
             <VinScanner
               onClose={() => setIsRadarOpen(false)}
+              initialCategoryFilter={radarCategoryFilter}
               onOpenFavorites={() => {
                 setIsRadarOpen(false);
                 setIsSettingsOpen(true);

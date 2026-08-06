@@ -12,6 +12,7 @@ import {
   RefreshCw,
   Scissors,
   Utensils,
+  Wrench,
   ShieldCheck,
   Search,
   Clock,
@@ -277,6 +278,11 @@ function getCategoryTheme(category: string): { gradient: string; glow: string } 
         gradient: 'bg-gradient-to-br from-amber-400 to-orange-500',
         glow: 'bg-amber-400/40',
       };
+    case 'mechanic':
+      return {
+        gradient: 'bg-gradient-to-br from-sky-400 to-blue-600',
+        glow: 'bg-sky-400/40',
+      };
     default:
       return {
         gradient: 'bg-gradient-to-br from-cyan-400 to-teal-500',
@@ -293,9 +299,13 @@ interface VinScannerProps {
   onClose?: () => void;
   onOpenFavorites?: () => void;
   onOpenReceipts?: () => void;
+  // Preselects the category chip on open — used by the AI quick-menu on
+  // Front.tsx so picking "Repairs" lands straight on a filtered radar
+  // instead of the unfiltered "all" view.
+  initialCategoryFilter?: 'all' | 'restaurant' | 'salon' | 'mechanic' | 'services';
 }
 
-export const VinScanner: React.FC<VinScannerProps> = ({ onClose, onOpenFavorites, onOpenReceipts }) => {
+export const VinScanner: React.FC<VinScannerProps> = ({ onClose, onOpenFavorites, onOpenReceipts, initialCategoryFilter }) => {
   const navigate = useNavigate();
   const [status, setStatus] = useState<ScanStatus>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -310,7 +320,9 @@ export const VinScanner: React.FC<VinScannerProps> = ({ onClose, onOpenFavorites
   // business has set that isn't food/salon — there's no dedicated
   // "services" collection in Firestore yet, so this bucket exists for
   // forward-compatibility rather than a real current business type.
-  const [activeCategory, setActiveCategory] = useState<'all' | 'restaurant' | 'salon' | 'services'>('all');
+  const [activeCategory, setActiveCategory] = useState<'all' | 'restaurant' | 'salon' | 'mechanic' | 'services'>(
+    initialCategoryFilter || 'all'
+  );
   const [sortByRating, setSortByRating] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [activeTab, setActiveTab] = useState<'radar' | 'list'>('radar');
@@ -351,7 +363,7 @@ export const VinScanner: React.FC<VinScannerProps> = ({ onClose, onOpenFavorites
     console.log(`[VinScanner] 🔍 Querying Firestore for nearby businesses around user position (${userLat}, ${userLng})...`);
     try {
       const fetched: BusinessProfile[] = [];
-      const collections = ['restaurantprofile', 'salons'];
+      const collections = ['restaurantprofile', 'salons', 'mechanics'];
 
       for (const colName of collections) {
         console.log(`[VinScanner] 📂 Reading collection: '${colName}'`);
@@ -374,13 +386,17 @@ export const VinScanner: React.FC<VinScannerProps> = ({ onClose, onOpenFavorites
                 RADIUS_KM
               );
 
-              const category = data.category || (colName === 'salons' ? 'salon' : 'restaurant');
-              const fallbackVinLink = colName === 'salons' ? `/salon/${docSnap.id}` : `/food/${docSnap.id}`;
+              const category = data.category || (colName === 'salons' ? 'salon' : colName === 'mechanics' ? 'mechanic' : 'restaurant');
+              const fallbackVinLink =
+                colName === 'salons' ? `/salon/${docSnap.id}`
+                  : colName === 'mechanics' ? `/mechanic/${docSnap.id}`
+                  : `/food/${docSnap.id}`;
 
               fetched.push({
                 id: docSnap.id,
-                // Salon docs store the name under `salonName`, restaurant docs under `brandName`
-                brandName: data.brandName || data.salonName || 'Unnamed Business',
+                // Salon docs store the name under `salonName`, restaurant
+                // docs under `brandName`, mechanic docs under `garageName`.
+                brandName: data.brandName || data.salonName || data.garageName || 'Unnamed Business',
                 address: data.address || 'Address unavailable',
                 bio: data.bio || 'No description available.',
                 rating: data.rating || 5.0,
@@ -523,8 +539,10 @@ export const VinScanner: React.FC<VinScannerProps> = ({ onClose, onOpenFavorites
       list = list.filter((b) => ['restaurant', 'food'].includes(b.category.toLowerCase()));
     } else if (activeCategory === 'salon') {
       list = list.filter((b) => b.category.toLowerCase() === 'salon');
+    } else if (activeCategory === 'mechanic') {
+      list = list.filter((b) => b.category.toLowerCase() === 'mechanic');
     } else if (activeCategory === 'services') {
-      list = list.filter((b) => !['restaurant', 'food', 'salon'].includes(b.category.toLowerCase()));
+      list = list.filter((b) => !['restaurant', 'food', 'salon', 'mechanic'].includes(b.category.toLowerCase()));
     }
 
     if (searchQuery.trim()) {
@@ -553,8 +571,12 @@ export const VinScanner: React.FC<VinScannerProps> = ({ onClose, onOpenFavorites
     () => businesses.filter((b) => b.category.toLowerCase() === 'salon').length,
     [businesses]
   );
+  const mechanicCount = useMemo(
+    () => businesses.filter((b) => b.category.toLowerCase() === 'mechanic').length,
+    [businesses]
+  );
   const servicesCount = useMemo(
-    () => businesses.filter((b) => !['restaurant', 'food', 'salon'].includes(b.category.toLowerCase())).length,
+    () => businesses.filter((b) => !['restaurant', 'food', 'salon', 'mechanic'].includes(b.category.toLowerCase())).length,
     [businesses]
   );
 
@@ -837,6 +859,13 @@ export const VinScanner: React.FC<VinScannerProps> = ({ onClose, onOpenFavorites
           >
             <Scissors style={{ width: '14px', height: '14px' }} />
             <span>Beauty · {salonCount}</span>
+          </button>
+          <button
+            onClick={() => setActiveCategory('mechanic')}
+            style={chipStyle('linear-gradient(to right, #0ea5e9, #075985)', activeCategory === 'mechanic')}
+          >
+            <Wrench style={{ width: '14px', height: '14px' }} />
+            <span>Repairs · {mechanicCount}</span>
           </button>
           <button
             onClick={() => setActiveCategory('services')}

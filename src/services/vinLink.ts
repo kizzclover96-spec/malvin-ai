@@ -29,6 +29,11 @@ export function publicOrigin(): string {
 /** Accepts a bare uid or an already-built link and returns just the uid. */
 export function extractUid(rawInput: string): string {
   let clean = rawInput.trim();
+  // Strip a query string or hash fragment before splitting on '/', otherwise
+  // a link copied with tracking params (?ref=share) or a trailing '#' ends
+  // up with those characters glued onto the uid, which then can't match any
+  // Firestore document and silently fails the lookup.
+  clean = clean.split('?')[0].split('#')[0];
   if (clean.includes('/')) {
     const segments = clean.split('/');
     clean = segments.filter(Boolean).pop() || clean;
