@@ -3,8 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { firestore as db, auth } from '../../firebase';
 import { X, QrCode, Copy, Share2, Download, Loader2, Check } from 'lucide-react';
-import { generateVinBackQr, generateFourDigitCode } from '../../utils/vinbackQr';
-import { publicOrigin } from '../../services/vinLink';
+import { generateVinBackQr, generateVinBackCode } from '../../utils/vinbackQr';
+import { PUBLIC_ORIGIN } from '../../services/vinLink';
 import { shareContent, canOpenShareSheet } from '../../services/share';
 
 interface Props {
@@ -39,7 +39,7 @@ export default function VinBackTagCreate({ onClose, onCreated }: Props) {
 
     setIsGenerating(true);
     try {
-      const code = generateFourDigitCode();
+      const code = generateVinBackCode();
       const docRef = await addDoc(collection(db, 'vinbackTags'), {
         ownerId: uid,
         ownerName: ownerName.trim(),
@@ -52,7 +52,7 @@ export default function VinBackTagCreate({ onClose, onCreated }: Props) {
         createdAt: serverTimestamp(),
       });
 
-      const link = `${publicOrigin()}/vinback/${docRef.id}`;
+      const link = `${PUBLIC_ORIGIN}/vinback/${docRef.id}`;
       const qrDataUrl = await generateVinBackQr(link);
 
       setResult({ tagId: docRef.id, code, qrDataUrl, link });
@@ -206,7 +206,7 @@ export default function VinBackTagCreate({ onClose, onCreated }: Props) {
                 <div className="rounded-2xl overflow-hidden border border-neutral-200 dark:border-neutral-700 p-2 bg-white">
                   <img src={result.qrDataUrl} alt="VinBack QR" className="w-48 h-auto" />
                 </div>
-                <div className="text-lg font-black tracking-[0.2em] text-[#E53935] mt-1">{result.code}</div>
+                <div className="text-sm font-black tracking-wide text-[#E53935] mt-1 font-mono">{result.code}</div>
                 <p className="text-[11px] font-medium text-neutral-400 dark:text-neutral-500 normal-case leading-relaxed px-2">
                   Print this, or stick the QR onto your item. Anyone who scans it lands on your return page.
                 </p>

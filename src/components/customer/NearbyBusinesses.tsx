@@ -183,7 +183,7 @@ export const NearbyBusinesses: React.FC<NearbyBusinessesProps> = ({ onSelectBusi
       <div className="relative w-full h-[190px]">
         <AnimatePresence initial={false} mode="wait">
           <motion.button
-            key={current.id}
+            key={`${current.id}-${current.type}`}
             drag="x"
             dragConstraints={{ left: 0, right: 0 }}
             dragElastic={0.6}
@@ -271,7 +271,7 @@ export const NearbyBusinesses: React.FC<NearbyBusinessesProps> = ({ onSelectBusi
       <div className="flex items-center justify-center gap-1.5 mt-3">
         {cards.map((c, i) => (
           <button
-            key={c.id}
+            key={`${c.id}-${c.type}`}
             onClick={() => goTo(i)}
             className={`h-1.5 rounded-full transition-all ${
               i === index ? 'w-5 bg-[#E53935]' : 'w-1.5 bg-neutral-300 dark:bg-neutral-700'

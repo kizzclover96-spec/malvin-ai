@@ -506,7 +506,7 @@ function App() {
                   }}
                 />
               ) : flowStep === "premiumView" ? (
-                <Premium />
+                <Premium onBack={() => setFlowStep("options")} />
               ) : uiMode === "mobile" ? (
                 <MobileView brandId={user.uid} />
               ) : (

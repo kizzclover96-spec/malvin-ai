@@ -61,7 +61,12 @@ export async function generateVinBackQr(url: string): Promise<string> {
   return finalCanvas.toDataURL('image/png');
 }
 
-/** Random 4-digit code shown to the owner for their own reference. */
-export function generateFourDigitCode(): string {
-  return String(Math.floor(1000 + Math.random() * 9000));
+/** Unique, human-shareable code like "vinback-h3e762" for the owner's own reference. */
+export function generateVinBackCode(): string {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let suffix = '';
+  for (let i = 0; i < 6; i++) {
+    suffix += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return `vinback-${suffix}`;
 }

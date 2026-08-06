@@ -294,6 +294,17 @@ export const TeamHub: React.FC<TeamHubProps> = ({ managerUid }) => {
     }
   };
 
+  const handleRemoveMember = async (member: Member) => {
+    if (!isManager || !managerUid) return;
+    if (!window.confirm(`Remove ${member.email} from your team?`)) return;
+    try {
+      await deleteDoc(doc(db, 'managerMembers', managerUid, 'members', member.uid));
+    } catch (error) {
+      console.error("Failed to remove member:", error);
+      alert('Could not remove this member. Please try again.');
+    }
+  };
+
   return (
     <div style={styles.nativeFrame}>
       <header style={styles.chatHeader}>
@@ -487,6 +498,9 @@ export const TeamHub: React.FC<TeamHubProps> = ({ managerUid }) => {
                   </div>
                   <div style={styles.statusBlockInline}>
                     <span style={{...styles.statusStatusDotIndicator, backgroundColor: member.isOnline ? '#34C759' : '#AEAEB2'}} />
+                    {isManager && member.uid !== currentUserId && (
+                      <button onClick={() => handleRemoveMember(member)} style={styles.removeMemberBtn}>Remove</button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -597,6 +611,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   rosterActionRowLayout: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' },
   rosterSectionTitle: { fontSize: '15px', fontWeight: '700', color: '#000000', margin: 0 },
   addMemberTriggerBtn: { backgroundColor: '#FFFFFF', border: '1px solid #0066FF', color: '#0066FF', padding: '6px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' },
+  removeMemberBtn: { backgroundColor: '#FFFFFF', border: '1px solid #FF3B30', color: '#FF3B30', padding: '4px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: '600', cursor: 'pointer', marginLeft: '10px' },
   memberCardLayoutRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 4px', borderBottom: '1px solid #F2F2F7' },
   memberCardEmailTitle: { margin: 0, fontSize: '14px', fontWeight: '500', color: '#000000' },
   memberCardMetaSubtext: { fontSize: '11px', color: '#8E8E93', marginTop: '2px', display: 'block' },
