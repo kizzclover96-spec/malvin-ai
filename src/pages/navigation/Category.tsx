@@ -6,7 +6,7 @@ import { resolvePremiumFlag } from "../../hooks/useAccountStanding";
 
 type Props = {
   onSelect: (
-    type: "food" | "fashion" | "explore" | "hotel" | "records" | "mechanic" | "premium"
+    type: "food" | "fashion" | "explore" | "hotel" | "records" | "mechanic" | "service" | "premium"
   ) => void;
   isPremium?: boolean;
   userBrand?: { id: string; name?: string; isPremium?: boolean };
@@ -400,6 +400,25 @@ const Category: React.FC<Props> = ({ onSelect, isPremium: isPremiumProp, userBra
             <circle cx="30" cy="70" r="6" stroke="white" strokeWidth="4" />
           </svg>
           <span style={labelStyle}>Mechanic</span>
+        </div>
+
+        {/* SERVICES — the generic workspace for trades (plumbing,
+            electrical, cleaning, etc). One dashboard, branded per-business
+            by whichever categories get picked in Settings. */}
+        <div style={circleStyle} onClick={() => onSelect("service")}>
+          <svg width="80" height="80" viewBox="0 0 100 100" fill="none">
+            {/* Wrench + spark, distinct from the Mechanic wrench-only icon */}
+            <path
+              d="M30 70 L58 42 M53 37 C48 32 48 22 58 17 C63 22 73 22 78 27 C83 32 83 42 78 47 C73 52 63 52 58 47 Z"
+              stroke="white"
+              strokeWidth="4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <circle cx="30" cy="70" r="6" stroke="white" strokeWidth="4" />
+            <path d="M68 68 L72 76 L64 74 L70 84" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <span style={labelStyle}>Services</span>
         </div>
 
         {/* MALVIN RECORDS SYSTEM INTERFACE */}

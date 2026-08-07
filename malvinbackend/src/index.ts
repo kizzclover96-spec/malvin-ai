@@ -300,7 +300,8 @@ export const createDirectPaymentSession = onCall(
 
     const isFood = merchantType === "food";
     const isHotel = merchantType === "hotel";
-    const targetCollection = isFood ? "restaurantprofile" : isHotel ? "hotels" : "salons";
+    const isService = merchantType === "service";
+    const targetCollection = isFood ? "restaurantprofile" : isHotel ? "hotels" : isService ? "serviceProviders" : "salons";
     const businessDoc = await db.collection(targetCollection).doc(targetBusinessUid).get();
 
     if (!businessDoc.exists) {
@@ -326,7 +327,7 @@ export const createDirectPaymentSession = onCall(
           price_data: {
             currency: "eur",
             product_data: {
-              name: businessData?.brandName || businessData?.name || businessData?.salonName || businessData?.hotelName || "Malvin Service Payment",
+              name: businessData?.brandName || businessData?.name || businessData?.salonName || businessData?.hotelName || businessData?.businessName || "Malvin Service Payment",
               description: `Direct payment via Malvin App`,
             },
             unit_amount: amountInCents,
@@ -445,6 +446,38 @@ export const stripeWebhook = onRequest(
               });
             } else {
               console.error("Hotel direct payment webhook fired with no reservationId in metadata — nothing to confirm.");
+            }
+
+          } else if (merchantType === "service") {
+            // 🛠 SERVICE FLOW: same shape as hotel — the request/quote
+            // already exists on both trees (business's job board +
+            // customer's receipt, see utils/serviceRequests.ts), so
+            // payment confirmation is an UPDATE of both, keyed off the
+            // requestId carried through in appointmentDetails. Both copies
+            // are updated so the business dashboard's job board and the
+            // customer's receipt drawer never disagree on status.
+            const requestId = appointmentDetails?.requestId;
+            if (requestId) {
+              const customerReceiptRef = db
+                .collection("customers").doc(userId)
+                .collection("serviceReceipts").doc(requestId);
+              const businessRequestRef = db
+                .collection("serviceProviders").doc(businessId)
+                .collection("serviceRequests").doc(requestId);
+
+              batch.update(customerReceiptRef, {
+                status: "paid",
+                paymentStatus: true,
+                paidAmount: amount,
+                paidAt: FieldValue.serverTimestamp()
+              });
+              batch.update(businessRequestRef, {
+                status: "paid",
+                paidAmount: amount,
+                paidAt: FieldValue.serverTimestamp()
+              });
+            } else {
+              console.error("Service direct payment webhook fired with no requestId in metadata — nothing to confirm.");
             }
 
           } else {

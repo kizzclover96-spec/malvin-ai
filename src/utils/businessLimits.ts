@@ -21,7 +21,7 @@ import { firestore as db } from '../firebase';
  * time, never persisted as an earned entitlement.
  */
 
-export type MerchantType = 'food' | 'salon' | 'hotel' | 'mechanic';
+export type MerchantType = 'food' | 'salon' | 'hotel' | 'mechanic' | 'service';
 
 /** Where each category's public profile document lives. */
 export const MERCHANT_PROFILE_COLLECTION: Record<MerchantType, string> = {
@@ -29,6 +29,7 @@ export const MERCHANT_PROFILE_COLLECTION: Record<MerchantType, string> = {
   salon: 'salons',
   hotel: 'hotels',
   mechanic: 'mechanics',
+  service: 'serviceProviders',
 };
 
 /** Human label for the thing being counted, used in merchant-facing copy. */
@@ -37,6 +38,7 @@ export const MERCHANT_INTAKE_NOUN: Record<MerchantType, string> = {
   salon: 'appointments',
   hotel: 'reservations',
   mechanic: 'repair requests',
+  service: 'service requests',
 };
 
 export const FREE_TIER_INTAKE_LIMIT = 10;

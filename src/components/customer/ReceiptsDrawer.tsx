@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, Calendar, DollarSign, QrCode, Trash2, Maximize2,
   BedDouble, UtensilsCrossed, Scissors, Moon, Users, LogIn, LogOut, Timer,
-  Wrench, Car, Gauge,
+  Wrench, Car, Gauge, Hammer, MapPin, Handshake, CreditCard, Ban,
 } from 'lucide-react';
 
 /** "12m 04s" — the remaining life of an unpaid hold. */
@@ -15,15 +15,32 @@ function formatCountdown(msLeft: number): string {
   return `${minutes}m ${String(seconds).padStart(2, '0')}s`;
 }
 
+/** Badge text for a service receipt — folds in negotiation state, which
+ * none of the other receipt kinds have. */
+function serviceStatusLabel(receipt: any): string {
+  if (receipt.status === 'paid') return 'Paid';
+  if (receipt.negotiationOffer?.status === 'pending') return 'Offer sent';
+  if (receipt.negotiationOffer?.status === 'rejected') return 'Offer declined';
+  if (receipt.status === 'quoted') return 'Quote ready';
+  return 'Awaiting quote';
+}
+
 interface ReceiptsDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   activeReceipts: any[];
   receiptQrs: Record<string, string>;
   onDeleteReceipt?: (receiptId: string, isFoodOrder: boolean) => Promise<void> | void;
+  // Service-specific actions — the only receipt kind with an in-drawer
+  // negotiate/pay/cancel flow instead of just a QR pass. Optional so
+  // ReceiptsDrawer doesn't hard-require Front.tsx to implement them before
+  // this file compiles.
+  onServiceAcceptPay?: (receipt: any) => void;
+  onServiceNegotiate?: (receipt: any, amount: number) => void;
+  onServiceCancel?: (receipt: any) => void;
 }
 
-type ReceiptKind = 'hotel' | 'food' | 'salon' | 'mechanic';
+type ReceiptKind = 'hotel' | 'food' | 'salon' | 'mechanic' | 'service';
 
 /**
  * Which kind of pass this is.
@@ -39,7 +56,8 @@ function receiptKind(receipt: any): ReceiptKind {
     receipt.receiptType === 'hotel' ||
     receipt.receiptType === 'food' ||
     receipt.receiptType === 'salon' ||
-    receipt.receiptType === 'mechanic'
+    receipt.receiptType === 'mechanic' ||
+    receipt.receiptType === 'service'
   ) {
     return receipt.receiptType;
   }
@@ -96,6 +114,16 @@ const RECEIPT_THEME: Record<ReceiptKind, {
     accentText: 'text-sky-700',
     detailBox: 'bg-white border-sky-100',
   },
+  // Indigo, dashed like mechanic — this is a checkout in progress
+  // (quote/negotiate/pay), not a finished payment, until status is 'paid'.
+  service: {
+    label: 'Service Request',
+    Icon: Hammer,
+    card: 'bg-indigo-50/50 border-indigo-300/70 border-dashed',
+    chip: 'text-indigo-800 bg-indigo-100',
+    accentText: 'text-indigo-700',
+    detailBox: 'bg-white border-indigo-100',
+  },
 };
 
 export const ReceiptsDrawer: React.FC<ReceiptsDrawerProps> = ({
@@ -104,10 +132,17 @@ export const ReceiptsDrawer: React.FC<ReceiptsDrawerProps> = ({
   activeReceipts,
   receiptQrs,
   onDeleteReceipt,
+  onServiceAcceptPay,
+  onServiceNegotiate,
+  onServiceCancel,
 }) => {
   // State for managing the enlarged QR code preview modal
   const [selectedQr, setSelectedQr] = useState<{ src: string; refId: string; customerName: string } | null>(null);
   const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
+  // Which service receipt currently has its counter-offer input open, and
+  // what's typed into it — one at a time, keyed by receipt id.
+  const [negotiatingId, setNegotiatingId] = useState<string | null>(null);
+  const [negotiateAmount, setNegotiateAmount] = useState('');
 
   // Sort receipts so that the newest ones always appear at the top
   const sortedReceipts = [...activeReceipts].sort((a, b) => {
@@ -265,15 +300,18 @@ export const ReceiptsDrawer: React.FC<ReceiptsDrawerProps> = ({
                                   ? 'Reserved · Unpaid'
                                   : kind === 'mechanic'
                                     ? 'Accepted'
-                                    : receipt.status || 'Paid'}
+                                    : kind === 'service'
+                                      ? serviceStatusLabel(receipt)
+                                      : receipt.status || 'Paid'}
                               </span>
                             </div>
                             <p className="text-xs font-black text-neutral-900 truncate mt-1">
-                              {/* A mechanic job is identified by the garage
-                                  that took it, not by the customer's own name
-                                  — the receipt carries no customerName. */}
-                              {kind === 'mechanic'
-                                ? receipt.businessName || 'Mechanic'
+                              {/* A mechanic or service job is identified by
+                                  the business that took it, not the
+                                  customer's own name — neither receipt
+                                  carries a customerName. */}
+                              {kind === 'mechanic' || kind === 'service'
+                                ? receipt.businessName || 'Business'
                                 : `${kind === 'hotel' ? 'Guest' : 'Client'}: ${receipt.guestName || receipt.customerName || 'Customer Receipt'}`}
                             </p>
                             <p className="text-[10px] font-mono text-neutral-400 truncate">
@@ -341,6 +379,121 @@ export const ReceiptsDrawer: React.FC<ReceiptsDrawerProps> = ({
                             {receipt.description && (
                               <p className="text-[10px] text-neutral-500 leading-relaxed italic border-t border-sky-50 pt-1.5">
                                 “{receipt.description}”
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        {/* 🛠 OPTION 0.5: Service request — problem, quote
+                            breakdown, and the negotiate/pay/cancel actions
+                            unique to this receipt kind. */}
+                        {kind === 'service' && (
+                          <div className={`${theme.detailBox} border rounded-xl p-2.5 space-y-2`}>
+                            {receipt.problem && (
+                              <p className="text-[10.5px] text-neutral-700 leading-snug font-medium">
+                                {receipt.problem}
+                              </p>
+                            )}
+                            {receipt.address && (
+                              <div className="flex items-center gap-1.5 text-[10px] text-neutral-500">
+                                <MapPin className="w-3 h-3 text-indigo-600 shrink-0" />
+                                <span className="truncate">{receipt.address}</span>
+                              </div>
+                            )}
+
+                            {receipt.quote?.items?.length > 0 && (
+                              <div className="pt-1.5 border-t border-indigo-50 space-y-1">
+                                {receipt.quote.items.map((item: any, i: number) => (
+                                  <div key={i} className="flex justify-between text-[10.5px] text-neutral-600">
+                                    <span className="truncate max-w-[150px] font-medium">{item.label}</span>
+                                    <span className="font-bold text-neutral-900">€{Number(item.amount).toFixed(2)}</span>
+                                  </div>
+                                ))}
+                                <div className="flex justify-between text-[11px] font-black pt-1 border-t border-indigo-50">
+                                  <span>Total</span>
+                                  <span className="text-indigo-700">€{Number(receipt.quote.total).toFixed(2)}</span>
+                                </div>
+                              </div>
+                            )}
+
+                            {receipt.negotiationOffer?.status === 'pending' && (
+                              <p className="text-[10.5px] font-bold text-indigo-700 bg-indigo-50 rounded-lg px-2 py-1.5">
+                                Your offer of €{Number(receipt.negotiationOffer.amount).toFixed(2)} is with the business.
+                              </p>
+                            )}
+                            {receipt.negotiationOffer?.status === 'rejected' && (
+                              <p className="text-[10.5px] font-bold text-neutral-500 bg-neutral-50 rounded-lg px-2 py-1.5">
+                                They declined €{Number(receipt.negotiationOffer.amount).toFixed(2)}. Original quote still stands, or send a new offer below.
+                              </p>
+                            )}
+
+                            {/* Actions — only while there's still something
+                                to do. Once paid, this card just becomes a
+                                pass like every other receipt kind. */}
+                            {receipt.status === 'quoted' && (
+                              <div className="pt-1.5 border-t border-indigo-50 space-y-2">
+                                {negotiatingId === receipt.id ? (
+                                  <div className="flex items-center gap-1.5">
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      step="0.01"
+                                      autoFocus
+                                      value={negotiateAmount}
+                                      onChange={(e) => setNegotiateAmount(e.target.value)}
+                                      placeholder="Your offer (€)"
+                                      className="flex-1 text-[11px] border border-neutral-200 rounded-lg px-2 py-1.5 outline-none focus:border-indigo-400"
+                                    />
+                                    <button
+                                      onClick={() => {
+                                        const amt = parseFloat(negotiateAmount);
+                                        if (amt > 0) {
+                                          onServiceNegotiate?.(receipt, amt);
+                                          setNegotiatingId(null);
+                                          setNegotiateAmount('');
+                                        }
+                                      }}
+                                      className="text-[10px] font-black bg-indigo-600 text-white px-2.5 py-1.5 rounded-lg"
+                                    >
+                                      Send
+                                    </button>
+                                    <button
+                                      onClick={() => { setNegotiatingId(null); setNegotiateAmount(''); }}
+                                      className="text-[10px] font-black text-neutral-400 px-1.5"
+                                    >
+                                      ✕
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <button
+                                      onClick={() => onServiceAcceptPay?.(receipt)}
+                                      className="inline-flex items-center gap-1 text-[10.5px] font-black bg-indigo-600 text-white px-3 py-1.5 rounded-lg"
+                                    >
+                                      <CreditCard className="w-3 h-3" /> Secure Payment
+                                    </button>
+                                    {receipt.allowNegotiation && receipt.negotiationOffer?.status !== 'pending' && (
+                                      <button
+                                        onClick={() => setNegotiatingId(receipt.id)}
+                                        className="inline-flex items-center gap-1 text-[10.5px] font-black bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-lg"
+                                      >
+                                        <Handshake className="w-3 h-3" /> Negotiate
+                                      </button>
+                                    )}
+                                    <button
+                                      onClick={() => onServiceCancel?.(receipt)}
+                                      className="inline-flex items-center gap-1 text-[10.5px] font-black text-red-500 px-3 py-1.5 rounded-lg hover:bg-red-50"
+                                    >
+                                      <Ban className="w-3 h-3" /> Cancel
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {receipt.status === 'requested' && (
+                              <p className="text-[10.5px] text-neutral-400 pt-1 border-t border-indigo-50">
+                                Waiting on {receipt.businessName || 'the business'} to send a quote.
                               </p>
                             )}
                           </div>
@@ -461,15 +614,16 @@ export const ReceiptsDrawer: React.FC<ReceiptsDrawerProps> = ({
                               </span>
                             </div>
                           )}
-                          {/* A mechanic job is priced after inspection, so
-                              there is no figure to show at all — printing
-                              "Total Paid: €0.00" would be worse than nothing. */}
+                          {/* A mechanic job is priced after inspection, and
+                              an unpaid service quote hasn't been charged
+                              yet either — printing "Total Paid: €0.00"
+                              would be worse than nothing in both cases. */}
                           {kind === 'mechanic' ? (
                             <div className="flex items-center gap-1.5 text-neutral-500 font-bold mt-1">
                               <Wrench className={`w-3.5 h-3.5 ${theme.accentText}`} />
                               <span>Quoted after inspection · pay at the garage</span>
                             </div>
-                          ) : (
+                          ) : kind === 'service' && receipt.status !== 'paid' ? null : (
                             <div className="flex items-center gap-1.5 text-neutral-800 font-extrabold mt-1">
                               <DollarSign className={`w-3.5 h-3.5 ${theme.accentText}`} />
                               {/* Nothing has been charged on an unpaid hold —

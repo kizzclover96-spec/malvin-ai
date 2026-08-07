@@ -8,7 +8,7 @@ const ANDROID_STORE_URL = 'https://play.google.com/store/apps/details?id=com.mal
 const IOS_STORE_URL = 'https://apps.apple.com/app/id0000000000';
 
 interface AppOpenGateProps {
-  kind: 'food' | 'salon' | 'hotel' | 'mechanic';
+  kind: 'food' | 'salon' | 'hotel' | 'mechanic' | 'service';
   uid: string | undefined;
 }
 
@@ -108,4 +108,9 @@ export const HotelDeepLinkGate: React.FC = () => {
 export const MechanicDeepLinkGate: React.FC = () => {
   const { uid } = useParams();
   return <AppOpenGate kind="mechanic" uid={uid} />;
+};
+
+export const ServiceDeepLinkGate: React.FC = () => {
+  const { uid } = useParams();
+  return <AppOpenGate kind="service" uid={uid} />;
 };

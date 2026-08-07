@@ -8,7 +8,9 @@ import {
 import { doc, getDoc, getDocs, setDoc, deleteDoc, collection, collectionGroup, query, where, orderBy, limit, serverTimestamp, onSnapshot } from 'firebase/firestore';
 import { signOut, deleteUser } from 'firebase/auth';
 import { ref as rtdbRef, get as rtdbGet } from 'firebase/database';
-import { firestore as db, db as rtdb } from '../../firebase'; 
+import { firestore as db, db as rtdb, functions } from '../../firebase';
+import { httpsCallable } from 'firebase/functions';
+import { syncServiceRequestStatus } from '../../utils/serviceRequests';
 import { auth } from "../../firebase"; 
 import QRCode from 'qrcode'; // Add QRCode to render the scan-ready ticket receipts
 
@@ -334,7 +336,7 @@ export const Front: React.FC = () => {
   // flowStep changes away and back, so this naturally re-fires each visit,
   // not just the very first one) rather than waiting for a tap.
   const [isAiMenuOpen, setIsAiMenuOpen] = useState(true);
-  const [radarCategoryFilter, setRadarCategoryFilter] = useState<'all' | 'restaurant' | 'salon' | 'mechanic' | 'services'>('all');
+  const [radarCategoryFilter, setRadarCategoryFilter] = useState<'all' | 'restaurant' | 'salon' | 'mechanic' | 'service' | 'services'>('all');
   // Inline-styled to sidestep the global `.icon-button { all: unset }` rule
   const [isSearchHovered, setIsSearchHovered] = useState(false);
   const [isScannerHovered, setIsScannerHovered] = useState(false);
@@ -834,12 +836,29 @@ export const Front: React.FC = () => {
       updateUnifiedReceipts(mechanicList, 'mechanic');
     });
 
+    // 5. Listen to Service Receipts Subcollection
+    // Written by the business at quote time (see utils/serviceRequests.ts),
+    // same "acceptance/quoting is what issues the receipt" shape as
+    // mechanic. Completed/cancelled/expired are deliberately excluded here
+    // — they still exist (nothing is hard-deleted, see serviceRequests.ts),
+    // they just belong in a History view, not the active drawer.
+    const serviceReceiptsRef = collection(db, 'customers', user.uid, 'serviceReceipts');
+    const unsubscribeService = onSnapshot(serviceReceiptsRef, async (snapshot) => {
+      const serviceList = snapshot.docs.map(doc => ({
+        id: doc.id,
+        receiptType: 'service',
+        ...doc.data()
+      })).filter((r: any) => !['cancelled', 'completed', 'expired'].includes(r.status));
+
+      updateUnifiedReceipts(serviceList, 'service');
+    });
+
     // Unified state compiler
-    const rawReceiptsRef = { salon: [] as any[], food: [] as any[], hotel: [] as any[], mechanic: [] as any[] };
+    const rawReceiptsRef = { salon: [] as any[], food: [] as any[], hotel: [] as any[], mechanic: [] as any[], service: [] as any[] };
     // Tracks which receipt ids we've already surfaced, so the *first*
     // snapshot (every pre-existing active receipt) doesn't fire a wall of
     // notifications — only receipts that show up *after* that count as new.
-    const initialized = { salon: false, food: false, hotel: false, mechanic: false };
+    const initialized = { salon: false, food: false, hotel: false, mechanic: false, service: false };
     let allInitialized = false;
     const seenReceiptIds = new Set<string>();
 
@@ -848,6 +867,9 @@ export const Front: React.FC = () => {
       if (item.receiptType === 'salon') return 'You have a new salon booking receipt.';
       if (item.receiptType === 'mechanic') {
         return `${item.businessName || 'The garage'} accepted your repair booking — your pass is in Receipts.`;
+      }
+      if (item.receiptType === 'service') {
+        return `${item.businessName || 'The business'} sent you a quote for €${Number(item.quote?.total || 0).toFixed(2)} — check your Receipts.`;
       }
       if (item.receiptType === 'hotel') {
         // A hold and a paid stay are both receipts, but only one of them is
@@ -860,7 +882,7 @@ export const Front: React.FC = () => {
       return 'You have a new receipt.';
     };
 
-    const updateUnifiedReceipts = async (newList: any[], type: 'salon' | 'food' | 'hotel' | 'mechanic') => {
+    const updateUnifiedReceipts = async (newList: any[], type: 'salon' | 'food' | 'hotel' | 'mechanic' | 'service') => {
       rawReceiptsRef[type] = newList;
       initialized[type] = true;
       const combined = [
@@ -868,9 +890,10 @@ export const Front: React.FC = () => {
         ...rawReceiptsRef.food,
         ...rawReceiptsRef.hotel,
         ...rawReceiptsRef.mechanic,
+        ...rawReceiptsRef.service,
       ];
 
-      if (initialized.salon && initialized.food && initialized.hotel && initialized.mechanic) {
+      if (initialized.salon && initialized.food && initialized.hotel && initialized.mechanic && initialized.service) {
         if (!allInitialized) {
           combined.forEach((c) => seenReceiptIds.add(c.id));
           allInitialized = true;
@@ -882,13 +905,14 @@ export const Front: React.FC = () => {
               const message = newReceiptMessage(item);
               pushNotification(user.uid, 'new_receipt', 'New receipt', message);
 
-              // A mechanic acceptance is the one receipt the customer isn't
-              // already expecting — they submitted a request and then waited
-              // on the garage, so it gets a device-level alert on top of the
-              // in-app bell. (Local notification: only reaches a device with
-              // the app running — see postLocalAlert.)
-              if (item.receiptType === 'mechanic') {
-                postLocalAlert('Repair booking accepted', message);
+              // A mechanic acceptance or a service quote is the one receipt
+              // the customer isn't already expecting a fixed answer for —
+              // they submitted a request and then waited, so it gets a
+              // device-level alert on top of the in-app bell. (Local
+              // notification: only reaches a device with the app running —
+              // see postLocalAlert.)
+              if (item.receiptType === 'mechanic' || item.receiptType === 'service') {
+                postLocalAlert(item.receiptType === 'service' ? 'Quote received' : 'Repair booking accepted', message);
               }
             });
         }
@@ -925,6 +949,7 @@ export const Front: React.FC = () => {
       unsubscribeFood();
       unsubscribeHotel();
       unsubscribeMechanic();
+      unsubscribeService();
     };
   }, [user]);
 
@@ -1057,19 +1082,25 @@ export const Front: React.FC = () => {
   // collection the way food/salon/mechanic do, so both currently fall back
   // to the radar's general "services" bucket rather than a real filtered
   // category — worth a dedicated collection later if those categories grow.
+  // 🤖 AI QUICK-MENU — the 5 category buttons in the half-circle fan.
+  // "Home services" now maps to the real Services vertical ('service'),
+  // which prompts the customer for a specific trade before showing results
+  // (see VinScanner's sub-picker). "Shopping" still has no backing
+  // collection at all, so it still falls into the radar's generic leftover
+  // "Other" bucket rather than a real filtered category.
   const AI_QUICK_CATEGORIES: Array<{
-    key: 'restaurant' | 'salon' | 'mechanic' | 'services';
+    key: 'restaurant' | 'salon' | 'mechanic' | 'service' | 'services';
     emoji: string;
     label: string;
   }> = [
     { key: 'restaurant', emoji: '🍕', label: 'Food' },
     { key: 'mechanic', emoji: '🛠', label: 'Repairs' },
     { key: 'salon', emoji: '💇', label: 'Beauty' },
-    { key: 'services', emoji: '🧹', label: 'Home services' },
+    { key: 'service', emoji: '🧹', label: 'Home services' },
     { key: 'services', emoji: '🛒', label: 'Shopping' },
   ];
 
-  const handleAiCategoryPick = (key: 'restaurant' | 'salon' | 'mechanic' | 'services') => {
+  const handleAiCategoryPick = (key: 'restaurant' | 'salon' | 'mechanic' | 'service' | 'services') => {
     setIsAiMenuOpen(false);
     setRadarCategoryFilter(key);
     setIsRadarOpen(true);
@@ -1109,6 +1140,57 @@ export const Front: React.FC = () => {
     consecutiveFailsRef.current += 1;
     setLinkFailPopup(consecutiveFailsRef.current >= 3 ? 'broken' : 'retry');
   }, []);
+
+  // --- Service request actions (Receipts Drawer) ---
+  // These dual-write both copies of the request (business's job-board
+  // record and the customer's own receipt) via syncServiceRequestStatus,
+  // rather than a Cloud Function — the same trust model the initial
+  // request write already relies on (a customer writing directly into a
+  // business's subcollection, same as mechanics/{uid}/repair_requests).
+
+  const handleServiceNegotiate = async (receipt: any, amount: number) => {
+    if (!user?.uid || !receipt.businessId || !receipt.requestId) return;
+    try {
+      await syncServiceRequestStatus(receipt.businessId, user.uid, receipt.requestId, {
+        negotiationOffer: { amount, status: 'pending' },
+      });
+    } catch (err) {
+      console.error('Failed to send negotiation offer:', err);
+      showToast('error', 'Could not send your offer. Please try again.');
+    }
+  };
+
+  const handleServiceCancel = async (receipt: any) => {
+    if (!user?.uid || !receipt.businessId || !receipt.requestId) return;
+    if (!window.confirm('Cancel this service request?')) return;
+    try {
+      await syncServiceRequestStatus(receipt.businessId, user.uid, receipt.requestId, { status: 'cancelled' });
+    } catch (err) {
+      console.error('Failed to cancel service request:', err);
+      showToast('error', 'Could not cancel this request. Please try again.');
+    }
+  };
+
+  const handleServiceAcceptPay = async (receipt: any) => {
+    if (!user?.uid || !receipt.businessId || !receipt.quote?.total) return;
+    try {
+      const createSession = httpsCallable(functions, 'createDirectPaymentSession');
+      const result: any = await createSession({
+        amount: receipt.quote.total,
+        targetBusinessUid: receipt.businessId,
+        merchantType: 'service',
+        appointmentDetails: { requestId: receipt.requestId },
+      });
+      if (result?.data?.url) {
+        window.location.href = result.data.url;
+      } else {
+        showToast('error', 'Could not start checkout. Please try again.');
+      }
+    } catch (err: any) {
+      console.error('Failed to start service payment:', err);
+      showToast('error', err?.message || 'Could not start checkout. Please try again.');
+    }
+  };
 
   // Handles manual link submissions identically to the QR Camera scan pipeline
   const handleQueryLaunch = () => {
@@ -2285,6 +2367,9 @@ export const Front: React.FC = () => {
         onClose={() => setIsDrawerOpen(false)}
         activeReceipts={visibleReceipts}
         receiptQrs={receiptQrs}
+        onServiceAcceptPay={handleServiceAcceptPay}
+        onServiceNegotiate={handleServiceNegotiate}
+        onServiceCancel={handleServiceCancel}
       />
 
       {/* RADAR SCANNER MODAL OVERLAY */}

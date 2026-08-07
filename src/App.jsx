@@ -44,8 +44,10 @@ import HotelDashboard from "./components/hotel/hotelDashboard";
 import HotelStore from "./components/hotel/hotelStore";
 import VinBackScan from "./components/vinback/VinBackScan";
 import MechanicDashboard from "./components/mechanic/mechanicDashboard";
+import ServiceDashboard from "./components/service/serviceDashboard";
 import MechanicStore from "./components/mechanic/mechanicStore";
-import { FoodDeepLinkGate, SalonDeepLinkGate, HotelDeepLinkGate, MechanicDeepLinkGate } from "./components/addons/AppOpenGate";
+import ServiceStore from "./components/service/serviceStore";
+import { FoodDeepLinkGate, SalonDeepLinkGate, HotelDeepLinkGate, MechanicDeepLinkGate, ServiceDeepLinkGate } from "./components/addons/AppOpenGate";
 import { FloatingTeamHub } from "./components/addons/FloatingTeamHub";
 import { WorkerDashboard } from './components/team/workerDashboard';
 import { QrScannerView } from './components/addons/QR Scanner'; 
@@ -107,6 +109,8 @@ function App() {
                 ? "hotel"
                 : url.includes("/mechanic/") || url.includes("mechanic:")
                 ? "mechanic"
+                : url.includes("/service/") || url.includes("service:")
+                ? "service"
                 : "food";
               // Fall back to whatever segment actually follows the host, since
               // some Android versions parse custom-scheme URLs inconsistently.
@@ -116,6 +120,7 @@ function App() {
                 segments[0] === "salon" ? "salon"
                 : segments[0] === "hotel" ? "hotel"
                 : segments[0] === "mechanic" ? "mechanic"
+                : segments[0] === "service" ? "service"
                 : "food";
               navigate(`/${routeKind || kind}/${routeUid}`);
             }
@@ -413,6 +418,7 @@ function App() {
     location.pathname.startsWith("/salon/") || 
     location.pathname.startsWith("/hotel/") ||
     location.pathname.startsWith("/mechanic/") ||
+    location.pathname.startsWith("/service/") ||
     location.pathname.startsWith("/vinback/") ||
     location.pathname.startsWith("/chat/");
 
@@ -422,6 +428,7 @@ function App() {
     if (type === "explore") { setFlowStep("SalonDashboard"); return; }
     if (type === "hotel") { setFlowStep("HotelDashboard"); return; }
     if (type === "mechanic") { setFlowStep("MechanicDashboard"); return; }
+    if (type === "service") { setFlowStep("ServiceDashboard"); return; }
     if (type === "records") { setFlowStep("recordsDashboard"); return; }
     if (type === "premium") { setFlowStep("premiumView"); return; }
   };
@@ -438,6 +445,7 @@ function App() {
           <Route path="/hotel/:uid" element={<><HotelDeepLinkGate /><HotelStore /></>} />
           <Route path="/vinback/:tagId" element={<VinBackScan />} />
           <Route path="/mechanic/:uid" element={<><MechanicDeepLinkGate /><MechanicStore /></>} />
+          <Route path="/service/:uid" element={<><ServiceDeepLinkGate /><ServiceStore /></>} />
           
           <Route path="/terms" element={<Terms />} />
           <Route path="/cookiePolicy" element={<CookiePolicy />} />
@@ -502,6 +510,8 @@ function App() {
                 <HotelDashboard />
               ) : flowStep === "MechanicDashboard" ? (
                 <MechanicDashboard />
+              ) : flowStep === "ServiceDashboard" ? (
+                <ServiceDashboard />
               ) : flowStep === "recordsDashboard" ? (
                 <MalvinSystemDashboard userEmail={user?.email} currentUserId={user?.uid} />
               ) : flowStep === "device" ? (

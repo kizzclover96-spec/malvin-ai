@@ -24,9 +24,11 @@ import {
   Heart,
   Receipt,
   Bell,
+  Hammer,
 } from 'lucide-react';
 import { collection, getDocs, QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
 import { firestore as db } from '../../firebase'; // Adjust this import to match your Firebase config path
+import { SERVICE_CATEGORIES } from '../../utils/serviceCategories';
 
 // ==========================================
 // TYPES & INTERFACES
@@ -64,6 +66,10 @@ export interface BusinessProfile {
   // Radar visual positioning coordinates
   radarX?: number;
   radarY?: number;
+  // Only populated for category === 'service' — which specific trades this
+  // provider offers, so the "which service do you need?" sub-picker can
+  // filter down to just the ones that actually match.
+  categoriesOffered?: string[];
 }
 
 interface UserLocation {
@@ -283,6 +289,11 @@ function getCategoryTheme(category: string): { gradient: string; glow: string } 
         gradient: 'bg-gradient-to-br from-sky-400 to-blue-600',
         glow: 'bg-sky-400/40',
       };
+    case 'service':
+      return {
+        gradient: 'bg-gradient-to-br from-indigo-400 to-violet-600',
+        glow: 'bg-indigo-400/40',
+      };
     default:
       return {
         gradient: 'bg-gradient-to-br from-cyan-400 to-teal-500',
@@ -301,8 +312,11 @@ interface VinScannerProps {
   onOpenReceipts?: () => void;
   // Preselects the category chip on open — used by the AI quick-menu on
   // Front.tsx so picking "Repairs" lands straight on a filtered radar
-  // instead of the unfiltered "all" view.
-  initialCategoryFilter?: 'all' | 'restaurant' | 'salon' | 'mechanic' | 'services';
+  // instead of the unfiltered "all" view. Picking "Home services" passes
+  // 'service', which triggers the sub-picker below rather than filtering
+  // straight to results — there's no single color/results set for
+  // "service" the way there is for "mechanic".
+  initialCategoryFilter?: 'all' | 'restaurant' | 'salon' | 'mechanic' | 'service' | 'services';
 }
 
 export const VinScanner: React.FC<VinScannerProps> = ({ onClose, onOpenFavorites, onOpenReceipts, initialCategoryFilter }) => {
@@ -316,13 +330,21 @@ export const VinScanner: React.FC<VinScannerProps> = ({ onClose, onOpenFavorites
   const [taglineIndex, setTaglineIndex] = useState(0);
   // Category chips now filter independently from free-text search, rather
   // than the old approach of typing "restaurant"/"salon" INTO the search
-  // box as a hack. "services" is a catch-all for any category string a
-  // business has set that isn't food/salon — there's no dedicated
-  // "services" collection in Firestore yet, so this bucket exists for
-  // forward-compatibility rather than a real current business type.
-  const [activeCategory, setActiveCategory] = useState<'all' | 'restaurant' | 'salon' | 'mechanic' | 'services'>(
+  // box as a hack. "services" (plural) is the old catch-all for any
+  // category string that isn't food/salon/mechanic/service — there's no
+  // dedicated collection backing it, unlike "service" (singular), which is
+  // the real Services vertical (serviceProviders collection) and needs a
+  // second, more specific pick — see serviceSubType below.
+  const [activeCategory, setActiveCategory] = useState<'all' | 'restaurant' | 'salon' | 'mechanic' | 'service' | 'services'>(
     initialCategoryFilter || 'all'
   );
+  // Which trade within "Services" the customer actually wants (Plumbing,
+  // Electrical, ...). Radar results only ever show for activeCategory ===
+  // 'service' once this is set — there's no meaningful "show me all
+  // service businesses" view, since a plumber and a painter aren't
+  // interchangeable to the person searching.
+  const [serviceSubType, setServiceSubType] = useState<string | null>(null);
+  const [showServicePicker, setShowServicePicker] = useState(initialCategoryFilter === 'service');
   const [sortByRating, setSortByRating] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [activeTab, setActiveTab] = useState<'radar' | 'list'>('radar');
@@ -363,7 +385,7 @@ export const VinScanner: React.FC<VinScannerProps> = ({ onClose, onOpenFavorites
     console.log(`[VinScanner] 🔍 Querying Firestore for nearby businesses around user position (${userLat}, ${userLng})...`);
     try {
       const fetched: BusinessProfile[] = [];
-      const collections = ['restaurantprofile', 'salons', 'mechanics'];
+      const collections = ['restaurantprofile', 'salons', 'mechanics', 'serviceProviders'];
 
       for (const colName of collections) {
         console.log(`[VinScanner] 📂 Reading collection: '${colName}'`);
@@ -386,17 +408,24 @@ export const VinScanner: React.FC<VinScannerProps> = ({ onClose, onOpenFavorites
                 RADIUS_KM
               );
 
-              const category = data.category || (colName === 'salons' ? 'salon' : colName === 'mechanics' ? 'mechanic' : 'restaurant');
+              const category =
+                data.category
+                  || (colName === 'salons' ? 'salon'
+                    : colName === 'mechanics' ? 'mechanic'
+                    : colName === 'serviceProviders' ? 'service'
+                    : 'restaurant');
               const fallbackVinLink =
                 colName === 'salons' ? `/salon/${docSnap.id}`
                   : colName === 'mechanics' ? `/mechanic/${docSnap.id}`
+                  : colName === 'serviceProviders' ? `/service/${docSnap.id}`
                   : `/food/${docSnap.id}`;
 
               fetched.push({
                 id: docSnap.id,
                 // Salon docs store the name under `salonName`, restaurant
-                // docs under `brandName`, mechanic docs under `garageName`.
-                brandName: data.brandName || data.salonName || data.garageName || 'Unnamed Business',
+                // docs under `brandName`, mechanic docs under `garageName`,
+                // service docs under `businessName`.
+                brandName: data.brandName || data.salonName || data.garageName || data.businessName || 'Unnamed Business',
                 address: data.address || 'Address unavailable',
                 bio: data.bio || 'No description available.',
                 rating: data.rating || 5.0,
@@ -410,6 +439,7 @@ export const VinScanner: React.FC<VinScannerProps> = ({ onClose, onOpenFavorites
                 vinLink: data.vinLink || fallbackVinLink,
                 radarX: x,
                 radarY: y,
+                categoriesOffered: colName === 'serviceProviders' ? (Array.isArray(data.categoriesOffered) ? data.categoriesOffered : []) : undefined,
               });
             }
           } else {
@@ -541,8 +571,15 @@ export const VinScanner: React.FC<VinScannerProps> = ({ onClose, onOpenFavorites
       list = list.filter((b) => b.category.toLowerCase() === 'salon');
     } else if (activeCategory === 'mechanic') {
       list = list.filter((b) => b.category.toLowerCase() === 'mechanic');
+    } else if (activeCategory === 'service') {
+      // No subtype chosen yet → no results. The picker overlay is covering
+      // the screen forcing a choice in this state (see showServicePicker),
+      // so an empty list here is never actually visible to the customer.
+      list = serviceSubType
+        ? list.filter((b) => b.category.toLowerCase() === 'service' && (b.categoriesOffered || []).includes(serviceSubType))
+        : [];
     } else if (activeCategory === 'services') {
-      list = list.filter((b) => !['restaurant', 'food', 'salon', 'mechanic'].includes(b.category.toLowerCase()));
+      list = list.filter((b) => !['restaurant', 'food', 'salon', 'mechanic', 'service'].includes(b.category.toLowerCase()));
     }
 
     if (searchQuery.trim()) {
@@ -561,7 +598,7 @@ export const VinScanner: React.FC<VinScannerProps> = ({ onClose, onOpenFavorites
     }
 
     return list;
-  }, [businesses, activeCategory, searchQuery, sortByRating]);
+  }, [businesses, activeCategory, serviceSubType, searchQuery, sortByRating]);
 
   const restaurantCount = useMemo(
     () => businesses.filter((b) => ['restaurant', 'food'].includes(b.category.toLowerCase())).length,
@@ -575,8 +612,12 @@ export const VinScanner: React.FC<VinScannerProps> = ({ onClose, onOpenFavorites
     () => businesses.filter((b) => b.category.toLowerCase() === 'mechanic').length,
     [businesses]
   );
+  const serviceCount = useMemo(
+    () => businesses.filter((b) => b.category.toLowerCase() === 'service').length,
+    [businesses]
+  );
   const servicesCount = useMemo(
-    () => businesses.filter((b) => !['restaurant', 'food', 'salon', 'mechanic'].includes(b.category.toLowerCase())).length,
+    () => businesses.filter((b) => !['restaurant', 'food', 'salon', 'mechanic', 'service'].includes(b.category.toLowerCase())).length,
     [businesses]
   );
 
@@ -668,6 +709,70 @@ export const VinScanner: React.FC<VinScannerProps> = ({ onClose, onOpenFavorites
         backgroundColor: '#FAF8F5',
       }}
     >
+      {/* 🛠 SERVICE SUB-PICKER — covers the screen until a specific trade
+          is chosen. There's no useful "show me all service businesses"
+          view (a plumber isn't a substitute for a painter), so the radar
+          simply doesn't show results for activeCategory 'service' while
+          this is up. */}
+      <AnimatePresence>
+        {showServicePicker && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{
+              position: 'fixed', inset: 0, zIndex: 200,
+              background: 'rgba(15,23,42,0.55)', backdropFilter: 'blur(4px)',
+              display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+            }}
+            onClick={() => {
+              setShowServicePicker(false);
+              if (!serviceSubType) setActiveCategory('all');
+            }}
+          >
+            <motion.div
+              initial={{ y: 40, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 40, opacity: 0 }}
+              transition={{ type: 'spring', damping: 24, stiffness: 260 }}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                width: '100%', maxWidth: '480px', background: '#FAF8F5',
+                borderTopLeftRadius: '24px', borderTopRightRadius: '24px',
+                padding: '22px 20px 28px', maxHeight: '75vh', overflowY: 'auto',
+              }}
+            >
+              <div style={{ width: '36px', height: '4px', borderRadius: '9999px', background: '#e5e5e5', margin: '0 auto 16px' }} />
+              <h3 style={{ margin: '0 0 4px', fontSize: '16px', fontWeight: 900, color: '#171717' }}>
+                Which service do you need?
+              </h3>
+              <p style={{ margin: '0 0 16px', fontSize: '12px', color: '#737373' }}>
+                We'll only show businesses nearby that actually offer this.
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '10px' }}>
+                {SERVICE_CATEGORIES.map((cat) => (
+                  <button
+                    key={cat.key}
+                    onClick={() => {
+                      setServiceSubType(cat.key);
+                      setShowServicePicker(false);
+                    }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '8px',
+                      padding: '12px 14px', borderRadius: '14px', border: 'none',
+                      background: cat.tint, color: cat.color,
+                      fontSize: '13px', fontWeight: 800, cursor: 'pointer', textAlign: 'left',
+                    }}
+                  >
+                    <span style={{ fontSize: '18px' }}>{cat.emoji}</span>
+                    {cat.label}
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       {/* Cream base with a soft, blurred dark hue brushed across it — easy
           on the eyes, replaces the previous cool gray + teal/violet glow */}
       <div
@@ -868,11 +973,23 @@ export const VinScanner: React.FC<VinScannerProps> = ({ onClose, onOpenFavorites
             <span>Repairs · {mechanicCount}</span>
           </button>
           <button
+            onClick={() => {
+              setActiveCategory('service');
+              // Re-tapping while already active lets the customer switch
+              // trade without leaving the radar.
+              setShowServicePicker(true);
+            }}
+            style={chipStyle('linear-gradient(to right, #6366f1, #4338ca)', activeCategory === 'service')}
+          >
+            <Hammer style={{ width: '14px', height: '14px' }} />
+            <span>Services {serviceSubType ? `· ${serviceCount}` : ''}</span>
+          </button>
+          <button
             onClick={() => setActiveCategory('services')}
             style={chipStyle('linear-gradient(to right, #22d3ee, #14b8a6)', activeCategory === 'services')}
           >
             <Bell style={{ width: '14px', height: '14px' }} />
-            <span>Services · {servicesCount}</span>
+            <span>Other · {servicesCount}</span>
           </button>
         </div>
       </header>
