@@ -26,19 +26,64 @@ export function publicOrigin(): string {
  * business up.
  */
 
-/** Accepts a bare uid or an already-built link and returns just the uid. */
-export function extractUid(rawInput: string): string {
-  let clean = rawInput.trim();
+export type BusinessKind = 'restaurant' | 'salon' | 'hotel' | 'mechanic' | 'service';
+
+/** URL path slug -> internal business kind. */
+const PATH_SLUG_TO_KIND: Record<string, BusinessKind> = {
+  food: 'restaurant',
+  restaurant: 'restaurant',
+  salon: 'salon',
+  hotel: 'hotel',
+  mechanic: 'mechanic',
+  service: 'service',
+};
+
+/** Internal business kind -> the Firestore collection its profile lives in. */
+const KIND_TO_COLLECTION: Record<BusinessKind, string> = {
+  restaurant: 'restaurantprofile',
+  salon: 'salons',
+  hotel: 'hotels',
+  mechanic: 'mechanics',
+  service: 'serviceProviders',
+};
+
+/**
+ * Pulls the uid AND, when the input is a full `/category/:uid` link, the
+ * category encoded in the path segment right before it.
+ *
+ * This matters because the SAME uid can run several completely separate
+ * business accounts side by side — e.g. a food account at
+ * malvinai.com/food/<uid> and a salon account at malvinai.com/salon/<uid>.
+ * Without the category hint there'd be no way to tell those two apart once
+ * you've stripped the path down to the bare uid, and one would silently
+ * shadow the other. A bare uid typed with no path (no '/') carries no hint,
+ * which callers use as their signal to fall back to a best-guess lookup.
+ */
+export function extractCategoryAndUid(rawInput: string): { uid: string; categoryHint: BusinessKind | null } {
   // Strip a query string or hash fragment before splitting on '/', otherwise
   // a link copied with tracking params (?ref=share) or a trailing '#' ends
   // up with those characters glued onto the uid, which then can't match any
   // Firestore document and silently fails the lookup.
-  clean = clean.split('?')[0].split('#')[0];
-  if (clean.includes('/')) {
-    const segments = clean.split('/');
-    clean = segments.filter(Boolean).pop() || clean;
+  const clean = rawInput.trim().split('?')[0].split('#')[0];
+
+  if (!clean.includes('/')) {
+    return { uid: clean, categoryHint: null };
   }
-  return clean;
+
+  const segments = clean.split('/').filter(Boolean);
+  const uid = segments.pop() || clean;
+  // Whatever precedes the uid — for a normal https://malvinai.com/<slug>/<uid>
+  // link that's the category slug, wherever the scheme/host segments land
+  // in front of it.
+  const slug = segments.pop()?.toLowerCase();
+  const categoryHint = (slug && PATH_SLUG_TO_KIND[slug]) || null;
+
+  return { uid, categoryHint };
+}
+
+/** Accepts a bare uid or an already-built link and returns just the uid. */
+export function extractUid(rawInput: string): string {
+  return extractCategoryAndUid(rawInput).uid;
 }
 
 export function buildVinLink(uid: string, category: string): string {
@@ -51,8 +96,6 @@ export function buildVinLink(uid: string, category: string): string {
       : 'food';
   return `${PUBLIC_ORIGIN}/${kind}/${uid}`;
 }
-
-export type BusinessKind = 'restaurant' | 'salon' | 'hotel' | 'mechanic' | 'service';
 
 export interface ResolvedBusiness {
   uid: string;
@@ -77,9 +120,21 @@ export interface ResolvedBusiness {
  * The three profile collections spell their fields differently —
  * brandName/salonName/hotelName, brandBio/bio — so they're normalized here
  * rather than at every call site.
+ *
+ * `businessUid` may be a bare uid or a full `/category/:uid` link/path — if
+ * it's the latter (or `categoryHint` is passed explicitly), resolution goes
+ * straight at THAT category's collection and stops there. This is what lets
+ * the same uid run entirely separate businesses per category —
+ * malvinai.com/food/<uid> and malvinai.com/salon/<uid> are two distinct
+ * accounts, and a link naming one must never resolve into the other just
+ * because a document happens to exist there too.
  */
-export async function resolveBusiness(businessUid: string): Promise<ResolvedBusiness> {
-  const uid = extractUid(businessUid);
+export async function resolveBusiness(
+  businessUid: string,
+  categoryHint?: BusinessKind | null
+): Promise<ResolvedBusiness> {
+  const { uid, categoryHint: hintFromInput } = extractCategoryAndUid(businessUid);
+  const hint = categoryHint ?? hintFromInput;
 
   const shape = (kind: BusinessKind, data: any): ResolvedBusiness => ({
     uid,
@@ -93,7 +148,29 @@ export async function resolveBusiness(businessUid: string): Promise<ResolvedBusi
     logoUrl: data.logo || data.logoUrl || '',
   });
 
+  const notFound = (kind: BusinessKind): ResolvedBusiness => ({
+    uid,
+    kind,
+    link: buildVinLink(uid, kind),
+    found: false,
+    storeName: '',
+    bio: '',
+    address: '',
+    logoUrl: '',
+  });
+
   try {
+    // A link that names its category is resolved ONLY against that
+    // category's collection — no falling through to a different business
+    // type under the same uid, even if one exists there.
+    if (hint) {
+      const snap = await getDoc(doc(db, KIND_TO_COLLECTION[hint], uid));
+      if (snap.exists()) return shape(hint, snap.data());
+      return notFound(hint);
+    }
+
+    // No category in the input (a bare uid was typed/pasted with no path) —
+    // fall back to a best-guess priority search across every collection.
     const restaurantSnap = await getDoc(doc(db, 'restaurantprofile', uid));
     if (restaurantSnap.exists()) return shape('restaurant', restaurantSnap.data());
 
@@ -115,16 +192,7 @@ export async function resolveBusiness(businessUid: string): Promise<ResolvedBusi
   // Nothing matched. Fall back to the food path — a slightly wrong link
   // still beats no link at all — but flag it so callers can avoid writing a
   // junk row into someone's history.
-  return {
-    uid,
-    kind: 'restaurant',
-    link: buildVinLink(uid, 'restaurant'),
-    found: false,
-    storeName: '',
-    bio: '',
-    address: '',
-    logoUrl: '',
-  };
+  return notFound('restaurant');
 }
 
 /**

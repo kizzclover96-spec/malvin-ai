@@ -26,7 +26,7 @@ import { RecentBusinesses } from './RecentBusinesses';
 import { NearbyBusinesses } from './NearbyBusinesses';
 import { VinMoment, getTierForScore, MOM_MILESTONE_STEP } from './Vinmoment';
 import { ReceiptsDrawer } from './ReceiptsDrawer';
-import { resolveBusiness, extractUid } from '../../services/vinLink';
+import { resolveBusiness, extractCategoryAndUid } from '../../services/vinLink';
 import { postLocalAlert } from '../../services/pushNotifications';
 import VinBackTagCreate from '../vinback/VinBackTagCreate';
 import VinBackTagList from '../vinback/VinBackTagList';
@@ -265,6 +265,11 @@ export const Front: React.FC = () => {
   // Tracks consecutive failures so the copy can escalate from "try again"
   // to "this link might actually be broken" after a few in a row.
   const [linkFailPopup, setLinkFailPopup] = useState<'retry' | 'broken' | null>(null);
+  // Shown instead of (not in addition to) the usual error toast when a
+  // service payment attempt fails specifically because the business hasn't
+  // finished Stripe onboarding yet — the backend's own wording for that
+  // case is "This merchant is not ready to accept payments yet."
+  const [merchantNotReadyPopup, setMerchantNotReadyPopup] = useState(false);
   const consecutiveFailsRef = useRef(0);
   
   // State tracking whether historical list has rendering records
@@ -439,7 +444,11 @@ export const Front: React.FC = () => {
     const rawInput = inputUidOrUrl.trim();
     if (!rawInput) return;
 
-    const cleanUid = extractUid(rawInput);
+    // A /category/:uid link carries its category in the path — that hint is
+    // what lets the same uid run entirely separate businesses per category
+    // (malvinai.com/food/<uid> vs malvinai.com/salon/<uid>) without one
+    // resolution silently shadowing the other.
+    const { uid: cleanUid, categoryHint } = extractCategoryAndUid(rawInput);
 
     // 🗨️ CHAT LINKS — a business's /chat/:brandId link (from a dashboard's
     // "share chat" button) points at Realtime Database data (users/{uid}/
@@ -473,7 +482,7 @@ export const Front: React.FC = () => {
     let chatBrandInfo: { storeName: string; logoUrl: string; bio: string } | null = null;
 
     if (!isExternalUrl && !isChatLink) {
-      business = await resolveBusiness(cleanUid);
+      business = await resolveBusiness(cleanUid, categoryHint);
       storefrontTarget = business.link;
     }
 
@@ -509,7 +518,13 @@ export const Front: React.FC = () => {
     setActiveStoreUid(storefrontTarget);
 
     try {
-        const recentDocRef = doc(db, 'customers', user.uid, 'recentBusinesses', cleanUid);
+        // Keyed by category+uid, not uid alone. The same uid can run
+        // completely separate businesses per category (a /food/<uid>
+        // account and a /salon/<uid> account are two different storefronts),
+        // so each one needs its own row in Recent Businesses rather than
+        // overwriting whichever was visited last.
+        const recentKey = business ? `${business.kind}_${cleanUid}` : cleanUid;
+        const recentDocRef = doc(db, 'customers', user.uid, 'recentBusinesses', recentKey);
         const docSnap = await getDoc(recentDocRef);
         const isFirstVisit = !docSnap.exists();
 
@@ -526,6 +541,7 @@ export const Front: React.FC = () => {
         // deep link is kept separately so opening the row doesn't have to
         // re-derive the store type.
         businessUid: cleanUid,
+        businessKind: business?.kind || null,
         vinLink: storefrontTarget,
         storeName,
         logoUrl: business?.logoUrl || chatBrandInfo?.logoUrl || '',
@@ -1164,7 +1180,23 @@ export const Front: React.FC = () => {
     if (!user?.uid || !receipt.businessId || !receipt.requestId) return;
     if (!window.confirm('Cancel this service request?')) return;
     try {
-      await syncServiceRequestStatus(receipt.businessId, user.uid, receipt.requestId, { status: 'cancelled' });
+      // cancelledBy distinguishes this from the business declining its own
+      // request (handleDeclineRequest in serviceDashboard.tsx, which also
+      // lands on status 'cancelled') — the dashboard uses this flag to
+      // decide whether to alert the manager that the CUSTOMER walked away.
+      await syncServiceRequestStatus(receipt.businessId, user.uid, receipt.requestId, {
+        status: 'cancelled',
+        cancelledBy: 'customer',
+      });
+      // Let the business know right away — this writes into the manager's
+      // own notifications feed and, on their device, fires a local push via
+      // serviceDashboard.tsx's live listener.
+      await pushNotification(
+        receipt.businessId,
+        'service_cancelled',
+        'Service request cancelled',
+        `A customer cancelled their ${receipt.businessName ? `request with ${receipt.businessName}` : 'service request'}${receipt.referenceId ? ` (Ref: ${receipt.referenceId})` : ''}.`
+      );
     } catch (err) {
       console.error('Failed to cancel service request:', err);
       showToast('error', 'Could not cancel this request. Please try again.');
@@ -1188,7 +1220,19 @@ export const Front: React.FC = () => {
       }
     } catch (err: any) {
       console.error('Failed to start service payment:', err);
-      showToast('error', err?.message || 'Could not start checkout. Please try again.');
+      // The backend throws this exact 'failed-precondition' when the
+      // business hasn't finished Stripe onboarding — surface it as its own
+      // popup rather than folding it into the generic error toast, since
+      // "try again" isn't useful advice for a merchant-side problem.
+      const isMerchantNotReady =
+        err?.code === 'functions/failed-precondition' ||
+        err?.code === 'failed-precondition' ||
+        /not ready to accept payments/i.test(err?.message || '');
+      if (isMerchantNotReady) {
+        setMerchantNotReadyPopup(true);
+      } else {
+        showToast('error', err?.message || 'Could not start checkout. Please try again.');
+      }
     }
   };
 
@@ -1314,6 +1358,46 @@ export const Front: React.FC = () => {
                 className="w-full py-2.5 rounded-xl bg-[#E53935] text-white text-xs font-black active:scale-[0.98] transition-transform"
               >
                 {linkFailPopup === 'broken' ? 'Got it' : 'Okay, I\'ll retry'}
+              </button>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* MERCHANT NOT READY FOR PAYMENT — shown when Secure Payment fails
+          because the business hasn't finished Stripe onboarding yet. */}
+      <AnimatePresence>
+        {merchantNotReadyPopup && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              onClick={() => setMerchantNotReadyPopup(false)}
+              className="fixed inset-0 bg-black/40 backdrop-blur-[1px] z-[60]"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.92, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.92, y: 10 }}
+              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[61] w-[85vw] max-w-xs bg-white dark:bg-neutral-900 rounded-3xl shadow-2xl border border-neutral-100 dark:border-neutral-800 px-6 py-7 flex flex-col items-center text-center"
+            >
+              <div className="w-14 h-14 rounded-full bg-amber-50 dark:bg-amber-500/10 flex items-center justify-center mb-4">
+                <AlertCircle className="w-7 h-7 text-amber-500" />
+              </div>
+              <h4 className="text-sm font-black text-neutral-900 dark:text-neutral-50 mb-1.5">
+                This merchant isn't ready to receive payment
+              </h4>
+              <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400 leading-snug mb-5">
+                They haven't finished setting up payments on their account yet. Try again a bit later, or reach out to them directly to ask when they'll be ready.
+              </p>
+              <button
+                onClick={() => setMerchantNotReadyPopup(false)}
+                className="w-full py-2.5 rounded-xl bg-[#E53935] text-white text-xs font-black active:scale-[0.98] transition-transform"
+              >
+                Got it
               </button>
             </motion.div>
           </>

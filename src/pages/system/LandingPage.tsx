@@ -148,6 +148,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
           <span onClick={() => setActiveTab('home')} className={`nav-link ${activeTab === 'home' ? 'active' : ''}`}>Home</span>
           <span onClick={() => setActiveTab('explore')} className={`nav-link ${activeTab === 'explore' ? 'active' : ''}`}>Explore</span>
           <Link to="/about" className="nav-link">About</Link>
+          <Link to="/faq" className="nav-link">FAQ</Link>
           <span onClick={() => setActiveTab('news')} className={`nav-link ${activeTab === 'news' ? 'active' : ''}`}>News</span>
         </div>
 
@@ -177,6 +178,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
             <span onClick={() => { setActiveTab('home'); setMobileMenuOpen(false); }} style={{ fontSize: '1.5rem' }} className={`nav-link ${activeTab === 'home' ? 'active' : ''}`}>Home</span>
             <span onClick={() => { setActiveTab('explore'); setMobileMenuOpen(false); }} style={{ fontSize: '1.5rem' }} className={`nav-link ${activeTab === 'explore' ? 'active' : ''}`}>Explore</span>
             <Link to="/about" onClick={() => setMobileMenuOpen(false)} style={{ fontSize: '1.5rem' }} className="nav-link">About</Link>
+            <Link to="/faq" onClick={() => setMobileMenuOpen(false)} style={{ fontSize: '1.5rem' }} className="nav-link">FAQ</Link>
             <span onClick={() => { setActiveTab('news'); setMobileMenuOpen(false); }} style={{ fontSize: '1.5rem' }} className={`nav-link ${activeTab === 'news' ? 'active' : ''}`}>News</span>
             <button onClick={() => { onLoginClick(); setMobileMenuOpen(false); }} className="btn-register" style={{ padding: '14px 40px', fontSize: '1.1rem' }}>Register</button>
           </div>
@@ -190,12 +192,54 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
         {activeTab === 'about' && <About />}
 
         {activeTab === 'news' && (
-          <div className="animate delay-1" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flex: 1, padding: '40px 24px' }}>
-            <div style={{ textAlign: 'center', maxWidth: '600px' }}>
-              <h2 style={{ fontSize: '2.2rem', fontWeight: '800', marginBottom: '16px' }}>News & System Matrices</h2>
-              <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '1rem', lineHeight: '1.6' }}>
-                Stay informed with core infrastructure log entries, version patch updates, and feature rollout tracking announcements directly from the Malvin ecosystem hub.
+          <div className="animate delay-1" style={{ flex: 1, overflowY: 'auto', padding: '40px 60px 80px' }}>
+            <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+              <h2 style={{ fontSize: '2.4rem', fontWeight: '800', marginBottom: '8px' }}>What's New</h2>
+              <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '1rem', lineHeight: '1.6', marginBottom: '36px' }}>
+                Recent updates to the Malvin AI platform.
               </p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                {[
+                  {
+                    title: 'Push notifications now work on iPhone — no App Store required',
+                    desc: "Add Malvin to your iPhone Home Screen from Safari and get real push notifications, the same as a native app — no Apple Developer account or App Store listing needed on our end.",
+                  },
+                  {
+                    title: 'Emergency, Today, This Week, or Schedule — urgency on every service request',
+                    desc: 'Requesting a Mechanic or Service job now asks how urgent it is. Emergency requests jump straight to the top of the business\'s job board, ahead of everything else.',
+                  },
+                  {
+                    title: 'Preferred time on service requests',
+                    desc: 'Let the business know roughly when you want the job done — "tomorrow morning," "Sat after 2pm," whatever works for you — right when you submit the request.',
+                  },
+                  {
+                    title: 'Smarter QR handoff',
+                    desc: "Scan a Malvin code with your phone's regular camera and it now recognizes whether you already have the app installed — handing you straight into it if so, or walking you through getting set up if not.",
+                  },
+                  {
+                    title: 'One uid, multiple businesses',
+                    desc: 'The same business owner can now run a Food account and a Salon account side-by-side, each fully independent — separate pages, separate ratings, separate entries in your Recent Businesses.',
+                  },
+                  {
+                    title: 'Independent ratings per business',
+                    desc: "A business's star rating no longer mixes with a different category business run by the same owner — each is scored entirely on its own.",
+                  },
+                ].map((item, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      background: 'rgba(255,255,255,0.02)',
+                      border: '1px solid rgba(255,255,255,0.06)',
+                      borderRadius: '16px',
+                      padding: '20px 24px',
+                    }}
+                  >
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#fff', marginBottom: '6px' }}>{item.title}</h3>
+                    <p style={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.55)', lineHeight: '1.6', margin: 0 }}>{item.desc}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}

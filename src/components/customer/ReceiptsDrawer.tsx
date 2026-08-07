@@ -1,6 +1,7 @@
 // src/components/ReceiptsDrawer.tsx
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { urgencyMeta } from '../../utils/serviceRequests';
 import {
   X, Calendar, DollarSign, QrCode, Trash2, Maximize2,
   BedDouble, UtensilsCrossed, Scissors, Moon, Users, LogIn, LogOut, Timer,
@@ -14,6 +15,87 @@ function formatCountdown(msLeft: number): string {
   const seconds = total % 60;
   return `${minutes}m ${String(seconds).padStart(2, '0')}s`;
 }
+
+// Plain inline styles for the service receipt's action row (Secure
+// Payment / Negotiate / Cancel). These buttons previously relied only on
+// Tailwind utility classes — if Tailwind's build/purge ever drops those
+// classes (or the stylesheet fails to load for any reason) the buttons
+// render with no background, no padding, no color, and effectively
+// disappear against the card. Plain React inline styles have no build
+// step and no purge step, so the buttons stay visible regardless of what
+// happens to the Tailwind pipeline.
+const payButtonStyle: React.CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '4px',
+  fontSize: '11px',
+  fontWeight: 800,
+  color: '#ffffff',
+  background: '#4f46e5',
+  border: 'none',
+  borderRadius: '10px',
+  padding: '8px 14px',
+  cursor: 'pointer',
+  boxShadow: '0 2px 8px rgba(79, 70, 229, 0.35)',
+};
+
+const negotiateButtonStyle: React.CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '4px',
+  fontSize: '11px',
+  fontWeight: 800,
+  color: '#4338ca',
+  background: '#eef2ff',
+  border: '1px solid #c7d2fe',
+  borderRadius: '10px',
+  padding: '8px 14px',
+  cursor: 'pointer',
+};
+
+const cancelButtonStyle: React.CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '4px',
+  fontSize: '11px',
+  fontWeight: 800,
+  color: '#ef4444',
+  background: '#ffffff',
+  border: '1px solid #fecaca',
+  borderRadius: '10px',
+  padding: '8px 14px',
+  cursor: 'pointer',
+};
+
+const negotiateSendButtonStyle: React.CSSProperties = {
+  fontSize: '10px',
+  fontWeight: 800,
+  color: '#ffffff',
+  background: '#4f46e5',
+  border: 'none',
+  borderRadius: '8px',
+  padding: '8px 10px',
+  cursor: 'pointer',
+};
+
+const negotiateCancelButtonStyle: React.CSSProperties = {
+  fontSize: '10px',
+  fontWeight: 800,
+  color: '#a3a3a3',
+  background: 'transparent',
+  border: 'none',
+  padding: '6px',
+  cursor: 'pointer',
+};
+
+const negotiateInputStyle: React.CSSProperties = {
+  flex: 1,
+  fontSize: '11px',
+  border: '1px solid #e5e5e5',
+  borderRadius: '8px',
+  padding: '8px 8px',
+  outline: 'none',
+};
 
 /** Badge text for a service receipt — folds in negotiation state, which
  * none of the other receipt kinds have. */
@@ -389,6 +471,14 @@ export const ReceiptsDrawer: React.FC<ReceiptsDrawerProps> = ({
                             unique to this receipt kind. */}
                         {kind === 'service' && (
                           <div className={`${theme.detailBox} border rounded-xl p-2.5 space-y-2`}>
+                            {receipt.urgency && urgencyMeta(receipt.urgency) && (
+                              <span
+                                className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full"
+                                style={{ color: urgencyMeta(receipt.urgency)!.color, background: urgencyMeta(receipt.urgency)!.bg }}
+                              >
+                                {urgencyMeta(receipt.urgency)!.emoji} {urgencyMeta(receipt.urgency)!.label}
+                              </span>
+                            )}
                             {receipt.problem && (
                               <p className="text-[10.5px] text-neutral-700 leading-snug font-medium">
                                 {receipt.problem}
@@ -398,6 +488,12 @@ export const ReceiptsDrawer: React.FC<ReceiptsDrawerProps> = ({
                               <div className="flex items-center gap-1.5 text-[10px] text-neutral-500">
                                 <MapPin className="w-3 h-3 text-indigo-600 shrink-0" />
                                 <span className="truncate">{receipt.address}</span>
+                              </div>
+                            )}
+                            {receipt.preferredTime && (
+                              <div className="flex items-center gap-1.5 text-[10px] text-neutral-500">
+                                <Timer className="w-3 h-3 text-indigo-600 shrink-0" />
+                                <span className="truncate">{receipt.preferredTime}</span>
                               </div>
                             )}
 
@@ -442,7 +538,7 @@ export const ReceiptsDrawer: React.FC<ReceiptsDrawerProps> = ({
                                       value={negotiateAmount}
                                       onChange={(e) => setNegotiateAmount(e.target.value)}
                                       placeholder="Your offer (€)"
-                                      className="flex-1 text-[11px] border border-neutral-200 rounded-lg px-2 py-1.5 outline-none focus:border-indigo-400"
+                                      style={negotiateInputStyle}
                                     />
                                     <button
                                       onClick={() => {
@@ -453,13 +549,13 @@ export const ReceiptsDrawer: React.FC<ReceiptsDrawerProps> = ({
                                           setNegotiateAmount('');
                                         }
                                       }}
-                                      className="text-[10px] font-black bg-indigo-600 text-white px-2.5 py-1.5 rounded-lg"
+                                      style={negotiateSendButtonStyle}
                                     >
                                       Send
                                     </button>
                                     <button
                                       onClick={() => { setNegotiatingId(null); setNegotiateAmount(''); }}
-                                      className="text-[10px] font-black text-neutral-400 px-1.5"
+                                      style={negotiateCancelButtonStyle}
                                     >
                                       ✕
                                     </button>
@@ -468,21 +564,21 @@ export const ReceiptsDrawer: React.FC<ReceiptsDrawerProps> = ({
                                   <div className="flex items-center gap-1.5 flex-wrap">
                                     <button
                                       onClick={() => onServiceAcceptPay?.(receipt)}
-                                      className="inline-flex items-center gap-1 text-[10.5px] font-black bg-indigo-600 text-white px-3 py-1.5 rounded-lg"
+                                      style={payButtonStyle}
                                     >
                                       <CreditCard className="w-3 h-3" /> Secure Payment
                                     </button>
                                     {receipt.allowNegotiation && receipt.negotiationOffer?.status !== 'pending' && (
                                       <button
                                         onClick={() => setNegotiatingId(receipt.id)}
-                                        className="inline-flex items-center gap-1 text-[10.5px] font-black bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-lg"
+                                        style={negotiateButtonStyle}
                                       >
                                         <Handshake className="w-3 h-3" /> Negotiate
                                       </button>
                                     )}
                                     <button
                                       onClick={() => onServiceCancel?.(receipt)}
-                                      className="inline-flex items-center gap-1 text-[10.5px] font-black text-red-500 px-3 py-1.5 rounded-lg hover:bg-red-50"
+                                      style={cancelButtonStyle}
                                     >
                                       <Ban className="w-3 h-3" /> Cancel
                                     </button>

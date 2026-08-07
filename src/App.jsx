@@ -28,6 +28,7 @@ import CookiePolicy from "./pages/system/CookiePolicy";
 import CommunityGuidelines from "./pages/system/CommunityGuidelines";
 import AiTransparencyNotice from "./pages/system/AiTransparencyNotice";
 import About from "./pages/system/About";
+import FAQ from "./pages/system/FAQ";
 import AllAds from "./components/admin/AllAds";
 import RefundPolicy from "./pages/system/RefundPolicy";
 import Impressum from "./pages/system/Impressum";
@@ -47,7 +48,7 @@ import MechanicDashboard from "./components/mechanic/mechanicDashboard";
 import ServiceDashboard from "./components/service/serviceDashboard";
 import MechanicStore from "./components/mechanic/mechanicStore";
 import ServiceStore from "./components/service/serviceStore";
-import { FoodDeepLinkGate, SalonDeepLinkGate, HotelDeepLinkGate, MechanicDeepLinkGate, ServiceDeepLinkGate } from "./components/addons/AppOpenGate";
+import { FoodDeepLinkGate, SalonDeepLinkGate, HotelDeepLinkGate, MechanicDeepLinkGate, ServiceDeepLinkGate, consumePendingDeepLink } from "./components/addons/AppOpenGate";
 import { FloatingTeamHub } from "./components/addons/FloatingTeamHub";
 import { WorkerDashboard } from './components/team/workerDashboard';
 import { QrScannerView } from './components/addons/QR Scanner'; 
@@ -397,6 +398,24 @@ function App() {
     };
   }, [user]);
 
+  // Resume whatever business page the person scanned before they'd logged
+  // in — AppOpenGate stashes it in localStorage the moment it shows the
+  // login-required popup (see consumePendingDeepLink there). Runs once
+  // right after login succeeds, and takes priority over the normal
+  // flowStep default below since navigating away from "/" makes that
+  // effect a no-op anyway.
+  useEffect(() => {
+    if (!user || isWorker) return;
+    const pendingPath = consumePendingDeepLink();
+    if (pendingPath) {
+      // skipGate: this navigation IS the resumption of a scan the person
+      // already went through the login-prompt/install-toast flow for —
+      // showing AppOpenGate's popups a second time right after they just
+      // finished logging in would be a jarring, pointless repeat.
+      navigate(pendingPath, { replace: true, state: { skipGate: true } });
+    }
+  }, [user, isWorker, navigate]);
+
   useEffect(() => {
     if (!user || isWorker) return;
 
@@ -456,6 +475,7 @@ function App() {
           <Route path="/impressum" element={<Impressum />} />
           <Route path="/allads" element={<AllAds />} />
           <Route path="/about" element={<About />} />
+          <Route path="/faq" element={<FAQ />} />
           <Route path="/verify" element={<MalvinAiPersonnelSystem userEmail={user?.email || ""} currentUserId={user?.uid || ""} />} />
           <Route path="/ticket-checkout" element={<TicketCheckout onExecuteWalletPayment={handleWalletPaymentExecution} />} />
           <Route path="/stripe-success" element={<StripeSuccessPage />} />

@@ -5,6 +5,16 @@ const Explore = () => {
 
   const features = [
     {
+        title: "Scan & Discover Any Business Instantly",
+        desc: "Point your camera at a VINQR code — on Food, Salon, Hotel, Mechanic, or Service businesses — and land straight on their page. No searching, no separate app per business.",
+        img: "/resturant2.png"
+    },
+    {
+        title: "Request, Quote & Pay — All in One Flow",
+        desc: "Describe the problem, flag how urgent it is (Emergency, Today, This Week, or Schedule for later), and get a real quote back. Accept it, negotiate it, or cancel — then pay securely, all without leaving the chat.",
+        img: "/resturant3.png"
+    },
+    {
         title: "Smart Business Command Center",
         desc: "Monitor your entire business from one intelligent dashboard with real-time insights, organized workflows, and a clean productivity-focused workspace.",
         img: "/dashboard.png"
@@ -107,9 +117,10 @@ const Explore = () => {
                       objectFit: 'cover',
                       display: 'block'
                     }}
-                    onError={(e) => {
-                      e.target.style.display = 'none';
-                      e.target.parentNode.innerHTML = `
+                    onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+                      const img = e.currentTarget;
+                      img.style.display = 'none';
+                      img.parentElement!.innerHTML = `
                         <div style="height: 100%; width: 100%; background: linear-gradient(135deg, #1e1b4b, #090514); display: flex; align-items: center; justify-content: center;">
                           <span style="color: rgba(255,255,255,0.3); font-size: 0.85rem; font-weight: 500;">[ Missing ${item.img} Asset ]</span>
                         </div>

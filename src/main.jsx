@@ -14,6 +14,16 @@ if (Capacitor.isNativePlatform()) {
   GoogleAuth.initialize();
   StatusBar.setOverlaysWebView({ overlay: true }).catch(() => {});
   StatusBar.setStyle({ style: Style.Dark }).catch(() => {});
+} else if ('serviceWorker' in navigator) {
+  // Registers the web-push background handler for everyone NOT inside the
+  // native app — a plain browser tab, or an iOS "Add to Home Screen"
+  // install. Registering it here (once, at startup) rather than lazily
+  // inside registerPushNotifications means it's already active by the
+  // time permission is requested, which getToken() in
+  // services/pushNotifications.ts requires.
+  navigator.serviceWorker.register('/firebase-messaging-sw.js').catch((err) => {
+    console.warn('Web push service worker registration failed:', err);
+  });
 }
 
 createRoot(document.getElementById('root')).render(

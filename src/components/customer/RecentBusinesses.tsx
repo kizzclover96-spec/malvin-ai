@@ -156,7 +156,12 @@ export const RecentBusinesses: React.FC<RecentBusinessesProps> = ({ onSelectBusi
   const handleVinShare = async (item: RecentBusinessItem) => {
     setIsCopyingVin(true);
     try {
-      const link = await resolveVinLink(item.businessUid);
+      // Prefer the link already saved on this row — it carries the exact
+      // category this business was visited under. Re-resolving from the
+      // bare uid alone (a legacy row with no vinLink) can't know which of
+      // several same-uid businesses this row actually points at, so it's
+      // only a fallback.
+      const link = item.vinLink || (await resolveVinLink(item.businessUid));
       const copied = await copyToClipboard(link);
       setVinShareToast(copied ? 'Vin link copied to clipboard' : "Couldn't copy the link");
     } catch (err) {

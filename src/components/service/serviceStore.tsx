@@ -10,6 +10,7 @@ import Suspended from '../addons/Suspended';
 import Report from '../addons/report';
 import { resolveVerifiedFlag } from '../../utils/verification';
 import { SERVICE_CATEGORIES, resolvePrimaryCategory } from '../../utils/serviceCategories';
+import { URGENCY_OPTIONS, type UrgencyLevel } from '../../utils/serviceRequests';
 
 interface ServiceProfile {
   businessName: string;
@@ -47,6 +48,16 @@ export default function ServiceStore() {
   const [isRequestOpen, setIsRequestOpen] = useState(false);
   const [problem, setProblem] = useState('');
   const [address, setAddress] = useState('');
+  // Optional — a business without live scheduling still needs to know
+  // roughly when the customer wants this done, so it's a plain text field
+  // rather than a rigid date/time picker (lets someone write "tomorrow
+  // morning" or "after 6pm" just as easily as an exact time).
+  const [preferredTime, setPreferredTime] = useState('');
+  // Required — how fast the business needs to react. Separate from
+  // preferredTime on purpose: urgency is what a manager triages the job
+  // board by (Emergency jobs need to jump the queue), while preferredTime
+  // is just a scheduling note for once it's been picked up.
+  const [urgency, setUrgency] = useState<UrgencyLevel | ''>('');
   const [photoUrl, setPhotoUrl] = useState('');
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -110,8 +121,19 @@ export default function ServiceStore() {
       (err) => console.error('Failed to load price list:', err)
     );
 
+    // A category-namespaced document WITHIN the existing store_ratings
+    // collection — deliberately NOT `store_ratings/{uid}` (the doc id
+    // Mechanic, Food, and Salon all read/write), so a Service business
+    // never averages into the same star rating as a Mechanic business
+    // sharing the same uid. It stays inside `store_ratings` itself (rather
+    // than a brand-new top-level collection) so it's covered by whatever
+    // security rules already grant read access to that collection — a new
+    // collection name needs its own rule added in the Firebase console
+    // before clients can read it, which is what caused the
+    // "Missing or insufficient permissions" error.
+    const serviceRatingStoreId = `service_${uid}`;
     const unsubRatings = onSnapshot(
-      collection(db, 'store_ratings', uid, 'user_ratings'),
+      collection(db, 'store_ratings', serviceRatingStoreId, 'user_ratings'),
       (snap) => {
         if (snap.empty) {
           setAverageRating(0);
@@ -172,6 +194,10 @@ export default function ServiceStore() {
       alert('Please describe the problem and add your location.');
       return;
     }
+    if (!urgency) {
+      alert('Please let them know how urgent this is.');
+      return;
+    }
     setIsSubmitting(true);
     try {
       const requestId = `req_${Date.now()}`;
@@ -184,6 +210,8 @@ export default function ServiceStore() {
         problem: problem.trim(),
         photoUrl: photoUrl || '',
         address: address.trim(),
+        preferredTime: preferredTime.trim(),
+        urgency,
         status: 'requested',
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
@@ -191,6 +219,8 @@ export default function ServiceStore() {
       setSubmitted(true);
       setProblem('');
       setAddress('');
+      setPreferredTime('');
+      setUrgency('');
       setPhotoUrl('');
     } catch (err) {
       console.error('Failed to submit service request:', err);
@@ -335,13 +365,40 @@ export default function ServiceStore() {
             ) : (
               <form onSubmit={handleSubmitRequest} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <div>
+                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.4px' }}>How urgent is this?</label>
+                  <div style={{ marginTop: '6px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                    {URGENCY_OPTIONS.map((opt) => {
+                      const selected = urgency === opt.value;
+                      return (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => setUrgency(opt.value)}
+                          style={{
+                            display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '2px',
+                            padding: '10px 12px', borderRadius: '10px', textAlign: 'left', cursor: 'pointer',
+                            border: selected ? `1.5px solid ${opt.color}` : '1px solid #e2e8f0',
+                            background: selected ? opt.bg : '#ffffff',
+                          }}
+                        >
+                          <span style={{ fontSize: '13px', fontWeight: 800, color: selected ? opt.color : '#0f172a' }}>
+                            {opt.emoji} {opt.label}
+                          </span>
+                          <span style={{ fontSize: '10.5px', color: '#64748b' }}>{opt.hint}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
                   <label style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Describe the problem</label>
                   <textarea
                     value={problem}
                     onChange={(e) => setProblem(e.target.value)}
                     placeholder="e.g. Kitchen tap has been leaking since this morning"
                     required
-                    style={{ width: '100%', boxSizing: 'border-box', marginTop: '6px', minHeight: '90px', resize: 'vertical', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '10px 12px', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }}
+                    style={{ width: '100%', boxSizing: 'border-box', marginTop: '6px', minHeight: '90px', resize: 'vertical', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '10px 12px', fontSize: '13px', outline: 'none', fontFamily: 'inherit', background: '#ffffff', color: '#0f172a', colorScheme: 'light' }}
                   />
                 </div>
 
@@ -371,7 +428,17 @@ export default function ServiceStore() {
                     onChange={(e) => setAddress(e.target.value)}
                     placeholder="Where should they come to?"
                     required
-                    style={{ width: '100%', boxSizing: 'border-box', marginTop: '6px', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '10px 12px', fontSize: '13px', outline: 'none' }}
+                    style={{ width: '100%', boxSizing: 'border-box', marginTop: '6px', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '10px 12px', fontSize: '13px', outline: 'none', background: '#ffffff', color: '#0f172a', colorScheme: 'light' }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Preferred time (optional)</label>
+                  <input
+                    value={preferredTime}
+                    onChange={(e) => setPreferredTime(e.target.value)}
+                    placeholder="e.g. Tomorrow morning, or Sat after 2pm"
+                    style={{ width: '100%', boxSizing: 'border-box', marginTop: '6px', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '10px 12px', fontSize: '13px', outline: 'none', background: '#ffffff', color: '#0f172a', colorScheme: 'light' }}
                   />
                 </div>
 

@@ -19,8 +19,9 @@ import ConfirmQRScanner from '../addons/ConfirmQRScanner';
 import { geocodeAddress } from '../../utils/geocoding';
 import { useAccountStanding } from '../../hooks/useAccountStanding';
 import { SERVICE_CATEGORIES, resolvePrimaryCategory } from '../../utils/serviceCategories';
-import { buildServiceReferenceId, writeServiceReceipt, syncServiceRequestStatus, QuoteLineItem } from '../../utils/serviceRequests';
+import { buildServiceReferenceId, writeServiceReceipt, syncServiceRequestStatus, QuoteLineItem, URGENCY_OPTIONS, urgencyMeta, UrgencyLevel } from '../../utils/serviceRequests';
 import { pushNotification } from '../customer/Notification';
+import { postLocalAlert } from '../../services/pushNotifications';
 
 interface ServiceLineItem {
   itemId: string;
@@ -35,11 +36,20 @@ interface ServiceRequestDoc {
   problem: string;
   photoUrl?: string;
   address: string;
+  /** Free-text — "tomorrow morning", "Sat after 2pm", etc. Optional: the
+   *  customer can leave it blank and the business just calls to arrange it. */
+  preferredTime?: string;
+  urgency?: UrgencyLevel;
   status: 'requested' | 'quoted' | 'paid' | 'completed' | 'cancelled' | 'expired';
   quote?: { items: QuoteLineItem[]; total: number };
   negotiationOffer?: { amount: number; status: 'pending' | 'accepted' | 'rejected' } | null;
   referenceId?: string;
   createdAt?: any;
+  /** Set by the customer's own cancel action (Front.tsx handleServiceCancel)
+   *  — distinguishes "the customer walked away" from the business declining
+   *  its own request (handleDeclineRequest below), which also lands on
+   *  status 'cancelled' but shouldn't alarm the manager the same way. */
+  cancelledBy?: 'customer';
 }
 
 const ACTIVE_STATUSES: ServiceRequestDoc['status'][] = ['requested', 'quoted', 'paid'];
@@ -97,6 +107,11 @@ export default function ServiceDashboard() {
   const { isVerified } = useAccountStanding(uid);
   const [isBanned, setIsBanned] = useState(false);
   const [isSuspended, setIsSuspended] = useState(false);
+  // Shown when a customer cancels a request that's already been quoted —
+  // set from the docChanges() watch below, which is the only reliable way
+  // to tell "the customer just cancelled" apart from a request that was
+  // already cancelled before this dashboard was even opened.
+  const [customerCancelledPopup, setCustomerCancelledPopup] = useState<{ referenceId?: string } | null>(null);
 
   const theme = useMemo(() => resolvePrimaryCategory(categoriesOffered), [categoriesOffered]);
 
@@ -125,6 +140,23 @@ export default function ServiceDashboard() {
     const unsubRequests = onSnapshot(
       collection(db, 'serviceProviders', uid, 'serviceRequests'),
       (snap) => {
+        // docChanges() (rather than diffing the mapped array below) is what
+        // lets us tell a genuinely NEW cancellation apart from a request
+        // that was already sitting in 'cancelled' the first time this
+        // listener attaches — those arrive as type 'added', never
+        // 'modified', so they never trigger the alert on dashboard load.
+        snap.docChanges().forEach((change) => {
+          if (change.type !== 'modified') return;
+          const data = change.doc.data() as ServiceRequestDoc;
+          if (data.status === 'cancelled' && data.cancelledBy === 'customer') {
+            setCustomerCancelledPopup({ referenceId: data.referenceId });
+            postLocalAlert(
+              'Service request cancelled',
+              `A customer cancelled their request${data.referenceId ? ` (Ref: ${data.referenceId})` : ''}.`
+            );
+          }
+        });
+
         const items: ServiceRequestDoc[] = [];
         snap.forEach((d) => items.push({ requestId: d.id, ...d.data() } as ServiceRequestDoc));
         items.sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
@@ -214,6 +246,8 @@ export default function ServiceDashboard() {
         problem: quotingRequest.problem,
         photoUrl: quotingRequest.photoUrl,
         address: quotingRequest.address,
+        preferredTime: quotingRequest.preferredTime,
+        urgency: quotingRequest.urgency,
         quote: { items: cleanItems, total },
         allowNegotiation,
         referenceId,
@@ -284,7 +318,19 @@ export default function ServiceDashboard() {
     alert(`Marked "${match.problem.slice(0, 40)}" as completed.`);
   };
 
-  const activeRequests = requests.filter((r) => ACTIVE_STATUSES.includes(r.status));
+  // Emergency jobs jump the queue regardless of when they came in — that's
+  // the whole point of asking the customer for urgency up front. Ties
+  // within the same urgency level fall back to newest-first, same as
+  // before. History stays plain recency — urgency stops mattering once a
+  // job is done or cancelled.
+  const URGENCY_RANK: Record<string, number> = { emergency: 0, today: 1, week: 2, scheduled: 3 };
+  const activeRequests = requests
+    .filter((r) => ACTIVE_STATUSES.includes(r.status))
+    .sort((a, b) => {
+      const rankDiff = (URGENCY_RANK[a.urgency || ''] ?? 4) - (URGENCY_RANK[b.urgency || ''] ?? 4);
+      if (rankDiff !== 0) return rankDiff;
+      return (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0);
+    });
   const historyRequests = requests.filter((r) => HISTORY_STATUSES.includes(r.status));
 
   const handleSaveProfile = async (e: React.FormEvent) => {
@@ -451,6 +497,30 @@ export default function ServiceDashboard() {
 
   return (
     <div style={dashboardStyle}>
+      {/* CUSTOMER CANCELLED POPUP — fires the moment a customer cancels a
+          quoted request (see the docChanges() watch above). A local device
+          notification (postLocalAlert) fires alongside this so the manager
+          hears about it even if the dashboard isn't the focused tab. */}
+      {customerCancelledPopup && (
+        <div style={modalOverlayStyle} onClick={() => setCustomerCancelledPopup(null)}>
+          <div style={{ ...modalCardStyle, textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(239,68,68,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
+              <X size={26} color="#ef4444" />
+            </div>
+            <h3 style={{ margin: '0 0 6px', fontSize: '16px', fontWeight: 900 }}>Service cancelled</h3>
+            <p style={{ margin: '0 0 18px', fontSize: '13px', color: '#94a3b8', lineHeight: 1.5 }}>
+              A customer has cancelled the service{customerCancelledPopup.referenceId ? ` (Ref: ${customerCancelledPopup.referenceId})` : ''}. It's been moved to your History.
+            </p>
+            <button
+              onClick={() => setCustomerCancelledPopup(null)}
+              style={{ width: '100%', padding: '11px', borderRadius: '10px', border: 'none', background: '#ef4444', color: '#fff', fontWeight: 800, fontSize: '13px', cursor: 'pointer' }}
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header — background tints toward whatever category currently
           drives the theme, so the shift from "generic dashboard" to
           "branded workspace" is felt immediately after picking a category
@@ -560,10 +630,24 @@ export default function ServiceDashboard() {
               <div key={r.requestId} style={{ background: '#0b0f19', border: '1px solid #1e293b', borderRadius: '12px', padding: '12px 14px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px' }}>
                   <div style={{ minWidth: 0, flex: 1 }}>
+                    {r.urgency && urgencyMeta(r.urgency) && (
+                      <span style={{
+                        display: 'inline-flex', alignItems: 'center', gap: '4px', marginBottom: '6px',
+                        fontSize: '10px', fontWeight: 800, padding: '2px 8px', borderRadius: '9999px',
+                        color: urgencyMeta(r.urgency)!.color, background: urgencyMeta(r.urgency)!.bg,
+                      }}>
+                        {urgencyMeta(r.urgency)!.emoji} {urgencyMeta(r.urgency)!.label}
+                      </span>
+                    )}
                     <p style={{ margin: 0, fontSize: '13px', fontWeight: 700 }}>{r.problem}</p>
                     <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px' }}>
                       <MapPin size={11} /> {r.address}
                     </p>
+                    {r.preferredTime && (
+                      <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Clock size={11} /> {r.preferredTime}
+                      </p>
+                    )}
                     {r.photoUrl && (
                       <a href={r.photoUrl} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', marginTop: '6px', fontSize: '11px', color: theme.color, textDecoration: 'none' }}>
                         <ImageIcon size={12} /> View photo

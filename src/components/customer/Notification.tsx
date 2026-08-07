@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Bell, Share2, User, Smartphone, Moon, Store, Receipt, Sparkles, X, AlertTriangle,
+  Bell, Share2, User, Smartphone, Moon, Store, Receipt, Sparkles, X, AlertTriangle, Ban,
 } from 'lucide-react';
 import {
   collection, query, orderBy, limit, onSnapshot, doc, writeBatch,
@@ -22,7 +22,8 @@ export type NotificationType =
   | 'dark_mode'
   | 'store_visited'
   | 'new_receipt'
-  | 'property_scanned';
+  | 'property_scanned'
+  | 'service_cancelled';
 
 interface NotificationDoc {
   type: NotificationType;
@@ -77,6 +78,7 @@ const ICONS: Record<NotificationType, React.ElementType> = {
   store_visited: Store,
   new_receipt: Receipt,
   property_scanned: AlertTriangle,
+  service_cancelled: Ban,
 };
 
 function timeAgo(date: Date): string {
@@ -293,7 +295,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ userId }) =>
                   {items.map((n) => {
                     const Icon = ICONS[n.type] || Sparkles;
                     const date = n.createdAt?.toDate ? n.createdAt.toDate() : new Date();
-                    const isUrgent = n.type === 'property_scanned';
+                    const isUrgent = n.type === 'property_scanned' || n.type === 'service_cancelled';
                     return (
                       <div
                         key={n.id}

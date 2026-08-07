@@ -34,6 +34,40 @@ export interface QuoteLineItem {
   amount: number;
 }
 
+/**
+ * URGENCY
+ * ---------------------------------------------------------------------------
+ * Set by the customer when creating the request — separate from
+ * preferredTime, which is just a scheduling note. Urgency is what the
+ * business triages its job board by: an Emergency request should read as
+ * "drop what you're doing," not compete on equal footing with a "schedule
+ * for later" request that happened to be submitted first.
+ */
+export type UrgencyLevel = 'emergency' | 'today' | 'week' | 'scheduled';
+
+export interface UrgencyOption {
+  value: UrgencyLevel;
+  emoji: string;
+  label: string;
+  /** Shown under the label on the customer's picker. */
+  hint: string;
+  color: string;
+  bg: string;
+}
+
+// Ordered most → least urgent, since that's the order both the customer's
+// picker and the manager's job-board sort should present them in.
+export const URGENCY_OPTIONS: UrgencyOption[] = [
+  { value: 'emergency', emoji: '🔴', label: 'Emergency', hint: 'ASAP', color: '#ef4444', bg: 'rgba(239,68,68,0.12)' },
+  { value: 'today', emoji: '🟡', label: 'Today', hint: 'Within the day', color: '#eab308', bg: 'rgba(234,179,8,0.12)' },
+  { value: 'week', emoji: '🟢', label: 'This week', hint: 'No rush', color: '#22c55e', bg: 'rgba(34,197,94,0.12)' },
+  { value: 'scheduled', emoji: '📅', label: 'Schedule for later', hint: 'Pick a date', color: '#818cf8', bg: 'rgba(129,140,248,0.12)' },
+];
+
+export function urgencyMeta(value?: string | null): UrgencyOption | undefined {
+  return URGENCY_OPTIONS.find((o) => o.value === value);
+}
+
 export interface ServiceQuote {
   items: QuoteLineItem[];
   total: number;
@@ -53,6 +87,9 @@ export interface ServiceReceiptInput {
   problem: string;
   photoUrl?: string;
   address: string;
+  /** Free-text — "tomorrow morning", "Sat after 2pm", etc. Optional. */
+  preferredTime?: string;
+  urgency?: UrgencyLevel;
   quote: ServiceQuote;
   allowNegotiation: boolean;
   referenceId: string;
@@ -80,6 +117,8 @@ export async function writeServiceReceipt(input: ServiceReceiptInput): Promise<v
       problem: input.problem,
       photoUrl: input.photoUrl || '',
       address: input.address,
+      preferredTime: input.preferredTime || '',
+      urgency: input.urgency || '',
       quote: input.quote,
       allowNegotiation: input.allowNegotiation,
       negotiationOffer: null,

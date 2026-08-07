@@ -154,6 +154,55 @@ const About = () => {
                         Instead of searching endlessly for businesses, Malvin helps bring the right businesses closer to the right customers.
                     </p>
 
+                    {/* --- SECTION 2.5: CATEGORIES --- */}
+                    <h3 style={{ 
+                        fontSize: '1.6rem', 
+                        fontWeight: '700', 
+                        color: '#ffffff', 
+                        marginTop: '32px', 
+                        marginBottom: '16px' 
+                    }}>
+                        Five Categories, One App
+                    </h3>
+
+                    <p style={{ 
+                        fontSize: '1.05rem', 
+                        lineHeight: '1.7', 
+                        color: 'rgba(255, 255, 255, 0.7)', 
+                        marginBottom: '20px' 
+                    }}>
+                        Malvin currently supports Food, Salon, Hotel, Mechanic, and Service businesses — each with its own storefront experience built around how that kind of business actually operates, from ordering off a live menu to requesting a repair quote and flagging how urgent it is.
+                    </p>
+
+                    <p style={{ 
+                        fontSize: '1.05rem', 
+                        lineHeight: '1.7', 
+                        color: 'rgba(255, 255, 255, 0.7)', 
+                        marginBottom: '36px' 
+                    }}>
+                        A single owner can even run more than one — a Food account and a Salon account under the same person are still treated as two completely independent businesses, each with its own page, its own rating, and its own place in a customer's history.
+                    </p>
+
+                    {/* --- SECTION 2.6: NO APP STORE NEEDED --- */}
+                    <h3 style={{ 
+                        fontSize: '1.6rem', 
+                        fontWeight: '700', 
+                        color: '#ffffff', 
+                        marginTop: '32px', 
+                        marginBottom: '16px' 
+                    }}>
+                        Get Started Without an App Store
+                    </h3>
+
+                    <p style={{ 
+                        fontSize: '1.05rem', 
+                        lineHeight: '1.7', 
+                        color: 'rgba(255, 255, 255, 0.7)', 
+                        marginBottom: '36px' 
+                    }}>
+                        Scanning a Malvin link opens straight in your browser first, so you can see a business's details before installing anything. Android offers a one-tap install; iPhone users can add Malvin to their Home Screen from Safari and use it like a full app — including real push notifications — no App Store required.
+                    </p>
+
                     {/* --- SECTION 3: FEATURES LIST --- */}
                     <h3 style={{ 
                         fontSize: '1.6rem', 

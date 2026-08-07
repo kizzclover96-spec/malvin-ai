@@ -404,19 +404,23 @@ const Category: React.FC<Props> = ({ onSelect, isPremium: isPremiumProp, userBra
 
         {/* SERVICES — the generic workspace for trades (plumbing,
             electrical, cleaning, etc). One dashboard, branded per-business
-            by whichever categories get picked in Settings. */}
+            by whichever categories get picked in Settings.
+            Icon is a clipboard + checkmark ("job list / work order"),
+            deliberately nothing like the Mechanic wrench so the two tiles
+            never get confused at a glance. */}
         <div style={circleStyle} onClick={() => onSelect("service")}>
           <svg width="80" height="80" viewBox="0 0 100 100" fill="none">
-            {/* Wrench + spark, distinct from the Mechanic wrench-only icon */}
-            <path
-              d="M30 70 L58 42 M53 37 C48 32 48 22 58 17 C63 22 73 22 78 27 C83 32 83 42 78 47 C73 52 63 52 58 47 Z"
-              stroke="white"
-              strokeWidth="4"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <circle cx="30" cy="70" r="6" stroke="white" strokeWidth="4" />
-            <path d="M68 68 L72 76 L64 74 L70 84" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+            {/* Clipboard body */}
+            <rect x="26" y="22" width="48" height="60" rx="6" stroke="white" strokeWidth="4" />
+            {/* Clip at the top */}
+            <rect x="40" y="16" width="20" height="12" rx="3" fill="white" />
+            {/* Checklist lines */}
+            <line x1="36" y1="46" x2="52" y2="46" stroke="rgba(255,255,255,0.6)" strokeWidth="3" strokeLinecap="round" />
+            <line x1="36" y1="58" x2="52" y2="58" stroke="rgba(255,255,255,0.6)" strokeWidth="3" strokeLinecap="round" />
+            <line x1="36" y1="70" x2="48" y2="70" stroke="rgba(255,255,255,0.6)" strokeWidth="3" strokeLinecap="round" />
+            {/* Checkmark badge, bottom-right */}
+            <circle cx="66" cy="70" r="14" fill="#22C55E" />
+            <path d="M60 70 L64.5 74.5 L73 65" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
           </svg>
           <span style={labelStyle}>Services</span>
         </div>

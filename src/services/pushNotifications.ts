@@ -2,7 +2,21 @@ import { PushNotifications, Token } from '@capacitor/push-notifications';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { Capacitor } from '@capacitor/core';
 import { doc, setDoc, deleteField } from 'firebase/firestore';
-import { firestore as db } from '../firebase';
+import { firestore as db, app } from '../firebase';
+
+// From Firebase console: Project settings ▸ Cloud Messaging ▸ "Web Push
+// certificates" tab ▸ Generate key pair. Free — no Apple Developer account,
+// no Google Play listing, just a button click in a console you already
+// have. This is what lets an iOS "Add to Home Screen" install (and any
+// other browser — Chrome, desktop, Android browser tabs) receive push
+// without touching native APNs/FCM at all.
+//
+// Not a secret — it's the public half of a VAPID key pair, which browsers
+// need client-side to verify a push actually came from this project (same
+// reasoning as the firebaseConfig values elsewhere). Pulled from .env like
+// the rest of the Firebase config, since this file (unlike the static
+// firebase-messaging-sw.js) goes through Vite's build.
+const WEB_PUSH_VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY || '';
 
 // Must match com.google.firebase.messaging.default_notification_channel_id in
 // AndroidManifest.xml, or server pushes land on a channel Android invented for
@@ -42,19 +56,87 @@ async function ensureChannel(): Promise<void> {
   }
 }
 
+// WEB PUSH — the non-native path. Covers an iOS "Add to Home Screen"
+// install (Safari only allows push permission to be requested from an
+// installed/standalone web app, never a plain tab, on any iOS version) and
+// any ordinary browser tab on desktop/Android/etc, which have no such
+// restriction. Uses Firebase Cloud Messaging's Web Push support, so the
+// resulting token is saved to the exact same customers/{uid}.pushToken
+// field the native path uses — the backend's sendPushToUser() needs no
+// changes at all to reach a web-registered device.
+async function registerWebPush(uid: string): Promise<void> {
+  if (!uid) return;
+  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+    console.log('This browser does not support web push — skipping.');
+    return;
+  }
+
+  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+  const isStandalone =
+    window.matchMedia?.('(display-mode: standalone)').matches ||
+    (navigator as any).standalone === true;
+  // On iOS specifically, requesting permission from a plain Safari tab
+  // does nothing (no prompt, no error) — it only ever works once the
+  // person has added the page to their Home Screen and is launching it
+  // from there. Every other platform can register from a normal tab.
+  if (isIOS && !isStandalone) return;
+
+  if (!WEB_PUSH_VAPID_KEY) {
+    console.warn('Web push VAPID key not configured (see WEB_PUSH_VAPID_KEY) — skipping web push registration.');
+    return;
+  }
+
+  try {
+    const { isSupported, getMessaging, getToken } = await import('firebase/messaging');
+    if (!(await isSupported())) return;
+
+    let permission = Notification.permission;
+    if (permission === 'default') {
+      permission = await Notification.requestPermission();
+    }
+    if (permission !== 'granted') {
+      console.log('Web push permission not granted:', permission);
+      return;
+    }
+
+    const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+    const messaging = getMessaging(app);
+    const token = await getToken(messaging, {
+      vapidKey: WEB_PUSH_VAPID_KEY,
+      serviceWorkerRegistration: registration,
+    });
+    if (!token) return;
+
+    await setDoc(
+      doc(db, 'customers', uid),
+      {
+        pushToken: token,
+        pushPlatform: 'web',
+        pushTokenUpdatedAt: new Date().toISOString(),
+      },
+      { merge: true }
+    );
+  } catch (err) {
+    console.error('Web push registration failed:', err);
+  }
+}
+
 // Registers this device for push notifications and saves the resulting FCM
 // token to Firestore so the backend knows where to deliver a push. Safe to
 // call every time the app opens with a signed-in user — re-registering is a
 // no-op if permission is already granted, and re-saving the same token is
 // harmless.
 //
-// Only does anything on a native platform (iOS/Android via Capacitor) — on
-// web this quietly does nothing, since web push needs a completely
-// different setup (service worker + VAPID key) that this project doesn't
-// use, given the app is wrapped in Capacitor pointing at a remote URL.
+// Branches on platform: the native Capacitor path (iOS/Android app) below,
+// or registerWebPush() above for everyone else — a normal browser tab, or
+// an iOS "Add to Home Screen" install.
 export async function registerPushNotifications(uid: string): Promise<void> {
-  if (!Capacitor.isNativePlatform()) return;
   if (!uid) return;
+
+  if (!Capacitor.isNativePlatform()) {
+    await registerWebPush(uid);
+    return;
+  }
 
   try {
     let permission = await PushNotifications.checkPermissions();
