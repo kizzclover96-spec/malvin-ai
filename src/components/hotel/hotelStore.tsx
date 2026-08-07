@@ -26,6 +26,7 @@ import { resolveVerifiedFlag } from '../../utils/verification';
 import { useAccountStanding } from '../../hooks/useAccountStanding';
 import { evaluateIntakeLimit, formatCooldownRemaining } from '../../utils/businessLimits';
 import IntakeLimitBanner from '../addons/IntakeLimitBanner';
+import { AuthRequiredPopup } from '../addons/AuthRequiredPopup';
 import styles from './hotelStore.module.css';
 
 // --- Types ---
@@ -546,6 +547,12 @@ export default function HotelStore() {
 
   return (
     <div className={styles.page}>
+      {/* Signed-out backstop — catches anyone with zero Firebase session
+          before they hit a raw Firestore permission error trying to
+          reserve. Page still renders underneath — this only blocks
+          interaction. */}
+      {uid && <AuthRequiredPopup targetPath={`/hotel/${uid}`} />}
+
       {toast && <div className={styles.toast}>{toast}</div>}
 
       {/* --- Identity hero --- */}

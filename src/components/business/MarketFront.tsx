@@ -6,12 +6,13 @@ import { ProductCard } from '../addons/ProductView';
 import CustomerChat from '../customer/CustomerChat';
 import Report from "../addons/report";
 import ReputationScore from "../addons/reputationScore";
+import { AuthRequiredPopup } from "../addons/AuthRequiredPopup";
 import {
     doc, collection,
     onSnapshot
 } from "firebase/firestore";
 
-import { firestore } from "../firebase";
+import { firestore } from "../../firebase";
 import { updateUserTrust } from "../trustEngine";
 
 // Reusable Verified Badge Component
@@ -473,6 +474,12 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
 
     return (
         <div style={marketContainer}>
+            {/* Signed-out backstop — catches anyone with zero Firebase
+                session before they hit a raw Firestore permission error
+                trying to send a message. Page still renders underneath —
+                this only blocks interaction. */}
+            {brandId && <AuthRequiredPopup targetPath={`/chat/${brandId}`} />}
+
             <style>{`
                 * { box-sizing: border-box; }
                 @keyframes slideUp {

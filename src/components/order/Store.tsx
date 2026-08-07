@@ -10,6 +10,7 @@ import { Star, AlertTriangle } from 'lucide-react';
 import { getDatabase, ref, onValue } from 'firebase/database';
 import Banned from '../addons/Banned';
 import Suspended from '../addons/Suspended';
+import { AuthRequiredPopup } from '../addons/AuthRequiredPopup';
 
 // --- Interfaces ---
 interface RestaurantProfile {
@@ -625,6 +626,12 @@ export const StoreFrontend: React.FC = () => {
 
   return (
     <div className={styles.appContainer}>
+      {/* Signed-out backstop — catches anyone with zero Firebase session
+          (opened outside Malvin, no app, not logged in) before they hit a
+          raw Firestore permission error trying to order. Page still
+          renders underneath — this only blocks interaction. */}
+      {Uid && <AuthRequiredPopup targetPath={`/food/${Uid}`} />}
+
       {/* Top Bar */}
       {/* Top Bar */}
       <header className={styles.topBar}>
