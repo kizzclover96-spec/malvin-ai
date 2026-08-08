@@ -10,6 +10,13 @@ import AllAds from "./AllAds";
 import { Link } from "react-router-dom";
 import AdminReports from "./AdminReports";
 import {MalvinAiPersonnelSystem} from "./MalvinAiPersonnelSystem";
+import AdminKillSwitch from "./AdminKillSwitch";
+import { useSystemStatus } from "../../hooks/useSystemStatus";
+import {
+    LayoutGrid, Megaphone, FileBarChart2, ShieldAlert, Power, LogOut,
+    Search, ShieldCheck, Ban, Users as UsersIcon, BadgeCheck, ExternalLink,
+    CircleDot, ChevronRight
+} from "lucide-react";
 
 const AdsManager = () => {
     const [users, setUsers] = useState<any[]>([]);
@@ -25,6 +32,12 @@ const AdsManager = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [activePanel, setActivePanel] = useState("ads");
     const totalUsers = users.length;
+
+    // Live "is anything currently restricted" read for the status pill in
+    // the top bar — the same /system/status node the Kill Switch panel
+    // controls. Purely informational here; AdminKillSwitch owns the writes.
+    const { status: systemStatus } = useSystemStatus();
+    const anyRestricted = systemStatus.appLocked || systemStatus.storesLocked || systemStatus.businessLocked || systemStatus.customerHubLocked;
 
     const verifiedUsers = users.filter(
      (u) => u.isVerified === true
@@ -43,6 +56,8 @@ const AdsManager = () => {
     const filteredAds = adRequests.filter(ad =>
         filter === "ALL" ? true : ad.status === filter
     );
+    const pendingAdCount = adRequests.filter(ad => ad.status === "Pending_Admin_Review").length;
+
     useEffect(() => {
         const verificationRef = ref(db, "verification_requests");
 
@@ -222,725 +237,1037 @@ const AdsManager = () => {
         );
     });
 
-    
+    // The AI Personnel system is its own full-bleed white workspace with its
+    // own internal navigation — it intentionally opts out of the console
+    // shell below rather than being squeezed into a dark sidebar layout.
     if (activePanel === "personnel") {
         return (
-            <div
-                style={{
-                    width: "100vw",
-                    height: "100vh",
-                    background: "#fff"
-                }}
-            >
+            <div style={{ width: "100vw", height: "100vh", background: "#fff" }}>
+                <div style={{ position: "fixed", top: 16, left: 16, zIndex: 50 }}>
+                    <button onClick={() => setActivePanel("ads")} style={backToConsoleBtn}>
+                        <ChevronRight size={13} style={{ transform: "rotate(180deg)" }} />
+                        CONSOLE
+                    </button>
+                </div>
                 <MalvinAiPersonnelSystem />
             </div>
         );
     }
 
+    const NAV_ITEMS: { key: string; label: string; icon: React.ReactNode }[] = [
+        { key: "ads", label: "MERCHANTS & ADS", icon: <LayoutGrid size={16} /> },
+        { key: "reports", label: "REPORTS", icon: <FileBarChart2 size={16} /> },
+        { key: "personnel", label: "AI PERSONNEL", icon: <UsersIcon size={16} /> },
+        { key: "killswitch", label: "KILL SWITCH", icon: <ShieldAlert size={16} /> },
+    ];
+
+    const PANEL_TITLES: Record<string, string> = {
+        ads: "Merchants & Ads",
+        reports: "Reports",
+        killswitch: "Kill Switch",
+    };
+
     return (
-        <div style={adminLayout}>
-            <header style={headerStyle}>
-                <h1 style={{ fontSize: '20px', letterSpacing: '3px' }}>MALVIN_ADMIN_V2</h1>
-                <Link to="/allads" style={logoutBtn}> APPROVED ADS</Link>
-                <button onClick={() => setActivePanel("reports")} style={logoutBtn}>
-                    REPORTS
-                </button>
+        <div style={consoleShell}>
+            {/* ---------- SIDEBAR ---------- */}
+            <aside style={sidebarStyle}>
+                <div style={{ padding: "0 20px", marginBottom: 36 }}>
+                    <div style={{ fontSize: 10, letterSpacing: "3px", opacity: 0.4, marginBottom: 2 }}>MALVIN AI</div>
+                    <div style={{ fontSize: 15, fontWeight: 800, letterSpacing: "1.5px" }}>ADMIN_V2</div>
+                </div>
 
-                <button onClick={() => setActivePanel("ads")} style={logoutBtn}>
-                    ADS_PANEL
-                </button>
-                <button onClick={() => signOut(auth)} style={logoutBtn}>LOGOUT</button>
-                {/* THE NEW AI PERSONNEL SYSTEM SWITCH BUTTON */}
-                <button 
-                    onClick={() => setActivePanel("personnel")} 
-                    style={{...logoutBtn, background: activePanel === "personnel" ? "#C5FF41" : "transparent", color: activePanel === "personnel" ? "#000" : "#fff", fontWeight: 'bold'}}
-                >
-                    AI_PERSONNEL
-                </button>
-            </header>
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
-                {["ALL", "Pending_Admin_Review", "Approved", "Rejected"].map(f => (
-                    <button
-                        key={f}
-                        onClick={() => setFilter(f)}
-                        style={{
-                            padding: '6px 10px',
-                            fontSize: '10px',
-                            border: '1px solid #333',
-                            background: filter === f ? '#C5FF41' : 'transparent',
-                            color: filter === f ? '#000' : '#fff'
-                        }}
-                    >
-                        {f}
-                    </button>
-                ))}
-            </div>
-            {activePanel === "ads" && (
-                <div style={{ display: 'grid', gridTemplateColumns: '350px 1fr 350px 350px', gap: '24px' }}>
-
-                    {/* --- MERCHANT DIRECTORY --- */}
-                    <section style={panelStyle}>
-                        <div style={{ marginBottom: "12px" }}>
-                            <h3 style={sectionTitle}>MERCHANT_DIRECTORY</h3>
-
-                            <div
+                <nav style={{ display: "flex", flexDirection: "column", gap: 4, padding: "0 12px" }}>
+                    {NAV_ITEMS.map(item => {
+                        const isActive = activePanel === item.key;
+                        const isDanger = item.key === "killswitch";
+                        return (
+                            <button
+                                key={item.key}
+                                onClick={() => setActivePanel(item.key)}
                                 style={{
-                                display: "flex",
-                                gap: "8px",
-                                marginTop: "8px",
-                                flexWrap: "wrap"
+                                    ...navItemStyle,
+                                    background: isActive ? (isDanger ? "rgba(255,92,92,0.12)" : "rgba(197,255,65,0.10)") : "transparent",
+                                    color: isActive ? (isDanger ? tokens.danger : tokens.accent) : tokens.textDim,
+                                    borderLeft: isActive ? `2px solid ${isDanger ? tokens.danger : tokens.accent}` : "2px solid transparent",
                                 }}
                             >
-                                <span
-                                    style={{
-                                        background: "rgba(255,255,255,0.05)",
-                                        padding: "4px 10px",
-                                        borderRadius: "999px",
-                                        fontSize: "11px"
-                                    }}
-                                    >
-                                    👥 {totalUsers} Users
-                                </span>
+                                {item.icon}
+                                {item.label}
+                                {item.key === "ads" && pendingAdCount > 0 && (
+                                    <span style={navBadge}>{pendingAdCount}</span>
+                                )}
+                            </button>
+                        );
+                    })}
 
-                                <span
-                                    style={{
-                                        background: "rgba(0,127,255,0.12)",
-                                        color: "#007fff",
-                                        padding: "4px 10px",
-                                        borderRadius: "999px",
-                                        fontSize: "11px"
-                                    }}
-                                    >
-                                    ✓ {verifiedUsers} Verified
-                                </span>
+                    <Link to="/allads" style={{ ...navItemStyle, textDecoration: "none", color: tokens.textDim }}>
+                        <ExternalLink size={16} />
+                        APPROVED ADS
+                    </Link>
+                </nav>
 
-                                <span
-                                    style={{
-                                        background: "rgba(255,77,77,0.12)",
-                                        color: "#ff4d4d",
-                                        padding: "4px 10px",
-                                        borderRadius: "999px",
-                                        fontSize: "11px"
-                                    }}
-                                    >
-                                    ⛔ {bannedUsers} Banned
-                                </span>
+                <div style={{ marginTop: "auto", padding: "0 12px 12px" }}>
+                    <button onClick={() => signOut(auth)} style={{ ...navItemStyle, color: tokens.danger }}>
+                        <LogOut size={16} />
+                        LOG OUT
+                    </button>
+                </div>
+            </aside>
+
+            {/* ---------- MAIN ---------- */}
+            <main style={mainStyle}>
+                <header style={topBarStyle}>
+                    <h1 style={{ fontSize: 18, fontWeight: 700, letterSpacing: "0.5px", margin: 0 }}>
+                        {PANEL_TITLES[activePanel] || ""}
+                    </h1>
+
+                    <div
+                        style={{
+                            ...statusPillStyle,
+                            background: anyRestricted ? "rgba(255,92,92,0.12)" : "rgba(197,255,65,0.10)",
+                            color: anyRestricted ? tokens.danger : tokens.accent,
+                        }}
+                    >
+                        <span style={{ position: "relative", display: "flex", width: 8, height: 8 }}>
+                            <span style={{ ...pulseDot, background: anyRestricted ? tokens.danger : tokens.accent }} />
+                            <span style={{ ...pulseDotCore, background: anyRestricted ? tokens.danger : tokens.accent }} />
+                        </span>
+                        {anyRestricted ? "RESTRICTION ACTIVE" : "ALL SYSTEMS NORMAL"}
+                    </div>
+                </header>
+
+                <div style={contentArea}>
+                    {activePanel === "ads" && (
+                        <>
+                            {/* ---------- KPI ROW ---------- */}
+                            <div style={kpiRow}>
+                                <KpiCard icon={<UsersIcon size={15} />} label="Total users" value={totalUsers} />
+                                <KpiCard icon={<BadgeCheck size={15} />} label="Verified" value={verifiedUsers} tone="info" />
+                                <KpiCard icon={<Ban size={15} />} label="Banned" value={bannedUsers} tone="danger" />
+                                <KpiCard icon={<Megaphone size={15} />} label="Ads pending review" value={pendingAdCount} tone="accent" />
                             </div>
-                        </div>
-                        <input
-                            type="text"
-                            placeholder="Search email, uid or brand..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            style={{
-                                width: '100%',
-                                marginBottom: '12px',
-                                padding: '10px',
-                                background: '#000',
-                                color: '#fff',
-                                border: '1px solid #333',
-                                borderRadius: '8px'
-                            }}
-                        />
-                        <div style={{ maxHeight: '75vh', overflowY: 'auto', paddingRight: '8px' }}>
-                            {filteredUsers.map((u) => {
-                                const ipCount = getIpClusterCount(u.security?.lastIp);
-                                const isHighRisk = ipCount > 2;
-                                const isSelected = selectedUser?.uid === u.uid;
-                                const merchantName = u.brandData?.name || u.brandName || "Ghost_User";
 
-                                return (
-                                    <div 
-                                        key={u.uid} 
-                                        onClick={() => handleSelectUser(u)}
+                            {/* ---------- FILTER BAR ---------- */}
+                            <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
+                                {["ALL", "Pending_Admin_Review", "Approved", "Rejected"].map(f => (
+                                    <button
+                                        key={f}
+                                        onClick={() => setFilter(f)}
                                         style={{
-                                            ...userCard,
-                                            borderLeft: isSelected ? '4px solid #C5FF41' : '4px solid transparent',
-                                            background: u.brandData?.status === 'Banned' 
-                                                ? 'rgba(255, 77, 77, 0.1)' 
-                                                : isSelected ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.03)',
+                                            ...segmentBtn,
+                                            background: filter === f ? tokens.accent : 'transparent',
+                                            color: filter === f ? '#000' : tokens.textDim,
+                                            borderColor: filter === f ? tokens.accent : tokens.border,
                                         }}
                                     >
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                                            <span style={{ fontSize: '14px', fontWeight: 700, color: u.isVerified ? '#007fff' : '#fff' }}>
-                                                {u.isVerified && "✓ "}{merchantName.toUpperCase()}
-                                            </span>
-                                            {isHighRisk && <span style={botTag}>RISK_CLUSTER</span>}
-                                        </div>
-                                        
-                                        <div style={dirMetadata}>
-                                            <span style={{ opacity: 0.4 }}>EMAIL:</span> {u.email || 'N/A'}
-                                        </div>
-
-                                        <div style={dirMetadata}>
-                                            <span style={{ opacity: 0.4 }}>B_ID:</span> 
-                                            <span style={{ fontFamily: 'monospace', marginLeft: '4px' }}>{u.uid}</span>
-                                        </div>
-
-                                        <div style={{ 
-                                            display: 'flex', 
-                                            justifyContent: 'space-between', 
-                                            marginTop: '10px', 
-                                            paddingTop: '8px', 
-                                            borderTop: '1px solid rgba(255,255,255,0.05)',
-                                            fontSize: '10px' 
-                                        }}>
-                                            <span style={{ color: '#C5FF41' }}>€{u.treasury?.balance?.toLocaleString() || '0'}</span>
-                                            <span style={{ opacity: 0.4 }}>IP: {u.security?.lastIp || 'UNKNOWN'}</span>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </section>
-
-                    {/* --- ACCOUNT_MODERATOR SECTION --- */}
-                    <section style={panelStyle}>
-                        <h3 style={sectionTitle}>ACCOUNT_MODERATOR</h3>
-                        {selectedUser ? (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                                
-                                {/* BRAND & BALANCE */}
-                                <div>
-                                    <label style={labelStyle}>EDIT_BRAND_NAME</label>
-                                    <input 
-                                        style={inputStyle} 
-                                        value={editBrandName} 
-                                        onChange={e => setEditBrandName(e.target.value)} 
-                                    />
-                                </div>
-
-                                <div>
-                                    <label style={labelStyle}>ADJUST_TREASURY_BALANCE</label>
-                                    <input 
-                                        style={inputStyle} 
-                                        type="number" 
-                                        value={editBalance} 
-                                        onChange={e => setEditBalance(e.target.value)} 
-                                    />
-                                </div>
-
-                                {/* VERIFICATION PRESETS */}
-                                <div>
-                                    <label style={labelStyle}>VERIFICATION_STATUS</label>
-                                    <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
-                                        <button
-                                            onClick={() => setEditIsVerified(true)}
-                                            style={{ 
-                                                ...statusBtn, 
-                                                border: editIsVerified ? '1px solid #007fff' : '1px solid #333',
-                                                color: editIsVerified ? '#007fff' : '#fff'
-                                            }}
-                                        >
-                                            VERIFIED
-                                        </button>
-                                        <button
-                                            onClick={() => setEditIsVerified(false)}
-                                            style={{ 
-                                                ...statusBtn, 
-                                                border: !editIsVerified ? '1px solid #ff4d4d' : '1px solid #333',
-                                                color: !editIsVerified ? '#ff4d4d' : '#fff'
-                                            }}
-                                        >
-                                            UNVERIFIED
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {/* STATUS MANAGEMENT */}
-                                <div>
-                                    <label style={labelStyle}>ACCOUNT_STATUS</label>
-                                    <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
-                                        <button 
-                                            onClick={() => handleUpdateStatus('Active')}
-                                            style={{ ...statusBtn, border: selectedUser.status === 'Active' ? '1px solid #C5FF41' : '1px solid #333' }}
-                                        >ACTIVE</button>
-                                        <button 
-                                            onClick={() => handleUpdateStatus('Suspended')}
-                                            style={{ ...statusBtn, color: '#ffcc00' }}
-                                        >WARN</button>
-                                        <button 
-                                            onClick={() => handleUpdateStatus('Banned')}
-                                            style={{ ...statusBtn, color: '#ff4d4d' }}
-                                        >BAN</button>
-                                    </div>
-                                </div>
-
-                                <hr style={{ border: 'none', borderTop: '1px solid #222', margin: '5px 0' }} />
-
-                                {/* SECURITY ACTIONS */}
-                                <div>
-                                    <label style={labelStyle}>SECURITY_OVERRIDE</label>
-                                    <button 
-                                        onClick={handlePasswordReset}
-                                        style={{ ...inputStyle, cursor: 'pointer', textAlign: 'center', marginTop: '8px', color: '#888' }}
-                                    >
-                                        SEND_PASSWORD_RESET_EMAIL
+                                        {f.replace(/_/g, " ")}
                                     </button>
-                                </div>
-
-                                <button onClick={handleSaveChanges} style={approveBtn}>PUSH_CHANGES_TO_DB</button>
-
-                                <hr style={{ border: 'none', borderTop: '1px solid #222', margin: '5px 0' }} />
-
-                                
+                                ))}
                             </div>
-                        ) : (
-                            <div style={{ textAlign: 'center', opacity: 0.3, padding: '50px' }}>SELECT_MERCHANT_TO_MODERATE</div>
-                        )}
-                    </section>
 
-                    {/* --- RIGHT: AUDIT LOGS --- */}
-                    {/* --- RIGHT: AUDIT LOGS / VERIFICATION REQUESTS --- */}
-                    <section style={panelStyle}>
-                        <h3 style={sectionTitle}>VERIFICATION & SUBSCRIPTION NOTICES</h3>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginBottom: 20 }}>
 
-                        <div style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-                            {verificationRequests.length === 0 ? (
-                                <div style={{ opacity: 0.3, fontSize: '12px' }}>
-                                    NO_PENDING_REQUESTS_OR_NOTICES
-                                </div>
-                            ) : (
-                                verificationRequests.map(req => {
-                                    const isCanceled = req.status === "subscription_canceled";
+                                {/* --- MERCHANT DIRECTORY --- */}
+                                <section style={panelStyle}>
+                                    <h3 style={sectionTitle}>MERCHANT DIRECTORY</h3>
 
-                                    return (
-                                        <div key={req.id} style={{
-                                            padding: '12px',
-                                            borderBottom: '1px solid #222',
-                                            background: isCanceled ? 'rgba(255, 77, 77, 0.08)' : 'transparent',
-                                            borderRadius: '8px',
-                                            marginBottom: '8px',
-                                            fontSize: '12px'
-                                        }}>
-                                            <div style={{ color: isCanceled ? '#ff4d4d' : '#C5FF41', fontWeight: 700 }}>
-                                                {req.brandName || "UNKNOWN_BRAND"}
+                                    <div style={{ position: "relative", marginBottom: '14px' }}>
+                                        <Search size={14} style={{ position: "absolute", left: 12, top: 12, opacity: 0.4 }} />
+                                        <input
+                                            type="text"
+                                            placeholder="Search email, uid or brand…"
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                            style={{ ...inputStyle, paddingLeft: 34 }}
+                                        />
+                                    </div>
+                                    <div style={{ maxHeight: '68vh', overflowY: 'auto', paddingRight: '4px' }}>
+                                        {filteredUsers.length === 0 && (
+                                            <EmptyState text="No merchants match this search." />
+                                        )}
+                                        {filteredUsers.map((u) => {
+                                            const ipCount = getIpClusterCount(u.security?.lastIp);
+                                            const isHighRisk = ipCount > 2;
+                                            const isSelected = selectedUser?.uid === u.uid;
+                                            const merchantName = u.brandData?.name || u.brandName || "Ghost_User";
+                                            const isBanned = u.brandData?.status === 'Banned';
+
+                                            return (
+                                                <div 
+                                                    key={u.uid} 
+                                                    onClick={() => handleSelectUser(u)}
+                                                    style={{
+                                                        ...userCard,
+                                                        borderColor: isSelected ? tokens.accent : tokens.border,
+                                                        background: isBanned
+                                                            ? 'rgba(255, 92, 92, 0.06)' 
+                                                            : isSelected ? tokens.surfaceRaised : tokens.surface,
+                                                    }}
+                                                >
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: "flex-start", marginBottom: '8px' }}>
+                                                        <span style={{ fontSize: '13px', fontWeight: 700, color: u.isVerified ? tokens.info : tokens.text }}>
+                                                            {u.isVerified && "✓ "}{merchantName.toUpperCase()}
+                                                        </span>
+                                                        {isHighRisk && <span style={riskTag}>RISK CLUSTER</span>}
+                                                    </div>
+                                                    
+                                                    <div style={dirMetadata}>
+                                                        <span style={{ opacity: 0.4 }}>EMAIL</span> {u.email || 'N/A'}
+                                                    </div>
+
+                                                    <div style={dirMetadata}>
+                                                        <span style={{ opacity: 0.4 }}>ID</span> 
+                                                        <span style={{ fontFamily: tokens.mono, marginLeft: '4px' }}>{u.uid}</span>
+                                                    </div>
+
+                                                    <div style={{ 
+                                                        display: 'flex', 
+                                                        justifyContent: 'space-between', 
+                                                        marginTop: '10px', 
+                                                        paddingTop: '8px', 
+                                                        borderTop: `1px solid ${tokens.border}`,
+                                                        fontSize: '10px' 
+                                                    }}>
+                                                        <span style={{ color: tokens.accent, fontFamily: tokens.mono }}>€{u.treasury?.balance?.toLocaleString() || '0'}</span>
+                                                        <span style={{ opacity: 0.4, fontFamily: tokens.mono }}>{u.security?.lastIp || 'UNKNOWN'}</span>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </section>
+
+                                {/* --- ACCOUNT_MODERATOR SECTION --- */}
+                                <section style={panelStyle}>
+                                    <h3 style={sectionTitle}>ACCOUNT MODERATOR</h3>
+                                    {selectedUser ? (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                                            
+                                            {/* BRAND & BALANCE */}
+                                            <div>
+                                                <label style={labelStyle}>BRAND NAME</label>
+                                                <input 
+                                                    style={inputStyle} 
+                                                    value={editBrandName} 
+                                                    onChange={e => setEditBrandName(e.target.value)} 
+                                                />
                                             </div>
 
-                                            <div style={{ fontSize: '10px', opacity: 0.6 }}>
-                                                UID: {req.uid}
+                                            <div>
+                                                <label style={labelStyle}>TREASURY BALANCE (€)</label>
+                                                <input 
+                                                    style={inputStyle} 
+                                                    type="number" 
+                                                    value={editBalance} 
+                                                    onChange={e => setEditBalance(e.target.value)} 
+                                                />
                                             </div>
 
-                                            <div style={{ fontSize: '10px', opacity: 0.6 }}>
-                                                EMAIL: {req.email}
-                                            </div>
-
-                                            {/* STATUS BADGE */}
-                                            <div style={{ marginTop: '6px' }}>
-                                                {isCanceled ? (
-                                                    <span style={{ background: '#ff4d4d', color: '#fff', fontSize: '9px', padding: '2px 6px', borderRadius: '4px', fontWeight: 800 }}>
-                                                        🔴 SUBSCRIPTION CANCELED
-                                                    </span>
-                                                ) : (
-                                                    <span style={{ background: '#FFD700', color: '#000', fontSize: '9px', padding: '2px 6px', borderRadius: '4px', fontWeight: 800 }}>
-                                                        🟡 VERIFICATION REQUESTED
-                                                    </span>
-                                                )}
-                                            </div>
-
-                                            {/* ACTION BUTTONS */}
-                                            <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
-                                                {isCanceled ? (
-                                                    /* REVOKE & DISMISS CANCELLATION */
+                                            {/* VERIFICATION PRESETS */}
+                                            <div>
+                                                <label style={labelStyle}>VERIFICATION STATUS</label>
+                                                <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
                                                     <button
-                                                        style={{
-                                                            padding: '6px 10px',
-                                                            fontSize: '10px',
-                                                            border: '1px solid #ff4d4d',
-                                                            background: processingId === req.id ? '#333' : 'rgba(255, 77, 77, 0.2)',
-                                                            color: '#ff4d4d',
-                                                            cursor: processingId === req.id ? 'not-allowed' : 'pointer',
-                                                            fontWeight: 700,
-                                                            borderRadius: '4px',
-                                                        }}
-                                                        disabled={processingId === req.id}
-                                                        onClick={async () => {
-                                                            try {
-                                                                setProcessingId(req.id);
-
-                                                                // 1. Remove verified and premium status from profile
-                                                                await update(ref(db), {
-                                                                    [`users/${req.uid}/profile/isVerified`]: false,
-                                                                    [`users/${req.uid}/profile/isPremium`]: false,
-                                                                });
-
-                                                                // 2. Remove cancellation notice
-                                                                await remove(ref(db, `verification_requests/${req.id}`));
-
-                                                                // 3. Log audit event
-                                                                await push(ref(db, 'admin/audit_log'), {
-                                                                    adminEmail: auth.currentUser?.email,
-                                                                    action: 'REVOKE_VERIFICATION',
-                                                                    targetUid: req.uid,
-                                                                    details: `Revoked verification mark due to subscription cancellation for ${req.brandName}`,
-                                                                    timestamp: serverTimestamp(),
-                                                                });
-                                                            } finally {
-                                                                setProcessingId(null);
-                                                            }
-                                                        }}
+                                                        onClick={() => setEditIsVerified(true)}
+                                                        style={toggleBtn(editIsVerified, tokens.info)}
                                                     >
-                                                        {processingId === req.id ? "REVOKING..." : "REVOKE BADGE & DISMISS"}
+                                                        VERIFIED
                                                     </button>
-                                                ) : (
-                                                    /* APPROVE VERIFICATION */
-                                                    <>
+                                                    <button
+                                                        onClick={() => setEditIsVerified(false)}
+                                                        style={toggleBtn(!editIsVerified, tokens.danger)}
+                                                    >
+                                                        UNVERIFIED
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            {/* STATUS MANAGEMENT */}
+                                            <div>
+                                                <label style={labelStyle}>ACCOUNT STATUS</label>
+                                                <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                                                    <button 
+                                                        onClick={() => handleUpdateStatus('Active')}
+                                                        style={toggleBtn(selectedUser.status === 'Active', tokens.accent)}
+                                                    >ACTIVE</button>
+                                                    <button 
+                                                        onClick={() => handleUpdateStatus('Suspended')}
+                                                        style={{ ...statusBtn, color: tokens.warn }}
+                                                    >WARN</button>
+                                                    <button 
+                                                        onClick={() => handleUpdateStatus('Banned')}
+                                                        style={{ ...statusBtn, color: tokens.danger }}
+                                                    >BAN</button>
+                                                </div>
+                                            </div>
+
+                                            <div style={dividerStyle} />
+
+                                            {/* SECURITY ACTIONS */}
+                                            <div>
+                                                <label style={labelStyle}>SECURITY OVERRIDE</label>
+                                                <button 
+                                                    onClick={handlePasswordReset}
+                                                    style={{ ...inputStyle, cursor: 'pointer', textAlign: 'center', marginTop: '8px', color: tokens.textDim, fontFamily: tokens.mono, fontSize: 11, letterSpacing: '0.5px' }}
+                                                >
+                                                    SEND PASSWORD RESET EMAIL
+                                                </button>
+                                            </div>
+
+                                            <button onClick={handleSaveChanges} style={primaryBtn}>PUSH CHANGES TO DB</button>
+                                        </div>
+                                    ) : (
+                                        <EmptyState text="Select a merchant from the directory to moderate their account." />
+                                    )}
+                                </section>
+
+                                {/* --- RIGHT: VERIFICATION REQUESTS --- */}
+                                <section style={panelStyle}>
+                                    <h3 style={sectionTitle}>VERIFICATION & SUBSCRIPTION NOTICES</h3>
+
+                                    <div style={{ maxHeight: '68vh', overflowY: 'auto' }}>
+                                        {verificationRequests.length === 0 ? (
+                                            <EmptyState text="No pending requests or notices." />
+                                        ) : (
+                                            verificationRequests.map(req => {
+                                                const isCanceled = req.status === "subscription_canceled";
+
+                                                return (
+                                                    <div key={req.id} style={{
+                                                        padding: '14px',
+                                                        border: `1px solid ${tokens.border}`,
+                                                        background: isCanceled ? 'rgba(255, 92, 92, 0.06)' : tokens.surface,
+                                                        borderRadius: '10px',
+                                                        marginBottom: '10px',
+                                                        fontSize: '12px'
+                                                    }}>
+                                                        <div style={{ color: isCanceled ? tokens.danger : tokens.accent, fontWeight: 700 }}>
+                                                            {req.brandName || "UNKNOWN BRAND"}
+                                                        </div>
+
+                                                        <div style={{ fontSize: '10px', opacity: 0.6, fontFamily: tokens.mono, marginTop: 2 }}>
+                                                            {req.uid}
+                                                        </div>
+
+                                                        <div style={{ fontSize: '10px', opacity: 0.6, marginTop: 2 }}>
+                                                            {req.email}
+                                                        </div>
+
+                                                        {/* STATUS BADGE */}
+                                                        <div style={{ marginTop: '8px' }}>
+                                                            {isCanceled ? (
+                                                                <span style={{ ...badgeStyle, background: tokens.danger, color: '#fff' }}>
+                                                                    SUBSCRIPTION CANCELED
+                                                                </span>
+                                                            ) : (
+                                                                <span style={{ ...badgeStyle, background: tokens.warn, color: '#000' }}>
+                                                                    VERIFICATION REQUESTED
+                                                                </span>
+                                                            )}
+                                                        </div>
+
+                                                        {/* ACTION BUTTONS */}
+                                                        <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                                                            {isCanceled ? (
+                                                                /* REVOKE & DISMISS CANCELLATION */
+                                                                <button
+                                                                    style={{
+                                                                        ...miniBtn,
+                                                                        border: `1px solid ${tokens.danger}`,
+                                                                        background: processingId === req.id ? tokens.surfaceRaised : 'rgba(255, 92, 92, 0.12)',
+                                                                        color: tokens.danger,
+                                                                        cursor: processingId === req.id ? 'not-allowed' : 'pointer',
+                                                                    }}
+                                                                    disabled={processingId === req.id}
+                                                                    onClick={async () => {
+                                                                        try {
+                                                                            setProcessingId(req.id);
+
+                                                                            // 1. Remove verified and premium status from profile
+                                                                            await update(ref(db), {
+                                                                                [`users/${req.uid}/profile/isVerified`]: false,
+                                                                                [`users/${req.uid}/profile/isPremium`]: false,
+                                                                            });
+
+                                                                            // 2. Remove cancellation notice
+                                                                            await remove(ref(db, `verification_requests/${req.id}`));
+
+                                                                            // 3. Log audit event
+                                                                            await push(ref(db, 'admin/audit_log'), {
+                                                                                adminEmail: auth.currentUser?.email,
+                                                                                action: 'REVOKE_VERIFICATION',
+                                                                                targetUid: req.uid,
+                                                                                details: `Revoked verification mark due to subscription cancellation for ${req.brandName}`,
+                                                                                timestamp: serverTimestamp(),
+                                                                            });
+                                                                        } finally {
+                                                                            setProcessingId(null);
+                                                                        }
+                                                                    }}
+                                                                >
+                                                                    {processingId === req.id ? "REVOKING…" : "REVOKE BADGE & DISMISS"}
+                                                                </button>
+                                                            ) : (
+                                                                /* APPROVE VERIFICATION */
+                                                                <>
+                                                                    <button
+                                                                        style={{
+                                                                            ...miniBtn,
+                                                                            border: `1px solid ${tokens.accent}`,
+                                                                            background: processingId === req.id ? tokens.surfaceRaised : 'transparent',
+                                                                            color: tokens.accent,
+                                                                            cursor: processingId === req.id ? 'not-allowed' : 'pointer',
+                                                                            opacity: processingId === req.id ? 0.5 : 1
+                                                                        }}
+                                                                        disabled={processingId === req.id}
+                                                                        onClick={async () => {
+                                                                            try {
+                                                                                setProcessingId(req.id);
+
+                                                                                await update(ref(db), {
+                                                                                    [`users/${req.uid}/profile/isVerified`]: true,
+                                                                                    [`users/${req.uid}/profile/verifiedAt`]: serverTimestamp(),
+                                                                                });
+                                                                                await remove(ref(db, `verification_requests/${req.id}`));
+
+                                                                                await push(ref(db, 'admin/audit_log'), {
+                                                                                    adminEmail: auth.currentUser?.email,
+                                                                                    action: 'VERIFY_USER',
+                                                                                    targetUid: req.uid,
+                                                                                    details: `Approved verification for ${req.brandName}`,
+                                                                                    timestamp: serverTimestamp(),
+                                                                                });
+                                                                            } finally {
+                                                                                setProcessingId(null);
+                                                                            }
+                                                                        }}
+                                                                    >
+                                                                        {processingId === req.id ? "PROCESSING…" : "APPROVE"}
+                                                                    </button>
+
+                                                                    {/* REJECT VERIFICATION */}
+                                                                    <button
+                                                                        style={{
+                                                                            ...miniBtn,
+                                                                            border: `1px solid ${tokens.border}`,
+                                                                            color: tokens.textDim,
+                                                                            opacity: processingId === req.id ? 0.5 : 1,
+                                                                            cursor: processingId === req.id ? 'not-allowed' : 'pointer'
+                                                                        }}
+                                                                        disabled={processingId === req.id}
+                                                                        onClick={async () => {
+                                                                            try {
+                                                                                setProcessingId(req.id);
+
+                                                                                await remove(ref(db, `verification_requests/${req.id}`));
+
+                                                                                await push(ref(db, 'admin/audit_log'), {
+                                                                                    adminEmail: auth.currentUser?.email,
+                                                                                    action: 'REJECT_VERIFY',
+                                                                                    targetUid: req.uid,
+                                                                                    details: `Rejected verification for ${req.brandName}`,
+                                                                                    timestamp: serverTimestamp(),
+                                                                                });
+                                                                            } finally {
+                                                                                setProcessingId(null);
+                                                                            }
+                                                                        }}
+                                                                    >
+                                                                        {processingId === req.id ? "PROCESSING…" : "REJECT"}
+                                                                    </button>
+                                                                </>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })
+                                        )}
+                                    </div>
+                                </section>
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '20px' }}>
+                                {/* --- AD APPROVAL QUEUE --- */}
+                                <section style={panelStyle}>
+                                    <h3 style={sectionTitle}>AD APPROVAL QUEUE</h3>
+
+                                    <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+                                        {adRequests.length === 0 ? (
+                                            <EmptyState text="No ads waiting on review." />
+                                        ) : (
+                                            filteredAds.map((ad) => (
+                                                <div
+                                                    key={ad.id}
+                                                    style={{
+                                                        padding: '16px',
+                                                        border: `1px solid ${tokens.border}`,
+                                                        background: tokens.surface,
+                                                        marginBottom: '10px',
+                                                        borderRadius: '12px'
+                                                    }}
+                                                >
+                                                    {/* TITLE */}
+                                                    <div style={{ color: tokens.accent, fontWeight: 700, fontSize: 13 }}>
+                                                        {ad.title}
+                                                    </div>
+
+                                                    {/* META */}
+                                                    <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 8 }}>
+                                                        <span style={metaChip}>{ad.userEmail}</span>
+                                                        <span style={metaChip}>{ad.platform}</span>
+                                                        <span style={metaChip}>€{ad.budget}</span>
+                                                        <span style={metaChip}>{ad.cta}</span>
+                                                    </div>
+
+                                                    {/* DESCRIPTION */}
+                                                    <div style={{ fontSize: '11px', marginTop: '10px', opacity: 0.75, lineHeight: 1.5 }}>
+                                                        {ad.description}
+                                                    </div>
+
+                                                    {/* CREATIVE PREVIEW */}
+                                                    {ad.creativeUrl && (
+                                                        <div style={{ marginTop: '12px' }}>
+                                                            {ad.creativeUrl.includes('.mp4') ? (
+                                                                <video
+                                                                    src={ad.creativeUrl}
+                                                                    controls
+                                                                    style={{ width: '100%', borderRadius: '10px' }}
+                                                                />
+                                                            ) : (
+                                                                <img
+                                                                    src={ad.creativeUrl}
+                                                                    style={{ width: '100%', borderRadius: '10px' }}
+                                                                />
+                                                            )}
+                                                        </div>
+                                                    )}
+
+                                                    {/* ACTIONS */}
+                                                    <div style={{ display: 'flex', gap: '10px', marginTop: '14px' }}>
+
+                                                        {/* APPROVE */}
                                                         <button
-                                                            style={{
-                                                                padding: '6px 10px',
-                                                                fontSize: '10px',
-                                                                border: '1px solid #C5FF41',
-                                                                background: processingId === req.id ? '#333' : 'transparent',
-                                                                color: '#C5FF41',
-                                                                cursor: processingId === req.id ? 'not-allowed' : 'pointer',
-                                                                opacity: processingId === req.id ? 0.5 : 1
-                                                            }}
-                                                            disabled={processingId === req.id}
+                                                            style={{ ...primaryBtn, flex: 1, padding: '10px' }}
                                                             onClick={async () => {
                                                                 try {
-                                                                    setProcessingId(req.id);
+                                                                    const user = users.find(u => u.uid === ad.userId);
 
-                                                                    await update(ref(db), {
-                                                                        [`users/${req.uid}/profile/isVerified`]: true,
-                                                                        [`users/${req.uid}/profile/verifiedAt`]: serverTimestamp(),
-                                                                    });
-                                                                    await remove(ref(db, `verification_requests/${req.id}`));
+                                                                    if (!user) {
+                                                                        alert("USER_NOT_FOUND");
+                                                                        return;
+                                                                    }
+                                                                    const approvedData = {
+                                                                        adId: ad.id,
+                                                                        campaignId: ad.campaignId,
+                                                                        userId: ad.userId,
+                                                                        title: ad.title,
+                                                                        description: ad.description,
+                                                                        platform: ad.platform,
+                                                                        budget: ad.budget,
+                                                                        creativeUrl: ad.creativeUrl,
+
+                                                                        approvedAt: Date.now(),
+                                                                        approvedBy: auth.currentUser?.email,
+
+                                                                        postingStatus: "Not Posted",
+                                                                        status: "Approved"
+                                                                    };
+                                                                    const budget = Number(ad.budget || 0);
+                                                                    const currentBalance = Number(user?.treasury?.balance || 0);
+                                                                    const newBalance = currentBalance - budget;
+
+                                                                    const ledgerKey = push(ref(db, `users/${ad.userId}/treasury/ledger`)).key;
+
+                                                                    const updates: any = {};
+
+                                                                    // 1. Campaign update
+                                                                    updates[`users/${ad.userId}/campaigns/${ad.campaignId}/status`] = "Approved";
+                                                                    updates[`users/${ad.userId}/campaigns/${ad.campaignId}/reviewStatus`] = "Approved";
+
+                                                                    updates[`users/${ad.userId}/campaigns/${ad.campaignId}/approvedAt`] = Date.now();
+
+                                                                    updates[`users/${ad.userId}/campaigns/${ad.campaignId}/reach`] = 0;
+
+                                                                    updates[`users/${ad.userId}/campaigns/${ad.campaignId}/targetReach`] = null;
+
+                                                                    // 2. Deduct balance
+                                                                    updates[`users/${ad.userId}/treasury/balance`] = newBalance;
+
+                                                                    // 3. Ledger entry
+                                                                    updates[`users/${ad.userId}/treasury/ledger/${ledgerKey}`] = {
+                                                                        type: "Charged",
+                                                                        amount: ad.budget,
+                                                                        label: `Approved Ad: ${ad.title}`,
+                                                                        status: "Completed",
+                                                                        timestamp: Date.now(),
+                                                                        approvedAt: Date.now(),
+                                                                        reach: 0,
+                                                                        targetReach: null
+                                                                    };
+
+                                                                    // 4. Queue update
+                                                                    updates[`admin/ad_queue/${ad.id}/status`] = "Approved";
+
+                                                                    // save approved ad
+                                                                    updates[`admin/approved_ads/${ad.id}`] = {
+                                                                        adId: ad.id,
+                                                                        campaignId: ad.campaignId,
+                                                                        userId: ad.userId,
+
+                                                                        title: ad.title,
+                                                                        description: ad.description,
+                                                                        platform: ad.platform,
+                                                                        budget: ad.budget,
+                                                                        creativeUrl: ad.creativeUrl,
+
+                                                                        approvedAt: Date.now(),
+                                                                        approvedBy: auth.currentUser?.email,
+
+                                                                        postingStatus: "Not Posted",
+                                                                        status: "Approved",
+                                                                        reach: 0,
+                                                                        targetReach: null
+                                                                    };
+
+                                                                    // remove from review queue
+                                                                    await update(ref(db), updates);
+                                                                    
 
                                                                     await push(ref(db, 'admin/audit_log'), {
                                                                         adminEmail: auth.currentUser?.email,
-                                                                        action: 'VERIFY_USER',
-                                                                        targetUid: req.uid,
-                                                                        details: `Approved verification for ${req.brandName}`,
+                                                                        action: 'APPROVE_AD',
+                                                                        targetUid: ad.userId,
+                                                                        details: `Approved campaign: ${ad.title}`,
                                                                         timestamp: serverTimestamp(),
                                                                     });
-                                                                } finally {
-                                                                    setProcessingId(null);
+
+                                                                    alert("AD_APPROVED");
+                                                                } catch (err) {
+                                                                    console.error(err);
+                                                                    alert("APPROVAL_FAILED");
                                                                 }
                                                             }}
                                                         >
-                                                            {processingId === req.id ? "PROCESSING..." : "APPROVE"}
+                                                            APPROVE
                                                         </button>
 
-                                                        {/* REJECT VERIFICATION */}
+                                                        {/* REJECT */}
                                                         <button
                                                             style={{
                                                                 ...statusBtn,
-                                                                opacity: processingId === req.id ? 0.5 : 1,
-                                                                cursor: processingId === req.id ? 'not-allowed' : 'pointer'
+                                                                flex: 1,
+                                                                color: tokens.danger,
+                                                                border: `1px solid ${tokens.danger}`
                                                             }}
-                                                            disabled={processingId === req.id}
                                                             onClick={async () => {
-                                                                try {
-                                                                    setProcessingId(req.id);
+                                                                const reason = prompt("Enter rejection reason:");
+                                                                if (!reason) return;
 
-                                                                    await remove(ref(db, `verification_requests/${req.id}`));
+                                                                try {
+                                                                    const updates: any = {};
+
+                                                                    updates[`users/${ad.userId}/campaigns/${ad.campaignId}/status`] = "Rejected";
+                                                                    updates[`users/${ad.userId}/campaigns/${ad.campaignId}/rejectionReason`] = reason;
+
+                                                                    await update(ref(db), {
+                                                                        [`users/${ad.userId}/campaigns/${ad.campaignId}/status`]: "Rejected",
+                                                                        [`users/${ad.userId}/campaigns/${ad.campaignId}/reviewStatus`]: "Rejected",
+                                                                        [`users/${ad.userId}/campaigns/${ad.campaignId}/rejectionReason`]: reason
+                                                                    });
+
+                                                                    await remove(ref(db, `admin/ad_queue/${ad.id}`));
 
                                                                     await push(ref(db, 'admin/audit_log'), {
                                                                         adminEmail: auth.currentUser?.email,
-                                                                        action: 'REJECT_VERIFY',
-                                                                        targetUid: req.uid,
-                                                                        details: `Rejected verification for ${req.brandName}`,
+                                                                        action: 'REJECT_AD',
+                                                                        targetUid: ad.userId,
+                                                                        details: `Rejected campaign: ${ad.title} (${reason})`,
                                                                         timestamp: serverTimestamp(),
                                                                     });
-                                                                } finally {
-                                                                    setProcessingId(null);
+
+                                                                    alert("AD_REJECTED");
+                                                                }
+                                                                catch(err){
+                                                                    console.error(err);
                                                                 }
                                                             }}
                                                         >
-                                                            {processingId === req.id ? "PROCESSING..." : "REJECT"}
+                                                            REJECT
                                                         </button>
-                                                    </>
-                                                )}
-                                            </div>
-                                        </div>
-                                    );
-                                })
-                            )}
-                        </div>
-                    </section>
-                    {/* --- AD APPROVAL QUEUE --- */}
-                    <section style={panelStyle}>
-                        <h3 style={sectionTitle}>AD_APPROVAL_QUEUE</h3>
-
-                        <div style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-                            {adRequests.length === 0 ? (
-                                <div style={{ opacity: 0.3, fontSize: '12px' }}>
-                                    NO_PENDING_ADS
-                                </div>
-                            ) : (
-                                filteredAds.map((ad) => (
-                                    <div
-                                        key={ad.id}
-                                        style={{
-                                            padding: '14px',
-                                            borderBottom: '1px solid #111',
-                                            background: 'rgba(255,255,255,0.02)',
-                                            marginBottom: '10px',
-                                            borderRadius: '10px'
-                                        }}
-                                    >
-                                        {/* TITLE */}
-                                        <div style={{ color: '#C5FF41', fontWeight: 700 }}>
-                                            {ad.title}
-                                        </div>
-
-                                        {/* META */}
-                                        <div style={{ fontSize: '10px', opacity: 0.6, marginTop: '6px' }}>
-                                            USER: {ad.userEmail}
-                                        </div>
-
-                                        <div style={{ fontSize: '10px', opacity: 0.6 }}>
-                                            PLATFORM: {ad.platform}
-                                        </div>
-
-                                        <div style={{ fontSize: '10px', opacity: 0.6 }}>
-                                            BUDGET: €{ad.budget}
-                                        </div>
-
-                                        <div style={{ fontSize: '10px', opacity: 0.6 }}>
-                                            CTA: {ad.cta}
-                                        </div>
-
-                                        {/* DESCRIPTION */}
-                                        <div style={{ fontSize: '11px', marginTop: '8px', opacity: 0.8 }}>
-                                            {ad.description}
-                                        </div>
-
-                                        {/* CREATIVE PREVIEW */}
-                                        {ad.creativeUrl && (
-                                            <div style={{ marginTop: '10px' }}>
-                                                {ad.creativeUrl.includes('.mp4') ? (
-                                                    <video
-                                                        src={ad.creativeUrl}
-                                                        controls
-                                                        style={{ width: '100%', borderRadius: '8px' }}
-                                                    />
-                                                ) : (
-                                                    <img
-                                                        src={ad.creativeUrl}
-                                                        style={{ width: '100%', borderRadius: '8px' }}
-                                                    />
-                                                )}
-                                            </div>
+                                                    </div>
+                                                </div>
+                                            ))
                                         )}
-
-                                        {/* ACTIONS */}
-                                        <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
-
-                                            {/* APPROVE */}
-                                            <button
-                                                style={{
-                                                    ...approveBtn,
-                                                    flex: 1,
-                                                    background: '#C5FF41'
-                                                }}
-                                                onClick={async () => {
-                                                    try {
-                                                        const user = users.find(u => u.uid === ad.userId);
-
-                                                        if (!user) {
-                                                            alert("USER_NOT_FOUND");
-                                                            return;
-                                                        }
-                                                        const approvedData = {
-                                                            adId: ad.id,
-                                                            campaignId: ad.campaignId,
-                                                            userId: ad.userId,
-                                                            title: ad.title,
-                                                            description: ad.description,
-                                                            platform: ad.platform,
-                                                            budget: ad.budget,
-                                                            creativeUrl: ad.creativeUrl,
-
-                                                            approvedAt: Date.now(),
-                                                            approvedBy: auth.currentUser?.email,
-
-                                                            postingStatus: "Not Posted",
-                                                            status: "Approved"
-                                                        };
-                                                        const budget = Number(ad.budget || 0);
-                                                        const currentBalance = Number(user?.treasury?.balance || 0);
-                                                        const newBalance = currentBalance - budget;
-
-                                                        const ledgerKey = push(ref(db, `users/${ad.userId}/treasury/ledger`)).key;
-
-                                                        const updates: any = {};
-
-                                                        // 1. Campaign update
-                                                        updates[`users/${ad.userId}/campaigns/${ad.campaignId}/status`] = "Approved";
-                                                        updates[`users/${ad.userId}/campaigns/${ad.campaignId}/reviewStatus`] = "Approved";
-
-                                                        updates[`users/${ad.userId}/campaigns/${ad.campaignId}/approvedAt`] = Date.now();
-
-                                                        updates[`users/${ad.userId}/campaigns/${ad.campaignId}/reach`] = 0;
-
-                                                        updates[`users/${ad.userId}/campaigns/${ad.campaignId}/targetReach`] = null;
-
-                                                        // 2. Deduct balance
-                                                        updates[`users/${ad.userId}/treasury/balance`] = newBalance;
-
-                                                        // 3. Ledger entry
-                                                        updates[`users/${ad.userId}/treasury/ledger/${ledgerKey}`] = {
-                                                            type: "Charged",
-                                                            amount: ad.budget,
-                                                            label: `Approved Ad: ${ad.title}`,
-                                                            status: "Completed",
-                                                            timestamp: Date.now(),
-                                                            approvedAt: Date.now(),
-                                                            reach: 0,
-                                                            targetReach: null
-                                                        };
-
-                                                        // 4. Queue update
-                                                        updates[`admin/ad_queue/${ad.id}/status`] = "Approved";
-
-                                                        // save approved ad
-                                                        updates[`admin/approved_ads/${ad.id}`] = {
-                                                            adId: ad.id,
-                                                            campaignId: ad.campaignId,
-                                                            userId: ad.userId,
-
-                                                            title: ad.title,
-                                                            description: ad.description,
-                                                            platform: ad.platform,
-                                                            budget: ad.budget,
-                                                            creativeUrl: ad.creativeUrl,
-
-                                                            approvedAt: Date.now(),
-                                                            approvedBy: auth.currentUser?.email,
-
-                                                            postingStatus: "Not Posted",
-                                                            status: "Approved",
-                                                            reach: 0,
-                                                            targetReach: null
-                                                        };
-
-                                                        // remove from review queue
-                                                        await update(ref(db), updates);
-                                                        
-
-                                                        await push(ref(db, 'admin/audit_log'), {
-                                                            adminEmail: auth.currentUser?.email,
-                                                            action: 'APPROVE_AD',
-                                                            targetUid: ad.userId,
-                                                            details: `Approved campaign: ${ad.title}`,
-                                                            timestamp: serverTimestamp(),
-                                                        });
-
-                                                        alert("AD_APPROVED");
-                                                    } catch (err) {
-                                                        console.error(err);
-                                                        alert("APPROVAL_FAILED");
-                                                    }
-                                                }}
-                                            >
-                                                APPROVE
-                                            </button>
-
-                                            {/* REJECT */}
-                                            <button
-                                                style={{
-                                                    ...statusBtn,
-                                                    flex: 1,
-                                                    color: '#ff4d4d',
-                                                    border: '1px solid #ff4d4d'
-                                                }}
-                                                onClick={async () => {
-                                                    const reason = prompt("Enter rejection reason:");
-                                                    if (!reason) return;
-
-                                                    try {
-                                                        const updates: any = {};
-
-                                                        updates[`users/${ad.userId}/campaigns/${ad.campaignId}/status`] = "Rejected";
-                                                        updates[`users/${ad.userId}/campaigns/${ad.campaignId}/rejectionReason`] = reason;
-
-                                                        await update(ref(db), {
-                                                            [`users/${ad.userId}/campaigns/${ad.campaignId}/status`]: "Rejected",
-                                                            [`users/${ad.userId}/campaigns/${ad.campaignId}/reviewStatus`]: "Rejected",
-                                                            [`users/${ad.userId}/campaigns/${ad.campaignId}/rejectionReason`]: reason
-                                                        });
-
-                                                        await remove(ref(db, `admin/ad_queue/${ad.id}`));
-
-                                                        await push(ref(db, 'admin/audit_log'), {
-                                                            adminEmail: auth.currentUser?.email,
-                                                            action: 'REJECT_AD',
-                                                            targetUid: ad.userId,
-                                                            details: `Rejected campaign: ${ad.title} (${reason})`,
-                                                            timestamp: serverTimestamp(),
-                                                        });
-
-                                                        alert("AD_REJECTED");
-                                                    }
-                                                    catch(err){
-                                                        console.error(err);
-                                                    }
-                                                }}
-                                            >
-                                                REJECT
-                                            </button>
-                                        </div>
                                     </div>
-                                ))
-                            )}
-                        </div>
-                    </section>
-                    <section style={panelStyle}>
-                        <h3 style={sectionTitle}>SYSTEM_AUDIT_LOG</h3>
-                        <div style={{ height: '70vh', overflowY: 'auto' }}>
-                            {auditLogs.map(log => (
-                                <div key={log.id} style={logItem}>
-                                    <div style={{ color: '#C5FF41', fontSize: '10px' }}>{log.action}</div>
-                                    <div style={{ fontSize: '11px', opacity: 0.7 }}>{log.details}</div>
-                                </div>
-                            ))}
-                        </div>
-                    </section>
+                                </section>
+                                <section style={panelStyle}>
+                                    <h3 style={sectionTitle}>SYSTEM AUDIT LOG</h3>
+                                    <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+                                        {auditLogs.length === 0 && <EmptyState text="No activity recorded yet." />}
+                                        {auditLogs.map(log => (
+                                            <div key={log.id} style={logItem}>
+                                                <div style={{ color: tokens.accent, fontSize: '10px', fontFamily: tokens.mono, letterSpacing: '0.5px' }}>{log.action}</div>
+                                                <div style={{ fontSize: '11px', opacity: 0.7, marginTop: 2 }}>{log.details}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </section>
+                            </div>
+                        </>
+                    )}
+                    {activePanel === "reports" && (
+                        <AdminReports />
+                    )}
+                    {activePanel === "killswitch" && (
+                        <AdminKillSwitch />
+                    )}
                 </div>
-            )}
-            {activePanel === "reports" && (
-                <AdminReports />
-            )}
-            {/* 3. AI PERSONNEL HUB WORKSPACE CONTAINER */}
-           
+            </main>
         </div>
     );
 };
 
-// --- STYLES ---
+// ============================================================
+// DESIGN TOKENS
+// ============================================================
+const tokens = {
+    bg: '#0A0C0E',
+    surface: 'rgba(255,255,255,0.025)',
+    surfaceRaised: 'rgba(255,255,255,0.06)',
+    border: 'rgba(255,255,255,0.08)',
+    text: '#EDEFF1',
+    textDim: '#8B939B',
+    accent: '#C5FF41',
+    danger: '#FF5C5C',
+    warn: '#FFB020',
+    info: '#4FA3FF',
+    mono: "'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace",
+    sans: "Inter, sans-serif",
+};
+
+// ============================================================
+// SMALL SHARED SUBCOMPONENTS
+// ============================================================
+function KpiCard({ icon, label, value, tone }: { icon: React.ReactNode; label: string; value: number; tone?: 'accent' | 'danger' | 'info' }) {
+    const color = tone === 'accent' ? tokens.accent : tone === 'danger' ? tokens.danger : tone === 'info' ? tokens.info : tokens.text;
+    return (
+        <div style={kpiCardStyle}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, color, opacity: 0.9 }}>
+                {icon}
+                <span style={{ fontSize: 10, letterSpacing: '1px', opacity: 0.7, fontFamily: tokens.mono, textTransform: 'uppercase' }}>{label}</span>
+            </div>
+            <div style={{ fontSize: 28, fontWeight: 800, marginTop: 8, fontFamily: tokens.mono, color }}>{value}</div>
+        </div>
+    );
+}
+
+function EmptyState({ text }: { text: string }) {
+    return (
+        <div style={{ textAlign: 'center', opacity: 0.35, padding: '40px 20px', fontSize: 12, lineHeight: 1.6 }}>
+            {text}
+        </div>
+    );
+}
+
+function toggleBtn(active: boolean, color: string): React.CSSProperties {
+    return {
+        ...statusBtn,
+        border: `1px solid ${active ? color : tokens.border}`,
+        color: active ? color : tokens.textDim,
+        background: active ? `${color}1A` : 'transparent',
+    };
+}
+
+// ============================================================
+// STYLES
+// ============================================================
+const consoleShell: React.CSSProperties = {
+    display: 'flex',
+    minHeight: '100vh',
+    background: tokens.bg,
+    color: tokens.text,
+    fontFamily: tokens.sans,
+};
+
+const sidebarStyle: React.CSSProperties = {
+    width: 220,
+    flexShrink: 0,
+    borderRight: `1px solid ${tokens.border}`,
+    display: 'flex',
+    flexDirection: 'column',
+    paddingTop: 28,
+    paddingBottom: 20,
+    position: 'sticky',
+    top: 0,
+    height: '100vh',
+};
+
+const navItemStyle: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    width: '100%',
+    padding: '10px 12px',
+    borderRadius: 8,
+    border: 'none',
+    background: 'transparent',
+    fontFamily: tokens.mono,
+    fontSize: 11,
+    letterSpacing: '0.5px',
+    fontWeight: 600,
+    cursor: 'pointer',
+    textAlign: 'left',
+    position: 'relative',
+};
+
+const navBadge: React.CSSProperties = {
+    marginLeft: 'auto',
+    background: tokens.accent,
+    color: '#000',
+    fontSize: 9,
+    fontWeight: 800,
+    padding: '1px 6px',
+    borderRadius: 999,
+};
+
+const mainStyle: React.CSSProperties = {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    minWidth: 0,
+};
+
+const topBarStyle: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '20px 32px',
+    borderBottom: `1px solid ${tokens.border}`,
+    position: 'sticky',
+    top: 0,
+    background: tokens.bg,
+    zIndex: 10,
+};
+
+const statusPillStyle: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    padding: '6px 12px',
+    borderRadius: 999,
+    fontSize: 10,
+    fontWeight: 700,
+    letterSpacing: '0.5px',
+    fontFamily: tokens.mono,
+};
+
+const pulseDot: React.CSSProperties = {
+    position: 'absolute',
+    inset: 0,
+    borderRadius: '50%',
+    opacity: 0.5,
+    animation: 'malvin-pulse 1.8s ease-out infinite',
+};
+
+const pulseDotCore: React.CSSProperties = {
+    position: 'relative',
+    width: 8,
+    height: 8,
+    borderRadius: '50%',
+};
+
+const contentArea: React.CSSProperties = {
+    padding: '28px 32px 40px',
+    flex: 1,
+};
+
+const kpiRow: React.CSSProperties = {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(4, 1fr)',
+    gap: 16,
+    marginBottom: 24,
+};
+
+const kpiCardStyle: React.CSSProperties = {
+    background: tokens.surface,
+    border: `1px solid ${tokens.border}`,
+    borderRadius: 14,
+    padding: '18px 20px',
+};
+
+const segmentBtn: React.CSSProperties = {
+    padding: '8px 14px',
+    fontSize: '10px',
+    fontFamily: tokens.mono,
+    fontWeight: 700,
+    letterSpacing: '0.5px',
+    border: '1px solid',
+    borderRadius: 8,
+    cursor: 'pointer',
+    textTransform: 'uppercase',
+};
+
 const statusBtn: React.CSSProperties = {
     flex: 1,
-    background: '#111',
-    border: '1px solid #333',
-    color: '#fff',
-    padding: '8px',
-    borderRadius: '6px',
+    background: tokens.surface,
+    border: `1px solid ${tokens.border}`,
+    color: tokens.text,
+    padding: '10px',
+    borderRadius: '8px',
     fontSize: '10px',
+    fontFamily: tokens.mono,
     fontWeight: 700,
+    letterSpacing: '0.5px',
     cursor: 'pointer',
-    transition: '0.2s'
+    transition: '0.15s',
 };
-const adminLayout: React.CSSProperties = { background: '#000', minHeight: '100vh', padding: '40px', color: '#fff', fontFamily: 'Inter, sans-serif' };
-const panelStyle: React.CSSProperties = { background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '24px', padding: '24px', backdropFilter: 'blur(10px)' };
-const userCard: React.CSSProperties = { padding: '16px', borderRadius: '12px', marginBottom: '12px', cursor: 'pointer', transition: '0.2s', border: '1px solid rgba(255,255,255,0.05)' };
-const dirMetadata: React.CSSProperties = { fontSize: '10px', marginBottom: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' };
-const sectionTitle: React.CSSProperties = { fontSize: '11px', letterSpacing: '2px', opacity: 0.4, marginBottom: '20px', borderBottom: '1px solid #222', paddingBottom: '10px' };
-const inputStyle: React.CSSProperties = { width: '100%', background: '#000', border: '1px solid #333', padding: '12px', borderRadius: '8px', color: '#fff' };
-const approveBtn: React.CSSProperties = { background: '#C5FF41', color: '#000', border: 'none', padding: '12px', borderRadius: '8px', fontWeight: 700, cursor: 'pointer' };
-const labelStyle: React.CSSProperties = { fontSize: '10px', opacity: 0.5 };
-const logItem: React.CSSProperties = { padding: '10px', borderBottom: '1px solid #111' };
-const botTag: React.CSSProperties = { background: '#ff4d4d', color: '#fff', fontSize: '8px', padding: '2px 6px', borderRadius: '4px', fontWeight: 900 };
-const headerStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', marginBottom: '30px' };
-const logoutBtn: React.CSSProperties = { background: 'transparent', border: '1px solid #ff4d4d', color: '#ff4d4d', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', textDecoration: 'none', display: 'inline-block' };
 
-// Messenger container layout
-const messengerContainer: React.CSSProperties = {
-    marginTop: '10px',
-    padding: '16px',
-    background: 'rgba(255, 255, 255, 0.02)',
-    border: '1px solid rgba(255,255,255,0.04)',
-    borderRadius: '12px'
+const panelStyle: React.CSSProperties = {
+    background: tokens.surface,
+    border: `1px solid ${tokens.border}`,
+    borderRadius: '16px',
+    padding: '22px',
 };
+
+const userCard: React.CSSProperties = {
+    padding: '14px',
+    borderRadius: '10px',
+    marginBottom: '10px',
+    cursor: 'pointer',
+    transition: '0.15s',
+    border: '1px solid',
+};
+
+const dirMetadata: React.CSSProperties = {
+    fontSize: '10px',
+    marginBottom: '3px',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    opacity: 0.85,
+};
+
+const sectionTitle: React.CSSProperties = {
+    fontSize: '10px',
+    fontFamily: tokens.mono,
+    letterSpacing: '2px',
+    opacity: 0.5,
+    marginBottom: '18px',
+    borderBottom: `1px solid ${tokens.border}`,
+    paddingBottom: '12px',
+    fontWeight: 700,
+};
+
+const inputStyle: React.CSSProperties = {
+    width: '100%',
+    background: '#000',
+    border: `1px solid ${tokens.border}`,
+    padding: '11px 12px',
+    borderRadius: '8px',
+    color: tokens.text,
+    fontSize: 12,
+    boxSizing: 'border-box',
+};
+
+const primaryBtn: React.CSSProperties = {
+    background: tokens.accent,
+    color: '#000',
+    border: 'none',
+    padding: '12px',
+    borderRadius: '8px',
+    fontWeight: 800,
+    fontSize: 11,
+    fontFamily: tokens.mono,
+    letterSpacing: '0.5px',
+    cursor: 'pointer',
+};
+
+const labelStyle: React.CSSProperties = {
+    fontSize: '10px',
+    fontFamily: tokens.mono,
+    letterSpacing: '0.5px',
+    opacity: 0.5,
+};
+
+const logItem: React.CSSProperties = {
+    padding: '10px 0',
+    borderBottom: `1px solid ${tokens.border}`,
+};
+
+const riskTag: React.CSSProperties = {
+    background: tokens.danger,
+    color: '#fff',
+    fontSize: '8px',
+    padding: '2px 6px',
+    borderRadius: '4px',
+    fontWeight: 900,
+    fontFamily: tokens.mono,
+    flexShrink: 0,
+};
+
+const badgeStyle: React.CSSProperties = {
+    fontSize: '9px',
+    padding: '3px 8px',
+    borderRadius: '4px',
+    fontWeight: 800,
+    fontFamily: tokens.mono,
+    letterSpacing: '0.3px',
+};
+
+const miniBtn: React.CSSProperties = {
+    padding: '7px 10px',
+    fontSize: '10px',
+    fontFamily: tokens.mono,
+    fontWeight: 700,
+    borderRadius: '6px',
+    letterSpacing: '0.3px',
+};
+
+const metaChip: React.CSSProperties = {
+    fontSize: '9px',
+    fontFamily: tokens.mono,
+    opacity: 0.6,
+    background: 'rgba(255,255,255,0.04)',
+    padding: '3px 8px',
+    borderRadius: '5px',
+};
+
+const dividerStyle: React.CSSProperties = {
+    border: 'none',
+    borderTop: `1px solid ${tokens.border}`,
+    margin: 0,
+};
+
+const backToConsoleBtn: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    background: '#000',
+    color: '#fff',
+    border: '1px solid #333',
+    padding: '8px 14px',
+    borderRadius: 999,
+    fontSize: 10,
+    fontFamily: tokens.mono,
+    fontWeight: 700,
+    letterSpacing: '0.5px',
+    cursor: 'pointer',
+};
+
+// Injects the status-dot pulse animation once. Styled-JSX/CSS modules
+// aren't set up in this project, and this is the only keyframe animation
+// on the page, so a single injected <style> tag is simpler than adding a
+// new build dependency for one effect.
+if (typeof document !== 'undefined' && !document.getElementById('malvin-admin-keyframes')) {
+    const styleTag = document.createElement('style');
+    styleTag.id = 'malvin-admin-keyframes';
+    styleTag.textContent = `
+        @keyframes malvin-pulse {
+            0% { transform: scale(1); opacity: 0.6; }
+            100% { transform: scale(2.4); opacity: 0; }
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
 
 export default AdsManager;

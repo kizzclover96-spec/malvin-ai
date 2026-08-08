@@ -58,6 +58,9 @@ import { Front } from './components/customer/Front';
 import TicketCheckout from "./pages/auth/Ticket";
 import Premium from "./components/addons/Premium";
 import StripeSuccessPage from "./components/addons/StripeSuccess";
+import { useSystemStatus } from "./hooks/useSystemStatus";
+import { AccessGate, RestrictedScreen } from "./components/system/RestrictedScreen";
+import { signOut } from "firebase/auth";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -83,6 +86,22 @@ function App() {
   // device's push token — by the time onAuthStateChanged fires with
   // currentUser === null, the uid it belonged to is already gone.
   const lastUidRef = useRef(null);
+
+  // 🔴 KILL SWITCH — live subscription, not a one-time read, so an admin
+  // flipping a switch takes effect on every already-open tab instantly.
+  const { status: systemStatus, loading: systemStatusLoading } = useSystemStatus();
+  const isAdminUser = user?.email === "kizzclover96@gmail.com";
+
+  // App-wide lock forces a real sign-out (not just a UI block) so a
+  // previously-open session can't keep working from cached state, and so a
+  // reload lands back on the (blocked) login screen instead of silently
+  // resuming. The admin account is exempt — otherwise there'd be no way to
+  // get back in to turn the switch back off.
+  useEffect(() => {
+    if (systemStatus.appLocked && user && !isAdminUser) {
+      signOut(auth).catch((err) => console.error("Kill-switch forced sign-out failed:", err));
+    }
+  }, [systemStatus.appLocked, user, isAdminUser]);
 
   // 🟢 VINMOMENT DEEP LINK HANDLING
   // When the native app is opened via a malvinai://food/{uid} or
@@ -432,6 +451,18 @@ function App() {
   }
 
   const isAdmin = user?.email === 'kizzclover96@gmail.com';
+
+  // App-wide kill switch. Only gates content for an already-signed-in,
+  // non-admin user — the Login/Landing screen below always stays reachable
+  // (including for the admin, who needs to be able to sign in and turn
+  // this back off). A non-admin who is signed in gets this restricted
+  // screen instantly and is force-signed-out a moment later by the effect
+  // above; this check covers that brief window and any case where the
+  // sign-out itself is slow (e.g. flaky connection).
+  if (user && !isAdmin && systemStatus.appLocked) {
+    return <RestrictedScreen message={systemStatus.message} />;
+  }
+
   const isStorefrontPath = 
     location.pathname.startsWith("/food/") || 
     location.pathname.startsWith("/salon/") || 
@@ -459,12 +490,12 @@ function App() {
           <Route path="/chat/:brandId" element={<MarketFront />} />
           
           {/* 🟢 Passing the wallet execution mechanism directly down into routing subcomponents */}
-          <Route path="/food/:Uid" element={<><FoodDeepLinkGate /><StoreFrontend onExecuteWalletPayment={handleWalletPaymentExecution} /></>} />
-          <Route path="/salon/:uid" element={<><SalonDeepLinkGate /><SalonStore onExecuteWalletPayment={handleWalletPaymentExecution} /></>} />
-          <Route path="/hotel/:uid" element={<><HotelDeepLinkGate /><HotelStore /></>} />
+          <Route path="/food/:Uid" element={<AccessGate locked={systemStatus.storesLocked} message={systemStatus.message}><FoodDeepLinkGate /><StoreFrontend onExecuteWalletPayment={handleWalletPaymentExecution} /></AccessGate>} />
+          <Route path="/salon/:uid" element={<AccessGate locked={systemStatus.storesLocked} message={systemStatus.message}><SalonDeepLinkGate /><SalonStore onExecuteWalletPayment={handleWalletPaymentExecution} /></AccessGate>} />
+          <Route path="/hotel/:uid" element={<AccessGate locked={systemStatus.storesLocked} message={systemStatus.message}><HotelDeepLinkGate /><HotelStore /></AccessGate>} />
           <Route path="/vinback/:tagId" element={<VinBackScan />} />
-          <Route path="/mechanic/:uid" element={<><MechanicDeepLinkGate /><MechanicStore /></>} />
-          <Route path="/service/:uid" element={<><ServiceDeepLinkGate /><ServiceStore /></>} />
+          <Route path="/mechanic/:uid" element={<AccessGate locked={systemStatus.storesLocked} message={systemStatus.message}><MechanicDeepLinkGate /><MechanicStore /></AccessGate>} />
+          <Route path="/service/:uid" element={<AccessGate locked={systemStatus.storesLocked} message={systemStatus.message}><ServiceDeepLinkGate /><ServiceStore /></AccessGate>} />
           
           <Route path="/terms" element={<Terms />} />
           <Route path="/cookiePolicy" element={<CookiePolicy />} />
@@ -493,6 +524,8 @@ function App() {
                 )
               ) : isAdmin ? (
                 <AdsManager />
+              ) : systemStatus.businessLocked && (isWorker || (flowStep !== "options" && flowStep !== "front")) ? (
+                <RestrictedScreen message={systemStatus.message} />
               ) : isWorker ? (
                 workerSubScreen === "qr" ? (
                   <QrScannerView 
@@ -519,7 +552,9 @@ function App() {
                   premiumStatus={premiumStatus}
                 />
               ) : flowStep === "front" ? (
-                <Front onExecuteWalletPayment={handleWalletPaymentExecution} />
+                <AccessGate locked={systemStatus.customerHubLocked} message={systemStatus.message}>
+                  <Front onExecuteWalletPayment={handleWalletPaymentExecution} />
+                </AccessGate>
               ) : flowStep === "category" ? (
                 <Category onSelect={handleCategorySelect} />
               ) : flowStep === "food" ? (

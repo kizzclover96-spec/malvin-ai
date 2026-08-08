@@ -3,13 +3,21 @@ import { setGlobalOptions } from "firebase-functions/v2";
 import { onCall, onRequest, HttpsError } from "firebase-functions/v2/https";
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
+import { beforeUserCreated, beforeUserSignedIn } from "firebase-functions/v2/identity";
 import { initializeApp } from "firebase-admin/app";
 import * as crypto from "crypto";
+import { enforceRateLimit, getClientIp, RateLimitRule } from "./rateLimiter";
+import { withMonitoring, captureError } from "./monitoring";
+import { assertNotLocked } from "./systemStatus";
 
 initializeApp();
 
 setGlobalOptions({
   maxInstances: 10,
+  // Available as process.env.SENTRY_DSN in every function without having
+  // to list it per-function — same idea as RESEND_API_KEY/SECURE_STRIPE_KEY
+  // below, just applied globally since monitoring should cover everything.
+  secrets: ["SENTRY_DSN"],
 });
 
 // Always read from SECURE_STRIPE_KEY which will be bound via Firebase Secrets
@@ -160,6 +168,151 @@ async function sendResetEmail(toEmail: string, code: string): Promise<void> {
   }
 }
 
+// Shared rate-limit rules for the money/credential-moving endpoints below.
+// Numbers are deliberately generous for real users and tight for scripts —
+// tune per your actual traffic once you have data.
+const STRIPE_ONBOARDING_LIMIT: RateLimitRule = { name: "stripe_onboard", max: 10, windowMs: 60 * 60 * 1000 };
+const PAYMENT_SESSION_LIMIT: RateLimitRule = { name: "payment_session", max: 20, windowMs: 10 * 60 * 1000 };
+const PAYOUT_REQUEST_LIMIT: RateLimitRule = { name: "payout_request", max: 10, windowMs: 60 * 60 * 1000 };
+const DELETE_ACCOUNT_LIMIT: RateLimitRule = { name: "delete_stripe_account", max: 5, windowMs: 60 * 60 * 1000 };
+
+/*
+=====================================
+0A. AUTH ABUSE PROTECTION (BLOCKING FUNCTIONS)
+=====================================
+Account creation, sign-in, and (below) password reset all go straight from
+the browser to Google's Identity Platform servers — the Firebase client SDK
+calls sendPasswordResetEmail/signInWithEmailAndPassword/etc. directly, they
+never touch our own Cloud Functions. That means a conventional "put a rate
+limiter/WAF in front of the API" layer never sees these requests at all, so
+it can't protect them.
+
+Blocking functions are Google's actual hook for this: they run ON THE
+IDENTITY PLATFORM SERVER, before an account is created or a sign-in is
+finalized. A client can't skip them, can't see them, and can't call around
+them — there is no frontend code path involved. Throwing here rejects the
+create/sign-in outright.
+
+One-time setup required (not code — a console step):
+  Firebase Console → Authentication → Settings → "Upgrade to Identity
+  Platform". This unlocks blocking functions; it does not change behavior
+  for any existing user. Then `firebase deploy --only functions` as usual.
+
+Also worth turning on while you're in that console, since it protects the
+same direct-to-Google endpoints with zero code on either end: Identity
+Platform → Settings → the built-in SMS/email abuse protection (adds
+reCAPTCHA Enterprise scoring at Google's edge, invisible to your UI).
+*/
+const SIGNUP_LIMIT: RateLimitRule = { name: "signup", max: 5, windowMs: 60 * 60 * 1000 }; // 5 new accounts / IP / hour
+const SIGNIN_LIMIT: RateLimitRule = { name: "signin", max: 20, windowMs: 10 * 60 * 1000 }; // 20 successful sign-ins / IP / 10 min
+
+export const blockAbusiveSignups = beforeUserCreated(async (event) => {
+  const ip = event.ipAddress || "unknown";
+  try {
+    await enforceRateLimit({ ip }, [SIGNUP_LIMIT]);
+  } catch (err) {
+    captureError(err, { scope: "blockAbusiveSignups", ip });
+    throw err;
+  }
+});
+
+export const guardSignIns = beforeUserSignedIn(async (event) => {
+  const ip = event.ipAddress || "unknown";
+  const uid = event.data?.uid;
+  if (!uid) return; // no user record on the event — nothing to key a bucket on, let it through
+
+  // This can't stop password *guessing* — Identity Platform already throttles
+  // repeated failed attempts on its own before this hook ever fires, and a
+  // wrong password never reaches beforeUserSignedIn since no sign-in
+  // succeeded. What this does stop is rapid automated re-logins and
+  // "credential stuffing succeeded, now hammer the session" from one IP.
+  try {
+    await enforceRateLimit({ ip, uid }, [SIGNIN_LIMIT]);
+  } catch (err) {
+    captureError(err, { scope: "guardSignIns", ip, uid });
+    throw err;
+  }
+});
+
+/*
+=====================================
+0B. SECURE PASSWORD RESET REQUEST
+=====================================
+Replaces the frontend's direct sendPasswordResetEmail(auth, email) call.
+That call goes straight to Google's Auth REST API and can't be rate-limited
+by us. This callable is what the frontend should call instead: we enforce
+the limit here, then mint the reset link ourselves with the Admin SDK and
+email it — same outcome for the user, but with a server-side cooldown that
+isn't visible or reachable from the browser.
+*/
+const PASSWORD_RESET_LIMIT_EMAIL: RateLimitRule = { name: "pwreset_email", max: 3, windowMs: 15 * 60 * 1000 };
+const PASSWORD_RESET_LIMIT_IP: RateLimitRule = { name: "pwreset_ip", max: 10, windowMs: 15 * 60 * 1000 };
+
+async function sendPasswordResetEmailViaResend(toEmail: string, resetLink: string): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    throw new Error("Email service is not configured (RESEND_API_KEY secret is missing).");
+  }
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: "Malvin AI Security <malvinsecurity@malvinai.com>",
+      to: toEmail,
+      subject: "Reset your Malvin AI password",
+      html: `
+        <div style="font-family: -apple-system, Helvetica, Arial, sans-serif; max-width: 420px;">
+          <p>We received a request to reset your Malvin AI account password.</p>
+          <p style="margin: 24px 0;">
+            <a href="${resetLink}" style="display:inline-block;padding:12px 20px;background:#0066ff;color:#fff;border-radius:8px;text-decoration:none;font-weight:700;">
+              Reset your password
+            </a>
+          </p>
+          <p style="color: #888; font-size: 13px;">This link expires soon and can only be used once. If you didn't request this, you can safely ignore this email — your password has not been changed.</p>
+        </div>
+      `,
+    }),
+  });
+  if (!res.ok) {
+    const errText = await res.text().catch(() => "");
+    throw new Error(`Resend API error (${res.status}): ${errText}`);
+  }
+}
+
+export const requestAccountPasswordReset = onCall(
+  { secrets: ["RESEND_API_KEY"] },
+  withMonitoring(async (request) => {
+    const { email } = (request.data || {}) as { email?: string };
+    if (!email || typeof email !== "string" || !email.includes("@")) {
+      throw new HttpsError("invalid-argument", "A valid email address is required.");
+    }
+
+    const ip = getClientIp(request.rawRequest);
+    await enforceRateLimit(
+      { ip, subject: email },
+      [PASSWORD_RESET_LIMIT_EMAIL, PASSWORD_RESET_LIMIT_IP]
+    );
+
+    // Always return the same success response regardless of whether the
+    // account exists, so this endpoint can't be used to enumerate
+    // registered emails.
+    try {
+      const { getAuth } = require("firebase-admin/auth");
+      const link = await getAuth().generatePasswordResetLink(email);
+      await sendPasswordResetEmailViaResend(email, link);
+    } catch (err: any) {
+      if (err?.code !== "auth/user-not-found") {
+        captureError(err, { scope: "requestAccountPasswordReset" });
+      }
+    }
+
+    return { success: true, message: "If an account exists for that email, a reset link has been sent." };
+  })
+);
+
 /*
 =====================================
 1. CREATE STRIPE CONNECT ACCOUNT
@@ -167,7 +320,8 @@ async function sendResetEmail(toEmail: string, code: string): Promise<void> {
 */
 export const createBusinessStripeAccount = onCall(
   { secrets: ["SECURE_STRIPE_KEY"] },
-  async (request) => {
+  withMonitoring(async (request) => {
+    await assertNotLocked("business");
     if (!process.env.SECURE_STRIPE_KEY) {
       throw new HttpsError("failed-precondition", "Stripe secret key is missing on the server.");
     }
@@ -178,6 +332,11 @@ export const createBusinessStripeAccount = onCall(
     if (!email || !businessId || !merchantType) { 
       throw new HttpsError("invalid-argument", "Email, businessId, and merchantType are required"); 
     }
+
+    await enforceRateLimit(
+      { ip: getClientIp(request.rawRequest), uid: request.auth?.uid, subject: businessId },
+      [STRIPE_ONBOARDING_LIMIT]
+    );
 
     const targetCollection = merchantType === "food" ? "restaurantprofile" : merchantType === "hotel" ? "hotels" : "salons";
 
@@ -207,7 +366,7 @@ export const createBusinessStripeAccount = onCall(
         err?.raw?.message || err?.message || "Failed to create the Stripe connected account."
       );
     }
-  }
+  })
 );
 
 /*
@@ -217,7 +376,8 @@ export const createBusinessStripeAccount = onCall(
 */
 export const createStripeOnboardingLink = onCall(
   { secrets: ["SECURE_STRIPE_KEY"] }, // 🟢 Added secure secret binding
-  async (request) => {
+  withMonitoring(async (request) => {
+    await assertNotLocked("business");
     if (!process.env.SECURE_STRIPE_KEY) {
       throw new HttpsError("failed-precondition", "Stripe secret key is missing on the server.");
     }
@@ -225,6 +385,11 @@ export const createStripeOnboardingLink = onCall(
 
     const { stripeAccountId } = request.data;
     if (!stripeAccountId) { throw new HttpsError("invalid-argument", "Stripe account missing"); }
+
+    await enforceRateLimit(
+      { ip: getClientIp(request.rawRequest), uid: request.auth?.uid, subject: stripeAccountId },
+      [STRIPE_ONBOARDING_LIMIT]
+    );
 
     const link = await stripe.accountLinks.create({
       account: stripeAccountId,
@@ -234,7 +399,7 @@ export const createStripeOnboardingLink = onCall(
     });
 
     return { url: link.url };
-  }
+  })
 );
 
 /*
@@ -281,7 +446,7 @@ export const checkStripeAccount = onCall(
 */
 export const createDirectPaymentSession = onCall(
   { secrets: ["SECURE_STRIPE_KEY"] }, 
-  async (request) => {
+  withMonitoring(async (request) => {
     if (!process.env.SECURE_STRIPE_KEY) {
       throw new HttpsError("failed-precondition", "Stripe secret key is missing on the server.");
     }
@@ -297,6 +462,12 @@ export const createDirectPaymentSession = onCall(
     if (!amount || amount <= 0 || !targetBusinessUid || !merchantType) {
       throw new HttpsError("invalid-argument", "Missing required transaction parameters.");
     }
+
+    await assertNotLocked("stores");
+    await enforceRateLimit(
+      { ip: getClientIp(request.rawRequest), uid: customerUid },
+      [PAYMENT_SESSION_LIMIT]
+    );
 
     const isFood = merchantType === "food";
     const isHotel = merchantType === "hotel";
@@ -355,7 +526,7 @@ export const createDirectPaymentSession = onCall(
     });
 
     return { url: session.url };
-  }
+  })
 );
 
 
@@ -523,7 +694,8 @@ export const stripeWebhook = onRequest(
 6. SECURE BALANCE PAYMENT PROCESSOR
 =====================================
 */
-export const processPayment = onCall({ cors: true }, async (request) => {
+export const processPayment = onCall({ cors: true }, withMonitoring(async (request) => {
+  await assertNotLocked("stores");
   const { targetBusinessUid, amount, fallbackCustomerUid, appointmentDetails, merchantType } = request.data;
   
   const customerUid = request.auth?.uid || fallbackCustomerUid;
@@ -531,6 +703,11 @@ export const processPayment = onCall({ cors: true }, async (request) => {
   if (!customerUid) {
     throw new HttpsError("unauthenticated", "Authentication identity context is missing.");
   }
+
+  await enforceRateLimit(
+    { ip: getClientIp(request.rawRequest), uid: customerUid },
+    [PAYMENT_SESSION_LIMIT]
+  );
 
   if (!targetBusinessUid || typeof amount !== "number" || amount <= 0) {
     throw new HttpsError("invalid-argument", "A valid business UID and payment amount are required.");
@@ -644,7 +821,7 @@ export const processPayment = onCall({ cors: true }, async (request) => {
     if (error instanceof HttpsError) throw error;
     throw new HttpsError("internal", "The ledger settlement failed to complete.");
   }
-});
+}));
 
 /*
 =====================================
@@ -653,7 +830,8 @@ export const processPayment = onCall({ cors: true }, async (request) => {
 */
 export const requestPayout = onCall(
   { secrets: ["SECURE_STRIPE_KEY"] },
-  async (request) => {
+  withMonitoring(async (request) => {
+    await assertNotLocked("business");
     if (!process.env.SECURE_STRIPE_KEY) {
       throw new HttpsError("failed-precondition", "Stripe secret key is missing on the server.");
     }
@@ -662,6 +840,8 @@ export const requestPayout = onCall(
     if (!uid) {
       throw new HttpsError("unauthenticated", "Authentication is required to initiate a payout.");
     }
+
+    await enforceRateLimit({ ip: getClientIp(request.rawRequest), uid }, [PAYOUT_REQUEST_LIMIT]);
 
     const { amount, pin, merchantType } = request.data;
 
@@ -807,7 +987,7 @@ export const requestPayout = onCall(
       if (error instanceof HttpsError) throw error;
       throw new HttpsError("internal", error.message || "An error occurred during payment extraction.");
     }
-  }
+  })
 );
 
 /*
@@ -819,11 +999,21 @@ const RESET_REQUEST_COOLDOWN_MS = 60 * 1000; // 1 request per minute per merchan
 
 export const requestPinReset = onCall(
   { secrets: ["RESEND_API_KEY"] },
-  async (request) => {
+  withMonitoring(async (request) => {
+    await assertNotLocked("business");
     const uid = request.auth?.uid;
     if (!uid) {
       throw new HttpsError("unauthenticated", "Authentication context is missing.");
     }
+
+    // The per-merchant 60s cooldown below already stops one account from
+    // spamming itself. This adds an IP layer on top so one attacker can't
+    // work around that by cycling through many merchant accounts from the
+    // same machine.
+    await enforceRateLimit(
+      { ip: getClientIp(request.rawRequest), uid },
+      [{ name: "pin_reset_request", max: 5, windowMs: 15 * 60 * 1000 }]
+    );
 
     const { merchantType } = request.data;
     const targetCollection = merchantType === "food" ? "restaurantprofile" : merchantType === "hotel" ? "hotels" : "salons";
@@ -869,7 +1059,7 @@ export const requestPinReset = onCall(
     await sendResetEmail(email, resetToken);
 
     return { success: true, message: "A secure reset code has been sent to your email." };
-  }
+  })
 );
 
 /*
@@ -879,7 +1069,8 @@ export const requestPinReset = onCall(
 */
 const RESET_TOKEN_MAX_ATTEMPTS = 5;
 
-export const confirmPinReset = onCall(async (request) => {
+export const confirmPinReset = onCall(withMonitoring(async (request) => {
+  await assertNotLocked("business");
   const uid = request.auth?.uid;
   if (!uid) {
     throw new HttpsError("unauthenticated", "Authentication context is missing.");
@@ -937,7 +1128,7 @@ export const confirmPinReset = onCall(async (request) => {
   });
 
   return { success: true, message: "Security PIN updated successfully!" };
-});
+}));
 
 /*
 =====================================
@@ -1041,7 +1232,7 @@ export const getStripeAccountBalance = onCall(
 */
 export const deleteStripeAccount = onCall(
   { secrets: ["SECURE_STRIPE_KEY"] },
-  async (request) => {
+  withMonitoring(async (request) => {
     if (!process.env.SECURE_STRIPE_KEY) {
       throw new HttpsError("failed-precondition", "Stripe secret key is missing on the server.");
     }
@@ -1050,6 +1241,8 @@ export const deleteStripeAccount = onCall(
     if (!uid) {
       throw new HttpsError("unauthenticated", "Authentication is required.");
     }
+
+    await enforceRateLimit({ ip: getClientIp(request.rawRequest), uid }, [DELETE_ACCOUNT_LIMIT]);
 
     const { stripeAccountId } = request.data;
     if (!stripeAccountId) {
@@ -1067,7 +1260,7 @@ export const deleteStripeAccount = onCall(
       console.error("Error deleting Stripe Connect account:", err);
       throw new HttpsError("internal", `Failed to delete Stripe account: ${err.message}`);
     }
-  }
+  })
 );
 
 /*

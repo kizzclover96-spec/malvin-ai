@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useRef } from "react";
-import { auth } from "../../firebase";
+import { auth, functions } from "../../firebase";
 import {
   GoogleAuthProvider,
   signInWithCredential,
   signInWithPopup,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  sendPasswordResetEmail
 } from "firebase/auth";
+import { httpsCallable } from "firebase/functions";
+import * as Sentry from "@sentry/react";
 import { GoogleAuth } from "@codetrix-studio/capacitor-google-auth";
 import { Capacitor } from "@capacitor/core";
 import { useNavigate } from "react-router-dom";
@@ -21,6 +22,12 @@ export default function Login() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [agreed, setAgreed] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  // Client-side only — this doesn't stop a scripted attacker (they don't
+  // click buttons), it just stops a real user's browser from firing five
+  // signups on one double-click. The actual abuse protection is the
+  // beforeUserCreated/beforeUserSignedIn blocking functions and the
+  // requestAccountPasswordReset rate limit on the server.
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const navigate = useNavigate();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -96,22 +103,37 @@ export default function Login() {
   };
 
   // PASSWORD RESET HANDLER
+  // Calls our own rate-limited Cloud Function instead of Firebase's
+  // sendPasswordResetEmail() directly — that client SDK call goes straight
+  // to Google's Auth REST API and can't be throttled by our backend at all.
+  // See requestAccountPasswordReset in malvinbackend/src/index.ts.
   const handleForgotPassword = async () => {
     if (!email) {
       alert("Please enter your email address first.");
       return;
     }
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     try {
-      await sendPasswordResetEmail(auth, email);
-      alert("Password reset email sent! Check your inbox.");
+      const requestReset = httpsCallable(functions, "requestAccountPasswordReset");
+      await requestReset({ email });
+      alert("If an account exists for that email, a reset link has been sent.");
     } catch (error: any) {
-      alert("Error sending reset email: " + error.message);
+      Sentry.captureException(error, { extra: { flow: "forgotPassword" } });
+      alert(
+        error?.code === "functions/resource-exhausted"
+          ? "Too many attempts. Please wait a bit before trying again."
+          : "Something went wrong sending the reset email. Please try again shortly."
+      );
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   // GOOGLE LOGIN
   const handleGoogleLogin = async () => {
-    if (!agreed) return;
+    if (!agreed || isSubmitting) return;
+    setIsSubmitting(true);
     try {
       let userCredential;
       if (Capacitor.isNativePlatform()) {
@@ -130,14 +152,18 @@ export default function Login() {
         await initializeUser(userCredential.user);
       }
     } catch (error: any) {
+      Sentry.captureException(error, { extra: { flow: "googleLogin" } });
       alert("Login failed: " + error.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   // EMAIL AUTH
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!agreed) return;
+    if (!agreed || isSubmitting) return;
+    setIsSubmitting(true);
 
     try {
       let userCredential;
@@ -153,7 +179,13 @@ export default function Login() {
         await initializeUser(userCredential.user);
       }
     } catch (error: any) {
+      // Rate-limit rejections from the beforeUserCreated/beforeUserSignedIn
+      // blocking functions surface here as a normal auth error — Firebase
+      // wraps them, so we just show the message it gives us.
+      Sentry.captureException(error, { extra: { flow: isSignUp ? "signUp" : "signIn" } });
       alert(error.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -298,18 +330,18 @@ export default function Login() {
 
             <button 
               type="submit"
-              disabled={!agreed}
+              disabled={!agreed || isSubmitting}
               style={{
                 padding: '15px', borderRadius: '12px', border: '2px solid #ffffff', 
                 backgroundColor: agreed ? '#0066ff' : '#333', 
                 color: agreed ? '#fff' : '#888', 
                 fontWeight: 'bold', 
-                fontSize: '1rem', cursor: agreed ? 'pointer' : 'not-allowed', 
+                fontSize: '1rem', cursor: agreed && !isSubmitting ? 'pointer' : 'not-allowed', 
                 marginTop: '5px',
                 transition: '0.3s'
               }}
             >
-              {isSignUp ? "Create Account" : "Sign In"}
+              {isSubmitting ? "Please wait…" : isSignUp ? "Create Account" : "Sign In"}
             </button>
           </form>
 
@@ -324,8 +356,8 @@ export default function Login() {
           {/* FORGOT PASSWORD BUTTON */}
           {!isSignUp && (
             <p 
-              onClick={handleForgotPassword} 
-              style={{ fontSize: '0.8rem', cursor: 'pointer', textDecoration: 'underline', color: '#00d4ff', opacity: 0.9, marginBottom: '10px' }}
+              onClick={isSubmitting ? undefined : handleForgotPassword} 
+              style={{ fontSize: '0.8rem', cursor: isSubmitting ? 'default' : 'pointer', textDecoration: 'underline', color: '#00d4ff', opacity: isSubmitting ? 0.5 : 0.9, marginBottom: '10px' }}
             >
               Forgot Password?
             </p>
@@ -335,7 +367,7 @@ export default function Login() {
 
           <button 
             type="button"
-            disabled={!agreed}
+            disabled={!agreed || isSubmitting}
             onClick={handleGoogleLogin} 
             style={{
               width: '100%', padding: '15px 0', borderRadius: '16px', border: 'none',
