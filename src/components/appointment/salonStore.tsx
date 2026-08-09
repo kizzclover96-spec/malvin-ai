@@ -213,20 +213,32 @@ export default function SalonStore() {
     return () => clearInterval(interval);
   }, [intakeState.cooldownExpiresAt]);
 
-  // 1. Listen for store average rating
+  // 1. Listen for store average rating — computed live from every
+  // user_ratings doc rather than a separately persisted store_ratings/{uid}
+  // aggregate: that aggregate doc is now owner/admin-write-only (see
+  // firestore.rules — it used to be writable by any signed-in session,
+  // which meant a single guest account could overwrite any store's
+  // headline rating). A customer submitting a rating can no longer write
+  // it directly, which is what "Missing or insufficient permissions" here
+  // was — matches the pattern mechanicStore.tsx and serviceStore.tsx
+  // already use successfully.
   useEffect(() => {
     if (!uid) return;
-    const ratingDocRef = doc(db, 'store_ratings', uid);
-    const unsub = onSnapshot(ratingDocRef, (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        setAverageRating(data.average || 0);
-        setTotalRatingsCount(data.count || 0);
-      } else {
-        setAverageRating(0);
-        setTotalRatingsCount(0);
-      }
-    });
+    const unsub = onSnapshot(
+      collection(db, 'store_ratings', uid, 'user_ratings'),
+      (snap) => {
+        if (snap.empty) {
+          setAverageRating(0);
+          setTotalRatingsCount(0);
+          return;
+        }
+        let total = 0;
+        snap.forEach((d) => { total += Number(d.data().stars || 0); });
+        setAverageRating(Number((total / snap.size).toFixed(1)));
+        setTotalRatingsCount(snap.size);
+      },
+      (err) => console.error('Failed to load ratings:', err)
+    );
     return () => unsub();
   }, [uid]);
 
@@ -254,39 +266,16 @@ export default function SalonStore() {
     setIsSubmittingRating(true);
     try {
       const userRatingRef = doc(db, 'store_ratings', uid, 'user_ratings', currentUserId);
-      const summaryRef = doc(db, 'store_ratings', uid);
 
-      const oldRatingSnap = await getDoc(userRatingRef);
-      const summarySnap = await getDoc(summaryRef);
-
-      let currentSum = 0;
-      let currentCount = 0;
-
-      if (summarySnap.exists()) {
-        currentSum = summarySnap.data().sum || 0;
-        currentCount = summarySnap.data().count || 0;
-      }
-
-      if (oldRatingSnap.exists()) {
-        const previousStars = oldRatingSnap.data().stars || 0;
-        currentSum = currentSum - previousStars + stars;
-      } else {
-        currentSum += stars;
-        currentCount += 1;
-      }
-
-      const newAverage = currentCount > 0 ? Number((currentSum / currentCount).toFixed(1)) : 0;
-
+      // Only ever writes the customer's OWN rating doc — the average/count
+      // shown on screen comes from the live listener above. No attempt to
+      // write store_ratings/{uid} itself here: that doc is owner/admin-only
+      // now (see firestore.rules), and doesn't need updating anyway since
+      // nothing reads it for display anymore.
       await setDoc(userRatingRef, {
         stars,
         updatedAt: new Date().toISOString()
       });
-
-      await setDoc(summaryRef, {
-        average: newAverage,
-        count: currentCount,
-        sum: currentSum
-      }, { merge: true });
 
       setUserRating(stars);
     } catch (err) {
