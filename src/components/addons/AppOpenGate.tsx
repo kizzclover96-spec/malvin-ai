@@ -96,6 +96,19 @@ export const AppOpenGate: React.FC<AppOpenGateProps> = ({ kind, uid, skipGate })
 
   useEffect(() => {
     if (attempted.current || !uid || skipGate) return;
+    // Embedded inside StoreFront's <iframe> — there's no native app to hand
+    // off TO, we're already inside the Malvin experience. Without this
+    // check, this whole flow (attempt a malvinai:// handoff, wait ~1.2s,
+    // then fall back to "Log in to MalvinAI to continue" + an install
+    // toast) ran on every single store visit from inside the app too,
+    // since a fresh top-level navigation inside an iframe starts with
+    // empty router state — `skipGate` above can never be true there, only
+    // App.jsx's own client-side navigate() calls ever set it. Checking the
+    // frame boundary directly, like AuthRequiredPopup used to (before it
+    // was removed) and StoreFront.tsx's own isAllowedDomain check both do,
+    // is what actually distinguishes "embedded" from "standalone" here —
+    // reliably, synchronously, with nothing to race.
+    if (typeof window !== 'undefined' && window.top !== window.self) return;
     attempted.current = true;
 
     let timer: ReturnType<typeof setTimeout>;
