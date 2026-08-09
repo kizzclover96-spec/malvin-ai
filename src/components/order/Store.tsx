@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { firestore as db } from '../../firebase'; // Ensure your firebase configuration is exported here
-import { applyStorefrontIdentity } from '../../services/storefrontAuth';
+import { applyStorefrontIdentity, waitForRealAuthUid } from '../../services/storefrontAuth';
 import { doc, onSnapshot, collection, addDoc, query, where, getDoc, setDoc } from 'firebase/firestore';
 import styles from './store.module.css';
 import { useParams, useNavigate, useLocation } from "react-router-dom"; 
@@ -304,16 +304,26 @@ export const StoreFrontend: React.FC = () => {
 
   // --- 3. Handle Star Click (Submit or Update Rating) ---
   const handleRateStore = async (stars: number) => {
-    const currentUserId = auth.currentUser?.uid || guestId;
-    if (!currentUserId) {
-      alert("Please log in or establish session to rate this store.");
-      return;
-    }
     if (!restaurantUid || isSubmittingRating) return;
 
     setIsSubmittingRating(true);
     try {
-      const userRatingRef = doc(db, 'store_ratings', restaurantUid, 'user_ratings', currentUserId);
+      // Deliberately NOT `auth.currentUser?.uid || guestId` here — guestId
+      // is plain data from the parent's postMessage, available well before
+      // signInWithCustomToken() actually finishes establishing a REAL
+      // session on this origin (see applyStorefrontIdentity in
+      // services/storefrontAuth.ts). Writing under a uid the local
+      // request.auth doesn't actually match is exactly what was producing
+      // "Missing or insufficient permissions" — waitForRealAuthUid waits
+      // (briefly, bounded) for that real session instead of assuming
+      // guestId is good enough to write with.
+      const realUid = await waitForRealAuthUid(auth);
+      if (!realUid) {
+        alert("Still connecting to your account — please try again in a moment.");
+        return;
+      }
+
+      const userRatingRef = doc(db, 'store_ratings', restaurantUid, 'user_ratings', realUid);
 
       // Only ever writes the customer's OWN rating doc — the average/count
       // shown on screen comes from the live listener above, which derives

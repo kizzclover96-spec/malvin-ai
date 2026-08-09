@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useLocation  } from 'react-router-dom';
 import { firestore as db, auth } from '../../firebase';
-import { applyStorefrontIdentity } from '../../services/storefrontAuth';
+import { applyStorefrontIdentity, waitForRealAuthUid } from '../../services/storefrontAuth';
 import { doc, getDoc, collection, onSnapshot, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import styles from './salonStore.module.css';
 import QRCode from 'qrcode';
@@ -256,16 +256,27 @@ export default function SalonStore() {
 
   // 3. Rating Submission
   const handleRateStore = async (stars: number) => {
-    const currentUserId = auth.currentUser?.uid || customerUid || localStorage.getItem('guest_id');
-    if (!currentUserId) {
-      alert("Please log in or establish session to rate this store.");
-      return;
-    }
     if (!uid || isSubmittingRating) return;
 
     setIsSubmittingRating(true);
     try {
-      const userRatingRef = doc(db, 'store_ratings', uid, 'user_ratings', currentUserId);
+      // Deliberately NOT `auth.currentUser?.uid || customerUid || localStorage
+      // .getItem('guest_id')` here — those are plain data from the parent's
+      // postMessage (or a local fallback), available well before
+      // signInWithCustomToken() actually finishes establishing a REAL
+      // session on this origin (see applyStorefrontIdentity in
+      // services/storefrontAuth.ts). Writing under a uid the local
+      // request.auth doesn't actually match is exactly what was producing
+      // "Missing or insufficient permissions" — waitForRealAuthUid waits
+      // (briefly, bounded) for that real session instead of assuming one
+      // of those stand-ins is good enough to write with.
+      const realUid = await waitForRealAuthUid(auth);
+      if (!realUid) {
+        alert("Still connecting to your account — please try again in a moment.");
+        return;
+      }
+
+      const userRatingRef = doc(db, 'store_ratings', uid, 'user_ratings', realUid);
 
       // Only ever writes the customer's OWN rating doc — the average/count
       // shown on screen comes from the live listener above. No attempt to
