@@ -233,40 +233,46 @@ export const StoreFront: React.FC<StoreFrontProps> = ({ businessUid, onExit, use
         const targetWindow = iframeRef.current?.contentWindow;
         const targetOrigin = expectedOrigin;
         const uid = currentUser?.uid ?? null;
+        const identityBase = {
+          type: "MALVIN_USER",
+          uid,
+          email: currentUser?.email ?? null,
+          isGuest: currentUser?.isAnonymous ?? true,
+          token: handshakeTokenRef.current,
+        };
+
+        // Post the handshake token + identity IMMEDIATELY, synchronously,
+        // with customToken left null for now. This is deliberately NOT
+        // awaited on the mint below: AuthRequiredPopup (in every store)
+        // only waits ~3s for this handshake token before deciding it
+        // wasn't embedded at all and showing "log in to continue" — and
+        // once that timeout fires, it's final, a later message doesn't
+        // un-show it (see the comment on HANDSHAKE_TIMEOUT_MS there).
+        // Blocking this send on a Cloud Functions round trip (cold starts
+        // routinely exceed a couple seconds) meant a real, properly-
+        // embedded visit could still lose that race and get stuck showing
+        // the gate — exactly the bug this split fixes.
+        targetWindow?.postMessage({ ...identityBase, customToken: null }, targetOrigin);
 
         // Mint (or reuse the cached) real Firebase custom token for this
-        // uid before posting — see getStorefrontToken above for why a
-        // bare uid alone isn't enough for the store's own Firestore
-        // queries to be trusted. Awaited inline rather than blocking
-        // settledRef above, so a slow/failed mint never reopens the
-        // load-failure path — worst case the store gets identity data but
-        // no working session, same as if this callable didn't exist yet.
-        (async () => {
-          const customToken = uid ? await getStorefrontToken(uid) : null;
-
-          // Post the handshake token (+ whatever identity we have) back
-          // to the iframe. This always fires once the store announces
-          // itself — it's no longer gated on currentUser. Whether
-          // someone's actually signed in only changes what
-          // uid/email/isGuest/customToken carry; the handshake token
-          // itself is what tells the store "yes, you're properly
-          // embedded", which is a question of *how this page was
-          // opened*, not *who's logged in*. Real write actions still
-          // enforce sign-in server-side via Firestore's isSignedIn()
-          // rules regardless of any of this — customToken is what lets
-          // the store actually SATISFY that check from its own origin.
-          targetWindow?.postMessage(
-            {
-              type: "MALVIN_USER",
-              uid,
-              email: currentUser?.email ?? null,
-              isGuest: currentUser?.isAnonymous ?? true,
-              token: handshakeTokenRef.current,
-              customToken,
-            },
-            targetOrigin
-          );
-        })();
+        // uid and send it as a FOLLOW-UP message once it's ready — see
+        // getStorefrontToken above for why a bare uid alone isn't enough
+        // for the store's own Firestore queries to be trusted. Each
+        // store's MALVIN_USER handler re-runs on every message of this
+        // type (applyStorefrontIdentity in services/storefrontAuth.ts
+        // already de-dupes on the token value), so a second message with
+        // just customToken filled in is picked up the same way the first
+        // one was — the gate has already cleared by then regardless.
+        if (uid) {
+          getStorefrontToken(uid)
+            .then((customToken) => {
+              if (!customToken) return;
+              targetWindow?.postMessage({ ...identityBase, customToken }, targetOrigin);
+            })
+            .catch((err) => {
+              console.error('Failed to mint storefront auth token — store will fall back to unauthenticated/guest access:', err);
+            });
+        }
       }
 
       // Handle Direct Stripe Payment Delegation

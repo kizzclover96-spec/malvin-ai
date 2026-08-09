@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 // Same Play Store listing AppOpenGate.tsx points at — kept in sync with
 // that file's ANDROID_PACKAGE_ID/ANDROID_STORE_URL constants. Tapping
-// "Install" on Android hands off to the Play Store, which is what
-// actually installs the app's APK — there's no way for a web page to
-// silently drop an APK onto a device outside of that.
+// "Install" on Android WITHOUT a capturable beforeinstallprompt (see below)
+// hands off to the Play Store instead, which is what actually installs the
+// app's APK — there's no way for a web page to silently drop an APK onto a
+// device outside of that.
 const ANDROID_PACKAGE_ID = 'com.malvinaibeta.agent';
 const ANDROID_STORE_URL = `https://play.google.com/store/apps/details?id=${ANDROID_PACKAGE_ID}`;
 
@@ -13,9 +14,14 @@ const ANDROID_STORE_URL = `https://play.google.com/store/apps/details?id=${ANDRO
 const DISMISS_KEY = 'malvinai_install_toast_dismissed_at';
 const DISMISS_SNOOZE_MS = 3 * 24 * 60 * 60 * 1000; // 3 days
 
-type Platform = 'android' | 'ios' | null;
+type Platform = 'android' | 'ios' | 'chrome-installable' | 'safari-desktop' | null;
 
-function detectPlatform(): Platform {
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+}
+
+function detectMobilePlatform(): 'android' | 'ios' | null {
   const ua = navigator.userAgent || '';
   const isAndroid = /Android/i.test(ua);
   const isIOS = /iPhone|iPad|iPod/i.test(ua);
@@ -31,6 +37,13 @@ function detectPlatform(): Platform {
   return null;
 }
 
+function isDesktopSafari(): boolean {
+  const ua = navigator.userAgent || '';
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(ua);
+  const isSafari = /Safari/i.test(ua) && !/Chrome|CriOS|FxiOS|EdgiOS|Edg/i.test(ua);
+  return !isMobile && isSafari;
+}
+
 function isAlreadyInstalled(): boolean {
   return (
     window.matchMedia?.('(display-mode: standalone)').matches ||
@@ -42,17 +55,52 @@ function isAlreadyInstalled(): boolean {
  * GLOBAL INSTALL TOAST
  * ---------------------------------------------------------------------------
  * Mounted once in App.jsx, outside <Routes>, so it can appear over any page.
- * Shows only for a plain web visit in Chrome (Android) or Safari (iOS) —
- * never inside the native Capacitor app, never inside StoreFront's iframe
- * (which is this same web app, loaded again at /food/:uid etc. — checked via
- * window.top === window.self so the toast doesn't double up in there), and
- * never once already installed/standalone.
+ * Never inside the native Capacitor app, never inside StoreFront's iframe
+ * (checked via window.top === window.self so it doesn't double up in
+ * there), and never once already installed/standalone.
+ *
+ * Two independent trigger paths:
+ *  - Mobile (Android Chrome / iOS Safari): detected from the user agent,
+ *    same as before. Android's "Install" hands off to the Play Store; iOS
+ *    has no scriptable install at all, so it expands into manual
+ *    Add-to-Home-Screen steps instead.
+ *  - Desktop Chrome (and Chromium browsers that support it): the mobile
+ *    check above deliberately excludes desktop — a bare user-agent sniff
+ *    can't tell you whether a desktop page is ACTUALLY installable (a
+ *    manifest issue, an unmet PWA criterion, or the browser already having
+ *    silently declined would all make an "Install" button that does
+ *    nothing). Chrome only ever fires `beforeinstallprompt` when the page
+ *    genuinely qualifies, so listening for that instead of guessing off
+ *    the UA is what lets desktop show a real, working Install button
+ *    rather than a broken one.
+ *  - Desktop Safari has no install-prompt API at all (same as iOS) — shown
+ *    with brief Dock instructions instead of a broken button.
  */
 export const InstallAppToast: React.FC = () => {
   const [platform, setPlatform] = useState<Platform>(null);
   const [expanded, setExpanded] = useState(false);
+  const deferredPromptRef = useRef<BeforeInstallPromptEvent | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
+
+    const dismissedRecently = () => {
+      try {
+        const dismissedAt = Number(localStorage.getItem(DISMISS_KEY) || 0);
+        return !!dismissedAt && Date.now() - dismissedAt < DISMISS_SNOOZE_MS;
+      } catch {
+        return false; // storage unavailable — worst case shown slightly more than intended
+      }
+    };
+
+    const onBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      if (cancelled || dismissedRecently()) return;
+      deferredPromptRef.current = e as BeforeInstallPromptEvent;
+      setPlatform((current) => current ?? 'chrome-installable');
+    };
+    window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt);
+
     (async () => {
       try {
         const { Capacitor } = await import('@capacitor/core');
@@ -61,19 +109,25 @@ export const InstallAppToast: React.FC = () => {
         // @capacitor/core not resolvable — plain web build, proceed.
       }
 
+      if (cancelled) return;
       if (window.top !== window.self) return; // inside StoreFront's iframe
       if (isAlreadyInstalled()) return;
+      if (dismissedRecently()) return;
 
-      try {
-        const dismissedAt = Number(localStorage.getItem(DISMISS_KEY) || 0);
-        if (dismissedAt && Date.now() - dismissedAt < DISMISS_SNOOZE_MS) return;
-      } catch {
-        // Storage unavailable — just show it, worst case someone sees it
-        // slightly more often than intended.
+      const mobile = detectMobilePlatform();
+      if (mobile) {
+        setPlatform(mobile);
+      } else if (isDesktopSafari()) {
+        setPlatform('safari-desktop');
       }
-
-      setPlatform(detectPlatform());
+      // Otherwise: wait and see if beforeinstallprompt fires (desktop
+      // Chrome) — nothing to set yet, that listener above handles it.
     })();
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt);
+    };
   }, []);
 
   const dismiss = () => {
@@ -85,18 +139,32 @@ export const InstallAppToast: React.FC = () => {
     setPlatform(null);
   };
 
-  const handleInstallClick = () => {
+  const handleInstallClick = async () => {
+    if (platform === 'chrome-installable' && deferredPromptRef.current) {
+      const promptEvent = deferredPromptRef.current;
+      deferredPromptRef.current = null;
+      try {
+        await promptEvent.prompt();
+        await promptEvent.userChoice;
+      } catch (err) {
+        console.warn('Install prompt failed or was dismissed:', err);
+      }
+      dismiss();
+      return;
+    }
     if (platform === 'android') {
       window.location.href = ANDROID_STORE_URL;
       dismiss();
-    } else {
-      // iOS/Safari has no scriptable install — expand the toast to show
-      // the Add to Home Screen steps instead of navigating anywhere.
-      setExpanded(true);
+      return;
     }
+    // iOS Safari / desktop Safari: no scriptable install — expand into
+    // manual steps instead of navigating anywhere.
+    setExpanded(true);
   };
 
   if (!platform) return null;
+
+  const isSafariVariant = platform === 'ios' || platform === 'safari-desktop';
 
   return (
     <div style={toastWrapStyle}>
@@ -106,13 +174,20 @@ export const InstallAppToast: React.FC = () => {
           <>
             <p style={toastTitleStyle}>Install MalvinAI App</p>
             <p style={toastBodyStyle}>
-              {platform === 'android'
-                ? 'Get the full app experience with faster loading and push notifications.'
-                : 'Add MalvinAI to your Home Screen for the full app experience.'}
+              {isSafariVariant
+                ? 'Add MalvinAI to your Home Screen for the full app experience.'
+                : 'Get the full app experience with faster loading and push notifications.'}
             </p>
             <button style={installButtonStyle} onClick={handleInstallClick}>
               Install
             </button>
+          </>
+        ) : platform === 'safari-desktop' ? (
+          <>
+            <p style={toastTitleStyle}>Add MalvinAI to your Dock</p>
+            <p style={toastBodyStyle}>
+              In Safari's menu bar, choose <span style={{ fontWeight: 800 }}>File → Add to Dock</span>.
+            </p>
           </>
         ) : (
           <>

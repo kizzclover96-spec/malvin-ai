@@ -6,10 +6,34 @@ import { getStorage } from "firebase/storage";
 import { getFirestore } from "firebase/firestore";
 import { getFunctions } from "firebase/functions";
 
-if (!import.meta.env.VITE_FIREBASE_PROJECT_ID) {
+// Every one of these is required for at least one Firebase service this app
+// actually uses — most silently produce a working-looking app that fails
+// much later, deep inside SDK internals, with an error that gives no hint
+// the real problem is a missing env var. appId is the sharpest example:
+// Auth/Firestore/Storage don't need it, so the app runs fine right up until
+// something touches Firebase Installations (which underlies Cloud
+// Messaging's getToken()) — see registerWebPush in
+// services/pushNotifications.ts, which now checks for this explicitly
+// rather than letting that surface as "Installations: Missing App
+// configuration value: appId" with no clue where to even start looking.
+const REQUIRED_FIREBASE_ENV_VARS = [
+  "VITE_FIREBASE_API_KEY",
+  "VITE_FIREBASE_AUTH_DOMAIN",
+  "VITE_FIREBASE_PROJECT_ID",
+  "VITE_FIREBASE_STORAGE_BUCKET",
+  "VITE_FIREBASE_MESSAGING_SENDER_ID",
+  "VITE_FIREBASE_APP_ID",
+] as const;
+
+const missingFirebaseEnvVars = REQUIRED_FIREBASE_ENV_VARS.filter(
+  (key) => !import.meta.env[key]
+);
+if (missingFirebaseEnvVars.length > 0) {
   console.error(
-    "🚨 CRITICAL ERROR: VITE_FIREBASE_PROJECT_ID is empty! " +
-    "Check your .env file and restart your local npm dev server."
+    `🚨 CRITICAL ERROR: missing Firebase config value(s): ${missingFirebaseEnvVars.join(", ")}. ` +
+    "Check your .env file (and your deploy/CI environment's env vars, if this is happening in " +
+    "production and not locally — a value present in .env but never set on the actual build " +
+    "environment produces exactly this) and rebuild."
   );
 }
 const firebaseConfig = {

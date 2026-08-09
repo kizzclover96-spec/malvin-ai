@@ -86,6 +86,20 @@ async function registerWebPush(uid: string): Promise<void> {
     return;
   }
 
+  // Firebase Cloud Messaging's getToken() goes through Firebase
+  // Installations under the hood, which — unlike Auth/Firestore/Storage —
+  // genuinely requires a real appId. If it's missing from this build's env
+  // (see the REQUIRED_FIREBASE_ENV_VARS check in firebase.ts, which now
+  // warns loudly about this at startup), the failure used to only surface
+  // here, several layers deep inside Installations, as an opaque
+  // "Missing App configuration value: appId" with no pointer back to the
+  // actual cause. Catching it explicitly at the one call site that
+  // actually needs it gives an error someone can act on immediately.
+  if (!app.options.appId) {
+    console.warn('Firebase appId is missing from this build\'s config — skipping web push registration. Check VITE_FIREBASE_APP_ID in your .env / build environment.');
+    return;
+  }
+
   try {
     const { isSupported, getMessaging, getToken } = await import('firebase/messaging');
     if (!(await isSupported())) return;
