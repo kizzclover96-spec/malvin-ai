@@ -49,8 +49,7 @@ interface AppOpenGateProps {
 type GateState =
   | 'idle'          // nothing to show — desktop, or inside the native app already
   | 'rerouting'     // handoff to the installed app is in flight
-  | 'needsLogin'    // handoff timed out — app doesn't look installed
-  | 'installPrompt'; // login popup dismissed — now showing the install/add-to-home-screen toast
+  | 'installPrompt'; // handoff timed out — showing the install/add-to-home-screen toast
 
 /**
  * VINMOMENT DEEP-LINK HANDOFF
@@ -70,12 +69,10 @@ type GateState =
  *   passes to the native app.
  *
  *   NOT INSTALLED — the handoff attempt above times out with the tab still
- *   in the foreground, so this concludes Malvin isn't installed and shows:
- *     1. A "you'll need to log in to continue" popup.
- *     2. A platform-aware install toast — Android gets an "Install Now"
- *        button straight to the Play listing; iOS gets Share ▸ Add to Home
- *        Screen instructions, since Safari has no scriptable install
- *        prompt.
+ *   in the foreground, so this concludes Malvin isn't installed and shows
+ *   a platform-aware install toast directly — Android gets an "Install Now"
+ *   button straight to the Play listing; iOS gets Share ▸ Add to Home
+ *   Screen instructions, since Safari has no scriptable install prompt.
  *   Either way, the intended path is saved to localStorage first
  *   (savePendingDeepLink) so App.jsx can resume it the moment login
  *   succeeds — see consumePendingDeepLink there.
@@ -99,13 +96,12 @@ export const AppOpenGate: React.FC<AppOpenGateProps> = ({ kind, uid, skipGate })
     // Embedded inside StoreFront's <iframe> — there's no native app to hand
     // off TO, we're already inside the Malvin experience. Without this
     // check, this whole flow (attempt a malvinai:// handoff, wait ~1.2s,
-    // then fall back to "Log in to MalvinAI to continue" + an install
-    // toast) ran on every single store visit from inside the app too,
-    // since a fresh top-level navigation inside an iframe starts with
-    // empty router state — `skipGate` above can never be true there, only
-    // App.jsx's own client-side navigate() calls ever set it. Checking the
-    // frame boundary directly, like AuthRequiredPopup used to (before it
-    // was removed) and StoreFront.tsx's own isAllowedDomain check both do,
+    // then fall back to an install toast) ran on every single store visit
+    // from inside the app too, since a fresh top-level navigation inside
+    // an iframe starts with empty router state — `skipGate` above can
+    // never be true there, only App.jsx's own client-side navigate()
+    // calls ever set it. Checking the frame boundary directly, like
+    // StoreFront.tsx's own isAllowedDomain check does,
     // is what actually distinguishes "embedded" from "standalone" here —
     // reliably, synchronously, with nothing to race.
     if (typeof window !== 'undefined' && window.top !== window.self) return;
@@ -148,8 +144,9 @@ export const AppOpenGate: React.FC<AppOpenGateProps> = ({ kind, uid, skipGate })
       timer = setTimeout(() => {
         if (handedOff || document.hidden) return;
         // Still here 1.2s later — the OS never intercepted the scheme, so
-        // Malvin isn't installed. Walk the person through getting it.
-        setState('needsLogin');
+        // Malvin isn't installed. Straight to the install toast — no
+        // separate "log in to continue" interstitial in front of it.
+        setState('installPrompt');
       }, 1200);
     })();
 
@@ -183,24 +180,10 @@ export const AppOpenGate: React.FC<AppOpenGateProps> = ({ kind, uid, skipGate })
         </div>
       )}
 
-      {/* LOGIN REQUIRED — the handoff timed out, so Malvin isn't on this
-          device. */}
-      {state === 'needsLogin' && (
-        <div style={overlayStyle}>
-          <div style={cardStyle}>
-            <p style={titleStyle}>Log in to MalvinAI to continue</p>
-            <p style={bodyStyle}>
-              You'll need the MalvinAI app to view and pay this business securely.
-            </p>
-            <button style={primaryButtonStyle} onClick={() => setState('installPrompt')}>
-              Continue
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* INSTALL TOAST — platform-aware call to action, bottom of screen so
-          the business details stay visible above it. */}
+          the business details stay visible above it. Shown directly once
+          the handoff attempt times out — no separate "log in to continue"
+          interstitial in front of it anymore. */}
       {state === 'installPrompt' && (
         <div style={toastWrapStyle}>
           <div style={toastStyle}>
@@ -251,11 +234,6 @@ const titleStyle: React.CSSProperties = {
 };
 const bodyStyle: React.CSSProperties = {
   margin: '0 0 18px', fontSize: '12.5px', color: '#64748b', lineHeight: 1.5,
-};
-const primaryButtonStyle: React.CSSProperties = {
-  width: '100%', padding: '12px', borderRadius: '12px', border: 'none',
-  background: '#4f46e5', color: '#ffffff', fontWeight: 800, fontSize: '13px',
-  cursor: 'pointer',
 };
 const spinnerStyle: React.CSSProperties = {
   width: '30px', height: '30px', margin: '0 auto 12px',
