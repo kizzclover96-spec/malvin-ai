@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { firestore as db } from '../../firebase'; // Ensure your firebase configuration is exported here
+import { applyStorefrontIdentity } from '../../services/storefrontAuth';
 import { doc, onSnapshot, collection, addDoc, query, where, getDoc, setDoc } from 'firebase/firestore';
 import styles from './store.module.css';
 import { useParams, useNavigate, useLocation } from "react-router-dom"; 
@@ -213,6 +214,13 @@ export const StoreFrontend: React.FC = () => {
           email: event.data.email,
           isGuest: event.data.isGuest
         });
+        // Establishes a REAL Firebase Auth session on this origin from the
+        // parent's minted custom token — without this, event.data.uid is
+        // just a string this component trusts locally, but Firestore's own
+        // security rules have no way to verify it and reject scoped
+        // queries with "Missing or insufficient permissions". See
+        // services/storefrontAuth.ts for the full explanation.
+        applyStorefrontIdentity(auth, event.data.customToken);
       }
     };
 

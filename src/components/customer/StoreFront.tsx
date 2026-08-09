@@ -54,6 +54,36 @@ export const StoreFront: React.FC<StoreFrontProps> = ({ businessUid, onExit, use
   // One token per mount — regenerating it on every render would mean the
   // store never has the same token twice in a row to compare against.
   const handshakeTokenRef = useRef(generateHandshakeToken());
+  // Caches the in-flight/resolved custom-token mint per uid, so a retried
+  // or duplicate *_READY (StrictMode double-invoke, a flaky first load)
+  // doesn't mint a fresh token every time — and so a mid-session account
+  // switch can't accidentally hand a NEW user the previous one's token.
+  const storefrontTokenCacheRef = useRef<{ uid: string; promise: Promise<string | null> } | null>(null);
+
+  // Mints a short-lived Firebase custom token for `uid` via the
+  // mintStorefrontToken callable (malvinbackend/src/index.ts) and caches
+  // it. See the long comment on that function for why this exists: a bare
+  // uid over postMessage is just data, not a real session, so Firestore's
+  // security rules reject it inside the store's own (different-origin)
+  // Firebase Auth context without this.
+  const getStorefrontToken = (uid: string): Promise<string | null> => {
+    if (storefrontTokenCacheRef.current?.uid === uid) {
+      return storefrontTokenCacheRef.current.promise;
+    }
+    const promise = (async () => {
+      try {
+        const functions = getFunctions();
+        const mint = httpsCallable(functions, 'mintStorefrontToken');
+        const res = await mint();
+        return (res.data as any)?.token ?? null;
+      } catch (err) {
+        console.error('Failed to mint storefront auth token — store will fall back to unauthenticated/guest access:', err);
+        return null;
+      }
+    })();
+    storefrontTokenCacheRef.current = { uid, promise };
+    return promise;
+  };
 
   // 1. Sanitize & Parse Target URL
   const targetUrl = businessUid.startsWith('http://') || businessUid.startsWith('https://') 
@@ -200,24 +230,43 @@ export const StoreFront: React.FC<StoreFrontProps> = ({ businessUid, onExit, use
         // failure timeout/fast-check above.
         settledRef.current = true;
 
-        // Post the handshake token (+ whatever identity we have) back to
-        // the iframe. This always fires once the store announces itself —
-        // it's no longer gated on currentUser. Whether someone's actually
-        // signed in only changes what uid/email/isGuest carry; the token
-        // itself is what tells the store "yes, you're properly embedded",
-        // which is a question of *how this page was opened*, not *who's
-        // logged in*. Real write actions still enforce sign-in server-side
-        // via Firestore's isSignedIn() rules regardless of any of this.
-        iframeRef.current?.contentWindow?.postMessage(
-          {
-            type: "MALVIN_USER",
-            uid: currentUser?.uid ?? null,
-            email: currentUser?.email ?? null,
-            isGuest: currentUser?.isAnonymous ?? true,
-            token: handshakeTokenRef.current,
-          },
-          expectedOrigin
-        );
+        const targetWindow = iframeRef.current?.contentWindow;
+        const targetOrigin = expectedOrigin;
+        const uid = currentUser?.uid ?? null;
+
+        // Mint (or reuse the cached) real Firebase custom token for this
+        // uid before posting — see getStorefrontToken above for why a
+        // bare uid alone isn't enough for the store's own Firestore
+        // queries to be trusted. Awaited inline rather than blocking
+        // settledRef above, so a slow/failed mint never reopens the
+        // load-failure path — worst case the store gets identity data but
+        // no working session, same as if this callable didn't exist yet.
+        (async () => {
+          const customToken = uid ? await getStorefrontToken(uid) : null;
+
+          // Post the handshake token (+ whatever identity we have) back
+          // to the iframe. This always fires once the store announces
+          // itself — it's no longer gated on currentUser. Whether
+          // someone's actually signed in only changes what
+          // uid/email/isGuest/customToken carry; the handshake token
+          // itself is what tells the store "yes, you're properly
+          // embedded", which is a question of *how this page was
+          // opened*, not *who's logged in*. Real write actions still
+          // enforce sign-in server-side via Firestore's isSignedIn()
+          // rules regardless of any of this — customToken is what lets
+          // the store actually SATISFY that check from its own origin.
+          targetWindow?.postMessage(
+            {
+              type: "MALVIN_USER",
+              uid,
+              email: currentUser?.email ?? null,
+              isGuest: currentUser?.isAnonymous ?? true,
+              token: handshakeTokenRef.current,
+              customToken,
+            },
+            targetOrigin
+          );
+        })();
       }
 
       // Handle Direct Stripe Payment Delegation

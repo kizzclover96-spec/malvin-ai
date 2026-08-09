@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { firestore as db, auth, storage } from '../../firebase';
+import { applyStorefrontIdentity } from '../../services/storefrontAuth';
 import { getDatabase, ref, onValue } from 'firebase/database';
 import { doc, getDoc, collection, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -78,6 +79,11 @@ export default function ServiceStore() {
     const handler = (event: MessageEvent) => {
       if (event.data?.type === 'MALVIN_USER' && event.data?.uid) {
         setCustomerUid(event.data.uid);
+        // Real Firebase Auth session on this origin from the parent's
+        // minted custom token — see services/storefrontAuth.ts for why a
+        // bare uid alone leaves Firestore's own security rules unable to
+        // verify anything, causing "Missing or insufficient permissions".
+        applyStorefrontIdentity(auth, event.data.customToken);
       }
     };
     window.addEventListener('message', handler);

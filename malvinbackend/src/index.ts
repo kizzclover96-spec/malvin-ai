@@ -247,6 +247,11 @@ isn't visible or reachable from the browser.
 */
 const PASSWORD_RESET_LIMIT_EMAIL: RateLimitRule = { name: "pwreset_email", max: 3, windowMs: 15 * 60 * 1000 };
 const PASSWORD_RESET_LIMIT_IP: RateLimitRule = { name: "pwreset_ip", max: 10, windowMs: 15 * 60 * 1000 };
+// Generous — this fires once per store a signed-in customer opens, which
+// can legitimately happen many times in a normal browsing session (Front.tsx
+// re-mounts StoreFront on every tap). It's still a real limit so a runaway
+// client bug can't hammer token minting indefinitely.
+const STOREFRONT_TOKEN_LIMIT: RateLimitRule = { name: "storefront_token", max: 120, windowMs: 10 * 60 * 1000 };
 
 async function sendPasswordResetEmailViaResend(toEmail: string, resetLink: string): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;
@@ -312,6 +317,48 @@ export const requestAccountPasswordReset = onCall(
     return { success: true, message: "If an account exists for that email, a reset link has been sent." };
   })
 );
+
+/*
+=====================================
+MINT STOREFRONT AUTH TOKEN
+=====================================
+StoreFront.tsx's <iframe> loads a store from stores.malvinai.com — a
+genuinely different origin than this app shell, by design (see the long
+comment on that <iframe> for why). Firebase Auth sessions live in per-origin
+browser storage, so the customer's real, signed-in session on THIS origin
+does not exist on stores.malvinai.com at all; the store only ever received
+a bare uid/email over postMessage, which is just data, not proof of
+anything — Firestore's security rules correctly refuse to trust a client
+telling it "I am this uid" with nothing backing that claim, hence
+"Missing or insufficient permissions" on every scoped query the store runs.
+
+This callable is what fixes that properly: called from the PARENT (this
+shell, where request.auth is the customer's real, already-verified
+session), it mints a short-lived Firebase custom token for that same uid.
+StoreFront.tsx sends that token down to the child over the existing
+handshake postMessage; the store calls signInWithCustomToken() with it on
+its OWN local `auth` instance, which gives it a real, valid Firebase Auth
+session on stores.malvinai.com too — satisfying request.auth.uid checks
+same as if they'd signed in there directly, without ever exposing a
+password or long-lived credential to the iframe.
+*/
+export const mintStorefrontToken = onCall(withMonitoring(async (request) => {
+  if (!request.auth?.uid) {
+    throw new HttpsError("unauthenticated", "You must be signed in to open a store.");
+  }
+
+  await enforceRateLimit(
+    { ip: getClientIp(request.rawRequest), uid: request.auth.uid },
+    [STOREFRONT_TOKEN_LIMIT]
+  );
+
+  const { getAuth } = require("firebase-admin/auth");
+  // No extra custom claims — the store only needs proof of *which* uid this
+  // is, not an escalated permission set. Firestore rules apply exactly the
+  // same as they would for a native sign-in under that uid.
+  const token = await getAuth().createCustomToken(request.auth.uid);
+  return { token };
+}));
 
 /*
 =====================================

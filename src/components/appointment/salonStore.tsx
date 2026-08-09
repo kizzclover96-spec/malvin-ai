@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useLocation  } from 'react-router-dom';
 import { firestore as db, auth } from '../../firebase';
+import { applyStorefrontIdentity } from '../../services/storefrontAuth';
 import { doc, getDoc, collection, onSnapshot, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import styles from './salonStore.module.css';
 import QRCode from 'qrcode';
@@ -314,6 +315,11 @@ export default function SalonStore() {
       if (event.data?.type === 'MALVIN_USER' && event.data?.uid) {
         console.log("Verified auth received in SalonStore:", event.data.uid);
         setActiveUserUid(event.data.uid);
+        // Real Firebase Auth session on this origin from the parent's
+        // minted custom token — see services/storefrontAuth.ts for why a
+        // bare uid alone leaves Firestore's own security rules unable to
+        // verify anything, causing "Missing or insufficient permissions".
+        applyStorefrontIdentity(auth, event.data.customToken);
       }
     };
 

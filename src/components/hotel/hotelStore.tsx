@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { firestore as db, auth } from '../../firebase';
+import { applyStorefrontIdentity } from '../../services/storefrontAuth';
 import { doc, getDoc, collection, onSnapshot, runTransaction } from 'firebase/firestore';
 import { getDatabase, ref, onValue } from 'firebase/database';
 import {
@@ -190,7 +191,14 @@ export default function HotelStore() {
 
   useEffect(() => {
     const receiveFromShell = (event: MessageEvent) => {
-      if (event.data?.type === 'MALVIN_USER') setCustomerUid(event.data.uid);
+      if (event.data?.type === 'MALVIN_USER') {
+        setCustomerUid(event.data.uid);
+        // Real Firebase Auth session on this origin from the parent's
+        // minted custom token — see services/storefrontAuth.ts for why a
+        // bare uid alone leaves Firestore's own security rules unable to
+        // verify anything, causing "Missing or insufficient permissions".
+        applyStorefrontIdentity(auth, event.data.customToken);
+      }
 
       // The shell couldn't open a Stripe session. Without this the pay button
       // would stay stuck in its submitting state, since the redirect it was

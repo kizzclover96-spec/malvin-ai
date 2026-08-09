@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { auth, db } from '../../firebase';
+import { applyStorefrontIdentity } from '../../services/storefrontAuth';
 import { ref as dbRef, onValue, set, push, update, get } from "firebase/database";
 import { ProductCard } from '../addons/ProductView';
 import CustomerChat from '../customer/CustomerChat';
@@ -102,6 +103,12 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
         if (event.data?.type === 'MALVIN_USER' && event.data?.uid) {
             console.log("Verified auth received in MarketFront:", event.data.uid);
             setActiveUserUid(event.data.uid);
+            // Real Firebase Auth session on this origin from the parent's
+            // minted custom token — see services/storefrontAuth.ts for why
+            // a bare uid alone leaves Firestore's own security rules
+            // unable to verify anything, causing "Missing or insufficient
+            // permissions".
+            applyStorefrontIdentity(auth, event.data.customToken);
         }
         };
 
