@@ -19,7 +19,7 @@
   "hosting": [
     {
       "target": "app",
-      "//": "The main shell — malvinai.com / app.malvinai.com. Serves the exact same Vite build as the 'stores' target below (one `npm run build`, deployed to both — see README/deploy notes); the two only differ in which domain they're attached to and their headers. Nothing should ever frame THIS target, hence frame-ancestors 'none' + X-Frame-Options DENY stay strict here.",
+      "//": "The main shell \u2014 malvinai.com / app.malvinai.com. Serves the exact same Vite build as the 'stores' target below (one `npm run build`, deployed to both \u2014 see README/deploy notes); the two only differ in which domain they're attached to and their headers. Nothing should ever frame THIS target, hence frame-ancestors 'none' + X-Frame-Options DENY stay strict here.",
       "public": "dist",
       "rewrites": [
         {
@@ -29,10 +29,40 @@
       ],
       "headers": [
         {
+          "//": "Content-hashed build output (dist/assets/*-HASH.js, *-HASH.css) \u2014 the filename itself changes whenever the content does, so it's always safe to cache these as long as possible. This is the standard Vite/SPA caching split: never cache the HTML shell, cache everything it references forever.",
+          "source": "assets/**",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "public, max-age=31536000, immutable"
+            }
+          ]
+        },
+        {
+          "//": "index.html (and any other non-hashed root file the ** rewrite serves) must NEVER be cached \u2014 it's what names the current build's asset hashes. Without this, Firebase Hosting's default caching could keep serving an old index.html (pointing at JS chunks a NEW deploy already deleted) for up to an hour after a deploy, which is exactly the \"Failed to load module script... text/html\" MIME error from stale asset URLs 404'ing and falling through to the SPA rewrite.",
+          "source": "**/*.@(html|json)",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "no-cache"
+            }
+          ]
+        },
+        {
+          "//": "Service workers must be re-fetched on every load to pick up updates promptly \u2014 browsers already re-check these more than normal assets, but explicit no-cache removes any ambiguity from CDN-level caching in between.",
+          "source": "*.js",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "no-cache"
+            }
+          ]
+        },
+        {
           "source": "**",
           "headers": [
             {
-              "//": "frame-src now includes the stores target's origin so StoreFront.tsx's <iframe> is actually allowed to load it — 'self' alone doesn't cover a different subdomain. script-src gained www.gstatic.com: firebase-messaging-sw.js's importScripts() call to it was being silently blocked by this SAME header (a service worker with no CSP of its own inherits the registering page's CSP), which is why background push notifications never fired once someone added this to their Home Screen — the fix in index.html's <meta> CSP alone wasn't enough, this header applies in addition to it.",
+              "//": "frame-src now includes the stores target's origin so StoreFront.tsx's <iframe> is actually allowed to load it \u2014 'self' alone doesn't cover a different subdomain. script-src gained www.gstatic.com: firebase-messaging-sw.js's importScripts() call to it was being silently blocked by this SAME header (a service worker with no CSP of its own inherits the registering page's CSP), which is why background push notifications never fired once someone added this to their Home Screen \u2014 the fix in index.html's <meta> CSP alone wasn't enough, this header applies in addition to it.",
               "key": "Content-Security-Policy",
               "value": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://*.stripe.com https://apis.google.com https://app.lemonsqueezy.com https://www.gstatic.com; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://*.firebaseapp.com https://*.cloudfunctions.net https://*.stripe.com https://*.stripe.dev https://*.stripe.global https://*.lemonsqueezy.com https://api.ipify.org https://*.ingest.us.sentry.io https://*.ingest.de.sentry.io https://*.sentry.io; frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://*.stripe.com https://*.lemonsqueezy.com https://*.firebaseapp.com https://*.malvinai.com; img-src 'self' data: blob: https://*.googleapis.com https://*.gstatic.com https://lh3.googleusercontent.com https://*.stripe.com; media-src 'self' data: blob:; font-src 'self' data:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; base-uri 'self'; form-action 'self'; object-src 'none'; frame-ancestors 'none'"
             },
@@ -54,7 +84,7 @@
     },
     {
       "target": "stores",
-      "//": "Merchant storefronts / QR destinations — stores.malvinai.com. Same build as 'app' above, deployed separately so it can carry DIFFERENT framing headers: this is the one target that's allowed to be embedded, and only by the app target's own origin(s) (see StoreFront.tsx for why real origin separation is what makes its <iframe> sandbox safe without allow-same-origin). X-Frame-Options is deliberately omitted here — it can't express 'allow this specific other origin', only ALLOW-FROM (unsupported in modern Chrome/Firefox) or DENY/SAMEORIGIN, so frame-ancestors alone is what gates this.",
+      "//": "Merchant storefronts / QR destinations \u2014 stores.malvinai.com. Same build as 'app' above, deployed separately so it can carry DIFFERENT framing headers: this is the one target that's allowed to be embedded, and only by the app target's own origin(s) (see StoreFront.tsx for why real origin separation is what makes its <iframe> sandbox safe without allow-same-origin). X-Frame-Options is deliberately omitted here \u2014 it can't express 'allow this specific other origin', only ALLOW-FROM (unsupported in modern Chrome/Firefox) or DENY/SAMEORIGIN, so frame-ancestors alone is what gates this.",
       "public": "dist",
       "rewrites": [
         {
@@ -63,6 +93,36 @@
         }
       ],
       "headers": [
+        {
+          "//": "Content-hashed build output (dist/assets/*-HASH.js, *-HASH.css) \u2014 the filename itself changes whenever the content does, so it's always safe to cache these as long as possible. This is the standard Vite/SPA caching split: never cache the HTML shell, cache everything it references forever.",
+          "source": "assets/**",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "public, max-age=31536000, immutable"
+            }
+          ]
+        },
+        {
+          "//": "index.html (and any other non-hashed root file the ** rewrite serves) must NEVER be cached \u2014 it's what names the current build's asset hashes. Without this, Firebase Hosting's default caching could keep serving an old index.html (pointing at JS chunks a NEW deploy already deleted) for up to an hour after a deploy, which is exactly the \"Failed to load module script... text/html\" MIME error from stale asset URLs 404'ing and falling through to the SPA rewrite.",
+          "source": "**/*.@(html|json)",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "no-cache"
+            }
+          ]
+        },
+        {
+          "//": "Service workers must be re-fetched on every load to pick up updates promptly \u2014 browsers already re-check these more than normal assets, but explicit no-cache removes any ambiguity from CDN-level caching in between.",
+          "source": "*.js",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "no-cache"
+            }
+          ]
+        },
         {
           "source": "**",
           "headers": [
