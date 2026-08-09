@@ -14,7 +14,6 @@ import { resolveVerifiedFlag } from '../../utils/verification';
 import { useAccountStanding } from '../../hooks/useAccountStanding';
 import { evaluateIntakeLimit, formatCooldownRemaining } from '../../utils/businessLimits';
 import IntakeLimitBanner from '../addons/IntakeLimitBanner';
-import { AuthRequiredPopup } from '../addons/AuthRequiredPopup';
 
 interface GarageProfile {
   garageName: string;
@@ -302,7 +301,6 @@ export default function MechanicStore() {
           before they hit a raw Firestore permission error trying to
           submit a repair request. Page still renders underneath — this
           only blocks interaction. */}
-      {uid && <AuthRequiredPopup targetPath={`/mechanic/${uid}`} />}
 
       {/* Garage Hero Section */}
       <div style={heroCardStyle}>

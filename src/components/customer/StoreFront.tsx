@@ -225,14 +225,11 @@ export const StoreFront: React.FC<StoreFrontProps> = ({ businessUid, onExit, use
         };
 
         // Post identity IMMEDIATELY, synchronously, with customToken left
-        // null for now — NOT awaited on the mint below. Each store's own
-        // AuthRequiredPopup no longer depends on this message arriving at
-        // all (it gates on window.top === window.self instead, a
-        // synchronous structural check with nothing to race — see that
-        // file), but write actions inside the store still want identity
-        // as early as possible, and there's no reason to hold this back
-        // for a Cloud Functions round trip that can take a couple seconds
-        // on a cold start.
+        // null for now — NOT awaited on the mint below. There's no login
+        // gate in the stores anymore to race against, but write actions
+        // inside the store still want identity as early as possible, and
+        // there's no reason to hold this back for a Cloud Functions round
+        // trip that can take a couple seconds on a cold start.
         targetWindow?.postMessage({ ...identityBase, customToken: null }, targetOrigin);
 
         // Mint (or reuse the cached) real Firebase custom token for this

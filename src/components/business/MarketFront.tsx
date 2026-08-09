@@ -7,7 +7,6 @@ import { ProductCard } from '../addons/ProductView';
 import CustomerChat from '../customer/CustomerChat';
 import Report from "../addons/report";
 import ReputationScore from "../addons/reputationScore";
-import { AuthRequiredPopup } from "../addons/AuthRequiredPopup";
 import {
     doc, collection,
     onSnapshot
@@ -485,7 +484,6 @@ const MarketFront = ({ brandId: propBrandId, userBrand, brandName }: { brandId?:
                 session before they hit a raw Firestore permission error
                 trying to send a message. Page still renders underneath —
                 this only blocks interaction. */}
-            {brandId && <AuthRequiredPopup targetPath={`/chat/${brandId}`} />}
 
             <style>{`
                 * { box-sizing: border-box; }

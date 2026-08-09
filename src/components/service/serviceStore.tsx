@@ -12,7 +12,6 @@ import Report from '../addons/report';
 import { resolveVerifiedFlag } from '../../utils/verification';
 import { SERVICE_CATEGORIES, resolvePrimaryCategory } from '../../utils/serviceCategories';
 import { URGENCY_OPTIONS, type UrgencyLevel } from '../../utils/serviceRequests';
-import { AuthRequiredPopup } from '../addons/AuthRequiredPopup';
 
 interface ServiceProfile {
   businessName: string;
@@ -252,7 +251,6 @@ export default function ServiceStore() {
           logged in (desktop included), before they hit a raw Firestore
           permission error trying to submit a request. Store details still
           render underneath — this only blocks interaction, not viewing. */}
-      {uid && <AuthRequiredPopup targetPath={`/service/${uid}`} />}
 
       {/* Themed hero — the whole point of the category system: this block's
           color follows whichever category resolvePrimaryCategory() picked
