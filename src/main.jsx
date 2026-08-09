@@ -7,6 +7,7 @@ import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 import * as Sentry from '@sentry/react';
 import './index.css';
 import App from './App.jsx';
+import { LanguageProvider } from './contexts/LanguageContext';
 
 // Frontend error monitoring. VITE_SENTRY_DSN is a public value by design
 // (that's how Sentry's client SDKs work — it identifies which project to
@@ -31,6 +32,46 @@ if (import.meta.env.VITE_SENTRY_DSN) {
   });
 }
 
+// 🛡️ SAFETY NET (not expected to fire in normal operation) — this exact
+// bundle also runs standalone inside StoreFront.tsx's <iframe> when a store
+// is opened. That sandbox grants allow-same-origin specifically because
+// real origin separation (stores.malvinai.com vs this app's own origin —
+// see services/vinLink.ts) means the browser's Same-Origin Policy already
+// keeps a store from reaching this shell's DOM without needing an opaque
+// origin to do it, which is what lets pushState/replaceState (React
+// Router uses these for every client-side navigation), localStorage/
+// IndexedDB, and navigator.serviceWorker all work normally inside an
+// embedded store today.
+//
+// This guard stays anyway as a safety net: if STORE_ORIGIN ever pointed
+// back at this shell's own origin by mistake (a misconfigured .env, a
+// broken deploy), the resulting same-origin child would fall back to
+// needing allow-same-origin OFF for real protection — a fix that lives in
+// StoreFront.tsx's isAllowedDomain check, not here — but in the meantime
+// this stops any opaque-origin edge case from taking the whole embedded
+// app down via an uncaught SecurityError instead of degrading quietly.
+(() => {
+  const guard = (fn) =>
+    function guarded(...args) {
+      try {
+        return fn.apply(this, args);
+      } catch (err) {
+        if (err && err.name === 'SecurityError') {
+          console.warn('History API blocked in this sandboxed context — navigation state may not reflect in the URL:', err.message);
+          return undefined;
+        }
+        throw err;
+      }
+    };
+  try {
+    window.history.pushState = guard(window.history.pushState.bind(window.history));
+    window.history.replaceState = guard(window.history.replaceState.bind(window.history));
+  } catch {
+    // history itself inaccessible for some other reason — nothing more we
+    // can do defensively here; let the app proceed and surface normally.
+  }
+})();
+
 // Native-only setup: edge-to-edge status bar + Google Auth initialization.
 // GoogleAuth.initialize() MUST be called before GoogleAuth.signIn() or the
 // native sign-in will silently hang / never return a result.
@@ -45,17 +86,30 @@ if (Capacitor.isNativePlatform()) {
   // inside registerPushNotifications means it's already active by the
   // time permission is requested, which getToken() in
   // services/pushNotifications.ts requires.
-  navigator.serviceWorker.register('/firebase-messaging-sw.js').catch((err) => {
-    console.warn('Web push service worker registration failed:', err);
-  });
+  //
+  // Wrapped in try/catch as a safety net alongside the history guard above
+  // — StoreFront.tsx's <iframe> grants allow-same-origin today, so this
+  // shouldn't throw there in normal operation, but an uncaught synchronous
+  // throw at module-eval time here would stop the rest of this file from
+  // running at all (including the ReactDOM render call below), so this
+  // stays defensive regardless.
+  try {
+    navigator.serviceWorker.register('/firebase-messaging-sw.js').catch((err) => {
+      console.warn('Web push service worker registration failed:', err);
+    });
+  } catch (err) {
+    console.warn('Service worker registration unavailable in this context:', err);
+  }
 }
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <Sentry.ErrorBoundary fallback={<p style={{ padding: 24, color: '#fff' }}>Something went wrong. Please reload the page.</p>}>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
+      <LanguageProvider>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </LanguageProvider>
     </Sentry.ErrorBoundary>
   </StrictMode>
 );

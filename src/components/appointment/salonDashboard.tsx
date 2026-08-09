@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { shareContent, canOpenShareSheet } from '../../services/share';
-import { publicOrigin } from '../../services/vinLink';
+import { publicOrigin, storeOrigin } from '../../services/vinLink';
 import { useNavigate } from 'react-router-dom';
 import { firestore as db } from '../../firebase'; 
 import { auth } from "../../firebase"; 
@@ -28,6 +28,7 @@ import QRCode from 'qrcode';
 import { useBusinessWallet } from "../../hooks/useBusinessWallet";
 import ConfirmQRScanner from '../addons/ConfirmQRScanner'; // Imported custom validation scanner
 import IntakeLimitBanner from '../addons/IntakeLimitBanner';
+import { TranslateControl } from '../addons/TranslateControl';
 import { useAccountStanding } from '../../hooks/useAccountStanding';
 import {
   evaluateIntakeLimit,
@@ -264,7 +265,7 @@ export default function SalonDashboard() {
   // publicOrigin(), not window.location.origin — see services/vinLink.ts. On
   // device the latter is https://localhost, which would bake an unscannable
   // link into every generated VinQR.
-  const runtimeQrLink = uid ? `${publicOrigin()}/salon/${uid}` : '';
+  const runtimeQrLink = uid ? `${storeOrigin()}/salon/${uid}` : '';
 
   useEffect(() => {
     if (!runtimeQrLink) return;
@@ -1099,6 +1100,11 @@ export default function SalonDashboard() {
                     )}
                   </div>
                 </div>
+              </div>
+
+              <div className={styles.glassCard}>
+                <h3>Language</h3>
+                <TranslateControl label="" description="" variant="dark" />
               </div>
 
               <form onSubmit={handleSaveSettings} className={styles.glassCard}>

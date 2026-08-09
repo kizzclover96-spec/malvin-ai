@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { auth, db } from '../../firebase'; 
 import { ref, set } from 'firebase/database';
 import Premium from '../addons/Premium';
+import { TranslateControl } from '../addons/TranslateControl';
 
 const premiumGold = "#FFD700";
 const glassStyle: React.CSSProperties = {
@@ -309,15 +310,9 @@ const Settings = ({ onBack, onSave, userBrand, setUserBrand, onUpdate, auth }: a
                                             </button>
                                         </div>
 
-                                        {/* LANGUAGE */}
+                                        {/* LANGUAGE — live-translates the entire app, not just this screen */}
                                         <div>
-                                            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '8px' }}>System Language</label>
-                                            <select style={{ width: '100%', background: '#050505', border: '1px solid rgba(255,255,255,0.2)', padding: '12px', borderRadius: '8px', color: 'white', boxSizing: 'border-box' }}>
-                                                <option>English (US)</option>
-                                                <option>Spanish</option>
-                                                <option>French</option>
-                                                <option>German</option>
-                                            </select>
+                                            <TranslateControl variant="dark" />
                                         </div>
 
                                     </div>

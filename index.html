@@ -7,7 +7,20 @@
     
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     
-    <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://app.lemonsqueezy.com https://js.stripe.com https://*.firebaseio.com https://*.firebaseapp.com; worker-src 'self' blob:;">
+    <!-- 🔔 https://www.gstatic.com is required here, not just for pages —
+         /firebase-messaging-sw.js (registered in main.jsx / pushNotifications.ts
+         for anyone NOT in the native app, i.e. every "Add to Home Screen"
+         install) runs `importScripts('https://www.gstatic.com/firebasejs/...')`.
+         A classic-script service worker with no CSP header of its own inherits
+         the CSP of the document that registered it, so without gstatic.com
+         listed here that importScripts call is silently blocked by CSP — the
+         service worker install succeeds, but firebase.messaging() inside it
+         never initializes, so onBackgroundMessage() never fires and pushes
+         never surface once the tab/PWA isn't in the foreground. That's exactly
+         the "push doesn't work once added to the Home Screen" symptom: the
+         native app's push path doesn't go through this file or this CSP at
+         all, so it was never affected — only the web/PWA path was broken. -->
+    <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://app.lemonsqueezy.com https://js.stripe.com https://www.gstatic.com https://*.firebaseio.com https://*.firebaseapp.com; worker-src 'self' blob:;">
     
     <title>Malvin AI</title>
     <!-- Exactly one manifest link: browsers honour the first and ignore the

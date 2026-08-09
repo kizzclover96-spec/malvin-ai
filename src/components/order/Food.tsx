@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { shareContent, canOpenShareSheet, copyToClipboard } from '../../services/share';
-import { buildVinLink, publicOrigin } from '../../services/vinLink';
+import { buildVinLink, publicOrigin, storeOrigin } from '../../services/vinLink';
 import { firestore as db, auth } from '../../firebase';
 import { getAuth, onAuthStateChanged, signOut, deleteUser  } from 'firebase/auth';
 import { getFunctions, httpsCallable } from 'firebase/functions';
@@ -33,6 +33,7 @@ import { geocodeAddress } from '../../utils/geocoding';
 import Banned from "../addons/Banned";
 import Suspended from "../addons/Suspended";
 import IntakeLimitBanner from "../addons/IntakeLimitBanner";
+import { TranslateControl } from "../addons/TranslateControl";
 import { useAccountStanding } from "../../hooks/useAccountStanding";
 import {
   evaluateIntakeLimit,
@@ -667,7 +668,7 @@ export default function FoodDashboard() {
             address: '', 
             openingTime: '08:00',
             closingTime: '22:00',
-            shareLink: `${publicOrigin()}/food/${uid}`,
+            shareLink: `${storeOrigin()}/food/${uid}`,
             vinLink: `/food/${uid}`, // relative VinLink, read directly by the customer scanner
             onlineStatus: true,
             walletBalance: 0, // Initialize balance structure
@@ -689,7 +690,7 @@ export default function FoodDashboard() {
     const unsubscribeDoc = onSnapshot(docRef, (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.data() as RestaurantData;
-        const shareLink = `${publicOrigin()}/food/${uid}`;
+        const shareLink = `${storeOrigin()}/food/${uid}`;
 
         // Always derive the share link rather than trusting the stored field.
         // Docs written before this fix hold a https://localhost/... link that
@@ -1361,7 +1362,7 @@ export default function FoodDashboard() {
                   <button onClick={handleCopyLink} style={{ padding: '10px', borderRadius: '14px', border: 'none', backgroundColor: C.greenLight, color: C.greenDark, fontSize: '12px', fontWeight: 800, cursor: 'pointer' }}>
                     Copy Link
                   </button>
-                  <a href={`${publicOrigin()}/food/${uid}`} target="_blank" rel="noreferrer" style={{ padding: '10px', borderRadius: '14px', backgroundColor: C.greenLight, color: C.greenDark, fontSize: '12px', fontWeight: 800, textAlign: 'center', textDecoration: 'none' }}>
+                  <a href={`${storeOrigin()}/food/${uid}`} target="_blank" rel="noreferrer" style={{ padding: '10px', borderRadius: '14px', backgroundColor: C.greenLight, color: C.greenDark, fontSize: '12px', fontWeight: 800, textAlign: 'center', textDecoration: 'none' }}>
                     Open Store
                   </a>
                 </div>
@@ -1441,6 +1442,12 @@ export default function FoodDashboard() {
                   Save Changes
                 </button>
               </form>
+            </section>
+
+            {/* CARD: LANGUAGE — live-translates the entire app */}
+            <section style={{ backgroundColor: C.card, borderRadius: '24px', padding: '20px', boxShadow: C.shadow }}>
+              <h2 style={{ fontSize: '15px', fontWeight: 800, margin: '0 0 14px' }}>Language</h2>
+              <TranslateControl label="" description="" variant="light" />
             </section>
 
             {/* CARD 3: ACCOUNT INFORMATION */}

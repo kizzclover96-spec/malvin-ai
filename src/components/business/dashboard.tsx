@@ -1,5 +1,5 @@
 import { db, auth, firestore } from "../../firebase";
-import { publicOrigin } from '../../services/vinLink';
+import { publicOrigin, storeOrigin } from '../../services/vinLink';
 import { ref as dbRef, onValue, update, push, ref, serverTimestamp,  set  } from "firebase/database";
 import { collection, query, where, onSnapshot, doc, getDoc } from "firebase/firestore";
 import { signOut, onAuthStateChanged } from "firebase/auth";
@@ -777,8 +777,8 @@ const Dashboard = (props: any) => {
     };
 
 
-    const shareUrl = `${publicOrigin()}/chat/${auth.currentUser?.uid}`;
-    const marketFrontUrl = `${publicOrigin()}/chat/${auth.currentUser?.uid}`;
+    const shareUrl = `${storeOrigin()}/chat/${auth.currentUser?.uid}`;
+    const marketFrontUrl = `${storeOrigin()}/chat/${auth.currentUser?.uid}`;
     const getVerificationState = () => {
         if (isVerified) return "verified";
         if (isPremium) return "premium";

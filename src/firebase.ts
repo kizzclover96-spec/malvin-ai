@@ -1,7 +1,7 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getDatabase } from "firebase/database";
 import { getAuth, GoogleAuthProvider, browserLocalPersistence, setPersistence, onAuthStateChanged, signInAnonymously } from "firebase/auth";
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, memoryLocalCache } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getFirestore } from "firebase/firestore";
 import { getFunctions } from "firebase/functions";
@@ -30,12 +30,33 @@ export const db = getDatabase(app);
 export const storage = getStorage(app);
 
 
-// FIXED: Use initializeFirestore with long-polling fallback enabled
+// FIXED: Use initializeFirestore with long-polling fallback enabled.
+// The persistent (IndexedDB-backed) cache below requires a real, non-opaque
+// origin. StoreFront.tsx's sandboxed <iframe> grants allow-same-origin
+// (real origin separation — stores.malvinai.com vs this app's own origin —
+// makes that safe; see the comment on that <iframe>), so this should have
+// a real origin in normal operation. This feature-detects and falls back
+// to the in-memory cache anyway, as a safety net alongside the guards in
+// main.jsx: if that ever isn't true (a misconfigured STORE_ORIGIN pointing
+// back at this same origin, say), Firestore still works fine without
+// persistence — it just re-fetches from the network each load instead of
+// warming from disk, a non-issue for a store page opened fresh each time.
+function isPersistentStorageAvailable() {
+  try {
+    const testKey = '__malvin_storage_probe__';
+    window.localStorage.setItem(testKey, '1');
+    window.localStorage.removeItem(testKey);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export const firestore = initializeFirestore(app, {
   experimentalAutoDetectLongPolling: true,
-  localCache: persistentLocalCache({
-    tabManager: persistentMultipleTabManager(),
-  }),
+  localCache: isPersistentStorageAvailable()
+    ? persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+    : memoryLocalCache(),
 });
 
 export const functions = getFunctions(app, "us-central1");

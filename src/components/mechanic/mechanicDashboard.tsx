@@ -8,12 +8,13 @@ import {
 import { Wrench, Car, Clock, CheckCircle, AlertTriangle, QrCode, Trash2, DollarSign, Image as ImageIcon, Copy, Share2, Download, BadgeCheck, Plus, Pencil } from 'lucide-react';
 import QRCodeLib from 'qrcode';
 import { shareContent, canOpenShareSheet } from '../../services/share';
-import { publicOrigin } from '../../services/vinLink';
+import { publicOrigin, storeOrigin } from '../../services/vinLink';
 import { useBusinessWallet } from "../../hooks/useBusinessWallet";
 import ConfirmQRScanner from '../addons/ConfirmQRScanner';
 import Banned from '../addons/Banned';
 import Suspended from '../addons/Suspended';
 import IntakeLimitBanner from '../addons/IntakeLimitBanner';
+import { TranslateControl } from '../addons/TranslateControl';
 import { geocodeAddress } from '../../utils/geocoding';
 import { writeMechanicReceipt, buildMechanicReferenceId } from '../../utils/mechanicAppointments';
 import { useAccountStanding } from '../../hooks/useAccountStanding';
@@ -322,7 +323,7 @@ export default function MechanicDashboard() {
   };
 
   // --- VINQR: same link customers scan to land on this garage's storefront ---
-  const vinLink = uid ? `${publicOrigin()}/mechanic/${uid}` : '';
+  const vinLink = uid ? `${storeOrigin()}/mechanic/${uid}` : '';
 
   useEffect(() => {
     if (!vinLink) return;
@@ -511,6 +512,8 @@ export default function MechanicDashboard() {
                 <input type="time" value={formClosing} onChange={(e) => setFormClosing(e.target.value)} style={mechInput} />
               </div>
             </div>
+
+            <TranslateControl label="Language" description="" variant="dark" />
 
             <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
               <button type="button" onClick={() => setProfileOpen(false)} style={{ ...secondaryBtn, flex: 1, justifyContent: 'center' }}>

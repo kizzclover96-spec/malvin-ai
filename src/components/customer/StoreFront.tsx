@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, ShieldAlert } from 'lucide-react';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { getAuth, onAuthStateChanged, User } from 'firebase/auth';
+import { STORE_ORIGIN } from '../../services/vinLink';
 
 interface StoreFrontProps {
   businessUid: string;
@@ -30,6 +31,19 @@ interface StoreFrontProps {
 // exist, a network hiccup, etc.
 const READY_TIMEOUT_MS = 4500;
 
+// 🔑 HANDSHAKE TOKEN
+// ---------------------------------------------------------------------------
+// A fresh, one-off, unopinionated string minted every time a store is
+// opened. It carries no meaning on its own — its only job is to prove to
+// the store ("AuthRequiredPopup" on the other end, see
+// components/addons/AuthRequiredPopup.tsx) that it's genuinely being shown
+// inside Malvin's own StoreFront wrapper, as opposed to being opened
+// directly as a bare URL. The store shows its own "log in to continue"
+// popup if this never arrives — see that file for the receiving half.
+function generateHandshakeToken(): string {
+  return `mv_${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
+}
+
 export const StoreFront: React.FC<StoreFrontProps> = ({ businessUid, onExit, userUid, userWalletBalance, onExecutePayment, onLoadFailure }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isUntrustedDomain, setIsUntrustedDomain] = useState(false);
@@ -37,6 +51,9 @@ export const StoreFront: React.FC<StoreFrontProps> = ({ businessUid, onExit, use
   // Guards against firing onLoadFailure more than once for the same load,
   // and against firing it after the frame already proved itself fine.
   const settledRef = useRef(false);
+  // One token per mount — regenerating it on every render would mean the
+  // store never has the same token twice in a row to compare against.
+  const handshakeTokenRef = useRef(generateHandshakeToken());
 
   // 1. Sanitize & Parse Target URL
   const targetUrl = businessUid.startsWith('http://') || businessUid.startsWith('https://') 
@@ -48,13 +65,21 @@ export const StoreFront: React.FC<StoreFrontProps> = ({ businessUid, onExit, use
     try {
       const parsedUrl = new URL(targetUrl);
 
-      // Add your official domains or allowed host pattern rules here
+      // Tightened now that stores live on their own origin (STORE_ORIGIN,
+      // stores.malvinai.com in production — see services/vinLink.ts): the
+      // bare main-shell domain (malvinai.com / www.malvinai.com) is
+      // deliberately NOT in this list anymore. Nothing should ever load
+      // the main app shell into this "store" frame; every real store link
+      // this component is handed points at the stores subdomain, Firebase
+      // preview channels, or localhost during dev.
+      const storeHostname = (() => {
+        try { return new URL(STORE_ORIGIN).hostname; } catch { return 'stores.malvinai.com'; }
+      })();
       const isAllowedDomain = 
+        parsedUrl.hostname === storeHostname ||
         parsedUrl.hostname.endsWith('malvin.app') || 
         parsedUrl.hostname.endsWith('web.app') ||
         parsedUrl.hostname.endsWith('firebaseapp.com') ||
-        parsedUrl.hostname === 'malvinai.com' ||
-        parsedUrl.hostname === 'www.malvinai.com' ||
         parsedUrl.hostname === 'localhost';
 
       if (!isAllowedDomain) {
@@ -147,15 +172,24 @@ export const StoreFront: React.FC<StoreFrontProps> = ({ businessUid, onExit, use
       // 🛑 Block handshake if target domain was marked dangerous
       if (isUntrustedDomain) return;
 
-      // 🛑 Ensure message originates from our expected iframe domain
+      // 🛑 Verify the message actually came from OUR iframe — by identity
+      // AND by origin, belt-and-suspenders. `event.source` identifies the
+      // exact window object that sent it (works regardless of sandboxing,
+      // can't be spoofed by another frame/tab). `event.origin` is a real,
+      // matchable origin string again now that the sandbox grants
+      // allow-same-origin — checked as a second, independent factor.
+      // Computed from targetUrl (not hardcoded to STORE_ORIGIN) so this
+      // still works against the other hosts isAllowedDomain trusts —
+      // Firebase preview channels (*.web.app/*.firebaseapp.com) and
+      // localhost during dev — not just the production stores subdomain.
+      let expectedOrigin: string;
       try {
-        const expectedOrigin = new URL(targetUrl).origin;
-        if (event.origin !== expectedOrigin && expectedOrigin !== "*") {
-          return; // Ignore messages from unexpected sources
-        }
-      } catch (e) {
+        expectedOrigin = new URL(targetUrl).origin;
+      } catch {
         return;
       }
+      if (event.source !== iframeRef.current?.contentWindow) return;
+      if (event.origin !== expectedOrigin) return;
 
       // Handshake Request from Child (SalonStore / Store / HotelStore /
       // MechanicStore / MarketFront chat) — matched generically on the
@@ -166,21 +200,23 @@ export const StoreFront: React.FC<StoreFrontProps> = ({ businessUid, onExit, use
         // failure timeout/fast-check above.
         settledRef.current = true;
 
-        if (!currentUser) {
-          console.warn("Storefront requested identity, but user is not authenticated.");
-          return;
-        }
-
-        // Post identity securely back to iframe using strict target origin
-        const targetOrigin = new URL(targetUrl).origin;
+        // Post the handshake token (+ whatever identity we have) back to
+        // the iframe. This always fires once the store announces itself —
+        // it's no longer gated on currentUser. Whether someone's actually
+        // signed in only changes what uid/email/isGuest carry; the token
+        // itself is what tells the store "yes, you're properly embedded",
+        // which is a question of *how this page was opened*, not *who's
+        // logged in*. Real write actions still enforce sign-in server-side
+        // via Firestore's isSignedIn() rules regardless of any of this.
         iframeRef.current?.contentWindow?.postMessage(
           {
             type: "MALVIN_USER",
-            uid: currentUser.uid,
-            email: currentUser.email,
-            isGuest: currentUser.isAnonymous
+            uid: currentUser?.uid ?? null,
+            email: currentUser?.email ?? null,
+            isGuest: currentUser?.isAnonymous ?? true,
+            token: handshakeTokenRef.current,
           },
-          targetOrigin // 🔒 Safe: Replaces "*" with exact origin
+          expectedOrigin
         );
       }
 
@@ -212,7 +248,7 @@ export const StoreFront: React.FC<StoreFrontProps> = ({ businessUid, onExit, use
           iframeRef.current?.contentWindow?.postMessage({
             type: "DIRECT_PAYMENT_FAILURE",
             error: error.message || "Failed to initialize payment."
-          }, "*");
+          }, expectedOrigin);
         }
       }
     };
@@ -260,13 +296,59 @@ export const StoreFront: React.FC<StoreFrontProps> = ({ businessUid, onExit, use
             </button>
           </div>
         ) : (
-          /* ✅ VALIDATED IFRAME CONTAINER */
+          /* ✅ VALIDATED IFRAME CONTAINER
+             🔒 SANDBOX — allow-same-origin is back, deliberately, and it's
+             SAFE here for a reason that's easy to miss: store pages are
+             served from STORE_ORIGIN (stores.malvinai.com), a genuinely
+             different origin than this shell (malvinai.com/app.malvinai.com)
+             — see services/vinLink.ts and firebase.json's two Hosting
+             targets. Once that separation is real, the browser's own
+             Same-Origin Policy is what keeps a store from reaching
+             window.parent.document — that protection comes from the two
+             origins actually differing, not from the sandbox attribute.
+             allow-same-origin only controls whether the framed document
+             gets ITS OWN real origin or a forced-opaque one; it was never
+             what stood between a same-origin child and this shell's DOM,
+             and granting it back doesn't reopen that door now that the
+             origins genuinely differ.
+
+             What granting it back buys: without it, a sandboxed frame gets
+             an opaque origin UNCONDITIONALLY per the HTML spec — even once
+             genuinely cross-origin — and an opaque origin can't call
+             history.pushState()/replaceState() (React Router uses these
+             internally for every client-side navigation) or touch
+             localStorage/IndexedDB/navigator.serviceWorker. Store pages
+             are this same React bundle and rely on all of that working
+             normally, so keeping allow-same-origin here avoids a real
+             functional cost (silently-broken in-store navigation) in
+             exchange for a security property that real origin separation
+             already provides independently. The pushState guard in
+             main.jsx and the Firestore memory-cache fallback in
+             firebase.ts stay in place regardless, as a safety net for
+             STORE_ORIGIN ever accidentally pointing at this same origin.
+
+             If STORE_ORIGIN ever points back at this shell's own origin
+             (e.g. a misconfigured .env), the isAllowedDomain check above
+             is what catches it — it validates against STORE_ORIGIN's
+             actual hostname, not a hostname that happens to equal this
+             page's own, so a same-origin misconfiguration fails that
+             check rather than silently reintroducing the risk this whole
+             separation exists to avoid.
+
+             allow-top-navigation / allow-top-navigation-by-user-activation
+             stay OUT — that's what let a store hijack the ENTIRE app by
+             navigating window.top away, the original "stores escaping the
+             frame" bug, unrelated to the origin-separation work above.
+             allow-popups stays (no store screen calls window.open today,
+             but a genuinely cross-origin popup can't reach this shell's
+             session either way). allow-modals stays for alert()/confirm()
+             calls stores already use. */
           <iframe 
             ref={iframeRef}
             src={targetUrl}
             title="In-App Store Webview Content"
             className="w-full h-full border-none m-0 p-0"
-            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-top-navigation allow-top-navigation-by-user-activation"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
             allow="clipboard-write; camera; microphone; geolocation"
           />
         )}

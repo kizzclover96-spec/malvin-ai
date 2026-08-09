@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { shareContent, canOpenShareSheet } from '../../services/share';
-import { publicOrigin } from '../../services/vinLink';
+import { publicOrigin, storeOrigin } from '../../services/vinLink';
 import { auth, firestore as db, storage } from '../../firebase';
 import { getDatabase, ref, onValue } from 'firebase/database';
 import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
@@ -58,6 +58,7 @@ import { releaseExpiredHotelHolds, HOLD_DURATION_OPTIONS } from '../../utils/hot
 import { geocodeAddress } from '../../utils/geocoding';
 import { resolveVerifiedFlag } from '../../utils/verification';
 import styles from './hotelDashboard.module.css';
+import { TranslateControl } from '../addons/TranslateControl';
 
 /** Same blue check the salon and restaurant dashboards render. */
 const VerifiedBadge = () => (
@@ -177,7 +178,7 @@ export default function HotelDashboard() {
   // publicOrigin(), not window.location.origin — inside the native WebView
   // the latter is https://localhost, which bakes an unscannable link into
   // the VINQR. See services/vinLink.ts.
-  const runtimeQrLink = uid ? `${publicOrigin()}/hotel/${uid}` : '';
+  const runtimeQrLink = uid ? `${storeOrigin()}/hotel/${uid}` : '';
   const isVerified = resolveVerifiedFlag(rtdbUser, hotel);
   const { isPremium } = useAccountStanding(uid);
 
@@ -932,6 +933,9 @@ export default function HotelDashboard() {
               <p className={styles.hint}>
                 When a customer reserves a room, it's held (unpaid) for this long before it's automatically released.
               </p>
+            </div>
+            <div className={styles.inputBlock}>
+              <TranslateControl label="Language" description="" variant="dark" />
             </div>
             <button className={styles.saveBtn} disabled={isSavingSettings} onClick={handleSaveSettings}>
               {isSavingSettings ? 'Saving…' : 'Save settings'}

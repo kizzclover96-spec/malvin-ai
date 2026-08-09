@@ -21,6 +21,7 @@ import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-
 import AdsManager from "./components/admin/AdsManagment";
 import LandingPage from "./pages/system/LandingPage";
 import CookieBanner from "./components/addons/CookieBanner";
+import { InstallAppToast } from "./components/addons/InstallAppToast";
 import PaymentResultScreen from "./components/addons/PaymentResultScreen";
 import Terms from "./pages/system/Terms";
 import Privacy from "./pages/system/Privacy";
@@ -50,6 +51,7 @@ import MechanicStore from "./components/mechanic/mechanicStore";
 import ServiceStore from "./components/service/serviceStore";
 import { FoodDeepLinkGate, SalonDeepLinkGate, HotelDeepLinkGate, MechanicDeepLinkGate, ServiceDeepLinkGate, consumePendingDeepLink } from "./components/addons/AppOpenGate";
 import { FloatingTeamHub } from "./components/addons/FloatingTeamHub";
+import { VinBackLauncher } from "./components/vinback/VinBackLauncher";
 import { WorkerDashboard } from './components/team/workerDashboard';
 import { QrScannerView } from './components/addons/QR Scanner'; 
 import { MalvinSystemDashboard } from "./components/records/MalvinSystemDashboard";
@@ -594,7 +596,16 @@ function App() {
         <FloatingTeamHub managerUid={isWorker ? assignedManagerUid : user.uid} />
       )}
 
+      {/* VinBack tag creation/management — same "currently on a business
+          dashboard" gate as FloatingTeamHub above, so every business type
+          (salon/hotel/mechanic/service/food/generic) gets it without each
+          dashboard needing its own copy wired in. */}
+      {user && !isAdmin && !isStorefrontPath && (isWorker || (flowStep !== "front" && flowStep !== "options")) && (
+        <VinBackLauncher />
+      )}
+
       <CookieBanner />
+      <InstallAppToast />
 
       {/* Four-second payment confirmation. Mounted last so it layers over
           every flow, and outside <Routes> so a redirect on return from

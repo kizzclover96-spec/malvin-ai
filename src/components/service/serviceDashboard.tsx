@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import QRCodeLib from 'qrcode';
 import { shareContent, canOpenShareSheet } from '../../services/share';
-import { publicOrigin } from '../../services/vinLink';
+import { publicOrigin, storeOrigin } from '../../services/vinLink';
 import Banned from '../addons/Banned';
 import Suspended from '../addons/Suspended';
 import ConfirmQRScanner from '../addons/ConfirmQRScanner';
@@ -22,6 +22,7 @@ import { SERVICE_CATEGORIES, resolvePrimaryCategory } from '../../utils/serviceC
 import { buildServiceReferenceId, writeServiceReceipt, syncServiceRequestStatus, QuoteLineItem, URGENCY_OPTIONS, urgencyMeta, UrgencyLevel } from '../../utils/serviceRequests';
 import { pushNotification } from '../customer/Notification';
 import { postLocalAlert } from '../../services/pushNotifications';
+import { TranslateControl } from '../addons/TranslateControl';
 
 interface ServiceLineItem {
   itemId: string;
@@ -451,7 +452,7 @@ export default function ServiceDashboard() {
   };
 
   // --- VINQR ---
-  const vinLink = uid ? `${publicOrigin()}/service/${uid}` : '';
+  const vinLink = uid ? `${storeOrigin()}/service/${uid}` : '';
 
   useEffect(() => {
     if (!vinLink) return;
@@ -839,6 +840,7 @@ export default function ServiceDashboard() {
                   <input type="time" style={inputStyle} value={formClosing} onChange={(e) => setFormClosing(e.target.value)} />
                 </div>
               </div>
+              <TranslateControl label="Language" description="" variant="dark" />
               <div style={{ display: 'flex', gap: '8px', marginTop: '8px', justifyContent: 'flex-end' }}>
                 <button type="button" onClick={() => setProfileOpen(false)} style={secondaryBtn}>Cancel</button>
                 <button type="submit" disabled={isSavingProfile} style={{ ...primaryBtn, background: theme.color, opacity: isSavingProfile ? 0.6 : 1 }}>

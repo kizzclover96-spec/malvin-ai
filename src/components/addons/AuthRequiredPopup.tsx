@@ -1,53 +1,99 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { auth } from '../../firebase';
-import { savePendingDeepLink } from './AppOpenGate';
 
 interface AuthRequiredPopupProps {
-  /** The route to resume once they've logged in — e.g. `/service/${uid}`. */
+  /**
+   * Kept for call-site compatibility (every store still passes its own
+   * `/service/${uid}`-style path in) but no longer used to persist
+   * anything — see the note above savePendingDeepLink's removal below for
+   * why. Fine to drop from callers whenever they're next touched.
+   */
   targetPath: string;
 }
 
+// Every legitimate handshake token StoreFront.tsx hands down starts with
+// this. It's not a secret and isn't meant to be — it just lets us tell
+// "this postMessage carries a real StoreFront handshake" apart from any
+// other unrelated message that might land on the window (extensions,
+// analytics, the browser itself), without caring about the message's
+// exact envelope shape or origin.
+export const HANDSHAKE_TOKEN_PREFIX = 'mv_';
+
+// How long we wait for the parent's handshake token before concluding
+// nobody sent one — i.e. this page was opened on its own (a bookmark, a
+// shared raw link, someone typing the URL in), not through Malvin's
+// StoreFront wrapper.
+const HANDSHAKE_TIMEOUT_MS = 3000;
+
 /**
- * SIGNED-OUT BACKSTOP
+ * SIGNED-OUT / NOT-EMBEDDED BACKSTOP
  * ---------------------------------------------------------------------------
- * AppOpenGate (see AppOpenGate.tsx) handles the mobile "you don't have the
- * app yet" flow, but it deliberately skips desktop entirely — a desktop
- * visitor just gets the normal web storefront. That's fine right up until
- * they try to actually DO something (submit a request, place an order):
- * every write into a business's tree requires isSignedIn() in Firestore
- * rules, so an actually signed-out visitor's submit just fails with a raw
- * "Missing or insufficient permissions" error and no explanation.
+ * Used to work by asking Firebase Auth directly ("is anyone signed in on
+ * THIS page?"). That was fragile in exactly the place it mattered most —
+ * inside StoreFront's iframe, a fresh browsing context that doesn't
+ * automatically share the parent app's auth session, so the popup would
+ * often fire even for a genuinely signed-in customer, or flash on/off as
+ * auth state settled.
  *
- * This is the platform-agnostic version of AppOpenGate's "Log in to
- * MalvinAI to continue" popup — same message, same pending-link handoff
- * (App.jsx resumes targetPath the moment login succeeds), but triggered
- * purely by actual auth state rather than a mobile/desktop heuristic. Drop
- * it into any storefront or chat screen; it renders nothing until it's
- * actually confirmed nobody is signed in.
+ * Now it's purely a handshake check: StoreFront.tsx (the parent shell)
+ * generates a unique one-off token every time it opens a store and posts
+ * it down over `postMessage` the moment the child announces itself ready
+ * (the existing "*_READY" / "MALVIN_USER" wire format every store already
+ * speaks — see StoreFront.tsx). If that token never arrives within
+ * HANDSHAKE_TIMEOUT_MS, this page wasn't opened through Malvin's app shell
+ * at all, and THAT — not raw auth state — is what shows the popup.
+ *
+ * No auth listening happens here anymore. Real permission enforcement for
+ * actually placing an order / booking / sending a request still lives
+ * server-side in Firestore's isSignedIn() rules, same as before — this is
+ * only about explaining *why* a plain, unwrapped visit needs the app.
+ *
+ * Does NOT call savePendingDeepLink() (used to, briefly — that caused a
+ * redirect loop: this same route also renders standalone, outside
+ * StoreFront, for direct/shared/QR links — see e.g. App.jsx's
+ * `/service/:uid` route — so the handshake here ALWAYS times out on that
+ * legitimate path too. Saving "resume this after login" from that timeout
+ * meant the next app load auto-navigated right back into the same
+ * unwrapped route, timed out again, and resaved — forever. That resume
+ * mechanism stays exactly where it belongs, in AppOpenGate's own cold
+ * mobile-deep-link flow, which is the only place that ever calls
+ * savePendingDeepLink now.
  */
 export const AuthRequiredPopup: React.FC<AuthRequiredPopupProps> = ({ targetPath }) => {
   const navigate = useNavigate();
-  // null = still checking, true/false = resolved. Starting at null (rather
-  // than assuming signed-out) is what stops this flashing on screen for
-  // every visitor while Firebase Auth's very first callback is still in
-  // flight — it only ever shows once we're SURE there's no session.
-  const [isSignedIn, setIsSignedIn] = useState<boolean | null>(null);
+  // null = still waiting to hear from a parent, true = handshake token
+  // received (we're properly embedded — never show anything), false =
+  // timed out with nothing received.
+  const [handshakeOk, setHandshakeOk] = useState<boolean | null>(null);
 
   useEffect(() => {
-    const unsub = auth.onAuthStateChanged((user) => {
-      setIsSignedIn(!!user);
-    });
-    return () => unsub();
+    let settled = false;
+
+    const onMessage = (event: MessageEvent) => {
+      if (settled) return;
+      const token = event.data?.token;
+      if (typeof token === 'string' && token.startsWith(HANDSHAKE_TOKEN_PREFIX)) {
+        settled = true;
+        setHandshakeOk(true);
+      }
+    };
+
+    window.addEventListener('message', onMessage);
+
+    const timer = setTimeout(() => {
+      if (!settled) {
+        settled = true;
+        setHandshakeOk(false);
+      }
+    }, HANDSHAKE_TIMEOUT_MS);
+
+    return () => {
+      window.removeEventListener('message', onMessage);
+      clearTimeout(timer);
+    };
   }, []);
 
-  useEffect(() => {
-    if (isSignedIn === false) {
-      savePendingDeepLink(targetPath);
-    }
-  }, [isSignedIn, targetPath]);
-
-  if (isSignedIn !== false) return null;
+  if (handshakeOk !== false) return null;
 
   return (
     <div style={overlayStyle}>

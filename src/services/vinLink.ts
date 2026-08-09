@@ -2,8 +2,23 @@ import { doc, getDoc } from 'firebase/firestore';
 import { Capacitor } from '@capacitor/core';
 import { firestore as db } from '../firebase';
 
-/** The real, publicly reachable site. */
+/** The real, publicly reachable site — the main app shell (login, dashboards). */
 export const PUBLIC_ORIGIN = 'https://malvinai.com';
+
+/**
+ * The dedicated, separate origin merchant storefronts / QR destinations are
+ * served from — deliberately NOT the same origin as PUBLIC_ORIGIN. This is
+ * what lets StoreFront.tsx's <iframe> sandbox drop allow-same-origin: a
+ * genuinely cross-origin child can be denied same-origin DOM access to the
+ * parent shell by the browser's own Same-Origin Policy, which a sandbox
+ * attribute alone can never provide when parent and child share one origin
+ * (see the long comment in StoreFront.tsx for why that mattered).
+ *
+ * Configurable via VITE_STORE_ORIGIN so local dev / preview channels can
+ * point this at whatever they're actually testing against; defaults to the
+ * production stores subdomain.
+ */
+export const STORE_ORIGIN = import.meta.env.VITE_STORE_ORIGIN || 'https://stores.malvinai.com';
 
 /**
  * Use this instead of window.location.origin for anything that leaves the
@@ -15,6 +30,20 @@ export const PUBLIC_ORIGIN = 'https://malvinai.com';
  */
 export function publicOrigin(): string {
   return Capacitor.isNativePlatform() ? PUBLIC_ORIGIN : window.location.origin;
+}
+
+/**
+ * Use this instead of publicOrigin() specifically for merchant storefront /
+ * QR-destination links (food/salon/hotel/mechanic/service/chat) — anything
+ * that ends up either scanned directly or opened inside StoreFront's
+ * <iframe>. Always resolves to STORE_ORIGIN regardless of platform: unlike
+ * publicOrigin(), which falls back to window.location.origin on web because
+ * the shell's own domain used to double as the public one, the whole point
+ * here is that store links point at a DIFFERENT domain than whatever page
+ * generated them, on every platform.
+ */
+export function storeOrigin(): string {
+  return STORE_ORIGIN;
 }
 
 /**
@@ -94,7 +123,7 @@ export function buildVinLink(uid: string, category: string): string {
       : normalized === 'mechanic' ? 'mechanic'
       : normalized === 'service' ? 'service'
       : 'food';
-  return `${PUBLIC_ORIGIN}/${kind}/${uid}`;
+  return `${STORE_ORIGIN}/${kind}/${uid}`;
 }
 
 export interface ResolvedBusiness {

@@ -30,17 +30,17 @@ import { resolveBusiness, extractCategoryAndUid } from '../../services/vinLink';
 import { postLocalAlert } from '../../services/pushNotifications';
 import VinBackTagCreate from '../vinback/VinBackTagCreate';
 import VinBackTagList from '../vinback/VinBackTagList';
+import { useLanguage } from '../../contexts/LanguageContext';
+import { ALL_LANGUAGES } from '../../i18n/languages';
 
-// Fixed allow-list — the language row can only ever pick one of these,
-// which is what keeps the stored value safe even before Firestore rules see it.
+// Fixed allow-list — these five have hand-tuned, dictionary-based
+// translations below (t()), so they render instantly with no network call.
+// Any OTHER language a person picks (see the language row in Settings,
+// which now lists every language via ALL_LANGUAGES) is handled by the
+// shared global live-translator instead — see LanguageContext.tsx. Either
+// way `language` here just needs to be a string; it's no longer restricted
+// to these five at the type level.
 type LanguageCode = 'en' | 'de' | 'fr' | 'es' | 'it';
-const LANGUAGES: { code: LanguageCode; label: string }[] = [
-  { code: 'en', label: 'English' },
-  { code: 'de', label: 'Deutsch' },
-  { code: 'fr', label: 'Français' },
-  { code: 'es', label: 'Español' },
-  { code: 'it', label: 'Italiano' },
-];
 
 // Translated strings for everything visible on this screen. Every screen
 // text that isn't user-generated data (names, store names, etc.) should
@@ -298,13 +298,23 @@ export const Front: React.FC = () => {
   // so a fast tap can't race a write before we know the current state.
   const [prefsLoaded, setPrefsLoaded] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [language, setLanguage] = useState<LanguageCode>('en');
+  // `language` drives the local t() dictionary below (instant for the 5
+  // curated languages); it's widened to `string` because the picker now
+  // offers every language, not just those 5. `globalLanguage`/`setGlobalLanguage`
+  // is the shared LanguageContext — selecting ANY language also calls it so
+  // the live-translator picks up the rest of this screen (and the rest of
+  // the app) too, not just the strings that go through t().
+  const [language, setLanguage] = useState<string>('en');
+  const { setLanguage: setGlobalLanguage } = useLanguage();
   // Looks up a screen string in the current language, falling back to
   // English if a key is ever missing from a translation (should never
-  // happen since TRANSLATIONS is fully populated for all 5 languages, but
-  // this keeps a typo from ever showing "undefined" on screen).
+  // happen since TRANSLATIONS is fully populated for all 5 curated
+  // languages), or if `language` is one of the many non-curated languages
+  // now selectable — those render the English string here, which the
+  // global live-translator (see LanguageContext.tsx) then picks up and
+  // translates at the DOM level, same as everywhere else in the app.
   const t = (key: string): string =>
-    TRANSLATIONS[language]?.[key] ?? TRANSLATIONS.en[key] ?? key;
+    TRANSLATIONS[language as LanguageCode]?.[key] ?? TRANSLATIONS.en[key] ?? key;
   // Time-based greeting for the new header layout — computed fresh on
   // every render, so it naturally flips from "Good morning" to "Good
   // afternoon" etc. as the day goes on without needing its own timer.
@@ -591,9 +601,12 @@ export const Front: React.FC = () => {
           setNotificationsEnabled(data.notificationsEnabled === false ? false : true);
           // Defensive fallback: if a stored language value isn't one we recognize
           // (tampered, stale, or from a future app version), default to English
-          // rather than trusting it blindly.
-          const storedLanguage = LANGUAGES.some(l => l.code === data.language) ? data.language : 'en';
+          // rather than trusting it blindly. Validated against the FULL
+          // language list now, not just the 5 curated ones, since the picker
+          // offers all of them.
+          const storedLanguage = ALL_LANGUAGES.some(l => l.code === data.language) ? data.language : 'en';
           setLanguage(storedLanguage);
+          if (storedLanguage !== 'en') setGlobalLanguage(storedLanguage);
         }
 
         // Fetched separately from its own document (customers/{uid}/profile/photo)
@@ -751,15 +764,17 @@ export const Front: React.FC = () => {
     }
   };
 
-  const handleSelectLanguage = async (code: LanguageCode) => {
+  const handleSelectLanguage = async (code: string) => {
     const previous = language;
     setLanguage(code); // optimistic
+    setGlobalLanguage(code); // drives the live, whole-app DOM translation
     setIsLanguageExpanded(false);
     try {
       await updateCustomerPref({ language: code });
     } catch (err) {
       console.error(err);
       setLanguage(previous);
+      setGlobalLanguage(previous);
       showToast('error', 'Could not save that preference. Please try again.');
     }
   };
@@ -2150,7 +2165,7 @@ export const Front: React.FC = () => {
                     >
                       <div className="flex items-center gap-2.5"><Globe className="w-4 h-4 text-neutral-400 dark:text-neutral-500" /><span>{t('language')}</span></div>
                       <div className="flex items-center gap-1.5">
-                        <span className="text-neutral-400 dark:text-neutral-500 font-semibold">{LANGUAGES.find(l => l.code === language)?.label}</span>
+                        <span className="text-neutral-400 dark:text-neutral-500 font-semibold">{ALL_LANGUAGES.find(l => l.code === language)?.name || 'English'}</span>
                         <ChevronDown className={`w-3.5 h-3.5 text-neutral-400 dark:text-neutral-500 transition-transform ${isLanguageExpanded ? 'rotate-180' : ''}`} />
                       </div>
                     </button>
@@ -2164,8 +2179,8 @@ export const Front: React.FC = () => {
                           transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
                           className="overflow-hidden"
                         >
-                          <div className="pb-3 space-y-1">
-                            {LANGUAGES.map(l => (
+                          <div className="pb-3 space-y-1 max-h-64 overflow-y-auto">
+                            {ALL_LANGUAGES.map(l => (
                               <button
                                 key={l.code}
                                 type="button"
@@ -2174,7 +2189,7 @@ export const Front: React.FC = () => {
                                   l.code === language ? 'bg-[#E53935]/10 text-[#E53935]' : 'text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800'
                                 }`}
                               >
-                                <span className="font-bold">{l.label}</span>
+                                <span className="font-bold">{l.name}</span>
                                 {l.code === language && <CheckCircle2 className="w-3.5 h-3.5" />}
                               </button>
                             ))}

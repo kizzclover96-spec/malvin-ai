@@ -16,40 +16,73 @@
       ]
     }
   ],
-  "hosting": {
-    "//": "Serves the Vite build. This was previously 'public', which holds only loose images and has no index.html — deploying that shipped a site with nothing to serve.",
-    "public": "dist",
-    "rewrites": [
-      {
-        "source": "**",
-        "destination": "/index.html"
-      }
-    ],
-    "headers": [
-      {
-        "source": "**",
-        "headers": [
-          {
-            "//": "connect-src previously listed only Stripe and Cloud Functions while default-src was 'self', which blocks Firebase Auth (identitytoolkit/securetoken), Firestore, Storage and the Realtime Database — i.e. sign-in and all data fail on the hosted site. img-src likewise blocked Storage-hosted logos and Google profile photos.",
-            "key": "Content-Security-Policy",
-            "value": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://*.stripe.com https://apis.google.com https://app.lemonsqueezy.com; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://*.firebaseapp.com https://*.cloudfunctions.net https://*.stripe.com https://*.stripe.dev https://*.stripe.global https://*.lemonsqueezy.com https://api.ipify.org; frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://*.stripe.com https://*.lemonsqueezy.com https://*.firebaseapp.com; img-src 'self' data: blob: https://*.googleapis.com https://*.gstatic.com https://lh3.googleusercontent.com https://*.stripe.com; media-src 'self' data: blob:; font-src 'self' data:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; base-uri 'self'; form-action 'self'; object-src 'none'; frame-ancestors 'none'"
-          },
-          {
-            "key": "X-Frame-Options",
-            "value": "DENY"
-          },
-          {
-            "key": "X-Content-Type-Options",
-            "value": "nosniff"
-          },
-          {
-            "key": "Referrer-Policy",
-            "value": "strict-origin-when-cross-origin"
-          }
-        ]
-      }
-    ]
-  },
+  "hosting": [
+    {
+      "target": "app",
+      "//": "The main shell — malvinai.com / app.malvinai.com. Serves the exact same Vite build as the 'stores' target below (one `npm run build`, deployed to both — see README/deploy notes); the two only differ in which domain they're attached to and their headers. Nothing should ever frame THIS target, hence frame-ancestors 'none' + X-Frame-Options DENY stay strict here.",
+      "public": "dist",
+      "rewrites": [
+        {
+          "source": "**",
+          "destination": "/index.html"
+        }
+      ],
+      "headers": [
+        {
+          "source": "**",
+          "headers": [
+            {
+              "//": "frame-src now includes the stores target's origin so StoreFront.tsx's <iframe> is actually allowed to load it — 'self' alone doesn't cover a different subdomain. script-src gained www.gstatic.com: firebase-messaging-sw.js's importScripts() call to it was being silently blocked by this SAME header (a service worker with no CSP of its own inherits the registering page's CSP), which is why background push notifications never fired once someone added this to their Home Screen — the fix in index.html's <meta> CSP alone wasn't enough, this header applies in addition to it.",
+              "key": "Content-Security-Policy",
+              "value": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://*.stripe.com https://apis.google.com https://app.lemonsqueezy.com https://www.gstatic.com; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://*.firebaseapp.com https://*.cloudfunctions.net https://*.stripe.com https://*.stripe.dev https://*.stripe.global https://*.lemonsqueezy.com https://api.ipify.org; frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://*.stripe.com https://*.lemonsqueezy.com https://*.firebaseapp.com https://*.malvinai.com; img-src 'self' data: blob: https://*.googleapis.com https://*.gstatic.com https://lh3.googleusercontent.com https://*.stripe.com; media-src 'self' data: blob:; font-src 'self' data:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; base-uri 'self'; form-action 'self'; object-src 'none'; frame-ancestors 'none'"
+            },
+            {
+              "key": "X-Frame-Options",
+              "value": "DENY"
+            },
+            {
+              "key": "X-Content-Type-Options",
+              "value": "nosniff"
+            },
+            {
+              "key": "Referrer-Policy",
+              "value": "strict-origin-when-cross-origin"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "target": "stores",
+      "//": "Merchant storefronts / QR destinations — stores.malvinai.com. Same build as 'app' above, deployed separately so it can carry DIFFERENT framing headers: this is the one target that's allowed to be embedded, and only by the app target's own origin(s) (see StoreFront.tsx for why real origin separation is what makes its <iframe> sandbox safe without allow-same-origin). X-Frame-Options is deliberately omitted here — it can't express 'allow this specific other origin', only ALLOW-FROM (unsupported in modern Chrome/Firefox) or DENY/SAMEORIGIN, so frame-ancestors alone is what gates this.",
+      "public": "dist",
+      "rewrites": [
+        {
+          "source": "**",
+          "destination": "/index.html"
+        }
+      ],
+      "headers": [
+        {
+          "source": "**",
+          "headers": [
+            {
+              "key": "Content-Security-Policy",
+              "value": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://*.stripe.com https://apis.google.com https://app.lemonsqueezy.com https://www.gstatic.com; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://*.firebaseapp.com https://*.cloudfunctions.net https://*.stripe.com https://*.stripe.dev https://*.stripe.global https://*.lemonsqueezy.com https://api.ipify.org; frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://*.stripe.com https://*.lemonsqueezy.com https://*.firebaseapp.com; img-src 'self' data: blob: https://*.googleapis.com https://*.gstatic.com https://lh3.googleusercontent.com https://*.stripe.com; media-src 'self' data: blob:; font-src 'self' data:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; base-uri 'self'; form-action 'self'; object-src 'none'; frame-ancestors 'self' https://malvinai.com https://www.malvinai.com https://*.malvinai.com https://localhost capacitor://localhost http://localhost"
+            },
+            {
+              "key": "X-Content-Type-Options",
+              "value": "nosniff"
+            },
+            {
+              "key": "Referrer-Policy",
+              "value": "strict-origin-when-cross-origin"
+            }
+          ]
+        }
+      ]
+    }
+  ],
   "emulators": {
     "auth": {
       "port": 9099
