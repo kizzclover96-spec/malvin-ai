@@ -1,99 +1,73 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { auth } from '../../firebase';
 
 interface AuthRequiredPopupProps {
   /**
    * Kept for call-site compatibility (every store still passes its own
-   * `/service/${uid}`-style path in) but no longer used to persist
-   * anything — see the note above savePendingDeepLink's removal below for
-   * why. Fine to drop from callers whenever they're next touched.
+   * `/service/${uid}`-style path in) — currently unused, see the removed-
+   * savePendingDeepLink note in git history for why that's deliberate.
+   * Fine to drop from callers whenever they're next touched.
    */
   targetPath: string;
 }
 
-// Every legitimate handshake token StoreFront.tsx hands down starts with
-// this. It's not a secret and isn't meant to be — it just lets us tell
-// "this postMessage carries a real StoreFront handshake" apart from any
-// other unrelated message that might land on the window (extensions,
-// analytics, the browser itself), without caring about the message's
-// exact envelope shape or origin.
-export const HANDSHAKE_TOKEN_PREFIX = 'mv_';
-
-// How long we wait for the parent's handshake token before concluding
-// nobody sent one — i.e. this page was opened on its own (a bookmark, a
-// shared raw link, someone typing the URL in), not through Malvin's
-// StoreFront wrapper.
-const HANDSHAKE_TIMEOUT_MS = 3000;
-
 /**
  * SIGNED-OUT / NOT-EMBEDDED BACKSTOP
  * ---------------------------------------------------------------------------
- * Used to work by asking Firebase Auth directly ("is anyone signed in on
- * THIS page?"). That was fragile in exactly the place it mattered most —
- * inside StoreFront's iframe, a fresh browsing context that doesn't
- * automatically share the parent app's auth session, so the popup would
- * often fire even for a genuinely signed-in customer, or flash on/off as
- * auth state settled.
+ * Went through two designs before this one, both of which raced a fixed
+ * timeout against something async and lost in production:
  *
- * Now it's purely a handshake check: StoreFront.tsx (the parent shell)
- * generates a unique one-off token every time it opens a store and posts
- * it down over `postMessage` the moment the child announces itself ready
- * (the existing "*_READY" / "MALVIN_USER" wire format every store already
- * speaks — see StoreFront.tsx). If that token never arrives within
- * HANDSHAKE_TIMEOUT_MS, this page wasn't opened through Malvin's app shell
- * at all, and THAT — not raw auth state — is what shows the popup.
+ *   1. Raw Firebase Auth state — fragile because StoreFront's iframe is a
+ *      fresh browsing context that doesn't share the parent app's session.
+ *   2. A one-off "handshake token" StoreFront.tsx posted down over
+ *      postMessage, with a few-second timeout before giving up — fragile
+ *      because ANYTHING that delayed that postMessage past the timeout
+ *      (a slow Cloud Functions cold start minting the auth custom token,
+ *      in the version that actually shipped) made the popup show even for
+ *      a customer genuinely inside the app, and once the timeout fired it
+ *      was final — a token arriving a moment later didn't un-show it.
  *
- * No auth listening happens here anymore. Real permission enforcement for
- * actually placing an order / booking / sending a request still lives
- * server-side in Firestore's isSignedIn() rules, same as before — this is
- * only about explaining *why* a plain, unwrapped visit needs the app.
+ * This version doesn't race anything. `window.top === window.self` is a
+ * synchronous, instant, purely structural check — either this document IS
+ * the top-level browsing context or it ISN'T, and nothing about network
+ * timing can change the answer. The only thing that can ever put this page
+ * inside a frame at all is StoreFront.tsx's <iframe> (stores.malvinai.com's
+ * own CSP frame-ancestors only allows the app shell's origin to frame it —
+ * see firebase.json), so "inside a frame" and "properly embedded" are the
+ * same fact here. Embedded → never show anything, full stop, no waiting on
+ * anything to arrive. Standalone (a direct link, a QR scan, a bookmark) →
+ * show it unless this origin's own Firebase Auth already has a real,
+ * signed-in user — checked via onAuthStateChanged, which reflects actual
+ * auth state as it resolves rather than guessing off a timer.
  *
- * Does NOT call savePendingDeepLink() (used to, briefly — that caused a
- * redirect loop: this same route also renders standalone, outside
- * StoreFront, for direct/shared/QR links — see e.g. App.jsx's
- * `/service/:uid` route — so the handshake here ALWAYS times out on that
- * legitimate path too. Saving "resume this after login" from that timeout
- * meant the next app load auto-navigated right back into the same
- * unwrapped route, timed out again, and resaved — forever. That resume
- * mechanism stays exactly where it belongs, in AppOpenGate's own cold
- * mobile-deep-link flow, which is the only place that ever calls
- * savePendingDeepLink now.
+ * Real permission enforcement for actually placing an order / booking /
+ * sending a request still lives server-side in Firestore's isSignedIn()
+ * rules regardless of any of this — this is only about explaining *why* a
+ * plain, unwrapped visit needs the app.
  */
-export const AuthRequiredPopup: React.FC<AuthRequiredPopupProps> = ({ targetPath }) => {
+export const AuthRequiredPopup: React.FC<AuthRequiredPopupProps> = () => {
   const navigate = useNavigate();
-  // null = still waiting to hear from a parent, true = handshake token
-  // received (we're properly embedded — never show anything), false =
-  // timed out with nothing received.
-  const [handshakeOk, setHandshakeOk] = useState<boolean | null>(null);
+  // Structural check, not state — this can't change after mount (a page
+  // doesn't move in or out of an iframe), so it's fine to read once here
+  // rather than via useState/useEffect.
+  const isEmbedded = typeof window !== 'undefined' && window.top !== window.self;
+
+  // null = still waiting on Firebase Auth's initial state, true = a real
+  // signed-in user exists on THIS origin, false = confirmed signed out.
+  const [hasUser, setHasUser] = useState<boolean | null>(null);
 
   useEffect(() => {
-    let settled = false;
-
-    const onMessage = (event: MessageEvent) => {
-      if (settled) return;
-      const token = event.data?.token;
-      if (typeof token === 'string' && token.startsWith(HANDSHAKE_TOKEN_PREFIX)) {
-        settled = true;
-        setHandshakeOk(true);
-      }
-    };
-
-    window.addEventListener('message', onMessage);
-
-    const timer = setTimeout(() => {
-      if (!settled) {
-        settled = true;
-        setHandshakeOk(false);
-      }
-    }, HANDSHAKE_TIMEOUT_MS);
-
-    return () => {
-      window.removeEventListener('message', onMessage);
-      clearTimeout(timer);
-    };
+    if (isEmbedded) return; // never needed — nothing to gate
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      setHasUser(!!user);
+    });
+    return unsubscribe;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (handshakeOk !== false) return null;
+  if (isEmbedded) return null;
+  if (hasUser !== false) return null; // still resolving, or genuinely signed in
 
   return (
     <div style={overlayStyle}>

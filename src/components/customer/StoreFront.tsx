@@ -31,19 +31,6 @@ interface StoreFrontProps {
 // exist, a network hiccup, etc.
 const READY_TIMEOUT_MS = 4500;
 
-// 🔑 HANDSHAKE TOKEN
-// ---------------------------------------------------------------------------
-// A fresh, one-off, unopinionated string minted every time a store is
-// opened. It carries no meaning on its own — its only job is to prove to
-// the store ("AuthRequiredPopup" on the other end, see
-// components/addons/AuthRequiredPopup.tsx) that it's genuinely being shown
-// inside Malvin's own StoreFront wrapper, as opposed to being opened
-// directly as a bare URL. The store shows its own "log in to continue"
-// popup if this never arrives — see that file for the receiving half.
-function generateHandshakeToken(): string {
-  return `mv_${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
-}
-
 export const StoreFront: React.FC<StoreFrontProps> = ({ businessUid, onExit, userUid, userWalletBalance, onExecutePayment, onLoadFailure }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isUntrustedDomain, setIsUntrustedDomain] = useState(false);
@@ -51,9 +38,6 @@ export const StoreFront: React.FC<StoreFrontProps> = ({ businessUid, onExit, use
   // Guards against firing onLoadFailure more than once for the same load,
   // and against firing it after the frame already proved itself fine.
   const settledRef = useRef(false);
-  // One token per mount — regenerating it on every render would mean the
-  // store never has the same token twice in a row to compare against.
-  const handshakeTokenRef = useRef(generateHandshakeToken());
   // Caches the in-flight/resolved custom-token mint per uid, so a retried
   // or duplicate *_READY (StrictMode double-invoke, a flaky first load)
   // doesn't mint a fresh token every time — and so a mid-session account
@@ -238,20 +222,17 @@ export const StoreFront: React.FC<StoreFrontProps> = ({ businessUid, onExit, use
           uid,
           email: currentUser?.email ?? null,
           isGuest: currentUser?.isAnonymous ?? true,
-          token: handshakeTokenRef.current,
         };
 
-        // Post the handshake token + identity IMMEDIATELY, synchronously,
-        // with customToken left null for now. This is deliberately NOT
-        // awaited on the mint below: AuthRequiredPopup (in every store)
-        // only waits ~3s for this handshake token before deciding it
-        // wasn't embedded at all and showing "log in to continue" — and
-        // once that timeout fires, it's final, a later message doesn't
-        // un-show it (see the comment on HANDSHAKE_TIMEOUT_MS there).
-        // Blocking this send on a Cloud Functions round trip (cold starts
-        // routinely exceed a couple seconds) meant a real, properly-
-        // embedded visit could still lose that race and get stuck showing
-        // the gate — exactly the bug this split fixes.
+        // Post identity IMMEDIATELY, synchronously, with customToken left
+        // null for now — NOT awaited on the mint below. Each store's own
+        // AuthRequiredPopup no longer depends on this message arriving at
+        // all (it gates on window.top === window.self instead, a
+        // synchronous structural check with nothing to race — see that
+        // file), but write actions inside the store still want identity
+        // as early as possible, and there's no reason to hold this back
+        // for a Cloud Functions round trip that can take a couple seconds
+        // on a cold start.
         targetWindow?.postMessage({ ...identityBase, customToken: null }, targetOrigin);
 
         // Mint (or reuse the cached) real Firebase custom token for this
@@ -262,7 +243,7 @@ export const StoreFront: React.FC<StoreFrontProps> = ({ businessUid, onExit, use
         // type (applyStorefrontIdentity in services/storefrontAuth.ts
         // already de-dupes on the token value), so a second message with
         // just customToken filled in is picked up the same way the first
-        // one was — the gate has already cleared by then regardless.
+        // one was.
         if (uid) {
           getStorefrontToken(uid)
             .then((customToken) => {
