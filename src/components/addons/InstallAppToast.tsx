@@ -1,13 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { MODE as ANDROID_DISTRIBUTION_MODE, ANDROID_INSTALL_URL } from '../../config/appDistribution';
 
-// Same Play Store listing AppOpenGate.tsx points at — kept in sync with
-// that file's ANDROID_PACKAGE_ID/ANDROID_STORE_URL constants. Tapping
-// "Install" on Android WITHOUT a capturable beforeinstallprompt (see below)
-// hands off to the Play Store instead, which is what actually installs the
-// app's APK — there's no way for a web page to silently drop an APK onto a
-// device outside of that.
-const ANDROID_PACKAGE_ID = 'com.malvinaibeta.agent';
-const ANDROID_STORE_URL = `https://play.google.com/store/apps/details?id=${ANDROID_PACKAGE_ID}`;
+// Source of truth lives in src/config/appDistribution.ts — shared with
+// AppOpenGate.tsx so both flip over together the day we move from the
+// direct-APK beta onto the Play Store. Tapping "Install" on Android WITHOUT
+// a capturable beforeinstallprompt (see below) navigates to
+// ANDROID_INSTALL_URL — today that's our own hosted .apk, which the browser
+// downloads directly; there's no way for a web page to silently drop an APK
+// onto a device without at least this one navigation/tap.
 
 // Don't re-show for a while after someone dismisses it — this is a toast
 // that can appear on every page, so it needs to back off, not nag.
@@ -153,7 +153,15 @@ export const InstallAppToast: React.FC = () => {
       return;
     }
     if (platform === 'android') {
-      window.location.href = ANDROID_STORE_URL;
+      window.location.href = ANDROID_INSTALL_URL;
+      // Direct-APK beta downloads happen as a background navigation/download
+      // rather than a full page leave, so the toast should walk into the
+      // "what to do next" state instead of just vanishing — leaving someone
+      // staring at the same page with no idea the download started.
+      if (ANDROID_DISTRIBUTION_MODE === 'direct-apk') {
+        setExpanded(true);
+        return;
+      }
       dismiss();
       return;
     }
@@ -172,15 +180,31 @@ export const InstallAppToast: React.FC = () => {
         <button style={closeButtonStyle} onClick={dismiss} aria-label="Dismiss">×</button>
         {!expanded ? (
           <>
-            <p style={toastTitleStyle}>Install MalvinAI App</p>
+            <p style={toastTitleStyle}>
+              {platform === 'android' && ANDROID_DISTRIBUTION_MODE === 'direct-apk'
+                ? 'Get the MalvinAI Beta App'
+                : 'Install MalvinAI App'}
+            </p>
             <p style={toastBodyStyle}>
-              {isSafariVariant
+              {platform === 'android' && ANDROID_DISTRIBUTION_MODE === 'direct-apk'
+                ? 'Try the early Android beta — faster loading and push notifications, straight from us (not the Play Store yet).'
+                : isSafariVariant
                 ? 'Add MalvinAI to your Home Screen for the full app experience.'
                 : 'Get the full app experience with faster loading and push notifications.'}
             </p>
             <button style={installButtonStyle} onClick={handleInstallClick}>
-              Install
+              {platform === 'android' && ANDROID_DISTRIBUTION_MODE === 'direct-apk' ? 'Download Beta' : 'Install'}
             </button>
+          </>
+        ) : platform === 'android' ? (
+          <>
+            <p style={toastTitleStyle}>Downloading the Beta…</p>
+            <p style={toastBodyStyle}>
+              Once it's downloaded, open the file from your notification shade or Downloads folder.
+              Since this isn't from the Play Store yet, Android will ask you to
+              <span style={{ fontWeight: 800 }}> "Allow from this source"</span> the first time — that's expected,
+              tap through to install.
+            </p>
           </>
         ) : platform === 'safari-desktop' ? (
           <>

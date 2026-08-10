@@ -1,12 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 
-// TODO: swap this for your real Play Store listing once published
-// (tracks the capacitor.config appId / Android applicationId).
-const ANDROID_PACKAGE_ID = 'com.malvinaibeta.agent';
-const ANDROID_STORE_URL = `https://play.google.com/store/apps/details?id=${ANDROID_PACKAGE_ID}`;
-// TODO: replace with your real App Store numeric id once MalvinAI ships on iOS.
-const IOS_STORE_URL = 'https://apps.apple.com/app/id0000000000';
+import { MODE as ANDROID_DISTRIBUTION_MODE, ANDROID_INSTALL_URL, IOS_STORE_URL } from '../../config/appDistribution';
+// Android/iOS destinations now live in src/config/appDistribution.ts, shared
+// with InstallAppToast.tsx so both switch together once the Play Store
+// listing goes live.
 
 // The key App.jsx checks right after a successful login to resume whatever
 // scanned link brought this person here in the first place.
@@ -159,9 +157,17 @@ export const AppOpenGate: React.FC<AppOpenGateProps> = ({ kind, uid, skipGate })
   if (state === 'idle') return null;
 
   const handleInstallClick = () => {
-    window.location.href = platform === 'android'
-      ? `${ANDROID_STORE_URL}&referrer=${encodeURIComponent(`kind=${kind}&uid=${uid}`)}`
-      : IOS_STORE_URL;
+    if (platform !== 'android') {
+      window.location.href = IOS_STORE_URL;
+      return;
+    }
+    // The &referrer= param is Play Store's install-referrer tracking —
+    // meaningful (and safe to append) only against a real Play Store URL.
+    // The direct-APK beta download has no such mechanism, so skip it there
+    // rather than tack a dead query param onto a plain file URL.
+    window.location.href = ANDROID_DISTRIBUTION_MODE === 'play-store'
+      ? `${ANDROID_INSTALL_URL}&referrer=${encodeURIComponent(`kind=${kind}&uid=${uid}`)}`
+      : ANDROID_INSTALL_URL;
   };
 
   return (

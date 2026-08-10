@@ -29,6 +29,24 @@
       ],
       "headers": [
         {
+          "//": "The beta Android APK (place app-release.apk at dist/downloads/malvinai-beta.apk before deploying, matching ANDROID_APK_URL in src/config/appDistribution.ts). Chrome needs Content-Disposition: attachment, not just a Content-Type, to reliably download-to-disk rather than try to navigate to it as a page \u2014 .apk has no in-browser renderer, so without this the behavior varies by device.",
+          "source": "downloads/*.apk",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/vnd.android.package-archive"
+            },
+            {
+              "key": "Content-Disposition",
+              "value": "attachment"
+            },
+            {
+              "key": "Cache-Control",
+              "value": "no-cache"
+            }
+          ]
+        },
+        {
           "//": "Content-hashed build output (dist/assets/*-HASH.js, *-HASH.css) \u2014 the filename itself changes whenever the content does, so it's always safe to cache these as long as possible. This is the standard Vite/SPA caching split: never cache the HTML shell, cache everything it references forever.",
           "source": "assets/**",
           "headers": [

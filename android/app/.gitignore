@@ -16,3 +16,7 @@ android/app/*.keystore
 
 # Local signing configuration
 android/gradle.properties
+
+*.keystore
+*.jks
+android/keystore.properties
