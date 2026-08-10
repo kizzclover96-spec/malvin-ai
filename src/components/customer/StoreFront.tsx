@@ -8,6 +8,13 @@ import { STORE_ORIGIN } from '../../services/vinLink';
 interface StoreFrontProps {
   businessUid: string;
   onExit: () => void;
+  // Called when a store page asks to be closed AND have the Receipts
+  // drawer opened right after (see serviceStore.tsx's "Go to Receipts"
+  // button on its post-submit confirmation) — e.g. Front.tsx passes
+  // () => setIsDrawerOpen(true). Optional so callers that don't care about
+  // this flow (or don't render a drawer at all) can simply omit it; the
+  // store still closes via onExit either way.
+  onOpenReceipts?: () => void;
   // Passed by Front.tsx alongside businessUid/onExit — accepted here so the
   // component's prop type actually matches how it's called. Not wired into
   // any behavior yet (see note below); currently REQUEST_DIRECT_PAYMENT
@@ -31,7 +38,7 @@ interface StoreFrontProps {
 // exist, a network hiccup, etc.
 const READY_TIMEOUT_MS = 4500;
 
-export const StoreFront: React.FC<StoreFrontProps> = ({ businessUid, onExit, userUid, userWalletBalance, onExecutePayment, onLoadFailure }) => {
+export const StoreFront: React.FC<StoreFrontProps> = ({ businessUid, onExit, onOpenReceipts, userUid, userWalletBalance, onExecutePayment, onLoadFailure }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isUntrustedDomain, setIsUntrustedDomain] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
@@ -204,6 +211,25 @@ export const StoreFront: React.FC<StoreFrontProps> = ({ businessUid, onExit, use
       }
       if (event.source !== iframeRef.current?.contentWindow) return;
       if (event.origin !== expectedOrigin) return;
+
+      // A store page's own in-content back button (serviceStore.tsx and
+      // friends) — since this shell already owns the ONE real back arrow
+      // for the whole storefront experience, the store just asks for it
+      // rather than duplicating exit/navigation logic per store type.
+      if (event.data?.type === 'STORE_BACK') {
+        onExit();
+        return;
+      }
+
+      // A store just finished something the customer should track in
+      // Receipts (e.g. serviceStore.tsx's "Go to Receipts" button after
+      // placing a request) — close the store and hand off to whatever the
+      // parent app wants to do about Receipts, if anything.
+      if (event.data?.type === 'CLOSE_AND_OPEN_RECEIPTS') {
+        onExit();
+        onOpenReceipts?.();
+        return;
+      }
 
       // Handshake Request from Child (SalonStore / Store / HotelStore /
       // MechanicStore / MarketFront chat) — matched generically on the

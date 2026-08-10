@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { firestore as db, auth, storage } from '../../firebase';
 import { applyStorefrontIdentity } from '../../services/storefrontAuth';
 import { getDatabase, ref, onValue } from 'firebase/database';
 import { doc, getDoc, collection, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { Star, ShieldCheck, Clock, MapPin, BadgeCheck, Sparkles, Camera, X, Loader2, CheckCircle2 } from 'lucide-react';
+import { Star, ShieldCheck, Clock, MapPin, BadgeCheck, Sparkles, Camera, X, Loader2, CheckCircle2, ArrowLeft, Receipt } from 'lucide-react';
 import Banned from '../addons/Banned';
 import Suspended from '../addons/Suspended';
 import Report from '../addons/report';
@@ -34,6 +34,12 @@ interface ServiceLineItem {
 
 export default function ServiceStore() {
   const { uid } = useParams<{ uid: string }>();
+  const navigate = useNavigate();
+  // True only when this page is genuinely embedded in StoreFront's iframe
+  // (see components/customer/StoreFront.tsx) — vs. a shared link opened
+  // directly in a normal tab, or the native app's own top-level route,
+  // where window.parent === window and there's no outer chrome at all.
+  const isEmbedded = typeof window !== 'undefined' && window.parent !== window;
   const [loading, setLoading] = useState(true);
   const [provider, setProvider] = useState<ServiceProfile | null>(null);
   const [priceList, setPriceList] = useState<ServiceLineItem[]>([]);
@@ -244,13 +250,71 @@ export default function ServiceStore() {
     );
   }
 
+  // Mirrors StoreFront.tsx's own "Malvin Secure View" back arrow (which
+  // this page never sees when it's NOT running inside that iframe — a
+  // shared link opened in a plain tab, or the native app's own top-level
+  // /service/:uid route, has zero surrounding chrome otherwise).
+  const handleBack = () => {
+    if (isEmbedded) {
+      // Let the parent shell handle it exactly the way its own back arrow
+      // does, rather than trying to unmount the iframe from inside itself.
+      window.parent.postMessage({ type: 'STORE_BACK' }, '*');
+      return;
+    }
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate('/');
+    }
+  };
+
+  // Same "embedded vs. standalone" split as handleBack: inside the iframe,
+  // ask the parent shell to close this store AND open its Receipts
+  // drawer (see StoreFront.tsx's message listener + Front.tsx's
+  // onOpenReceipts prop). Standalone, there's no parent shell to ask —
+  // drop a one-shot flag and land on '/', where Front.tsx checks for it
+  // on mount and opens the drawer itself (same pattern as
+  // AppOpenGate.tsx's pending-deep-link handoff).
+  const handleGoToReceipts = () => {
+    if (isEmbedded) {
+      window.parent.postMessage({ type: 'CLOSE_AND_OPEN_RECEIPTS' }, '*');
+      return;
+    }
+    try {
+      sessionStorage.setItem('malvinai_open_receipts_on_load', '1');
+    } catch {
+      // Storage unavailable — worst case they land on '/' and open
+      // Receipts manually instead of it opening for them.
+    }
+    navigate('/');
+  };
+
   return (
-    <div style={{ minHeight: '100vh', background: '#f8fafc', fontFamily: 'sans-serif', paddingBottom: '80px' }}>
+    <div style={{ minHeight: '100vh', background: '#f8fafc', fontFamily: 'sans-serif', paddingBottom: '80px', position: 'relative' }}>
       {/* Signed-out backstop — AppOpenGate only covers mobile visitors who
           arrived without the app; this catches EVERYONE genuinely not
           logged in (desktop included), before they hit a raw Firestore
           permission error trying to submit a request. Store details still
           render underneath — this only blocks interaction, not viewing. */}
+
+      {/* IN-PAGE BACK BUTTON — StoreFront.tsx already draws its own back
+          arrow around this page when it's embedded in the iframe, so this
+          floats a second, small one directly on the hero instead of a full
+          header bar (avoids two stacked nav rows in that case). When this
+          page is NOT embedded, it's the only way back at all. */}
+      <button
+        onClick={handleBack}
+        aria-label="Back"
+        style={{
+          position: 'absolute', top: '16px', left: '16px', zIndex: 10,
+          width: '34px', height: '34px', borderRadius: '9999px',
+          background: 'rgba(255,255,255,0.22)', border: 'none',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          cursor: 'pointer', backdropFilter: 'blur(6px)',
+        }}
+      >
+        <ArrowLeft size={18} color="#fff" />
+      </button>
 
       {/* Themed hero — the whole point of the category system: this block's
           color follows whichever category resolvePrimaryCategory() picked
@@ -366,12 +430,21 @@ export default function ServiceStore() {
             {submitted ? (
               <div style={{ textAlign: 'center', padding: '24px 0' }}>
                 <CheckCircle2 size={40} color={theme.color} style={{ marginBottom: '10px' }} />
-                <p style={{ margin: 0, fontSize: '14px', fontWeight: 800, color: '#0f172a' }}>Request sent</p>
+                <p style={{ margin: 0, fontSize: '14px', fontWeight: 800, color: '#0f172a' }}>Your request has been placed</p>
                 <p style={{ margin: '6px 0 0', fontSize: '12px', color: '#64748b' }}>
-                  {provider.businessName} will review it and send you a quote. You'll get a notification, and it'll show up in your Receipts.
+                  {provider.businessName} will review it and send you a quote. Track the status of your request any time in your Receipts.
                 </p>
-                <button onClick={() => setIsRequestOpen(false)} style={{ marginTop: '16px', background: theme.color, color: '#fff', border: 'none', borderRadius: '10px', padding: '10px 20px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>
-                  Done
+                <button
+                  onClick={handleGoToReceipts}
+                  style={{
+                    marginTop: '16px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                    background: theme.gradient, color: '#fff', border: 'none', borderRadius: '12px', padding: '13px', fontSize: '14px', fontWeight: 800, cursor: 'pointer',
+                  }}
+                >
+                  <Receipt size={16} /> Go to Receipts
+                </button>
+                <button onClick={() => setIsRequestOpen(false)} style={{ marginTop: '10px', background: 'none', border: 'none', color: '#94a3b8', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>
+                  Keep browsing instead
                 </button>
               </div>
             ) : (

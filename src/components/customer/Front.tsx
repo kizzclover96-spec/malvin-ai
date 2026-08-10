@@ -342,6 +342,65 @@ export const Front: React.FC = () => {
 
 
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  // 🔴 RECEIPTS RED DOT — mirrors the notification bell's own unread dot
+  // (see components/customer/Notification.tsx). Set true the moment a
+  // genuinely new receipt shows up (same branch that already fires
+  // pushNotification/postLocalAlert for it, below), cleared the moment the
+  // drawer is actually opened. Backed by localStorage (not just React
+  // state) so it survives a reload between "a new receipt arrived" and
+  // "the customer got around to checking" — same pattern as the bell's own
+  // notif_muted_ cache.
+  const [hasNewReceipt, setHasNewReceipt] = useState(false);
+  const markReceiptsSeen = () => {
+    setHasNewReceipt(false);
+    try {
+      if (user?.uid) localStorage.setItem(`malvinai_has_unopened_receipt_${user.uid}`, 'false');
+    } catch {
+      /* soft failure — worst case the dot lingers until next new receipt clears it anyway */
+    }
+  };
+
+  // Sync the red dot's initial state from localStorage as soon as we know
+  // who the user is (a plain render-time read of auth.currentUser above
+  // won't itself trigger this — the uid dependency is what does).
+  useEffect(() => {
+    if (!user?.uid) return;
+    try {
+      const cached = localStorage.getItem(`malvinai_has_unopened_receipt_${user.uid}`);
+      setHasNewReceipt(cached === 'true');
+    } catch {
+      /* storage unavailable — dot just starts off, worst case */
+    }
+  }, [user?.uid]);
+
+  // One-shot handoff from a store page opened standalone (no StoreFront
+  // iframe wrapper around it — see serviceStore.tsx's handleGoToReceipts).
+  // That flow can't reach this component's state directly, so it drops a
+  // flag and lands on '/'; this picks it up once on mount and opens the
+  // drawer itself, same idea as AppOpenGate.tsx's pending-deep-link resume.
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem('malvinai_open_receipts_on_load') === '1') {
+        sessionStorage.removeItem('malvinai_open_receipts_on_load');
+        setIsDrawerOpen(true);
+        markReceiptsSeen();
+      }
+    } catch {
+      /* storage unavailable — the flag just never gets picked up, no crash */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Belt-and-suspenders: whichever of the several places in this file opens
+  // the drawer (main nav icon, Radar's Receipts tab, the standalone
+  // sessionStorage handoff above), the dot clears the moment isDrawerOpen
+  // actually flips true — so a future new "open receipts" call site can't
+  // forget to also clear it.
+  useEffect(() => {
+    if (isDrawerOpen) markReceiptsSeen();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDrawerOpen]);
+
   const [isRadarOpen, setIsRadarOpen] = useState(false);
   // 🤖 AI QUICK-MENU — the half-circle category picker fanning out from the
   // AI face in the top-left corner. radarCategoryFilter carries the pick
@@ -936,6 +995,15 @@ export const Front: React.FC = () => {
               const message = newReceiptMessage(item);
               pushNotification(user.uid, 'new_receipt', 'New receipt', message);
 
+              // Red dot on the Receipts drawer icon — cleared the moment
+              // the customer actually opens the drawer (markReceiptsSeen).
+              setHasNewReceipt(true);
+              try {
+                localStorage.setItem(`malvinai_has_unopened_receipt_${user.uid}`, 'true');
+              } catch {
+                /* soft failure — dot just won't survive a reload this time */
+              }
+
               // A mechanic acceptance or a service quote is the one receipt
               // the customer isn't already expecting a fixed answer for —
               // they submitted a request and then waited, so it gets a
@@ -1284,6 +1352,7 @@ export const Front: React.FC = () => {
         userWalletBalance={0}
         onExecutePayment={async () => {}}
         onExit={() => setActiveStoreUid(null)}
+        onOpenReceipts={() => { setIsDrawerOpen(true); markReceiptsSeen(); }}
         onLoadFailure={handleStoreLoadFailure}
       />
     );
@@ -1891,11 +1960,14 @@ export const Front: React.FC = () => {
               floating top-left circle so the header could be freed up for
               the greeting block. */}
           <button
-            onClick={() => setIsDrawerOpen(true)}
-            className="icon-button p-4 rounded-full transition-all flex items-center justify-center text-neutral-400 dark:text-neutral-600 hover:text-neutral-600 dark:hover:text-neutral-300"
+            onClick={() => { setIsDrawerOpen(true); markReceiptsSeen(); }}
+            className="icon-button relative p-4 rounded-full transition-all flex items-center justify-center text-neutral-400 dark:text-neutral-600 hover:text-neutral-600 dark:hover:text-neutral-300"
             title="Receipts & history"
           >
             <Menu className="w-6 h-6" />
+            {hasNewReceipt && (
+              <span className="absolute top-2.5 right-2.5 w-2.5 h-2.5 rounded-full bg-red-500 border-2 border-white dark:border-neutral-900" />
+            )}
           </button>
         </div>
 
@@ -2497,6 +2569,7 @@ export const Front: React.FC = () => {
               onOpenReceipts={() => {
                 setIsRadarOpen(false);
                 setIsDrawerOpen(true);
+                markReceiptsSeen();
               }}
             />
           </motion.div>
