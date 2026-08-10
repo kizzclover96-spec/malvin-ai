@@ -12,6 +12,7 @@ import { Link } from "react-router-dom";
 import AdminReports from "./AdminReports";
 import {MalvinAiPersonnelSystem} from "./MalvinAiPersonnelSystem";
 import AdminKillSwitch from "./AdminKillSwitch";
+import { AdminSupportInbox } from "./AdminSupportInbox";
 import { useSystemStatus } from "../../hooks/useSystemStatus";
 import { resolvePremiumFlag } from "../../hooks/useAccountStanding";
 import {
@@ -451,6 +452,9 @@ const AdsManager = () => {
     const NAV_ITEMS: { key: string; label: string; icon: React.ReactNode }[] = [
         { key: "ads", label: "MERCHANTS & ADS", icon: <LayoutGrid size={16} /> },
         { key: "reports", label: "REPORTS", icon: <FileBarChart2 size={16} /> },
+        ...(myRole.isOwner || myRole.can('manageSupport')
+            ? [{ key: "support", label: "SUPPORT", icon: <Mail size={16} /> }]
+            : []),
         { key: "personnel", label: "AI PERSONNEL", icon: <UsersIcon size={16} /> },
         ...(myRole.isOwner || myRole.can('manageAdmins')
             ? [{ key: "admins", label: "ADMINS", icon: <Crown size={16} /> }]
@@ -461,11 +465,23 @@ const AdsManager = () => {
     const PANEL_TITLES: Record<string, string> = {
         ads: "Merchants & Ads",
         reports: "Reports",
+        support: "Support",
         admins: "Admins",
         killswitch: "Kill Switch",
     };
 
     const pendingAdminReviewCount = adminRecords.filter(a => a.status === 'pending_review').length;
+    const [supportUnreadCount, setSupportUnreadCount] = useState(0);
+
+    // Lightweight sidebar badge — just a count, not the conversations
+    // themselves, so this stays cheap even while the Support panel itself
+    // isn't mounted. AdminSupportInbox owns the real listeners.
+    useEffect(() => {
+        if (!(myRole.isOwner || myRole.can('manageSupport'))) return;
+        const q = query(collection(firestore, 'supportConversations'), where('unreadByAdmin', '==', true));
+        const unsub = onSnapshot(q, (snap) => setSupportUnreadCount(snap.size), (err) => console.error('SUPPORT_BADGE_ERROR:', err));
+        return () => unsub();
+    }, [myRole.isOwner, myRole.can('manageSupport')]);
 
     return (
         <div style={consoleShell}>
@@ -498,6 +514,9 @@ const AdsManager = () => {
                                 )}
                                 {item.key === "admins" && pendingAdminReviewCount > 0 && (
                                     <span style={navBadge}>{pendingAdminReviewCount}</span>
+                                )}
+                                {item.key === "support" && supportUnreadCount > 0 && (
+                                    <span style={navBadge}>{supportUnreadCount}</span>
                                 )}
                             </button>
                         );
@@ -1138,6 +1157,18 @@ const AdsManager = () => {
                     )}
                     {activePanel === "reports" && (
                         <AdminReports />
+                    )}
+                    {activePanel === "support" && (
+                        <AdminSupportInbox
+                            myEmail={auth.currentUser?.email || ''}
+                            myUid={auth.currentUser?.uid || ''}
+                            assignableAdmins={[
+                                { email: OWNER_EMAIL, label: 'Owner' },
+                                ...adminRecords
+                                    .filter(a => a.status === 'active' && a.capabilities?.manageSupport)
+                                    .map(a => ({ email: a.email, label: a.roleLabel || a.email })),
+                            ]}
+                        />
                     )}
                     {activePanel === "admins" && (
                         <AdminsPanel

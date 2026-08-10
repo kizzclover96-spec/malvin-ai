@@ -2,6 +2,8 @@ import "dotenv/config";
 import { setGlobalOptions } from "firebase-functions/v2";
 import { onCall, onRequest, HttpsError } from "firebase-functions/v2/https";
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
+import { onDocumentWritten } from "firebase-functions/v2/firestore";
+import { onValueWritten } from "firebase-functions/v2/database";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { beforeUserCreated, beforeUserSignedIn } from "firebase-functions/v2/identity";
 import { initializeApp } from "firebase-admin/app";
@@ -1782,7 +1784,7 @@ const OWNER_EMAIL = "kizzclover96@gmail.com";
 // unchecked, but easy to forget — that file is the actual source of truth).
 const KNOWN_CAPABILITY_KEYS = [
   "viewUsers", "viewBusinesses", "manageReports", "managePayments",
-  "manageAdmins", "suspendUsers", "deleteAccounts", "viewSensitiveInfo",
+  "manageAdmins", "suspendUsers", "deleteAccounts", "viewSensitiveInfo", "manageSupport",
 ] as const;
 const OWNER_ONLY_CAPABILITY_KEYS = new Set(["managePayments", "manageAdmins", "deleteAccounts", "viewSensitiveInfo"]);
 
@@ -1919,4 +1921,500 @@ export const inviteAdmin = onCall(
 
     return { success: true, emailSent: true };
   })
+);
+
+/*
+=====================================
+17. ADMIN CUSTOM CLAIMS SYNC
+=====================================
+Firestore security rules can't read Realtime Database — there's no
+`root.child(...)` equivalent across products — so a Firestore rule has no
+way to ask "does this signed-in user have manageSupport?" if that answer
+only lives in admin/admins over in RTDB. The Support inbox below needs
+exactly that check (only support-capable admins should be able to list
+supportConversations straight from the client).
+
+The fix is the same one syncPremiumClaims already uses for `tier`: mirror
+the trusted RTDB value onto the user's Firebase Auth *custom claims*,
+which DO travel inside their ID token and which Firestore rules read
+natively via `request.auth.token`. This trigger keeps that mirror current
+automatically — it fires every time an admin/admins/{adminKey} record
+changes, and sets or clears `{ admin, cap }` on the matching Auth user.
+
+Two things worth knowing:
+  - Claims only take effect in a client's ID token after that client's
+    token next refreshes (forced refresh, or up to ~1h naturally) — a
+    freshly-granted admin may need to sign out/in once before Firestore
+    rules recognize them, same caveat as the premium claim already has.
+  - `record.uid` is only populated once the invited person has actually
+    signed in and submitted their application (see AdminApplicationGate),
+    so records still sitting at status "invited" have no Auth user to
+    attach a claim to yet — this is a deliberate no-op, not a bug.
+*/
+export const syncAdminClaims = onValueWritten(
+  "admin/admins/{adminKey}",
+  async (event) => {
+    const after = event.data.after.val();
+    const before = event.data.before.val();
+    const uid = after?.uid || before?.uid;
+    if (!uid) return;
+
+    const { getAuth } = require("firebase-admin/auth");
+    const authAdmin = getAuth();
+
+    let userRecord;
+    try {
+      userRecord = await authAdmin.getUser(uid);
+    } catch (err) {
+      console.error(`syncAdminClaims: no Auth user for uid ${uid}`, err);
+      return;
+    }
+    const existingClaims = userRecord.customClaims || {};
+
+    const isActive = after?.status === "active";
+    const capabilities = after?.capabilities || {};
+
+    await authAdmin.setCustomUserClaims(uid, {
+      ...existingClaims, // preserve premium/tier and anything else already set
+      admin: isActive,
+      cap: isActive
+        ? {
+            viewUsers: !!capabilities.viewUsers,
+            viewBusinesses: !!capabilities.viewBusinesses,
+            manageReports: !!capabilities.manageReports,
+            managePayments: !!capabilities.managePayments,
+            manageAdmins: !!capabilities.manageAdmins,
+            suspendUsers: !!capabilities.suspendUsers,
+            deleteAccounts: !!capabilities.deleteAccounts,
+            viewSensitiveInfo: !!capabilities.viewSensitiveInfo,
+            manageSupport: !!capabilities.manageSupport,
+          }
+        : null,
+    });
+
+    console.log(`syncAdminClaims: uid ${uid} → admin=${isActive}`);
+  }
+);
+
+/*
+=====================================
+18. SUPPORT INBOX (Resend inbound + outbound)
+=====================================
+support@malvinai.com as an in-app inbox rather than a shared mailbox
+password. Two halves:
+
+  - resendInboundWebhook: Resend calls this the moment someone emails
+    support@malvinai.com. It verifies the request actually came from
+    Resend (Svix-signed), pulls the full parsed email via the Receiving
+    API (webhook payloads deliberately exclude the body), threads it onto
+    an existing supportConversations doc when possible, and creates a new
+    one otherwise.
+
+  - sendSupportReply: what the Support tab's reply box calls. The Resend
+    API key never reaches the browser — this is the only thing allowed to
+    actually send as support@malvinai.com.
+
+Threading: every outbound message we send gets Resend's returned email id
+stored as `resendMessageId`. When a reply comes back in, its `In-Reply-To`
+header should reference that id (standard email behavior — every mail
+client sets this when you hit "reply"), so we look outbound messages up
+by that first. If nothing matches (first-ever email from this customer,
+or a client that mangled the header), we fall back to the newest
+still-open conversation from the same address, and only open a brand new
+conversation if neither exists.
+*/
+const getResend = () => {
+  const { Resend } = require("resend");
+  return new Resend(process.env.RESEND_API_KEY);
+};
+
+async function findOrCreateSupportConversation(params: {
+  db: any;
+  fromEmail: string;
+  fromName: string | null;
+  subject: string;
+  inReplyTo: string | null;
+}): Promise<{ id: string; isNew: boolean }> {
+  const { db, fromEmail, fromName, subject, inReplyTo } = params;
+  const conversations = db.collection("supportConversations");
+
+  // 1. Thread by In-Reply-To against a message we actually sent.
+  if (inReplyTo) {
+    const byThread = await db
+      .collectionGroup("messages")
+      .where("resendMessageId", "==", inReplyTo)
+      .limit(1)
+      .get();
+    if (!byThread.empty) {
+      const conversationId = byThread.docs[0].ref.parent.parent?.id;
+      if (conversationId) return { id: conversationId, isNew: false };
+    }
+  }
+
+  // 2. Fall back to the same customer's most recent non-resolved thread.
+  const byCustomer = await conversations
+    .where("customerEmail", "==", fromEmail)
+    .where("status", "in", ["open", "pending"])
+    .orderBy("updatedAt", "desc")
+    .limit(1)
+    .get();
+  if (!byCustomer.empty) {
+    return { id: byCustomer.docs[0].id, isNew: false };
+  }
+
+  // 3. Genuinely new conversation.
+  const now = Date.now();
+  const newDoc = await conversations.add({
+    customerEmail: fromEmail,
+    customerName: fromName,
+    subject: subject || "(no subject)",
+    status: "open",
+    assignedTo: null,
+    assignedToUid: null,
+    createdAt: now,
+    updatedAt: now,
+    lastMessagePreview: "",
+    unreadByAdmin: true,
+  });
+  return { id: newDoc.id, isNew: true };
+}
+
+// Uploads a base64-decoded inbound attachment to Firebase Storage and
+// returns a long-lived signed download URL. Kept deliberately tolerant of
+// field-name variance in Resend's receiving.get() attachment shape (their
+// docs don't pin this down precisely at the time of writing) — anything
+// that looks like base64 content and a filename is accepted; anything
+// that doesn't is skipped and logged rather than throwing, so one odd
+// attachment never drops the whole inbound email.
+async function storeInboundAttachment(params: {
+  conversationId: string;
+  messageId: string;
+  raw: any;
+  index: number;
+}): Promise<{ filename: string; url: string; contentType: string; size: number } | null> {
+  const { conversationId, messageId, raw, index } = params;
+  try {
+    const filename: string = raw.filename || raw.name || `attachment-${index}`;
+    const contentType: string = raw.content_type || raw.contentType || raw.type || "application/octet-stream";
+    const base64: string | undefined = raw.content || raw.data || raw.base64;
+    if (!base64) {
+      console.warn("storeInboundAttachment: no base64 content field found on attachment", { conversationId, messageId, keys: Object.keys(raw || {}) });
+      return null;
+    }
+    const buffer = Buffer.from(base64, "base64");
+
+    const { getStorage } = require("firebase-admin/storage");
+    const bucket = getStorage().bucket();
+    const path = `support-attachments/${conversationId}/${messageId}/${filename}`;
+    const file = bucket.file(path);
+    await file.save(buffer, { contentType, metadata: { cacheControl: "private, max-age=0" } });
+
+    // Long-lived signed URL rather than making the object public — these
+    // are customer-submitted files, not something to leave world-readable
+    // just because someone finds the URL.
+    const [url] = await file.getSignedUrl({ action: "read", expires: "01-01-2100" });
+
+    return { filename, url, contentType, size: buffer.length };
+  } catch (err) {
+    captureError(err, { scope: "storeInboundAttachment", conversationId, messageId });
+    return null;
+  }
+}
+
+export const resendInboundWebhook = onRequest(
+  { secrets: ["RESEND_API_KEY", "RESEND_WEBHOOK_SECRET"], cors: false },
+  async (req, res) => {
+    if (req.method !== "POST") {
+      res.status(405).send("Method not allowed");
+      return;
+    }
+
+    const resend = getResend();
+    let event: any;
+    try {
+      // Signature covers the EXACT bytes Resend sent — req.rawBody (not the
+      // parsed-then-restringified req.body) is required or verification
+      // fails even for a completely legitimate request.
+      const payload = (req as any).rawBody?.toString("utf8") ?? JSON.stringify(req.body);
+      event = resend.webhooks.verify({
+        payload,
+        headers: {
+          "svix-id": req.headers["svix-id"],
+          "svix-timestamp": req.headers["svix-timestamp"],
+          "svix-signature": req.headers["svix-signature"],
+        },
+        secret: process.env.RESEND_WEBHOOK_SECRET,
+      });
+    } catch (err) {
+      captureError(err, { scope: "resendInboundWebhook", stage: "verify" });
+      res.status(400).send("Invalid signature");
+      return;
+    }
+
+    if (event.type !== "email.received") {
+      // Delivery/bounce/complaint events etc. — not this inbox's concern.
+      res.status(200).send("ignored");
+      return;
+    }
+
+    try {
+      const emailId = event.data.email_id;
+      // Webhook payloads exclude the body by design — fetch the full
+      // parsed email (from/to/subject/text/html/headers/attachments)
+      // separately.
+      const { data: email } = await resend.emails.receiving.get(emailId);
+
+      const fromEmail = (email.from?.email || email.from || "").toLowerCase();
+      const fromName = email.from?.name || null;
+      const subject = email.subject || "";
+      const bodyText = email.text || "";
+      const bodyHtml = email.html || null;
+      const inReplyTo =
+        email.headers?.["in-reply-to"] || email.headers?.["In-Reply-To"] || null;
+      const resendMessageId = email.headers?.["message-id"] || email.headers?.["Message-Id"] || emailId;
+
+      if (!fromEmail) {
+        console.error("resendInboundWebhook: inbound email had no from address", { emailId });
+        res.status(200).send("no-from");
+        return;
+      }
+
+      const db = getDb();
+      const { id: conversationId } = await findOrCreateSupportConversation({
+        db, fromEmail, fromName, subject, inReplyTo,
+      });
+
+      const now = Date.now();
+      const messageRef = db.collection("supportConversations").doc(conversationId).collection("messages").doc();
+
+      const rawAttachments: any[] = Array.isArray(email.attachments) ? email.attachments : [];
+      const attachments = (
+        await Promise.all(
+          rawAttachments.map((raw, i) =>
+            storeInboundAttachment({ conversationId, messageId: messageRef.id, raw, index: i })
+          )
+        )
+      ).filter((a): a is NonNullable<typeof a> => a !== null);
+
+      await messageRef.set({
+        direction: "inbound",
+        from: fromEmail,
+        to: "support@malvinai.com",
+        subject,
+        body: bodyText,
+        html: bodyHtml,
+        resendMessageId,
+        inReplyTo,
+        authorEmail: null,
+        attachments,
+        createdAt: now,
+      });
+
+      await db.collection("supportConversations").doc(conversationId).update({
+        updatedAt: now,
+        status: "open", // a new customer reply reopens a pending/resolved thread
+        lastMessagePreview: bodyText.slice(0, 140) || (attachments.length ? `📎 ${attachments.length} attachment(s)` : ""),
+        unreadByAdmin: true,
+        ...(fromName ? { customerName: fromName } : {}),
+      });
+
+      res.status(200).send("ok");
+    } catch (err) {
+      captureError(err, { scope: "resendInboundWebhook", stage: "process" });
+      // 200, not 500 — Resend retries on non-2xx, and a processing bug on
+      // our end shouldn't cause the same email to be redelivered and
+      // potentially double-filed. The error is already captured above.
+      res.status(200).send("error-logged");
+    }
+  }
+);
+
+const SEND_SUPPORT_REPLY_LIMIT: RateLimitRule = { name: "send_support_reply", max: 60, windowMs: 60 * 60 * 1000 };
+
+export const sendSupportReply = onCall(
+  { secrets: ["RESEND_API_KEY"] },
+  withMonitoring(async (request) => {
+    const callerEmail = request.auth?.token?.email as string | undefined;
+    const callerUid = request.auth?.uid;
+    if (!callerUid || !callerEmail) {
+      throw new HttpsError("unauthenticated", "Sign in to reply.");
+    }
+
+    await enforceRateLimit(
+      { ip: getClientIp(request.rawRequest), uid: callerUid },
+      [SEND_SUPPORT_REPLY_LIMIT]
+    );
+
+    // Same authorization check inviteAdmin uses — custom claims (fast
+    // path, set by syncAdminClaims above) with an RTDB fallback for the
+    // moment right after a grant, before the claim has propagated.
+    const isOwner = callerEmail.toLowerCase() === OWNER_EMAIL.toLowerCase();
+    let canReply = isOwner || request.auth?.token?.cap?.manageSupport === true;
+    if (!canReply) {
+      const rtdb = getRtdb();
+      const callerKey = emailToAdminKey(callerEmail);
+      const callerSnap = await rtdb.ref(`admin/admins/${callerKey}`).get();
+      const callerRecord = callerSnap.exists() ? callerSnap.val() : null;
+      canReply = callerRecord?.status === "active" && callerRecord?.capabilities?.manageSupport === true;
+    }
+    if (!canReply) {
+      throw new HttpsError("permission-denied", "You don't have permission to reply to support conversations.");
+    }
+
+    const conversationId = String(request.data?.conversationId || "");
+    const body = String(request.data?.body || "").trim();
+    // Client uploads to Storage first and only sends us the resulting
+    // metadata — this function never touches raw file bytes, keeping it
+    // fast and keeping upload size limits out of the callable's hands.
+    const rawAttachments = Array.isArray(request.data?.attachments) ? request.data.attachments : [];
+    const attachments = rawAttachments
+      .map((a: any) => ({
+        filename: String(a?.filename || "attachment"),
+        url: String(a?.url || ""),
+        contentType: String(a?.contentType || "application/octet-stream"),
+        size: Number(a?.size) || 0,
+      }))
+      .filter((a: { url: string }) => !!a.url)
+      .slice(0, 5); // sane ceiling — this is a support reply box, not a file drop
+    if (!conversationId || (!body && attachments.length === 0)) {
+      throw new HttpsError("invalid-argument", "conversationId and a body or attachment are required.");
+    }
+
+    const db = getDb();
+    const conversationRef = db.collection("supportConversations").doc(conversationId);
+    const conversationSnap = await conversationRef.get();
+    if (!conversationSnap.exists) {
+      throw new HttpsError("not-found", "Conversation not found.");
+    }
+    const conversation = conversationSnap.data()!;
+    const toEmail = conversation.customerEmail;
+    const subject = conversation.subject?.startsWith("Re:") ? conversation.subject : `Re: ${conversation.subject || ""}`;
+
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) {
+      throw new HttpsError("failed-precondition", "Email service is not configured (RESEND_API_KEY secret is missing).");
+    }
+
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: "Malvin Support <support@malvinai.com>",
+        to: toEmail,
+        subject,
+        text: body,
+        html: `<div style="font-family: -apple-system, Helvetica, Arial, sans-serif;">${body
+          .split("\n")
+          .map((line: string) => `<p>${line}</p>`)
+          .join("")}</div>`,
+        // Resend fetches the file itself from `path` — no need to read the
+        // bytes into this function at all, since the client already put
+        // them somewhere Resend can reach (a signed Storage URL).
+        ...(attachments.length
+          ? { attachments: attachments.map((a: { filename: string; url: string }) => ({ filename: a.filename, path: a.url })) }
+          : {}),
+      }),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      captureError(new Error(`Resend API error (${res.status}): ${errText}`), { scope: "sendSupportReply", conversationId });
+      throw new HttpsError("internal", "Failed to send the reply email. Nothing was saved.");
+    }
+
+    const sent = await res.json();
+    const now = Date.now();
+
+    await conversationRef.collection("messages").add({
+      direction: "outbound",
+      from: "support@malvinai.com",
+      to: toEmail,
+      subject,
+      body,
+      html: null,
+      resendMessageId: sent.id || null,
+      inReplyTo: null,
+      authorEmail: callerEmail,
+      attachments,
+      createdAt: now,
+    });
+
+    await conversationRef.update({
+      updatedAt: now,
+      status: "pending", // waiting on the customer now, not us
+      lastMessagePreview: body.slice(0, 140),
+      unreadByAdmin: false,
+      assignedTo: conversation.assignedTo || callerEmail,
+      assignedToUid: conversation.assignedToUid || callerUid,
+    });
+
+    return { success: true };
+  })
+);
+
+/*
+=====================================
+19. SUPPORT ASSIGNMENT NOTIFICATION
+=====================================
+The Support tab's "Assign to me" / assign-to-dropdown writes assignedTo
+straight to Firestore client-side (see firestore.supportConversations.rules
+— that field is one of the four a support-capable admin is allowed to
+touch directly). Nobody gets told when that happens unless they're already
+staring at the Support tab, though, so this trigger fires an email the
+moment assignedTo changes to someone new — same Resend send path as
+everything else here, just addressed to the admin instead of the customer.
+
+Deliberately does NOT fire on every conversation update (a reply also
+touches this doc) — only when assignedTo itself changed, and only when the
+new value isn't null/empty.
+*/
+export const notifySupportAssignment = onDocumentWritten(
+  { document: "supportConversations/{conversationId}", secrets: ["RESEND_API_KEY"] },
+  async (event) => {
+    const before = event.data?.before?.data();
+    const after = event.data?.after?.data();
+    if (!after) return; // deleted, not our concern
+
+    const newAssignee = after.assignedTo;
+    const prevAssignee = before?.assignedTo;
+    if (!newAssignee || newAssignee === prevAssignee) return;
+
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) {
+      captureError(new Error("RESEND_API_KEY missing — assignment notification not sent"), { scope: "notifySupportAssignment" });
+      return;
+    }
+
+    try {
+      const res = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: "Malvin Support <support@malvinai.com>",
+          to: newAssignee,
+          subject: `Assigned to you: ${after.subject || "(no subject)"}`,
+          html: `
+            <div style="font-family: -apple-system, Helvetica, Arial, sans-serif; max-width: 480px;">
+              <p>A support conversation was assigned to you.</p>
+              <p><strong>${after.customerName || after.customerEmail}</strong> — ${after.subject || "(no subject)"}</p>
+              ${after.lastMessagePreview ? `<p style="color: #555; font-size: 13px;">"${after.lastMessagePreview}"</p>` : ""}
+              <p><a href="https://malvinai.com">Open it in the Malvin Admin Center →</a></p>
+            </div>
+          `,
+        }),
+      });
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "");
+        captureError(new Error(`Resend API error (${res.status}): ${errText}`), { scope: "notifySupportAssignment" });
+      }
+    } catch (err) {
+      captureError(err, { scope: "notifySupportAssignment" });
+    }
+  }
 );

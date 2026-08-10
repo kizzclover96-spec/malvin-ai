@@ -23,7 +23,8 @@ export type AdminCapabilityKey =
   | "manageAdmins"
   | "suspendUsers"
   | "deleteAccounts"
-  | "viewSensitiveInfo";
+  | "viewSensitiveInfo"
+  | "manageSupport";
 
 export interface AdminCapabilityDef {
   key: AdminCapabilityKey;
@@ -43,6 +44,7 @@ export const ADMIN_CAPABILITIES: AdminCapabilityDef[] = [
   { key: "suspendUsers", label: "Suspend users", description: "Warn, suspend or ban user accounts." },
   { key: "deleteAccounts", label: "Delete accounts", description: "Permanently remove accounts & their data.", ownerOnly: true },
   { key: "viewSensitiveInfo", label: "View sensitive information", description: "See IP/device data & other sensitive fields.", ownerOnly: true },
+  { key: "manageSupport", label: "Manage support inbox", description: "Read and reply to customer support emails in the Support tab." },
 ];
 
 export type AdminCapabilities = Partial<Record<AdminCapabilityKey, boolean>>;
