@@ -13,9 +13,14 @@ import {MalvinAiPersonnelSystem} from "./MalvinAiPersonnelSystem";
 import AdminKillSwitch from "./AdminKillSwitch";
 import { useSystemStatus } from "../../hooks/useSystemStatus";
 import {
+    useAdminRole, ADMIN_CAPABILITIES, EMPTY_CAPABILITIES, OWNER_EMAIL,
+    emailToAdminKey, AdminCapabilityKey, AdminCapabilities, AdminRecord, AdminStatus
+} from "../../hooks/useAdminRole";
+import {
     LayoutGrid, Megaphone, FileBarChart2, ShieldAlert, Power, LogOut,
     Search, ShieldCheck, Ban, Users as UsersIcon, BadgeCheck, ExternalLink,
-    CircleDot, ChevronRight
+    CircleDot, ChevronRight, Crown, UserPlus, X, Eye, Calendar, Tag,
+    Wallet, MapPin, Clock, Check, Trash2, Mail
 } from "lucide-react";
 
 const AdsManager = () => {
@@ -32,6 +37,23 @@ const AdsManager = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [activePanel, setActivePanel] = useState("ads");
     const totalUsers = users.length;
+    const premiumUsers = users.filter((u) => u.profile?.isPremium === true).length;
+
+    // Current signed-in admin's own role & capabilities — drives which nav
+    // items/actions are visible and gates the two owner-only capabilities.
+    const myRole = useAdminRole(auth.currentUser?.email);
+
+    // --- ADMINS PANEL STATE ---
+    const [adminRecords, setAdminRecords] = useState<AdminRecord[]>([]);
+    const [isAddAdminModalOpen, setIsAddAdminModalOpen] = useState(false);
+    const [newAdminEmail, setNewAdminEmail] = useState('');
+    const [newAdminRoleLabel, setNewAdminRoleLabel] = useState('');
+    const [newAdminCaps, setNewAdminCaps] = useState<AdminCapabilities>({ ...EMPTY_CAPABILITIES });
+    const [isInvitingAdmin, setIsInvitingAdmin] = useState(false);
+    const [adminActionId, setAdminActionId] = useState<string | null>(null);
+
+    // --- FULL PROFILE VIEW MODAL STATE ---
+    const [profileViewUser, setProfileViewUser] = useState<any>(null);
 
     // Live "is anything currently restricted" read for the status pill in
     // the top bar — the same /system/status node the Kill Switch panel
@@ -135,6 +157,24 @@ const AdsManager = () => {
         
     }, [selectedUser?.uid]);
 
+    // --- ADMINS LIVE SUBSCRIPTION ---
+    // Only the Owner and admins with `manageAdmins` ever see this panel, but
+    // the listener is cheap and harmless to keep subscribed regardless.
+    useEffect(() => {
+        const adminsRef = ref(db, 'admin/admins');
+        const unsubAdmins = onValue(adminsRef, (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                const list: AdminRecord[] = Object.keys(data).map(k => ({ id: k, ...data[k] }));
+                list.sort((a, b) => (b.invitedAt || 0) - (a.invitedAt || 0));
+                setAdminRecords(list);
+            } else {
+                setAdminRecords([]);
+            }
+        });
+        return () => unsubAdmins();
+    }, []);
+
     // --- HANDLERS ---
     const handleSelectUser = (u: any) => {
         setSelectedUser(u);
@@ -153,6 +193,126 @@ const AdsManager = () => {
             action, targetUid, details,
             timestamp: serverTimestamp(),
         });
+    };
+
+    // --- ADMIN MANAGEMENT HANDLERS ---
+    const toggleNewAdminCap = (key: AdminCapabilityKey) => {
+        // The two owner-only capabilities can only be granted BY the owner —
+        // any other admin doing the inviting simply can't check these boxes.
+        const def = ADMIN_CAPABILITIES.find(c => c.key === key);
+        if (def?.ownerOnly && !myRole.isOwner) return;
+        setNewAdminCaps(prev => ({ ...prev, [key]: !prev[key] }));
+    };
+
+    const handleInviteAdmin = async () => {
+        const email = newAdminEmail.trim().toLowerCase();
+        if (!email || !/^\S+@\S+\.\S+$/.test(email)) {
+            alert("Enter a valid email address.");
+            return;
+        }
+        if (email === OWNER_EMAIL.toLowerCase()) {
+            alert("That account is already the owner.");
+            return;
+        }
+        const key = emailToAdminKey(email);
+        const existing = adminRecords.find(a => a.id === key);
+        if (existing && existing.status === 'active') {
+            alert("This person is already an active admin.");
+            return;
+        }
+        setIsInvitingAdmin(true);
+        try {
+            await update(ref(db), {
+                [`admin/admins/${key}/email`]: email,
+                [`admin/admins/${key}/status`]: 'invited',
+                [`admin/admins/${key}/roleLabel`]: newAdminRoleLabel.trim() || 'Admin',
+                [`admin/admins/${key}/capabilities`]: newAdminCaps,
+                [`admin/admins/${key}/invitedBy`]: auth.currentUser?.email || null,
+                [`admin/admins/${key}/invitedByUid`]: auth.currentUser?.uid || null,
+                [`admin/admins/${key}/invitedAt`]: Date.now(),
+                [`admin/admins/${key}/expiresAt`]: Date.now() + 1000 * 60 * 60 * 72, // 72h
+                [`admin/admins/${key}/application`]: null,
+                [`admin/admins/${key}/respondedBy`]: null,
+                [`admin/admins/${key}/respondedAt`]: null,
+            });
+            await logAction('INVITE_ADMIN', key, `Invited ${email} with capabilities: ${Object.keys(newAdminCaps).filter(k => (newAdminCaps as any)[k]).join(', ') || 'none'}`);
+            setIsAddAdminModalOpen(false);
+            setNewAdminEmail('');
+            setNewAdminRoleLabel('');
+            setNewAdminCaps({ ...EMPTY_CAPABILITIES });
+            alert(`INVITE_SENT_TO_${email}`);
+        } catch (err) {
+            console.error(err);
+            alert("INVITE_FAILED");
+        } finally {
+            setIsInvitingAdmin(false);
+        }
+    };
+
+    const handleGrantAdmin = async (rec: AdminRecord) => {
+        setAdminActionId(rec.id);
+        try {
+            await update(ref(db, `admin/admins/${rec.id}`), {
+                status: 'active',
+                respondedBy: auth.currentUser?.email || null,
+                respondedAt: Date.now(),
+            });
+            await logAction('GRANT_ADMIN', rec.uid || rec.id, `Granted admin access to ${rec.email}`);
+        } catch (err) {
+            console.error(err);
+            alert("GRANT_FAILED");
+        } finally {
+            setAdminActionId(null);
+        }
+    };
+
+    const handleRejectAdmin = async (rec: AdminRecord) => {
+        setAdminActionId(rec.id);
+        try {
+            await update(ref(db, `admin/admins/${rec.id}`), {
+                status: 'rejected',
+                respondedBy: auth.currentUser?.email || null,
+                respondedAt: Date.now(),
+            });
+            await logAction('REJECT_ADMIN', rec.uid || rec.id, `Rejected admin application from ${rec.email}`);
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setAdminActionId(null);
+        }
+    };
+
+    const handleRevokeAdmin = async (rec: AdminRecord) => {
+        if (!myRole.isOwner) {
+            alert("Only the owner can revoke an admin.");
+            return;
+        }
+        if (!confirm(`Revoke admin access for ${rec.email}?`)) return;
+        setAdminActionId(rec.id);
+        try {
+            await update(ref(db, `admin/admins/${rec.id}`), {
+                status: 'revoked',
+                respondedBy: auth.currentUser?.email || null,
+                respondedAt: Date.now(),
+            });
+            await logAction('REVOKE_ADMIN', rec.uid || rec.id, `Revoked admin access for ${rec.email}`);
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setAdminActionId(null);
+        }
+    };
+
+    const handleCancelInvite = async (rec: AdminRecord) => {
+        setAdminActionId(rec.id);
+        try {
+            await remove(ref(db, `admin/admins/${rec.id}`));
+            await logAction('CANCEL_ADMIN_INVITE', rec.id, `Canceled pending invite for ${rec.email}`);
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setAdminActionId(null);
+        }
     };
 
     const handlePasswordReset = async () => {
@@ -258,14 +418,20 @@ const AdsManager = () => {
         { key: "ads", label: "MERCHANTS & ADS", icon: <LayoutGrid size={16} /> },
         { key: "reports", label: "REPORTS", icon: <FileBarChart2 size={16} /> },
         { key: "personnel", label: "AI PERSONNEL", icon: <UsersIcon size={16} /> },
+        ...(myRole.isOwner || myRole.can('manageAdmins')
+            ? [{ key: "admins", label: "ADMINS", icon: <Crown size={16} /> }]
+            : []),
         { key: "killswitch", label: "KILL SWITCH", icon: <ShieldAlert size={16} /> },
     ];
 
     const PANEL_TITLES: Record<string, string> = {
         ads: "Merchants & Ads",
         reports: "Reports",
+        admins: "Admins",
         killswitch: "Kill Switch",
     };
+
+    const pendingAdminReviewCount = adminRecords.filter(a => a.status === 'pending_review').length;
 
     return (
         <div style={consoleShell}>
@@ -295,6 +461,9 @@ const AdsManager = () => {
                                 {item.label}
                                 {item.key === "ads" && pendingAdCount > 0 && (
                                     <span style={navBadge}>{pendingAdCount}</span>
+                                )}
+                                {item.key === "admins" && pendingAdminReviewCount > 0 && (
+                                    <span style={navBadge}>{pendingAdminReviewCount}</span>
                                 )}
                             </button>
                         );
@@ -343,6 +512,7 @@ const AdsManager = () => {
                             <div style={kpiRow}>
                                 <KpiCard icon={<UsersIcon size={15} />} label="Total users" value={totalUsers} />
                                 <KpiCard icon={<BadgeCheck size={15} />} label="Verified" value={verifiedUsers} tone="info" />
+                                <KpiCard icon={<Crown size={15} />} label="Premium" value={premiumUsers} tone="accent" />
                                 <KpiCard icon={<Ban size={15} />} label="Banned" value={bannedUsers} tone="danger" />
                                 <KpiCard icon={<Megaphone size={15} />} label="Ads pending review" value={pendingAdCount} tone="accent" />
                             </div>
@@ -391,6 +561,7 @@ const AdsManager = () => {
                                             const isSelected = selectedUser?.uid === u.uid;
                                             const merchantName = u.brandData?.name || u.brandName || "Ghost_User";
                                             const isBanned = u.brandData?.status === 'Banned';
+                                            const isPremium = u.profile?.isPremium === true;
 
                                             return (
                                                 <div 
@@ -398,17 +569,28 @@ const AdsManager = () => {
                                                     onClick={() => handleSelectUser(u)}
                                                     style={{
                                                         ...userCard,
-                                                        borderColor: isSelected ? tokens.accent : tokens.border,
+                                                        borderColor: isSelected ? tokens.accent : isPremium ? '#FFC72C' : tokens.border,
                                                         background: isBanned
                                                             ? 'rgba(255, 92, 92, 0.06)' 
                                                             : isSelected ? tokens.surfaceRaised : tokens.surface,
+                                                        ...(isPremium ? premiumGlowStyle : {}),
                                                     }}
                                                 >
                                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: "flex-start", marginBottom: '8px' }}>
-                                                        <span style={{ fontSize: '13px', fontWeight: 700, color: u.isVerified ? tokens.info : tokens.text }}>
+                                                        <span style={{ fontSize: '13px', fontWeight: 700, color: isPremium ? '#FFC72C' : u.isVerified ? tokens.info : tokens.text, display: 'flex', alignItems: 'center', gap: 5 }}>
+                                                            {isPremium && <Crown size={12} color="#FFC72C" />}
                                                             {u.isVerified && "✓ "}{merchantName.toUpperCase()}
                                                         </span>
-                                                        {isHighRisk && <span style={riskTag}>RISK CLUSTER</span>}
+                                                        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                                                            {isHighRisk && <span style={riskTag}>RISK CLUSTER</span>}
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); setProfileViewUser(u); }}
+                                                                title="View full account details"
+                                                                style={{ background: 'rgba(255,255,255,0.06)', border: 'none', borderRadius: 6, padding: 4, color: tokens.textDim, cursor: 'pointer', display: 'flex' }}
+                                                            >
+                                                                <Eye size={12} />
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                     
                                                     <div style={dirMetadata}>
@@ -454,11 +636,12 @@ const AdsManager = () => {
                                             </div>
 
                                             <div>
-                                                <label style={labelStyle}>TREASURY BALANCE (€)</label>
+                                                <label style={labelStyle}>TREASURY BALANCE (€) {!myRole.can('managePayments') && <span style={{ color: tokens.warn }}>— read-only</span>}</label>
                                                 <input 
-                                                    style={inputStyle} 
+                                                    style={{ ...inputStyle, opacity: myRole.can('managePayments') ? 1 : 0.5 }} 
                                                     type="number" 
                                                     value={editBalance} 
+                                                    disabled={!myRole.can('managePayments')}
                                                     onChange={e => setEditBalance(e.target.value)} 
                                                 />
                                             </div>
@@ -484,19 +667,22 @@ const AdsManager = () => {
 
                                             {/* STATUS MANAGEMENT */}
                                             <div>
-                                                <label style={labelStyle}>ACCOUNT STATUS</label>
+                                                <label style={labelStyle}>ACCOUNT STATUS {!myRole.can('suspendUsers') && <span style={{ color: tokens.warn }}>— requires suspend permission</span>}</label>
                                                 <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
                                                     <button 
+                                                        disabled={!myRole.can('suspendUsers')}
                                                         onClick={() => handleUpdateStatus('Active')}
-                                                        style={toggleBtn(selectedUser.status === 'Active', tokens.accent)}
+                                                        style={{ ...toggleBtn(selectedUser.status === 'Active', tokens.accent), opacity: myRole.can('suspendUsers') ? 1 : 0.4, cursor: myRole.can('suspendUsers') ? 'pointer' : 'not-allowed' }}
                                                     >ACTIVE</button>
                                                     <button 
+                                                        disabled={!myRole.can('suspendUsers')}
                                                         onClick={() => handleUpdateStatus('Suspended')}
-                                                        style={{ ...statusBtn, color: tokens.warn }}
+                                                        style={{ ...statusBtn, color: tokens.warn, opacity: myRole.can('suspendUsers') ? 1 : 0.4, cursor: myRole.can('suspendUsers') ? 'pointer' : 'not-allowed' }}
                                                     >WARN</button>
                                                     <button 
+                                                        disabled={!myRole.can('suspendUsers')}
                                                         onClick={() => handleUpdateStatus('Banned')}
-                                                        style={{ ...statusBtn, color: tokens.danger }}
+                                                        style={{ ...statusBtn, color: tokens.danger, opacity: myRole.can('suspendUsers') ? 1 : 0.4, cursor: myRole.can('suspendUsers') ? 'pointer' : 'not-allowed' }}
                                                     >BAN</button>
                                                 </div>
                                             </div>
@@ -918,11 +1104,110 @@ const AdsManager = () => {
                     {activePanel === "reports" && (
                         <AdminReports />
                     )}
+                    {activePanel === "admins" && (
+                        <AdminsPanel
+                            myRole={myRole}
+                            adminRecords={adminRecords}
+                            adminActionId={adminActionId}
+                            onAddAdmin={() => setIsAddAdminModalOpen(true)}
+                            onGrant={handleGrantAdmin}
+                            onReject={handleRejectAdmin}
+                            onRevoke={handleRevokeAdmin}
+                            onCancelInvite={handleCancelInvite}
+                        />
+                    )}
                     {activePanel === "killswitch" && (
                         <AdminKillSwitch />
                     )}
                 </div>
             </main>
+
+            {/* ---------- ADD ADMIN MODAL ---------- */}
+            {isAddAdminModalOpen && (
+                <div style={modalOverlay}>
+                    <div style={{ ...modalCard, maxWidth: 480 }}>
+                        <div style={modalHeader}>
+                            <h3 style={modalTitle}>Add Another Admin</h3>
+                            <button onClick={() => setIsAddAdminModalOpen(false)} style={modalCloseBtn}><X size={14} /></button>
+                        </div>
+                        <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
+                            <div>
+                                <label style={labelStyle}>EMAIL ADDRESS</label>
+                                <input
+                                    style={{ ...inputStyle, marginTop: 6 }}
+                                    type="email"
+                                    placeholder="colleague@example.com"
+                                    value={newAdminEmail}
+                                    onChange={e => setNewAdminEmail(e.target.value)}
+                                />
+                            </div>
+                            <div>
+                                <label style={labelStyle}>ROLE LABEL (OPTIONAL)</label>
+                                <input
+                                    style={{ ...inputStyle, marginTop: 6 }}
+                                    type="text"
+                                    placeholder="e.g. Support Admin, Moderation Admin…"
+                                    value={newAdminRoleLabel}
+                                    onChange={e => setNewAdminRoleLabel(e.target.value)}
+                                />
+                            </div>
+                            <div>
+                                <label style={labelStyle}>REQUESTED PERMISSIONS</label>
+                                <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                    {ADMIN_CAPABILITIES.map(cap => {
+                                        const locked = !!cap.ownerOnly && !myRole.isOwner;
+                                        const checked = !!newAdminCaps[cap.key];
+                                        return (
+                                            <label
+                                                key={cap.key}
+                                                style={{
+                                                    display: 'flex', alignItems: 'flex-start', gap: 10,
+                                                    padding: '8px 10px', borderRadius: 8,
+                                                    border: `1px solid ${tokens.border}`,
+                                                    background: checked ? 'rgba(197,255,65,0.06)' : 'transparent',
+                                                    opacity: locked ? 0.45 : 1,
+                                                    cursor: locked ? 'not-allowed' : 'pointer',
+                                                }}
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={checked}
+                                                    disabled={locked}
+                                                    onChange={() => toggleNewAdminCap(cap.key)}
+                                                    style={{ marginTop: 2 }}
+                                                />
+                                                <div>
+                                                    <div style={{ fontSize: 12, fontWeight: 700 }}>
+                                                        {cap.label}
+                                                        {cap.ownerOnly && <span style={{ marginLeft: 6, fontSize: 9, color: tokens.warn, fontFamily: tokens.mono }}>OWNER-ONLY</span>}
+                                                    </div>
+                                                    <div style={{ fontSize: 10, opacity: 0.5, marginTop: 2 }}>{cap.description}</div>
+                                                </div>
+                                            </label>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                            <button disabled={isInvitingAdmin} onClick={handleInviteAdmin} style={primaryBtn}>
+                                {isInvitingAdmin ? 'SENDING INVITE…' : 'SEND INVITATION'}
+                            </button>
+                            <p style={{ fontSize: 10, opacity: 0.4, lineHeight: 1.5, margin: 0 }}>
+                                They'll be asked to fill out a short application when they next sign in. You'll see it
+                                here under Admins to approve or reject — nothing is granted automatically.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ---------- FULL ACCOUNT PROFILE MODAL ---------- */}
+            {profileViewUser && (
+                <UserProfileModal
+                    user={profileViewUser}
+                    canViewSensitive={myRole.can('viewSensitiveInfo')}
+                    onClose={() => setProfileViewUser(null)}
+                />
+            )}
         </div>
     );
 };
@@ -1083,7 +1368,7 @@ const contentArea: React.CSSProperties = {
 
 const kpiRow: React.CSSProperties = {
     display: 'grid',
-    gridTemplateColumns: 'repeat(4, 1fr)',
+    gridTemplateColumns: 'repeat(5, 1fr)',
     gap: 16,
     marginBottom: 24,
 };
@@ -1253,6 +1538,334 @@ const backToConsoleBtn: React.CSSProperties = {
     letterSpacing: '0.5px',
     cursor: 'pointer',
 };
+
+const modalOverlay: React.CSSProperties = {
+    position: 'fixed',
+    inset: 0,
+    zIndex: 60,
+    background: 'rgba(0,0,0,0.8)',
+    backdropFilter: 'blur(6px)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+};
+
+const modalCard: React.CSSProperties = {
+    background: '#111111',
+    border: `1px solid ${tokens.border}`,
+    width: '100%',
+    borderRadius: 16,
+    overflow: 'hidden',
+    boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+    maxHeight: '88vh',
+    display: 'flex',
+    flexDirection: 'column',
+};
+
+const modalHeader: React.CSSProperties = {
+    padding: 16,
+    background: '#141414',
+    borderBottom: `1px solid ${tokens.border}`,
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flexShrink: 0,
+};
+
+const modalTitle: React.CSSProperties = {
+    fontSize: 13,
+    fontWeight: 800,
+    textTransform: 'uppercase',
+    color: tokens.text,
+    letterSpacing: '0.5px',
+    margin: 0,
+};
+
+const modalCloseBtn: React.CSSProperties = {
+    padding: 6,
+    color: tokens.textDim,
+    background: 'rgba(255,255,255,0.05)',
+    borderRadius: 8,
+    border: 'none',
+    cursor: 'pointer',
+    display: 'flex',
+};
+
+const premiumGlowStyle: React.CSSProperties = {
+    boxShadow: '0 0 0 1px rgba(255,199,44,0.5), 0 0 18px rgba(255,199,44,0.35)',
+};
+
+const capChip = (active: boolean): React.CSSProperties => ({
+    fontSize: 9,
+    fontFamily: tokens.mono,
+    fontWeight: 800,
+    padding: '3px 8px',
+    borderRadius: 5,
+    letterSpacing: '0.3px',
+    background: active ? 'rgba(197,255,65,0.12)' : 'rgba(255,255,255,0.04)',
+    color: active ? tokens.accent : tokens.textDim,
+    opacity: active ? 1 : 0.5,
+});
+
+// ============================================================
+// ADMINS PANEL — invite / review / grant / revoke other admins
+// ============================================================
+function AdminsPanel({
+    myRole, adminRecords, adminActionId,
+    onAddAdmin, onGrant, onReject, onRevoke, onCancelInvite,
+}: {
+    myRole: ReturnType<typeof useAdminRole>;
+    adminRecords: AdminRecord[];
+    adminActionId: string | null;
+    onAddAdmin: () => void;
+    onGrant: (rec: AdminRecord) => void;
+    onReject: (rec: AdminRecord) => void;
+    onRevoke: (rec: AdminRecord) => void;
+    onCancelInvite: (rec: AdminRecord) => void;
+}) {
+    const pendingReview = adminRecords.filter(a => a.status === 'pending_review');
+    const invited = adminRecords.filter(a => a.status === 'invited');
+    const active = adminRecords.filter(a => a.status === 'active');
+    const inactive = adminRecords.filter(a => a.status === 'rejected' || a.status === 'revoked');
+
+    const capList = (rec: AdminRecord) => ADMIN_CAPABILITIES.filter(c => rec.capabilities?.[c.key]);
+
+    return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                    <div style={{ fontSize: 12, opacity: 0.5 }}>
+                        {active.length} active · {pendingReview.length} awaiting review · {invited.length} invited
+                    </div>
+                </div>
+                <button onClick={onAddAdmin} style={{ ...primaryBtn, display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px' }}>
+                    <UserPlus size={14} /> ADD ADMIN
+                </button>
+            </div>
+
+            {pendingReview.length > 0 && (
+                <section style={panelStyle}>
+                    <h3 style={sectionTitle}>🟡 PENDING ADMIN REQUESTS</h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        {pendingReview.map(rec => (
+                            <div key={rec.id} style={{ border: `1px solid ${tokens.border}`, borderRadius: 12, padding: 14, background: tokens.surface }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                    <div>
+                                        <div style={{ fontWeight: 800, fontSize: 13 }}>{rec.application?.fullName || rec.email}</div>
+                                        <div style={{ fontSize: 11, opacity: 0.5, fontFamily: tokens.mono }}>{rec.email}</div>
+                                    </div>
+                                    {rec.roleLabel && <span style={metaChip}>{rec.roleLabel}</span>}
+                                </div>
+
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
+                                    {capList(rec).map(c => <span key={c.key} style={capChip(true)}>{c.label}</span>)}
+                                </div>
+
+                                {rec.application && (
+                                    <div style={{ marginTop: 12, fontSize: 11, lineHeight: 1.6, opacity: 0.8 }}>
+                                        <div><span style={{ opacity: 0.5 }}>Why: </span>{rec.application.reason}</div>
+                                        <div><span style={{ opacity: 0.5 }}>Responsibilities: </span>{rec.application.responsibilities}</div>
+                                        {rec.application.experience && (
+                                            <div><span style={{ opacity: 0.5 }}>Experience: </span>{rec.application.experience}</div>
+                                        )}
+                                    </div>
+                                )}
+
+                                <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+                                    <button
+                                        disabled={adminActionId === rec.id}
+                                        onClick={() => onReject(rec)}
+                                        style={{ ...statusBtn, color: tokens.danger, opacity: adminActionId === rec.id ? 0.5 : 1 }}
+                                    >
+                                        REJECT
+                                    </button>
+                                    <button
+                                        disabled={adminActionId === rec.id}
+                                        onClick={() => onGrant(rec)}
+                                        style={{ ...primaryBtn, flex: 1, opacity: adminActionId === rec.id ? 0.5 : 1 }}
+                                    >
+                                        {adminActionId === rec.id ? 'PROCESSING…' : 'GRANT ADMIN'}
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </section>
+            )}
+
+            <section style={panelStyle}>
+                <h3 style={sectionTitle}>ACTIVE ADMINS</h3>
+                {active.length === 0 && <EmptyState text="No admins other than the owner yet." />}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <div style={{ ...userCard, cursor: 'default', border: `1px solid ${tokens.border}` }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <Crown size={14} color={tokens.accent} />
+                                <span style={{ fontWeight: 800, fontSize: 12 }}>{OWNER_EMAIL}</span>
+                            </div>
+                            <span style={{ ...badgeStyle, background: tokens.accent, color: '#000' }}>OWNER</span>
+                        </div>
+                        <div style={{ fontSize: 10, opacity: 0.5, marginTop: 6 }}>Full access to every capability. Cannot be revoked.</div>
+                    </div>
+                    {active.map(rec => (
+                        <div key={rec.id} style={{ ...userCard, cursor: 'default', border: `1px solid ${tokens.border}` }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div>
+                                    <div style={{ fontWeight: 800, fontSize: 12 }}>{rec.application?.fullName || rec.email}</div>
+                                    <div style={{ fontSize: 10, opacity: 0.5, fontFamily: tokens.mono }}>{rec.email}</div>
+                                </div>
+                                <span style={{ ...badgeStyle, background: tokens.info, color: '#000' }}>{rec.roleLabel || 'ADMIN'}</span>
+                            </div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
+                                {capList(rec).length > 0
+                                    ? capList(rec).map(c => <span key={c.key} style={capChip(true)}>{c.label}</span>)
+                                    : <span style={{ fontSize: 10, opacity: 0.4 }}>No capabilities granted</span>}
+                            </div>
+                            {myRole.isOwner && (
+                                <button
+                                    disabled={adminActionId === rec.id}
+                                    onClick={() => onRevoke(rec)}
+                                    style={{ ...miniBtn, marginTop: 12, border: `1px solid ${tokens.danger}`, color: tokens.danger, background: 'transparent', cursor: 'pointer' }}
+                                >
+                                    {adminActionId === rec.id ? 'REVOKING…' : 'REVOKE ACCESS'}
+                                </button>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            </section>
+
+            {invited.length > 0 && (
+                <section style={panelStyle}>
+                    <h3 style={sectionTitle}>INVITED — AWAITING APPLICATION</h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        {invited.map(rec => (
+                            <div key={rec.id} style={{ ...userCard, cursor: 'default', border: `1px solid ${tokens.border}` }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <div>
+                                        <div style={{ fontWeight: 800, fontSize: 12 }}>{rec.email}</div>
+                                        <div style={{ fontSize: 10, opacity: 0.5, marginTop: 2 }}>
+                                            Invited by {rec.invitedBy || 'unknown'} · expires {rec.expiresAt ? new Date(rec.expiresAt).toLocaleDateString() : '—'}
+                                        </div>
+                                    </div>
+                                    <button
+                                        disabled={adminActionId === rec.id}
+                                        onClick={() => onCancelInvite(rec)}
+                                        style={{ ...miniBtn, border: `1px solid ${tokens.border}`, color: tokens.textDim, background: 'transparent', cursor: 'pointer' }}
+                                    >
+                                        CANCEL
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </section>
+            )}
+
+            {inactive.length > 0 && (
+                <section style={panelStyle}>
+                    <h3 style={sectionTitle}>REJECTED / REVOKED</h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        {inactive.map(rec => (
+                            <div key={rec.id} style={{ ...userCard, cursor: 'default', border: `1px solid ${tokens.border}`, opacity: 0.6 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span style={{ fontSize: 12, fontWeight: 700 }}>{rec.email}</span>
+                                    <span style={{ ...badgeStyle, background: tokens.danger, color: '#fff' }}>{rec.status.toUpperCase()}</span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </section>
+            )}
+        </div>
+    );
+}
+
+// ============================================================
+// FULL ACCOUNT PROFILE MODAL — everything an admin needs to see
+// about one user's account.
+// ============================================================
+function UserProfileModal({ user, canViewSensitive, onClose }: { user: any; canViewSensitive: boolean; onClose: () => void }) {
+    const brand = user.brandData || {};
+    const bookings: any[] = user.bookings ? Object.entries(user.bookings).map(([id, v]: [string, any]) => ({ id, ...v })) : [];
+    const campaigns: any[] = user.campaigns ? Object.entries(user.campaigns).map(([id, v]: [string, any]) => ({ id, ...v })) : [];
+    const sortedBookings = [...bookings].sort((a, b) => (b.createdAt || b.timestamp || 0) - (a.createdAt || a.timestamp || 0));
+
+    return (
+        <div style={modalOverlay} onClick={onClose}>
+            <div style={{ ...modalCard, maxWidth: 640 }} onClick={e => e.stopPropagation()}>
+                <div style={modalHeader}>
+                    <div>
+                        <h3 style={modalTitle}>{brand.name || user.brandName || 'Unnamed account'}</h3>
+                        <div style={{ fontSize: 10, opacity: 0.5, fontFamily: tokens.mono, marginTop: 2 }}>{user.uid}</div>
+                    </div>
+                    <button onClick={onClose} style={modalCloseBtn}><X size={14} /></button>
+                </div>
+
+                <div style={{ padding: 20, overflowY: 'auto' }}>
+                    {/* STATUS STRIP */}
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
+                        {user.profile?.isPremium && <span style={{ ...badgeStyle, background: '#FFC72C', color: '#000' }}>★ PREMIUM</span>}
+                        {user.isVerified && <span style={{ ...badgeStyle, background: tokens.info, color: '#000' }}>VERIFIED</span>}
+                        <span style={{ ...badgeStyle, background: user.brandData?.status === 'Banned' ? tokens.danger : 'rgba(255,255,255,0.08)', color: user.brandData?.status === 'Banned' ? '#fff' : tokens.textDim }}>
+                            {user.brandData?.status || user.status || 'Active'}
+                        </span>
+                    </div>
+
+                    {/* CORE DETAILS GRID */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 20 }}>
+                        <DetailField icon={<Mail size={13} />} label="Email" value={user.email || '—'} />
+                        <DetailField icon={<Tag size={13} />} label="Business category" value={brand.category || 'Not set'} />
+                        <DetailField icon={<Wallet size={13} />} label="Treasury balance" value={`€${user.treasury?.balance?.toLocaleString() || '0'}`} />
+                        <DetailField icon={<Megaphone size={13} />} label="Ad campaigns" value={String(campaigns.length)} />
+                        <DetailField icon={<Calendar size={13} />} label="Orders / appointments" value={String(bookings.length)} />
+                        <DetailField icon={<Clock size={13} />} label="Verified at" value={user.profile?.verifiedAt ? new Date(user.profile.verifiedAt).toLocaleDateString() : '—'} />
+                        {canViewSensitive && <DetailField icon={<MapPin size={13} />} label="Last known IP" value={user.security?.lastIp || 'Unknown'} />}
+                    </div>
+
+                    {brand.context && (
+                        <div style={{ marginBottom: 20 }}>
+                            <label style={labelStyle}>BRAND / STRATEGIC CONTEXT</label>
+                            <p style={{ fontSize: 12, lineHeight: 1.6, opacity: 0.8, marginTop: 6 }}>{brand.context}</p>
+                        </div>
+                    )}
+
+                    {/* ORDERS / APPOINTMENTS ACTIVITY */}
+                    <div>
+                        <label style={labelStyle}>RECENT ORDERS / APPOINTMENTS</label>
+                        <div style={{ marginTop: 8, maxHeight: 220, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                            {sortedBookings.length === 0 && <EmptyState text="No order or appointment activity yet." />}
+                            {sortedBookings.slice(0, 25).map(b => (
+                                <div key={b.id} style={{ border: `1px solid ${tokens.border}`, borderRadius: 8, padding: 10, fontSize: 11 }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                        <span style={{ fontWeight: 700 }}>{b.serviceName || b.itemName || b.customerName || 'Activity'}</span>
+                                        <span style={{ opacity: 0.5, fontFamily: tokens.mono }}>{b.status || '—'}</span>
+                                    </div>
+                                    <div style={{ opacity: 0.5, marginTop: 4, fontFamily: tokens.mono, fontSize: 10 }}>
+                                        {b.date || (b.timestamp ? new Date(b.timestamp).toLocaleString() : '')}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function DetailField({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+    return (
+        <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, opacity: 0.5, marginBottom: 4 }}>
+                {icon}
+                <span style={{ fontSize: 9, fontFamily: tokens.mono, letterSpacing: '0.5px', textTransform: 'uppercase' }}>{label}</span>
+            </div>
+            <div style={{ fontSize: 12, fontWeight: 600, wordBreak: 'break-word' }}>{value}</div>
+        </div>
+    );
+}
 
 // Injects the status-dot pulse animation once. Styled-JSX/CSS modules
 // aren't set up in this project, and this is the only keyframe animation

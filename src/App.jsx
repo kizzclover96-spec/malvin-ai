@@ -63,6 +63,8 @@ import StripeSuccessPage from "./components/addons/StripeSuccess";
 import { useSystemStatus } from "./hooks/useSystemStatus";
 import { AccessGate, RestrictedScreen } from "./components/system/RestrictedScreen";
 import { signOut } from "firebase/auth";
+import { useAdminRole } from "./hooks/useAdminRole";
+import AdminApplicationGate from "./components/admin/AdminApplicationGate";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -92,7 +94,15 @@ function App() {
   // 🔴 KILL SWITCH — live subscription, not a one-time read, so an admin
   // flipping a switch takes effect on every already-open tab instantly.
   const { status: systemStatus, loading: systemStatusLoading } = useSystemStatus();
-  const isAdminUser = user?.email === "kizzclover96@gmail.com";
+  // Live admin standing for whoever is signed in — covers the hard-coded
+  // Owner account as well as any additional admin that's been granted
+  // through the invite -> application -> approve workflow (see
+  // useAdminRole / AdsManagment's Admins panel). `adminRole.isAdmin` is
+  // true only once a non-owner admin's status is actually "active";
+  // "invited"/"pending_review"/"rejected" all render AdminApplicationGate
+  // further down instead of the normal app.
+  const adminRole = useAdminRole(user?.email);
+  const isAdminUser = adminRole.isAdmin;
 
   // App-wide lock forces a real sign-out (not just a UI block) so a
   // previously-open session can't keep working from cached state, and so a
@@ -452,7 +462,11 @@ function App() {
     return <div style={{ backgroundColor: '#000', height: '100vh' }} />;
   }
 
-  const isAdmin = user?.email === 'kizzclover96@gmail.com';
+  const isAdmin = adminRole.isAdmin;
+  // A signed-in user whose email has an admin record that isn't active yet
+  // (invited/pending_review/rejected/revoked) — they get the invitation /
+  // application / status screen instead of the normal app or the console.
+  const isPendingAdmin = !isAdmin && !!adminRole.record && adminRole.status !== "none";
 
   // App-wide kill switch. Only gates content for an already-signed-in,
   // non-admin user — the Login/Landing screen below always stays reachable
@@ -524,6 +538,8 @@ function App() {
                 ) : (
                   <Login />
                 )
+              ) : isPendingAdmin ? (
+                <AdminApplicationGate record={adminRole.record} />
               ) : isAdmin ? (
                 <AdsManager />
               ) : systemStatus.businessLocked && (isWorker || (flowStep !== "options" && flowStep !== "front")) ? (
