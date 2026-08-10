@@ -7,7 +7,6 @@
       ]
     },
     {
-      "//": "The beta Android APK. Content-Disposition forces a real download-to-disk instead of Chrome trying to navigate to it as a page (.apk has no in-browser renderer, so behavior otherwise varies by device). Place app-release.apk at public/downloads/malvinai-beta.apk before deploying, matching ANDROID_APK_URL in src/config/appDistribution.ts.",
       "source": "/downloads/(.*).apk",
       "headers": [
         { "key": "Content-Type", "value": "application/vnd.android.package-archive" },
