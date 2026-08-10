@@ -1752,3 +1752,171 @@ export const getPendingWorkSummary = onCall(async (request) => {
   const counts = await countPendingWork(uid);
   return { ...counts, summary: describePendingWork(counts) };
 });
+
+/*
+=====================================
+16. ADMIN INVITATION EMAIL
+=====================================
+The Admin Center's "+ Add Admin" button (see AdsManagment.tsx) previously
+just wrote an `admin/admins/{key}` record straight to Realtime Database
+from the browser — nothing ever told the invited person it existed. This
+callable is what that button now goes through instead: it does the same
+authorization check the RTDB rules already do (Owner, or an active admin
+whose own record has capabilities.manageAdmins === true), writes the
+record with the Admin SDK (so it's authoritative even if the rules ever
+drift), and then actually emails the invite via Resend — same service
+sendResetEmail() above already uses, same RESEND_API_KEY secret.
+
+Keeping the authorization check here too (not just in the RTDB rules) means
+a malformed or spoofed client write can't create a record this function
+didn't itself validate, and — more importantly — it's what guarantees the
+email and the database write either both happen or neither does, instead
+of a client write silently succeeding with no invite ever reaching anyone.
+*/
+const OWNER_EMAIL = "kizzclover96@gmail.com";
+
+// Every key AdminCapabilities can carry — kept in sync by hand with
+// ADMIN_CAPABILITIES in src/hooks/useAdminRole.ts. If you add a capability
+// there, add its key here too, or this function will silently strip it
+// from new invites (better than the alternative of accepting unknown keys
+// unchecked, but easy to forget — that file is the actual source of truth).
+const KNOWN_CAPABILITY_KEYS = [
+  "viewUsers", "viewBusinesses", "manageReports", "managePayments",
+  "manageAdmins", "suspendUsers", "deleteAccounts", "viewSensitiveInfo",
+] as const;
+const OWNER_ONLY_CAPABILITY_KEYS = new Set(["managePayments", "manageAdmins", "deleteAccounts", "viewSensitiveInfo"]);
+
+// Mirrors emailToAdminKey() in src/hooks/useAdminRole.ts — Realtime
+// Database keys can't contain '.', '#', '$', '[' or ']'.
+function emailToAdminKey(email: string): string {
+  return email.trim().toLowerCase().replace(/[.#$[\]]/g, ",");
+}
+
+const INVITE_ADMIN_LIMIT: RateLimitRule = { name: "invite_admin", max: 20, windowMs: 60 * 60 * 1000 };
+
+export const inviteAdmin = onCall(
+  { secrets: ["RESEND_API_KEY"] },
+  withMonitoring(async (request) => {
+    const callerEmail = request.auth?.token?.email as string | undefined;
+    const callerUid = request.auth?.uid;
+    if (!callerUid || !callerEmail) {
+      throw new HttpsError("unauthenticated", "Sign in to invite an admin.");
+    }
+
+    await enforceRateLimit(
+      { ip: getClientIp(request.rawRequest), uid: callerUid },
+      [INVITE_ADMIN_LIMIT]
+    );
+
+    const rtdb = getRtdb();
+    const isOwner = callerEmail.toLowerCase() === OWNER_EMAIL.toLowerCase();
+
+    let callerCanManageAdmins = isOwner;
+    if (!isOwner) {
+      const callerKey = emailToAdminKey(callerEmail);
+      const callerSnap = await rtdb.ref(`admin/admins/${callerKey}`).get();
+      const callerRecord = callerSnap.exists() ? callerSnap.val() : null;
+      callerCanManageAdmins =
+        callerRecord?.status === "active" && callerRecord?.capabilities?.manageAdmins === true;
+    }
+    if (!callerCanManageAdmins) {
+      throw new HttpsError("permission-denied", "You don't have permission to invite admins.");
+    }
+
+    const rawEmail = String(request.data?.email || "").trim().toLowerCase();
+    const roleLabel = String(request.data?.roleLabel || "Admin").trim().slice(0, 60);
+    const requestedCapabilities = request.data?.capabilities || {};
+
+    if (!rawEmail || !/^\S+@\S+\.\S+$/.test(rawEmail)) {
+      throw new HttpsError("invalid-argument", "Enter a valid email address.");
+    }
+    if (rawEmail === OWNER_EMAIL.toLowerCase()) {
+      throw new HttpsError("invalid-argument", "That account is already the owner.");
+    }
+
+    const adminKey = emailToAdminKey(rawEmail);
+    const existingSnap = await rtdb.ref(`admin/admins/${adminKey}`).get();
+    if (existingSnap.exists() && existingSnap.val()?.status === "active") {
+      throw new HttpsError("already-exists", "This person is already an active admin.");
+    }
+
+    // Only the Owner can hand out the four highest-risk capabilities,
+    // regardless of what the client sent — an admin who somehow got
+    // manageAdmins can invite others, but never with more power than they
+    // themselves have been explicitly trusted with beyond the basics.
+    const capabilities: Record<string, boolean> = {};
+    for (const key of KNOWN_CAPABILITY_KEYS) {
+      const wants = requestedCapabilities[key] === true;
+      capabilities[key] = wants && (!OWNER_ONLY_CAPABILITY_KEYS.has(key) || isOwner);
+    }
+
+    const now = Date.now();
+    const expiresAt = now + 1000 * 60 * 60 * 72; // 72h
+
+    await rtdb.ref(`admin/admins/${adminKey}`).set({
+      email: rawEmail,
+      status: "invited",
+      roleLabel,
+      capabilities,
+      invitedBy: callerEmail,
+      invitedByUid: callerUid,
+      invitedAt: now,
+      expiresAt,
+      application: null,
+      respondedBy: null,
+      respondedAt: null,
+      uid: null,
+    });
+
+    await rtdb.ref("admin/audit_log").push({
+      adminEmail: callerEmail,
+      action: "INVITE_ADMIN",
+      targetUid: adminKey,
+      details: `Invited ${rawEmail} with capabilities: ${
+        Object.keys(capabilities).filter((k) => capabilities[k]).join(", ") || "none"
+      }`,
+      timestamp: now,
+    });
+
+    const grantedLabels = KNOWN_CAPABILITY_KEYS.filter((k) => capabilities[k]);
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) {
+      // The database write already succeeded — don't fail the whole call
+      // over a missing email secret, just surface it so the inviting admin
+      // knows to follow up manually instead of assuming an email went out.
+      captureError(new Error("RESEND_API_KEY missing — invite email not sent"), { scope: "inviteAdmin", adminKey });
+      return { success: true, emailSent: false };
+    }
+
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: "Malvin AI <malvinsecurity@malvinai.com>",
+        to: rawEmail,
+        subject: "You've been invited to become a Malvin AI administrator",
+        html: `
+          <div style="font-family: -apple-system, Helvetica, Arial, sans-serif; max-width: 480px;">
+            <p>${callerEmail} has invited you to become a Malvin AI administrator${roleLabel !== "Admin" ? ` (${roleLabel})` : ""}.</p>
+            ${grantedLabels.length ? `<p style="font-size: 13px; color: #555;">Requested permissions: ${grantedLabels.join(", ")}.</p>` : ""}
+            <p>Sign in to Malvin AI at <a href="https://malvinai.com">malvinai.com</a> with this email address to review the invitation and submit a short application. Nothing is granted automatically — an existing admin still has to approve it.</p>
+            <p style="color: #888; font-size: 13px;">This invitation expires in 72 hours. If you weren't expecting this, you can safely ignore it.</p>
+          </div>
+        `,
+      }),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      captureError(new Error(`Resend API error (${res.status}): ${errText}`), { scope: "inviteAdmin", adminKey });
+      // Same reasoning as above — the invite record exists either way, so
+      // the inviting admin can retry sending or share the link manually.
+      return { success: true, emailSent: false };
+    }
+
+    return { success: true, emailSent: true };
+  })
+);

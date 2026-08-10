@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { auth, db } from '../../firebase';
+import { auth, db, functions } from '../../firebase';
 import { signOut } from 'firebase/auth';
+import { httpsCallable } from 'firebase/functions';
 // Rename them using 'as' so they don't clash or get left undefined
 import { ref, onValue, update, push, serverTimestamp, DataSnapshot } from "firebase/database";
 import { doc, collection, query, orderBy, onSnapshot, addDoc, setDoc, limit, where, getDocs, serverTimestamp as firestoreTimestamp } from "firebase/firestore";
@@ -251,28 +252,32 @@ const AdsManager = () => {
         }
         setIsInvitingAdmin(true);
         try {
-            await update(ref(db), {
-                [`admin/admins/${key}/email`]: email,
-                [`admin/admins/${key}/status`]: 'invited',
-                [`admin/admins/${key}/roleLabel`]: newAdminRoleLabel.trim() || 'Admin',
-                [`admin/admins/${key}/capabilities`]: newAdminCaps,
-                [`admin/admins/${key}/invitedBy`]: auth.currentUser?.email || null,
-                [`admin/admins/${key}/invitedByUid`]: auth.currentUser?.uid || null,
-                [`admin/admins/${key}/invitedAt`]: Date.now(),
-                [`admin/admins/${key}/expiresAt`]: Date.now() + 1000 * 60 * 60 * 72, // 72h
-                [`admin/admins/${key}/application`]: null,
-                [`admin/admins/${key}/respondedBy`]: null,
-                [`admin/admins/${key}/respondedAt`]: null,
+            // Routed through a Cloud Function rather than writing
+            // admin/admins/{key} straight from the browser — that's what
+            // actually emails the invite (via Resend, same service the PIN
+            // reset flow uses) instead of just creating a database record
+            // nobody is ever told about. The function re-checks permissions
+            // and re-strips owner-only capabilities server-side too, so
+            // this call is never the only thing standing between "invited"
+            // and "granted manage-payments".
+            const invite = httpsCallable(functions, 'inviteAdmin');
+            const result: any = await invite({
+                email,
+                roleLabel: newAdminRoleLabel.trim() || 'Admin',
+                capabilities: newAdminCaps,
             });
-            await logAction('INVITE_ADMIN', key, `Invited ${email} with capabilities: ${Object.keys(newAdminCaps).filter(k => (newAdminCaps as any)[k]).join(', ') || 'none'}`);
             setIsAddAdminModalOpen(false);
             setNewAdminEmail('');
             setNewAdminRoleLabel('');
             setNewAdminCaps({ ...EMPTY_CAPABILITIES });
-            alert(`INVITE_SENT_TO_${email}`);
-        } catch (err) {
+            if (result?.data?.emailSent === false) {
+                alert(`Invite created for ${email}, but the email couldn't be sent — check the RESEND_API_KEY secret, or share the sign-in link with them manually.`);
+            } else {
+                alert(`Invitation emailed to ${email}.`);
+            }
+        } catch (err: any) {
             console.error(err);
-            alert("INVITE_FAILED");
+            alert(err?.message || "INVITE_FAILED");
         } finally {
             setIsInvitingAdmin(false);
         }
