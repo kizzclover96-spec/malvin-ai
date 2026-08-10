@@ -18,7 +18,7 @@ export const ANDROID_PACKAGE_ID = 'com.malvinaibeta.agent';
 // the hosting side (see firebase.json's "downloads/**" header block, which
 // forces the right Content-Type/Content-Disposition so this downloads
 // instead of trying to open as text/html).
-export const ANDROID_APK_URL = '/downloads/malvinai-beta.apk';
+export const ANDROID_APK_URL = '/downloads/Malvin-Beta.apk';
 
 export const ANDROID_PLAY_STORE_URL = `https://play.google.com/store/apps/details?id=${ANDROID_PACKAGE_ID}`;
 
