@@ -3,7 +3,7 @@ import { auth, db } from '../../firebase';
 import { signOut } from 'firebase/auth';
 // Rename them using 'as' so they don't clash or get left undefined
 import { ref, onValue, update, push, serverTimestamp, DataSnapshot } from "firebase/database";
-import { doc, collection, query, orderBy, onSnapshot, addDoc, setDoc, serverTimestamp as firestoreTimestamp } from "firebase/firestore";
+import { doc, collection, query, orderBy, onSnapshot, addDoc, setDoc, limit, where, getDocs, serverTimestamp as firestoreTimestamp } from "firebase/firestore";
 import { firestore } from "../../firebase"; // Your firestore initialization file
 import { remove } from "firebase/database";
 import AllAds from "./AllAds";
@@ -12,6 +12,7 @@ import AdminReports from "./AdminReports";
 import {MalvinAiPersonnelSystem} from "./MalvinAiPersonnelSystem";
 import AdminKillSwitch from "./AdminKillSwitch";
 import { useSystemStatus } from "../../hooks/useSystemStatus";
+import { resolvePremiumFlag } from "../../hooks/useAccountStanding";
 import {
     useAdminRole, ADMIN_CAPABILITIES, EMPTY_CAPABILITIES, OWNER_EMAIL,
     emailToAdminKey, AdminCapabilityKey, AdminCapabilities, AdminRecord, AdminStatus
@@ -37,7 +38,15 @@ const AdsManager = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [activePanel, setActivePanel] = useState("ads");
     const totalUsers = users.length;
-    const premiumUsers = users.filter((u) => u.profile?.isPremium === true).length;
+    // Firestore mirror of the RTDB users table, keyed by uid. The account's
+    // wallet balance, wallet transaction ledger, and (defensively — see the
+    // resolvePremiumFlag import) any premium/tier field live here rather
+    // than in RTDB, so the merchant directory and profile modal both need
+    // this alongside the RTDB `users` state above, not instead of it.
+    const [fsUsers, setFsUsers] = useState<Record<string, any>>({});
+    const premiumUsers = users.filter(
+        (u) => u.profile?.isPremium === true || resolvePremiumFlag(fsUsers[u.uid])
+    ).length;
 
     // Current signed-in admin's own role & capabilities — drives which nav
     // items/actions are visible and gates the two owner-only capabilities.
@@ -156,6 +165,26 @@ const AdsManager = () => {
         };
         
     }, [selectedUser?.uid]);
+
+    // --- FIRESTORE USERS MIRROR ---
+    // Same "read the whole table live" pattern as the RTDB `users` listener
+    // above, kept as a separate keyed map (rather than merged into `users`)
+    // so a slow/blocked Firestore read never blanks out the RTDB-backed
+    // directory that already renders fine on its own.
+    useEffect(() => {
+        const unsubFsUsers = onSnapshot(
+            collection(firestore, 'users'),
+            (snapshot) => {
+                const map: Record<string, any> = {};
+                snapshot.forEach(d => { map[d.id] = d.data(); });
+                setFsUsers(map);
+            },
+            (error) => {
+                console.error("FIRESTORE_USERS_LISTENER_ERROR:", error);
+            }
+        );
+        return () => unsubFsUsers();
+    }, []);
 
     // --- ADMINS LIVE SUBSCRIPTION ---
     // Only the Owner and admins with `manageAdmins` ever see this panel, but
@@ -561,7 +590,8 @@ const AdsManager = () => {
                                             const isSelected = selectedUser?.uid === u.uid;
                                             const merchantName = u.brandData?.name || u.brandName || "Ghost_User";
                                             const isBanned = u.brandData?.status === 'Banned';
-                                            const isPremium = u.profile?.isPremium === true;
+                                            const fsUser = fsUsers[u.uid];
+                                            const isPremium = u.profile?.isPremium === true || resolvePremiumFlag(fsUser);
 
                                             return (
                                                 <div 
@@ -1204,6 +1234,7 @@ const AdsManager = () => {
             {profileViewUser && (
                 <UserProfileModal
                     user={profileViewUser}
+                    firestoreUser={fsUsers[profileViewUser.uid]}
                     canViewSensitive={myRole.can('viewSensitiveInfo')}
                     onClose={() => setProfileViewUser(null)}
                 />
@@ -1786,11 +1817,50 @@ function AdminsPanel({
 // FULL ACCOUNT PROFILE MODAL — everything an admin needs to see
 // about one user's account.
 // ============================================================
-function UserProfileModal({ user, canViewSensitive, onClose }: { user: any; canViewSensitive: boolean; onClose: () => void }) {
+function UserProfileModal({ user, firestoreUser, canViewSensitive, onClose }: { user: any; firestoreUser: any; canViewSensitive: boolean; onClose: () => void }) {
     const brand = user.brandData || {};
     const bookings: any[] = user.bookings ? Object.entries(user.bookings).map(([id, v]: [string, any]) => ({ id, ...v })) : [];
     const campaigns: any[] = user.campaigns ? Object.entries(user.campaigns).map(([id, v]: [string, any]) => ({ id, ...v })) : [];
     const sortedBookings = [...bookings].sort((a, b) => (b.createdAt || b.timestamp || 0) - (a.createdAt || a.timestamp || 0));
+    const isFsPremium = resolvePremiumFlag(firestoreUser);
+
+    // --- FIRESTORE: recent wallet transaction ledger for this account ---
+    const [walletTx, setWalletTx] = useState<any[]>([]);
+    const [walletTxLoading, setWalletTxLoading] = useState(true);
+    useEffect(() => {
+        if (!user.uid) return;
+        setWalletTxLoading(true);
+        const q = query(
+            collection(firestore, "users", user.uid, "walletTransactions"),
+            orderBy("timestamp", "desc"),
+            limit(10)
+        );
+        const unsub = onSnapshot(
+            q,
+            (snap) => {
+                setWalletTx(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+                setWalletTxLoading(false);
+            },
+            (err) => {
+                console.error("WALLET_TX_READ_ERROR:", err);
+                setWalletTxLoading(false);
+            }
+        );
+        return () => unsub();
+    }, [user.uid]);
+
+    // --- FIRESTORE: this customer's paid orders (root `orders` collection,
+    // written by the Stripe webhook — see malvinbackend) ---
+    const [fsOrders, setFsOrders] = useState<any[]>([]);
+    const [fsOrdersLoading, setFsOrdersLoading] = useState(true);
+    useEffect(() => {
+        if (!user.uid) return;
+        setFsOrdersLoading(true);
+        getDocs(query(collection(firestore, "orders"), where("customerUid", "==", user.uid), limit(25)))
+            .then(snap => setFsOrders(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
+            .catch(err => console.error("FIRESTORE_ORDERS_READ_ERROR:", err))
+            .finally(() => setFsOrdersLoading(false));
+    }, [user.uid]);
 
     return (
         <div style={modalOverlay} onClick={onClose}>
@@ -1806,20 +1876,21 @@ function UserProfileModal({ user, canViewSensitive, onClose }: { user: any; canV
                 <div style={{ padding: 20, overflowY: 'auto' }}>
                     {/* STATUS STRIP */}
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
-                        {user.profile?.isPremium && <span style={{ ...badgeStyle, background: '#FFC72C', color: '#000' }}>★ PREMIUM</span>}
+                        {(user.profile?.isPremium || isFsPremium) && <span style={{ ...badgeStyle, background: '#FFC72C', color: '#000' }}>★ PREMIUM</span>}
                         {user.isVerified && <span style={{ ...badgeStyle, background: tokens.info, color: '#000' }}>VERIFIED</span>}
                         <span style={{ ...badgeStyle, background: user.brandData?.status === 'Banned' ? tokens.danger : 'rgba(255,255,255,0.08)', color: user.brandData?.status === 'Banned' ? '#fff' : tokens.textDim }}>
                             {user.brandData?.status || user.status || 'Active'}
                         </span>
+                        {!firestoreUser && <span style={{ ...badgeStyle, background: 'rgba(255,255,255,0.06)', color: tokens.textDim }}>NO FIRESTORE RECORD</span>}
                     </div>
 
-                    {/* CORE DETAILS GRID */}
+                    {/* CORE DETAILS GRID — RTDB */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 20 }}>
                         <DetailField icon={<Mail size={13} />} label="Email" value={user.email || '—'} />
                         <DetailField icon={<Tag size={13} />} label="Business category" value={brand.category || 'Not set'} />
-                        <DetailField icon={<Wallet size={13} />} label="Treasury balance" value={`€${user.treasury?.balance?.toLocaleString() || '0'}`} />
+                        <DetailField icon={<Wallet size={13} />} label="Merchant treasury (RTDB)" value={`€${user.treasury?.balance?.toLocaleString() || '0'}`} />
                         <DetailField icon={<Megaphone size={13} />} label="Ad campaigns" value={String(campaigns.length)} />
-                        <DetailField icon={<Calendar size={13} />} label="Orders / appointments" value={String(bookings.length)} />
+                        <DetailField icon={<Calendar size={13} />} label="Orders / appointments (RTDB)" value={String(bookings.length)} />
                         <DetailField icon={<Clock size={13} />} label="Verified at" value={user.profile?.verifiedAt ? new Date(user.profile.verifiedAt).toLocaleDateString() : '—'} />
                         {canViewSensitive && <DetailField icon={<MapPin size={13} />} label="Last known IP" value={user.security?.lastIp || 'Unknown'} />}
                     </div>
@@ -1831,9 +1902,58 @@ function UserProfileModal({ user, canViewSensitive, onClose }: { user: any; canV
                         </div>
                     )}
 
-                    {/* ORDERS / APPOINTMENTS ACTIVITY */}
+                    {/* FIRESTORE ACCOUNT DATA */}
+                    <div style={{ ...dividerStyle, margin: '20px 0' }} />
+                    <label style={labelStyle}>FIRESTORE ACCOUNT DATA</label>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 10, marginBottom: 16 }}>
+                        <DetailField icon={<Wallet size={13} />} label="Customer wallet balance" value={`€${firestoreUser?.wallet?.balance?.toLocaleString?.() || firestoreUser?.wallet?.balance || '0'}`} />
+                        <DetailField icon={<Crown size={13} />} label="Premium (Firestore fields)" value={isFsPremium ? 'Yes' : 'No'} />
+                    </div>
+
+                    <div style={{ marginBottom: 16 }}>
+                        <label style={labelStyle}>RECENT WALLET TRANSACTIONS</label>
+                        <div style={{ marginTop: 8, maxHeight: 160, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            {walletTxLoading && <EmptyState text="Loading transactions…" />}
+                            {!walletTxLoading && walletTx.length === 0 && <EmptyState text="No wallet transactions on file." />}
+                            {walletTx.map(tx => (
+                                <div key={tx.id} style={{ border: `1px solid ${tokens.border}`, borderRadius: 8, padding: 10, fontSize: 11, display: 'flex', justifyContent: 'space-between' }}>
+                                    <div>
+                                        <div style={{ fontWeight: 700 }}>{tx.storeName || 'Unknown counterparty'}</div>
+                                        <div style={{ opacity: 0.5, fontFamily: tokens.mono, fontSize: 10, marginTop: 2 }}>
+                                            {tx.timestamp?.toDate ? tx.timestamp.toDate().toLocaleString() : ''}
+                                        </div>
+                                    </div>
+                                    <span style={{ color: tx.type === 'received' ? tokens.accent : tokens.danger, fontFamily: tokens.mono, fontWeight: 700 }}>
+                                        {tx.type === 'received' ? '+' : '-'}€{tx.amount?.toLocaleString?.() || tx.amount}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
                     <div>
-                        <label style={labelStyle}>RECENT ORDERS / APPOINTMENTS</label>
+                        <label style={labelStyle}>FIRESTORE ORDERS</label>
+                        <div style={{ marginTop: 8, maxHeight: 160, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            {fsOrdersLoading && <EmptyState text="Loading orders…" />}
+                            {!fsOrdersLoading && fsOrders.length === 0 && <EmptyState text="No paid orders on file." />}
+                            {fsOrders.map(o => (
+                                <div key={o.id} style={{ border: `1px solid ${tokens.border}`, borderRadius: 8, padding: 10, fontSize: 11 }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                        <span style={{ fontWeight: 700 }}>{o.customerName || 'Order'} · €{o.totalPaid?.toLocaleString?.() || o.totalPaid || '0'}</span>
+                                        <span style={{ opacity: 0.5, fontFamily: tokens.mono }}>{o.status || o.paymentStatus || '—'}</span>
+                                    </div>
+                                    <div style={{ opacity: 0.5, marginTop: 4, fontFamily: tokens.mono, fontSize: 10 }}>
+                                        {o.createdAt ? new Date(o.createdAt).toLocaleString() : ''}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* ORDERS / APPOINTMENTS ACTIVITY — RTDB (merchant bookings) */}
+                    <div style={{ ...dividerStyle, margin: '20px 0' }} />
+                    <div>
+                        <label style={labelStyle}>RECENT ORDERS / APPOINTMENTS (RTDB BOOKINGS)</label>
                         <div style={{ marginTop: 8, maxHeight: 220, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
                             {sortedBookings.length === 0 && <EmptyState text="No order or appointment activity yet." />}
                             {sortedBookings.slice(0, 25).map(b => (
