@@ -39,6 +39,7 @@ const AdsManager = () => {
     const [filter, setFilter] = useState("Pending_Admin_Review");
     const [searchTerm, setSearchTerm] = useState('');
     const [activePanel, setActivePanel] = useState("ads");
+    const [supportUnreadCount, setSupportUnreadCount] = useState(0);
     const totalUsers = users.length;
     // Firestore mirror of the RTDB users table, keyed by uid. The account's
     // wallet balance, wallet transaction ledger, and (defensively — see the
@@ -432,6 +433,16 @@ const AdsManager = () => {
         );
     });
 
+    // Lightweight sidebar badge — just a count, not the conversations
+    // themselves, so this stays cheap even while the Support panel itself
+    // isn't mounted. AdminSupportInbox owns the real listeners.
+    useEffect(() => {
+        if (!(myRole.isOwner || myRole.can('manageSupport'))) return;
+        const q = query(collection(firestore, 'supportConversations'), where('unreadByAdmin', '==', true));
+        const unsub = onSnapshot(q, (snap) => setSupportUnreadCount(snap.size), (err) => console.error('SUPPORT_BADGE_ERROR:', err));
+        return () => unsub();
+    }, [myRole.isOwner, myRole.can('manageSupport')]);
+
     // The AI Personnel system is its own full-bleed white workspace with its
     // own internal navigation — it intentionally opts out of the console
     // shell below rather than being squeezed into a dark sidebar layout.
@@ -471,17 +482,9 @@ const AdsManager = () => {
     };
 
     const pendingAdminReviewCount = adminRecords.filter(a => a.status === 'pending_review').length;
-    const [supportUnreadCount, setSupportUnreadCount] = useState(0);
+    
 
-    // Lightweight sidebar badge — just a count, not the conversations
-    // themselves, so this stays cheap even while the Support panel itself
-    // isn't mounted. AdminSupportInbox owns the real listeners.
-    useEffect(() => {
-        if (!(myRole.isOwner || myRole.can('manageSupport'))) return;
-        const q = query(collection(firestore, 'supportConversations'), where('unreadByAdmin', '==', true));
-        const unsub = onSnapshot(q, (snap) => setSupportUnreadCount(snap.size), (err) => console.error('SUPPORT_BADGE_ERROR:', err));
-        return () => unsub();
-    }, [myRole.isOwner, myRole.can('manageSupport')]);
+    
 
     return (
         <div style={consoleShell}>

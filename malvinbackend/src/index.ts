@@ -2079,13 +2079,14 @@ async function findOrCreateSupportConversation(params: {
   return { id: newDoc.id, isNew: true };
 }
 
-// Uploads a base64-decoded inbound attachment to Firebase Storage and
-// returns a long-lived signed download URL. Kept deliberately tolerant of
-// field-name variance in Resend's receiving.get() attachment shape (their
-// docs don't pin this down precisely at the time of writing) — anything
-// that looks like base64 content and a filename is accepted; anything
-// that doesn't is skipped and logged rather than throwing, so one odd
-// attachment never drops the whole inbound email.
+// Downloads one inbound attachment from Resend's temporary download_url
+// and re-uploads it to Firebase Storage for a permanent URL, since
+// Resend's own download_url expires after 1 hour — nowhere near long
+// enough to be useful in a message thread someone might reopen weeks
+// later. `raw` here is one entry from resend.emails.receiving.attachments
+// .list()'s response: { id, filename, content_type, download_url, ... } —
+// NOT the webhook payload itself, which only carries attachment metadata
+// (id/filename/content_type), never content.
 async function storeInboundAttachment(params: {
   conversationId: string;
   messageId: string;
@@ -2094,14 +2095,20 @@ async function storeInboundAttachment(params: {
 }): Promise<{ filename: string; url: string; contentType: string; size: number } | null> {
   const { conversationId, messageId, raw, index } = params;
   try {
-    const filename: string = raw.filename || raw.name || `attachment-${index}`;
-    const contentType: string = raw.content_type || raw.contentType || raw.type || "application/octet-stream";
-    const base64: string | undefined = raw.content || raw.data || raw.base64;
-    if (!base64) {
-      console.warn("storeInboundAttachment: no base64 content field found on attachment", { conversationId, messageId, keys: Object.keys(raw || {}) });
+    const filename: string = raw.filename || `attachment-${index}`;
+    const contentType: string = raw.content_type || "application/octet-stream";
+    const downloadUrl: string | undefined = raw.download_url;
+    if (!downloadUrl) {
+      console.warn("storeInboundAttachment: no download_url on attachment", { conversationId, messageId, keys: Object.keys(raw || {}) });
       return null;
     }
-    const buffer = Buffer.from(base64, "base64");
+
+    const fetched = await fetch(downloadUrl);
+    if (!fetched.ok) {
+      console.error("storeInboundAttachment: download_url fetch failed", { conversationId, messageId, status: fetched.status });
+      return null;
+    }
+    const buffer = Buffer.from(await fetched.arrayBuffer());
 
     const { getStorage } = require("firebase-admin/storage");
     const bucket = getStorage().bucket();
@@ -2187,7 +2194,18 @@ export const resendInboundWebhook = onRequest(
       const now = Date.now();
       const messageRef = db.collection("supportConversations").doc(conversationId).collection("messages").doc();
 
-      const rawAttachments: any[] = Array.isArray(email.attachments) ? email.attachments : [];
+      // Attachment CONTENT never comes from the webhook payload or from
+      // emails.receiving.get() — only metadata does. The actual bytes live
+      // behind a separate, short-lived (1h) download_url from the
+      // Attachments API, which is why this is its own call rather than
+      // something read off `email` above.
+      let rawAttachments: any[] = [];
+      try {
+        const { data: attachmentList } = await resend.emails.receiving.attachments.list({ emailId });
+        rawAttachments = Array.isArray(attachmentList) ? attachmentList : (attachmentList?.data || []);
+      } catch (err) {
+        captureError(err, { scope: "resendInboundWebhook", stage: "list-attachments", emailId });
+      }
       const attachments = (
         await Promise.all(
           rawAttachments.map((raw, i) =>
