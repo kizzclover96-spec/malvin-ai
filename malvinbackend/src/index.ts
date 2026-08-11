@@ -2146,11 +2146,11 @@ export const resendInboundWebhook = onRequest(
       event = resend.webhooks.verify({
         payload,
         headers: {
-          "svix-id": req.headers["svix-id"],
-          "svix-timestamp": req.headers["svix-timestamp"],
-          "svix-signature": req.headers["svix-signature"],
+          id: req.headers["svix-id"] as string,
+          timestamp: req.headers["svix-timestamp"] as string,
+          signature: req.headers["svix-signature"] as string,
         },
-        secret: process.env.RESEND_WEBHOOK_SECRET,
+        webhookSecret: process.env.RESEND_WEBHOOK_SECRET!,
       });
     } catch (err) {
       captureError(err, { scope: "resendInboundWebhook", stage: "verify" });
