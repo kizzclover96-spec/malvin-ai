@@ -2166,19 +2166,80 @@ export const resendInboundWebhook = onRequest(
 
     try {
       const emailId = event.data.email_id;
-      // Webhook payloads exclude the body by design — fetch the full
-      // parsed email (from/to/subject/text/html/headers/attachments)
-      // separately.
-      const { data: email } = await resend.emails.receiving.get(emailId);
 
-      const fromEmail = (email.from?.email || email.from || "").toLowerCase();
-      const fromName = email.from?.name || null;
+      // Fetch the complete received email from Resend.
+      const { data: email, error: receiveError } =
+        await resend.emails.receiving.get(emailId);
+
+      if (receiveError) {
+        console.error("Failed to retrieve inbound email", {
+          emailId,
+          error: receiveError,
+        });
+
+        throw new Error(
+          `Failed to retrieve inbound email ${emailId}: ${
+            receiveError.message || JSON.stringify(receiveError)
+          }`
+        );
+      }
+
+      if (!email) {
+        throw new Error(
+          `Resend returned no email data for inbound email ${emailId}`
+        );
+      }
+
+      console.log("Inbound email retrieved successfully", {
+        emailId,
+        from: email.from,
+        subject: email.subject,
+      });
+
+      // Resend can return From as a normal email string such as:
+      // "John Smith <john@example.com>"
+      function parseEmailAddress(value: unknown): {
+        email: string;
+        name: string | null;
+      } {
+        if (typeof value !== "string") {
+          return { email: "", name: null };
+        }
+
+        const match = value.match(/^(.*?)\s*<([^>]+)>$/);
+
+        if (match) {
+          return {
+            name: match[1].trim().replace(/^["']|["']$/g, "") || null,
+            email: match[2].trim().toLowerCase(),
+          };
+        }
+
+        return {
+          email: value.trim().toLowerCase(),
+          name: null,
+        };
+      }
+
+      const parsedFrom = parseEmailAddress(email.from);
+
+      const fromEmail = parsedFrom.email;
+      const fromName = parsedFrom.name;
+
       const subject = email.subject || "";
       const bodyText = email.text || "";
       const bodyHtml = email.html || null;
+
       const inReplyTo =
-        email.headers?.["in-reply-to"] || email.headers?.["In-Reply-To"] || null;
-      const resendMessageId = email.headers?.["message-id"] || email.headers?.["Message-Id"] || emailId;
+        email.headers?.["in-reply-to"] ||
+        email.headers?.["In-Reply-To"] ||
+        null;
+
+      const resendMessageId =
+        email.message_id ||
+        email.headers?.["message-id"] ||
+        email.headers?.["Message-Id"] ||
+        emailId;
 
       if (!fromEmail) {
         console.error("resendInboundWebhook: inbound email had no from address", { emailId });
