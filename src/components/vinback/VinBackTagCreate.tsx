@@ -48,6 +48,19 @@ export default function VinBackTagCreate({ onClose, onCreated }: Props) {
       return;
     }
 
+    // Checked client-side FIRST so clicking "Generate" on an exhausted
+    // account shows the $0.88 popup immediately, instead of firing a
+    // network request to createVinBackTag that's guaranteed to be
+    // rejected (that 400 is harmless — the function is doing its job —
+    // but there's no reason to make the person wait for it). The
+    // server-side check in the catch block below stays as a backstop for
+    // the case credits.loading hasn't resolved yet, or the count changed
+    // in another tab since this screen last read it.
+    if (!credits.loading && !credits.canCreate) {
+      setPaymentRequired(true);
+      return;
+    }
+
     setIsGenerating(true);
     setError('');
     setPaymentRequired(false);
@@ -157,10 +170,10 @@ export default function VinBackTagCreate({ onClose, onCreated }: Props) {
                   <CreditCard className="w-5 h-5 text-[#E53935]" />
                 </div>
                 <h4 className="text-sm font-black text-neutral-900 dark:text-neutral-50">
-                  You've used your {FREE_VINBACK_TAGS} free tags
+                  This costs ${VINBACK_TAG_PRICE_USD.toFixed(2)} per tag
                 </h4>
                 <p className="text-[11px] font-medium text-neutral-400 dark:text-neutral-500 normal-case leading-relaxed px-2">
-                  Additional VinBack tags are ${VINBACK_TAG_PRICE_USD.toFixed(2)} each. Your details are saved — pay and come
+                  You've used your {FREE_VINBACK_TAGS} free tags. Your details are saved — pay and come
                   straight back to finish generating this one.
                 </p>
                 {checkoutUrl ? (
@@ -171,7 +184,7 @@ export default function VinBackTagCreate({ onClose, onCreated }: Props) {
                     style={{ background: '#E53935', boxShadow: '0 10px 25px rgba(229,57,53,0.25)' }}
                   >
                     <Sparkles className="w-4 h-4" />
-                    <span>Buy 1 tag — ${VINBACK_TAG_PRICE_USD.toFixed(2)}</span>
+                    <span>Continue</span>
                   </motion.button>
                 ) : (
                   <p className="text-[11px] text-amber-600 font-semibold">Payments aren't configured yet — contact support.</p>

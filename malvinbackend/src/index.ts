@@ -2572,7 +2572,7 @@ export const createVinBackTag = onCall(
     if (!txResult.committed || !consumedFrom) {
       throw new HttpsError(
         "failed-precondition",
-        `PAYMENT_REQUIRED: You've used your ${FREE_VINBACK_TAGS} free VinBack tags. Buy another for $0.88 to continue.`
+        `PAYMENT_REQUIRED: You've used your ${FREE_VINBACK_TAGS} free VinBack tags. Buy another for €0.88 to continue.`
       );
     }
 
