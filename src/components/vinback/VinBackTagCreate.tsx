@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { firestore as db, auth } from '../../firebase';
-import { X, QrCode, Copy, Share2, Download, Loader2, Check } from 'lucide-react';
-import { generateVinBackQr, generateVinBackCode } from '../../utils/vinbackQr';
+import { httpsCallable } from 'firebase/functions';
+import { functions, auth } from '../../firebase';
+import { X, QrCode, Copy, Share2, Download, Loader2, Check, CreditCard, Sparkles } from 'lucide-react';
+import { generateVinBackQr } from '../../utils/vinbackQr';
 import { PUBLIC_ORIGIN } from '../../services/vinLink';
 import { shareContent, canOpenShareSheet } from '../../services/share';
+import { useVinBackCredits, FREE_VINBACK_TAGS, VINBACK_TAG_PRICE_USD } from '../../hooks/useVinBackCredits';
 
 interface Props {
   onClose: () => void;
@@ -18,6 +19,8 @@ const inputClass =
 
 const labelClass = "block text-[10px] font-black uppercase text-neutral-400 dark:text-neutral-500 mb-1.5 ml-1 tracking-wider";
 
+const vinbackVariantId = import.meta.env.VITE_LEMONSQUEEZY_VINBACK_VARIANT_ID;
+
 export default function VinBackTagCreate({ onClose, onCreated }: Props) {
   const [ownerName, setOwnerName] = useState('');
   const [propertyName, setPropertyName] = useState('');
@@ -27,39 +30,54 @@ export default function VinBackTagCreate({ onClose, onCreated }: Props) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [result, setResult] = useState<{ tagId: string; code: string; qrDataUrl: string; link: string } | null>(null);
   const [copied, setCopied] = useState(false);
+  const [paymentRequired, setPaymentRequired] = useState(false);
+  const [error, setError] = useState('');
+
+  const credits = useVinBackCredits();
+
+  const userId = auth.currentUser?.uid;
+  const checkoutUrl = vinbackVariantId
+    ? `https://malvin.lemonsqueezy.com/checkout/buy/${vinbackVariantId}?embed=1&checkout[custom][user_id]=${userId}&checkout[custom][product]=vinback_tag_credit`
+    : null;
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
-    const uid = auth.currentUser?.uid;
-    if (!uid) return;
+    if (!auth.currentUser?.uid) return;
     if (!ownerName.trim() || !propertyName.trim() || !contact1.trim()) {
       alert('Please fill in the owner name, property name, and at least one contact.');
       return;
     }
 
     setIsGenerating(true);
+    setError('');
+    setPaymentRequired(false);
     try {
-      const code = generateVinBackCode();
-      const docRef = await addDoc(collection(db, 'vinbackTags'), {
-        ownerId: uid,
+      // Creation happens entirely server-side now (createVinBackTag) —
+      // that's what actually enforces "2 free, then $0.88 each" rather
+      // than just displaying it; firestore.rules denies a direct client
+      // create on vinbackTags for exactly this reason.
+      const create = httpsCallable(functions, 'createVinBackTag');
+      const res: any = await create({
         ownerName: ownerName.trim(),
         propertyName: propertyName.trim(),
         address: address.trim(),
         contact1: contact1.trim(),
         contact2: contact2.trim(),
-        code,
-        status: 'in_possession',
-        createdAt: serverTimestamp(),
       });
 
-      const link = `${PUBLIC_ORIGIN}/vinback/${docRef.id}`;
+      const { tagId, code } = res.data;
+      const link = `${PUBLIC_ORIGIN}/vinback/${tagId}`;
       const qrDataUrl = await generateVinBackQr(link);
 
-      setResult({ tagId: docRef.id, code, qrDataUrl, link });
+      setResult({ tagId, code, qrDataUrl, link });
       onCreated?.();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to generate VinBack tag:', err);
-      alert('Could not generate this tag. Please try again.');
+      if (err?.message?.includes('PAYMENT_REQUIRED') || err?.code === 'functions/failed-precondition') {
+        setPaymentRequired(true);
+      } else {
+        setError('Could not generate this tag. Please try again.');
+      }
     } finally {
       setIsGenerating(false);
     }
@@ -127,7 +145,45 @@ export default function VinBackTagCreate({ onClose, onCreated }: Props) {
           </div>
 
           <AnimatePresence mode="wait">
-            {!result ? (
+            {paymentRequired ? (
+              <motion.div
+                key="paywall"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="flex flex-col items-center text-center gap-3 py-4"
+              >
+                <div className="w-12 h-12 rounded-full flex items-center justify-center bg-[#E53935]/10">
+                  <CreditCard className="w-5 h-5 text-[#E53935]" />
+                </div>
+                <h4 className="text-sm font-black text-neutral-900 dark:text-neutral-50">
+                  You've used your {FREE_VINBACK_TAGS} free tags
+                </h4>
+                <p className="text-[11px] font-medium text-neutral-400 dark:text-neutral-500 normal-case leading-relaxed px-2">
+                  Additional VinBack tags are ${VINBACK_TAG_PRICE_USD.toFixed(2)} each. Your details are saved — pay and come
+                  straight back to finish generating this one.
+                </p>
+                {checkoutUrl ? (
+                  <motion.button
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => window.open(checkoutUrl, '_blank')}
+                    className="w-full flex items-center justify-center gap-2 mt-2 py-3.5 rounded-xl border-none font-bold text-xs text-white transition-opacity"
+                    style={{ background: '#E53935', boxShadow: '0 10px 25px rgba(229,57,53,0.25)' }}
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    <span>Buy 1 tag — ${VINBACK_TAG_PRICE_USD.toFixed(2)}</span>
+                  </motion.button>
+                ) : (
+                  <p className="text-[11px] text-amber-600 font-semibold">Payments aren't configured yet — contact support.</p>
+                )}
+                <button
+                  onClick={() => setPaymentRequired(false)}
+                  className="text-[11px] font-bold text-neutral-400 dark:text-neutral-500 mt-1"
+                >
+                  Back
+                </button>
+              </motion.div>
+            ) : !result ? (
               <motion.form
                 key="form"
                 initial={{ opacity: 0 }}
@@ -139,6 +195,16 @@ export default function VinBackTagCreate({ onClose, onCreated }: Props) {
                 <p className="text-[11px] font-medium text-neutral-400 dark:text-neutral-500 normal-case leading-relaxed -mt-1">
                   Generate a QR tag for a personal item. Anyone who scans it sees how to reach you if it's lost.
                 </p>
+
+                {!credits.loading && (
+                  <div className="text-[10px] font-bold uppercase tracking-wide px-3 py-2 rounded-lg bg-neutral-50 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400">
+                    {credits.paidCredits > 0
+                      ? `${credits.paidCredits} paid credit${credits.paidCredits === 1 ? '' : 's'} available`
+                      : credits.freeRemaining > 0
+                        ? `${credits.freeRemaining} free tag${credits.freeRemaining === 1 ? '' : 's'} remaining`
+                        : `Free tags used — $${VINBACK_TAG_PRICE_USD.toFixed(2)} per additional tag`}
+                  </div>
+                )}
 
                 <div>
                   <label className={labelClass}>Owner's name</label>
@@ -185,6 +251,8 @@ export default function VinBackTagCreate({ onClose, onCreated }: Props) {
                   />
                 </div>
 
+                {error && <p className="text-[11px] font-semibold text-red-500 normal-case">{error}</p>}
+
                 <motion.button
                   whileTap={{ scale: 0.98 }}
                   type="submit"
@@ -193,7 +261,13 @@ export default function VinBackTagCreate({ onClose, onCreated }: Props) {
                   style={{ background: '#E53935', boxShadow: '0 10px 25px rgba(229,57,53,0.25)', opacity: isGenerating ? 0.7 : 1 }}
                 >
                   {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <QrCode className="w-4 h-4" />}
-                  <span>{isGenerating ? 'Generating…' : 'Generate Tag'}</span>
+                  <span>
+                    {isGenerating
+                      ? 'Generating…'
+                      : !credits.loading && credits.paidCredits === 0 && credits.freeRemaining === 0
+                        ? `Generate Tag — $${VINBACK_TAG_PRICE_USD.toFixed(2)}`
+                        : 'Generate Tag'}
+                  </span>
                 </motion.button>
               </motion.form>
             ) : (

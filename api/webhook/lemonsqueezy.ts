@@ -86,7 +86,13 @@ export default async function handler(req: any, res: any) {
 
     const eventName = body.meta?.event_name;
     const userId = body.meta?.custom_data?.user_id || body.meta?.custom_data?.userId;
-    const planFromWebhook = body.meta?.custom_data?.plan || "premium"; 
+    const planFromWebhook = body.meta?.custom_data?.plan || "premium";
+    // Distinguishes a VinBack tag-credit purchase from every other
+    // one-time order (wallet top-ups) hitting this same order_completed/
+    // order_created branch. Only VinBackTagCreate.tsx's checkout URL sets
+    // this — every existing top-up checkout omits it, so that path's
+    // behavior below is completely unchanged for anyone not buying a tag.
+    const product = body.meta?.custom_data?.product;
 
     if (!userId) {
       console.log("Missing userId in payload meta data.");
@@ -116,7 +122,15 @@ export default async function handler(req: any, res: any) {
     // 1. CREDITS (ONE-TIME PAYMENT)
     // -------------------------
     // UPDATED: Now triggers on both 'order_completed' and 'order_created'
-    if (eventName === "order_completed" || eventName === "order_created") {
+    if ((eventName === "order_completed" || eventName === "order_created") && product === "vinback_tag_credit") {
+      // VinBack tag credit purchase — $0.88 grants exactly 1 extra tag,
+      // NOT a wallet top-up. Handled separately from the treasury branch
+      // below (which this `product` check deliberately skips) so a tag
+      // purchase never also silently adds cash to the wallet balance.
+      const creditsRef = rtdb.ref(`users/${userId}/vinback/paidCredits`);
+      await creditsRef.transaction((current) => (current || 0) + 1);
+      console.log(`Granted 1 VinBack tag credit to user: ${userId}`);
+    } else if (eventName === "order_completed" || eventName === "order_created") {
       const totalCents = body.data?.attributes?.total || 0;
       const amount = totalCents / 100; // e.g., 100.00
 

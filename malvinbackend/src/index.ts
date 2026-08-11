@@ -2497,3 +2497,137 @@ export const notifySupportAssignment = onDocumentWritten(
     }
   }
 );
+
+/*
+=====================================
+20. VINBACK TAG QUOTA + PAYWALL
+=====================================
+2 free VinBack tags per account, then $0.88 each via LemonSqueezy — same
+one-time-purchase pattern api/webhook/lemonsqueezy.ts already handles for
+wallet top-ups, distinguished by a `product: 'vinback_tag_credit'` field in
+LemonSqueezy's custom_data (see the checkout URL built in
+VinBackTagCreate.tsx) so the existing top-up branch is untouched for
+everyone else.
+
+Tag creation moved server-side entirely — firestore.rules now has
+`allow create: if false` on vinbackTags, so this callable (Admin SDK,
+bypasses rules) is the ONLY way a tag can be created. That's what actually
+makes the quota real: a client-side-only check is just UI, trivially
+skippable by anyone editing the request in devtools; the enforcement has
+to live wherever the write happens, which is here now, not in the browser.
+
+Quota state lives in RTDB (users/{uid}/vinback), consistent with where
+treasury/premium already live for this project, and is checked+updated
+inside a single RTDB transaction so two rapid-fire requests (e.g. a
+double-tap on "Generate") can't both read "1 free tag left" and both
+succeed — the transaction's retry-on-conflict semantics make this
+effectively a lock. tagsCreatedCount never decrements on tag deletion —
+deleting a tag doesn't refund a free/paid slot, otherwise create→delete→
+create would be an infinite free-tag loop.
+*/
+const FREE_VINBACK_TAGS = 2;
+const CREATE_VINBACK_TAG_LIMIT: RateLimitRule = { name: "create_vinback_tag", max: 20, windowMs: 60 * 60 * 1000 };
+
+export const createVinBackTag = onCall(
+  withMonitoring(async (request) => {
+    const uid = request.auth?.uid;
+    if (!uid) {
+      throw new HttpsError("unauthenticated", "Sign in to create a VinBack tag.");
+    }
+    await enforceRateLimit({ ip: getClientIp(request.rawRequest), uid }, [CREATE_VINBACK_TAG_LIMIT]);
+
+    const ownerName = String(request.data?.ownerName || "").trim();
+    const propertyName = String(request.data?.propertyName || "").trim();
+    const address = String(request.data?.address || "").trim();
+    const contact1 = String(request.data?.contact1 || "").trim();
+    const contact2 = String(request.data?.contact2 || "").trim();
+    if (!ownerName || !propertyName || !contact1) {
+      throw new HttpsError("invalid-argument", "Owner name, property name, and at least one contact are required.");
+    }
+
+    const rtdb = getRtdb();
+    const vinbackRef = rtdb.ref(`users/${uid}/vinback`);
+
+    // The transaction is the actual lock: it re-runs from scratch if the
+    // node changed between read and write (e.g. a concurrent request),
+    // so "check quota, then consume it" can never race.
+    let consumedFrom: "free" | "paid" | null = null;
+    const txResult = await vinbackRef.transaction((current: any) => {
+      const state = current || { tagsCreatedCount: 0, paidCredits: 0 };
+      const tagsCreatedCount = state.tagsCreatedCount || 0;
+      const paidCredits = state.paidCredits || 0;
+
+      if (tagsCreatedCount < FREE_VINBACK_TAGS) {
+        consumedFrom = "free";
+        return { ...state, tagsCreatedCount: tagsCreatedCount + 1 };
+      }
+      if (paidCredits > 0) {
+        consumedFrom = "paid";
+        return { ...state, tagsCreatedCount: tagsCreatedCount + 1, paidCredits: paidCredits - 1 };
+      }
+      consumedFrom = null;
+      return; // abort — no committed change, quota exhausted
+    });
+
+    if (!txResult.committed || !consumedFrom) {
+      throw new HttpsError(
+        "failed-precondition",
+        `PAYMENT_REQUIRED: You've used your ${FREE_VINBACK_TAGS} free VinBack tags. Buy another for $0.88 to continue.`
+      );
+    }
+
+    try {
+      const { getFirestore, FieldValue } = require("firebase-admin/firestore");
+      const fsDb = getFirestore();
+      // Matches generateVinBackCode() in src/utils/vinbackQr.ts exactly
+      // (same charset, same length, same "vinback-" prefix) — that
+      // function is unused now that creation is server-side, but the code
+      // FORMAT it established is still what's printed on physical tags
+      // and shown in the UI, so this has to stay visually identical to
+      // it. Uses crypto.randomBytes instead of Math.random purely because
+      // a real CSPRNG is sitting right here server-side anyway; the
+      // output format is what actually matters for consistency.
+      const VINBACK_CODE_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789";
+      const codeSuffix = Array.from(crypto.randomBytes(6) as unknown as number[])
+        .map((b) => VINBACK_CODE_CHARS[b % VINBACK_CODE_CHARS.length])
+        .join("");
+      const code = `vinback-${codeSuffix}`;
+
+      const docRef = await fsDb.collection("vinbackTags").add({
+        ownerId: uid,
+        ownerName,
+        propertyName,
+        address,
+        contact1,
+        contact2,
+        code,
+        status: "in_possession",
+        createdAt: FieldValue.serverTimestamp(),
+      });
+
+      await rtdb.ref("admin/audit_log").push({
+        adminEmail: null,
+        action: consumedFrom === "free" ? "VINBACK_TAG_CREATED_FREE" : "VINBACK_TAG_CREATED_PAID",
+        targetUid: uid,
+        details: `${propertyName} (${docRef.id})`,
+        timestamp: Date.now(),
+      });
+
+      return { tagId: docRef.id, code, consumedFrom };
+    } catch (err) {
+      // The quota slot was already consumed above — if the actual Firestore
+      // write then fails, refund it rather than silently charging someone
+      // a free/paid tag they never got.
+      await vinbackRef.transaction((current: any) => {
+        const state = current || { tagsCreatedCount: 0, paidCredits: 0 };
+        return {
+          ...state,
+          tagsCreatedCount: Math.max(0, (state.tagsCreatedCount || 0) - 1),
+          paidCredits: consumedFrom === "paid" ? (state.paidCredits || 0) + 1 : state.paidCredits || 0,
+        };
+      });
+      captureError(err, { scope: "createVinBackTag", uid });
+      throw new HttpsError("internal", "Could not create the tag. You have not been charged a slot — please try again.");
+    }
+  })
+);
