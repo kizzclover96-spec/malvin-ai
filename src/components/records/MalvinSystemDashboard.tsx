@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { signOut } from 'firebase/auth';
+import { clearPushToken } from '../../services/pushNotifications';
 import { 
   Box, PlusCircle, ShoppingCart, Trash2, Edit3, 
   Copy, Search, ArrowUpDown, Layers, CheckSquare, 
@@ -91,6 +92,9 @@ export const MalvinSystemDashboard: React.FC = () => {
     const handleLogout = async () => {
         if (confirm("Are you sure you want to sign out?")) {
             try {
+            // Must run before signOut() — see App.jsx's onAuthStateChanged
+            // comment for why this fails every time if called after.
+            if (auth.currentUser?.uid) await clearPushToken(auth.currentUser.uid);
             await signOut(auth);
             alert("You have signed out successfully.");
             } catch (err) {

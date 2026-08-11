@@ -13,6 +13,7 @@ import {
   collectionGroup,
 } from "firebase/firestore";
 import { getAuth, signOut } from "firebase/auth";
+import { clearPushToken } from '../../services/pushNotifications';
 import { firestore, db } from "../../firebase";
 import { ref as dbRef, onValue } from "firebase/database";
 
@@ -50,6 +51,9 @@ export default function MobileView({ brandId }: { brandId: string }) {
     };
 
     const handleLogout = async () => {
+        // Must run before signOut() — see App.jsx's onAuthStateChanged
+        // comment for why this fails every time if called after.
+        if (auth.currentUser?.uid) await clearPushToken(auth.currentUser.uid);
         try { await signOut(auth); } catch (error) { console.error(error); }
     };
 

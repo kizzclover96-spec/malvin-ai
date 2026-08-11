@@ -27,7 +27,7 @@ import { NearbyBusinesses } from './NearbyBusinesses';
 import { VinMoment, getTierForScore, MOM_MILESTONE_STEP } from './Vinmoment';
 import { ReceiptsDrawer } from './ReceiptsDrawer';
 import { resolveBusiness, extractCategoryAndUid } from '../../services/vinLink';
-import { postLocalAlert } from '../../services/pushNotifications';
+import { postLocalAlert, clearPushToken } from '../../services/pushNotifications';
 import VinBackTagCreate from '../vinback/VinBackTagCreate';
 import VinBackTagList from '../vinback/VinBackTagList';
 import { useLanguage } from '../../contexts/LanguageContext';
@@ -1330,6 +1330,10 @@ export const Front: React.FC = () => {
   };
 
   const handleLogout = async () => {
+    // Must run BEFORE signOut() — once the session is gone, request.auth
+    // is null and the customers/{uid} write this needs is denied every
+    // time (see App.jsx's onAuthStateChanged comment for the full story).
+    if (user?.uid) await clearPushToken(user.uid);
     try { await signOut(auth); } catch (err) {
       showToast('error', 'An operational fault interrupted the checkout pipeline.');
     }

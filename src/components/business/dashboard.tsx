@@ -3,6 +3,7 @@ import { publicOrigin, storeOrigin } from '../../services/vinLink';
 import { ref as dbRef, onValue, update, push, ref, serverTimestamp,  set  } from "firebase/database";
 import { collection, query, where, onSnapshot, doc, getDoc } from "firebase/firestore";
 import { signOut, onAuthStateChanged } from "firebase/auth";
+import { clearPushToken } from '../../services/pushNotifications';
 import { off } from "firebase/database";
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -875,6 +876,9 @@ const Dashboard = (props: any) => {
         }
     };
     const handleLogout = async () => {
+        // Must run before signOut() — see App.jsx's onAuthStateChanged
+        // comment for why this fails every time if called after.
+        if (auth.currentUser?.uid) await clearPushToken(auth.currentUser.uid);
         await signOut(auth);
     };
     useEffect(() => {

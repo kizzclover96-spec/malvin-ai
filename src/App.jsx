@@ -287,7 +287,13 @@ function App() {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (!currentUser) {
         if (lastUidRef.current) {
-          clearPushToken(lastUidRef.current);
+          // clearPushToken() is NOT called here on purpose — by the time
+          // onAuthStateChanged fires with currentUser === null, Firebase
+          // has already fully torn down the session, so request.auth is
+          // null and Firestore's customers/{uid} write rule (rightly)
+          // denies it every single time. It has to run BEFORE signOut(),
+          // which is why every signOut(auth) call site now calls it
+          // first — see e.g. Front.tsx's handleSignOut.
           // Signing out re-arms both, so the next sign-in on this device gets
           // them even without restarting the app.
           resetSignInGreeting(lastUidRef.current);

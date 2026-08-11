@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { firestore as db } from '../../firebase'; 
 import { auth } from "../../firebase"; // Adjust paths as needed
 import { signOut } from 'firebase/auth'; // Imported native Firebase authentication signout method
+import { clearPushToken } from '../../services/pushNotifications';
 import { 
   collection, 
   query, 
@@ -149,6 +150,9 @@ export const WorkerDashboard: React.FC<WorkerDashboardProps> = ({ businessUid, o
   // --- Firebase Session Destruction Call ---
   const handleLogout = async () => {
     try {
+      // Must run before signOut() — see App.jsx's onAuthStateChanged
+      // comment for why this fails every time if called after.
+      if (currentUserId) await clearPushToken(currentUserId);
       await signOut(auth);
     } catch (error) {
       console.error("Error executing terminal logout sequence:", error);

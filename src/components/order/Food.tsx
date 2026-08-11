@@ -3,6 +3,7 @@ import { shareContent, canOpenShareSheet, copyToClipboard } from '../../services
 import { buildVinLink, publicOrigin, storeOrigin } from '../../services/vinLink';
 import { firestore as db, auth } from '../../firebase';
 import { getAuth, onAuthStateChanged, signOut, deleteUser  } from 'firebase/auth';
+import { clearPushToken } from '../../services/pushNotifications';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { 
   doc, 
@@ -469,6 +470,9 @@ export default function FoodDashboard() {
   const handleLogout = async () => {
     try {
         const auth = getAuth();
+        // Must run before signOut() — see App.jsx's onAuthStateChanged
+        // comment for why this fails every time if called after.
+        if (auth.currentUser?.uid) await clearPushToken(auth.currentUser.uid);
         await signOut(auth);
         window.location.href = '/login'; 
     } catch (err) {

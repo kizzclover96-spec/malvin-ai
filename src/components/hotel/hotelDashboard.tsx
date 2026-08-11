@@ -22,6 +22,7 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
+import { clearPushToken } from '../../services/pushNotifications';
 import QRCode from 'qrcode';
 import {
   BedDouble,
@@ -423,6 +424,9 @@ export default function HotelDashboard() {
   };
 
   const handleSignOut = async () => {
+    // Must run before signOut() — see App.jsx's onAuthStateChanged comment
+    // for why this fails every time if called after.
+    if (auth.currentUser?.uid) await clearPushToken(auth.currentUser.uid);
     await signOut(auth);
     navigate('/');
   };

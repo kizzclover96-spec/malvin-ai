@@ -36,6 +36,7 @@ import {
   formatCooldownRemaining,
 } from '../../utils/businessLimits';
 import { signOut, deleteUser } from 'firebase/auth'; // <--- Added deleteUser
+import { clearPushToken } from '../../services/pushNotifications';
 import { Bell, Sparkles, Clock, User, QrCode, CheckCircle, Download, Trash2, Loader2, LogOut } from 'lucide-react';
 
 import { geocodeAddress } from '../../utils/geocoding';
@@ -1293,7 +1294,11 @@ export default function SalonDashboard() {
                   {/* LOGOUT BUTTON */}
                   <button
                     type="button"
-                    onClick={() => {
+                    onClick={async () => {
+                      // Must run before signOut() — see App.jsx's
+                      // onAuthStateChanged comment for why this fails
+                      // every time if called after.
+                      if (auth.currentUser?.uid) await clearPushToken(auth.currentUser.uid);
                       signOut(auth);
                       navigate('/login');
                     }}
