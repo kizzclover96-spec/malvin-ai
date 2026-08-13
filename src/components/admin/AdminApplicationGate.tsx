@@ -22,6 +22,7 @@ interface Props {
   record: AdminRecord;
 }
 
+
 // Shown in place of the normal app whenever the signed-in user's email has
 // an admin record that isn't yet `active`. Covers the three non-admin
 // states an invited person can be in: fill out the application, wait for

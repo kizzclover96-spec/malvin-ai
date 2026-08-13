@@ -310,6 +310,48 @@ export const StoreFront: React.FC<StoreFrontProps> = ({ businessUid, onExit, onO
           }, expectedOrigin);
         }
       }
+
+      // Same top-navigation workaround as REQUEST_DIRECT_PAYMENT above, for
+      // the unified B-Vin customer store (BVinCustomerStore.tsx). The
+      // sandboxed iframe can't navigate window.top itself, so it asks this
+      // unsandboxed parent to do it — and unlike the direct-payment path,
+      // the server can legitimately answer "nothing to charge", which gets
+      // relayed straight back to the store instead of a redirect.
+      if (event.data?.type === "REQUEST_BVIN_CHECKOUT") {
+        const payload = event.data.payload;
+
+        try {
+          const auth = getAuth();
+          if (!auth.currentUser) throw new Error("User session expired. Please re-login.");
+
+          const functions = getFunctions();
+          const createBVinCheckoutSession = httpsCallable(functions, 'createBVinCheckoutSession');
+
+          const response = await createBVinCheckoutSession({
+            businessId: payload.businessId,
+            orderId: payload.orderId,
+            amount: payload.amount,
+          });
+
+          const resultData = response.data as any;
+          if (resultData?.noPaymentRequired) {
+            iframeRef.current?.contentWindow?.postMessage({
+              type: "BVIN_CHECKOUT_NOT_REQUIRED",
+              orderId: payload.orderId,
+            }, expectedOrigin);
+          } else if (resultData?.url) {
+            window.top!.location.href = resultData.url;
+          } else {
+            throw new Error("Invalid checkout response.");
+          }
+        } catch (error: any) {
+          iframeRef.current?.contentWindow?.postMessage({
+            type: "BVIN_CHECKOUT_FAILURE",
+            orderId: payload?.orderId,
+            error: error.message || "Failed to initialize checkout."
+          }, expectedOrigin);
+        }
+      }
     };
 
     window.addEventListener("message", listener);

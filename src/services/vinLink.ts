@@ -55,7 +55,7 @@ export function storeOrigin(): string {
  * business up.
  */
 
-export type BusinessKind = 'restaurant' | 'salon' | 'hotel' | 'mechanic' | 'service';
+export type BusinessKind = 'restaurant' | 'salon' | 'hotel' | 'mechanic' | 'service' | 'bvin';
 
 /** URL path slug -> internal business kind. */
 const PATH_SLUG_TO_KIND: Record<string, BusinessKind> = {
@@ -65,6 +65,10 @@ const PATH_SLUG_TO_KIND: Record<string, BusinessKind> = {
   hotel: 'hotel',
   mechanic: 'mechanic',
   service: 'service',
+  // B-Vin's unified customer store — every new "I'm a business" signup
+  // lands here now regardless of what it sells, so this is the primary
+  // path going forward; the five above stay for existing pre-B-Vin links.
+  store: 'bvin',
 };
 
 /** Internal business kind -> the Firestore collection its profile lives in. */
@@ -74,6 +78,7 @@ const KIND_TO_COLLECTION: Record<BusinessKind, string> = {
   hotel: 'hotels',
   mechanic: 'mechanics',
   service: 'serviceProviders',
+  bvin: 'business',
 };
 
 /**
@@ -122,6 +127,7 @@ export function buildVinLink(uid: string, category: string): string {
       : normalized === 'hotel' ? 'hotel'
       : normalized === 'mechanic' ? 'mechanic'
       : normalized === 'service' ? 'service'
+      : normalized === 'bvin' || normalized === 'store' ? 'store'
       : 'food';
   return `${STORE_ORIGIN}/${kind}/${uid}`;
 }
@@ -165,17 +171,23 @@ export async function resolveBusiness(
   const { uid, categoryHint: hintFromInput } = extractCategoryAndUid(businessUid);
   const hint = categoryHint ?? hintFromInput;
 
-  const shape = (kind: BusinessKind, data: any): ResolvedBusiness => ({
-    uid,
-    kind,
-    link: buildVinLink(uid, kind),
-    found: true,
-    storeName:
-      data.brandName || data.salonName || data.hotelName || data.garageName || data.businessName || 'Unnamed Store',
-    bio: data.brandBio || data.bio || '',
-    address: data.address || '',
-    logoUrl: data.logo || data.logoUrl || '',
-  });
+  const shape = (kind: BusinessKind, rawData: any): ResolvedBusiness => {
+    // business/{uid} keeps everything under a `profile` map (see
+    // B-Vin.tsx's BVinDoc shape) — every other business kind still has
+    // its fields flat on the doc root, so only unwrap for bvin.
+    const data = kind === 'bvin' ? rawData?.profile || {} : rawData;
+    return {
+      uid,
+      kind,
+      link: buildVinLink(uid, kind),
+      found: true,
+      storeName:
+        data.name || data.brandName || data.salonName || data.hotelName || data.garageName || data.businessName || 'Unnamed Store',
+      bio: data.brandBio || data.bio || '',
+      address: data.address || '',
+      logoUrl: data.logoUrl || data.logo || '',
+    };
+  };
 
   const notFound = (kind: BusinessKind): ResolvedBusiness => ({
     uid,
@@ -200,6 +212,11 @@ export async function resolveBusiness(
 
     // No category in the input (a bare uid was typed/pasted with no path) —
     // fall back to a best-guess priority search across every collection.
+    // business goes first: every "I'm a business" signup lands there now,
+    // so it's the most likely match for any newly created account.
+    const bvinSnap = await getDoc(doc(db, 'business', uid));
+    if (bvinSnap.exists()) return shape('bvin', bvinSnap.data());
+
     const restaurantSnap = await getDoc(doc(db, 'restaurantprofile', uid));
     if (restaurantSnap.exists()) return shape('restaurant', restaurantSnap.data());
 

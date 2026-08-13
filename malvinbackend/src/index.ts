@@ -387,7 +387,10 @@ export const createBusinessStripeAccount = onCall(
       [STRIPE_ONBOARDING_LIMIT]
     );
 
-    const targetCollection = merchantType === "food" ? "restaurantprofile" : merchantType === "hotel" ? "hotels" : "salons";
+    const targetCollection =
+      merchantType === "bvin" ? "business" :
+      merchantType === "food" ? "restaurantprofile" :
+      merchantType === "hotel" ? "hotels" : "salons";
 
     // 🟢 Wrapped so real Stripe/Firestore errors reach the client instead of
     // being swallowed into a generic "INTERNAL" by Firebase Functions.
@@ -399,13 +402,21 @@ export const createBusinessStripeAccount = onCall(
         capabilities: { card_payments: { requested: true }, transfers: { requested: true } }
       });
 
-      // 🟢 SAFE FIX: Use set with merge: true instead of update to prevent crashes on missing docs
-      await db.collection(targetCollection).doc(businessId).set({
+      const stripeFields = {
         stripeAccountId: account.id,
         stripeOnboarded: false,
         charges_enabled: false,
         payouts_enabled: false,
-      }, { merge: true });
+      };
+
+      // 🟢 SAFE FIX: Use set with merge: true instead of update to prevent crashes on missing docs
+      // business/{uid} keeps everything about a business nested under
+      // `profile` (see B-Vin.tsx's BVinDoc shape) — every other merchant
+      // type still writes these fields flat at the doc root, unchanged.
+      await db.collection(targetCollection).doc(businessId).set(
+        merchantType === "bvin" ? { profile: stripeFields } : stripeFields,
+        { merge: true }
+      );
 
       return { stripeAccountId: account.id };
     } catch (err: any) {
@@ -471,14 +482,24 @@ export const checkStripeAccount = onCall(
     }
 
     const account = await stripe.accounts.retrieve(stripeAccountId);
-    const targetCollection = merchantType === "food" ? "restaurantprofile" : merchantType === "hotel" ? "hotels" : "salons";
+    const targetCollection =
+      merchantType === "bvin" ? "business" :
+      merchantType === "food" ? "restaurantprofile" :
+      merchantType === "hotel" ? "hotels" : "salons";
 
-    // 🟢 Keep database keys perfectly aligned with createDirectPaymentSession validator (snake_case)
-    await db.collection(targetCollection).doc(businessId).update({
+    const statusFields = {
       stripeOnboarded: account.details_submitted,
       charges_enabled: account.charges_enabled,
-      payouts_enabled: account.payouts_enabled
-    });
+      payouts_enabled: account.payouts_enabled,
+    };
+
+    // 🟢 Keep database keys perfectly aligned with createDirectPaymentSession validator (snake_case)
+    // 🟢 SAFE FIX: set+merge (not update) so this can't throw NOT_FOUND if the
+    // business/{uid} doc hasn't been created by the client's debounced sync yet.
+    await db.collection(targetCollection).doc(businessId).set(
+      merchantType === "bvin" ? { profile: statusFields } : statusFields,
+      { merge: true }
+    );
 
     return {
       detailsSubmitted: account.details_submitted,
@@ -579,6 +600,136 @@ export const createDirectPaymentSession = onCall(
 );
 
 
+
+/*
+=====================================
+4b. B-VIN — UNIFIED ORDER / CONFIRM-FEE CHECKOUT
+=====================================
+Single entry point for every payment shape the customer store needs:
+  - Receive Money ON  -> real order payment, transferred straight to the
+    business's connected Stripe account (2% platform cut, same as
+    createDirectPaymentSession above).
+  - Receive Money OFF, Receipts ON -> customer isn't charged for the
+    order itself (they pay the business at the counter); Malvin charges a
+    flat €0.50 confirm fee instead, kept on the platform account, purely
+    to confirm the order went through and unlock a receipt.
+  - Receive Money OFF, Receipts OFF -> nothing to charge at all; the
+    function reports that back so the client can confirm the order
+    directly in Firestore without ever hitting Stripe.
+Which branch applies is decided from the business's own `business/{id}`
+doc server-side — never trusted from the client — so a customer can't spoof
+their way past a real order payment by claiming receipts-only mode.
+*/
+export const createBVinCheckoutSession = onCall(
+  { secrets: ["SECURE_STRIPE_KEY"] },
+  withMonitoring(async (request) => {
+    await assertNotLocked("stores");
+    const db = getDb();
+
+    const { businessId, orderId, amount } = request.data;
+    const customerUid = request.auth?.uid;
+    if (!customerUid) throw new HttpsError("unauthenticated", "Authentication required.");
+    if (!businessId || !orderId) throw new HttpsError("invalid-argument", "businessId and orderId are required.");
+
+    await enforceRateLimit(
+      { ip: getClientIp(request.rawRequest), uid: customerUid, subject: businessId },
+      [PAYMENT_SESSION_LIMIT]
+    );
+
+    const bizSnap = await db.collection("business").doc(businessId).get();
+    if (!bizSnap.exists) throw new HttpsError("not-found", "Business not found.");
+    const biz = bizSnap.data() || {};
+    const profile = biz.profile || {};
+    const tools = biz.enabledTools || {};
+
+    // Nothing to charge — let the client confirm the order directly.
+    if (!tools.receiveMoney && !tools.receipts) {
+      return { noPaymentRequired: true };
+    }
+
+    if (!process.env.SECURE_STRIPE_KEY) {
+      throw new HttpsError("failed-precondition", "Stripe secret key is missing on the server.");
+    }
+    const stripe = getStripe();
+
+    if (tools.receiveMoney) {
+      // Real order payment, straight to the business.
+      const orderAmount = Number(amount);
+      if (!orderAmount || orderAmount <= 0) throw new HttpsError("invalid-argument", "Missing order amount.");
+      const stripeAccountId = profile.stripeAccountId;
+      const isMerchantReady = profile.charges_enabled || (stripeAccountId && process.env.SECURE_STRIPE_KEY?.startsWith("sk_test"));
+      if (!stripeAccountId || !isMerchantReady) {
+        throw new HttpsError("failed-precondition", "This business isn't set up to accept payments yet.");
+      }
+
+      const amountInCents = Math.round(orderAmount * 100);
+      const applicationFeeInCents = Math.round(amountInCents * 0.02);
+
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ["card"],
+        line_items: [
+          {
+            price_data: {
+              currency: "eur",
+              product_data: { name: profile.name || "Order", description: "Order via Malvin" },
+              unit_amount: amountInCents,
+            },
+            quantity: 1,
+          },
+        ],
+        mode: "payment",
+        payment_intent_data: {
+          application_fee_amount: applicationFeeInCents,
+          transfer_data: { destination: stripeAccountId },
+        },
+        metadata: {
+          type: "bvin_order",
+          userId: customerUid,
+          businessId,
+          orderId,
+          amount: orderAmount.toString(),
+          confirmFeeOnly: "false",
+        },
+        success_url: "https://malvinai.com/?checkout=success",
+        cancel_url: "https://malvinai.com/?checkout=cancel",
+      });
+
+      return { url: session.url };
+    }
+
+    // Receive Money is off but Receipts is on — flat €0.50 confirm fee,
+    // kept on the platform account (no destination transfer).
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ["card"],
+      line_items: [
+        {
+          price_data: {
+            currency: "eur",
+            product_data: {
+              name: "Order confirmation",
+              description: `Pay the business directly — this €0.50 just confirms your order with ${profile.name || "the business"}.`,
+            },
+            unit_amount: 50,
+          },
+          quantity: 1,
+        },
+      ],
+      mode: "payment",
+      metadata: {
+        type: "bvin_order",
+        userId: customerUid,
+        businessId,
+        orderId,
+        amount: "0.5",
+        confirmFeeOnly: "true",
+      },
+      success_url: "https://malvinai.com/?checkout=success",
+      cancel_url: "https://malvinai.com/?checkout=cancel",
+    });
+
+    return { url: session.url };
+  })
+);
 
 /*
 =====================================
@@ -729,6 +880,33 @@ export const stripeWebhook = onRequest(
 
           await batch.commit();
           console.log(`Successfully processed direct payment of €${amount} for user ${userId}`);
+        }
+      } else if (type === "bvin_order") {
+        // Order/confirm-fee for the unified B-Vin customer store. The
+        // order doc was already staged client-side at
+        // business/{businessId}/orders/{orderId} with status
+        // "pending_payment" before the Stripe redirect — this just
+        // confirms it.
+        const businessId = session.metadata?.businessId;
+        const orderId = session.metadata?.orderId;
+        const amount = parseFloat(session.metadata?.amount || "0");
+        const confirmFeeOnly = session.metadata?.confirmFeeOnly === "true";
+
+        if (businessId && orderId) {
+          await db
+            .collection("business").doc(businessId)
+            .collection("orders").doc(orderId)
+            .set(
+              {
+                status: "confirmed",
+                paymentStatus: true,
+                paidAmount: amount,
+                confirmFeeOnly,
+                confirmedAt: FieldValue.serverTimestamp(),
+              },
+              { merge: true }
+            );
+          console.log(`B-Vin order ${orderId} for business ${businessId} confirmed (confirmFeeOnly=${confirmFeeOnly}).`);
         }
       }
     }

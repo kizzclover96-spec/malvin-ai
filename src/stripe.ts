@@ -21,3 +21,10 @@ httpsCallable(
     functions,
     "checkStripeAccount"
 );
+
+
+export const createBVinCheckoutSession =
+httpsCallable(
+    functions,
+    "createBVinCheckoutSession"
+);

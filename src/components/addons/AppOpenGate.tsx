@@ -36,7 +36,7 @@ export function consumePendingDeepLink(): string | null {
 }
 
 interface AppOpenGateProps {
-  kind: 'food' | 'salon' | 'hotel' | 'mechanic' | 'service';
+  kind: 'food' | 'salon' | 'hotel' | 'mechanic' | 'service' | 'store';
   uid: string | undefined;
   /** True when this render IS the post-login resumption of a scan the
    *  person already saw the login/install flow for (see App.jsx) — skips
@@ -306,4 +306,10 @@ export const ServiceDeepLinkGate: React.FC = () => {
   const { uid } = useParams();
   const location = useLocation();
   return <AppOpenGate kind="service" uid={uid} skipGate={!!location.state?.skipGate} />;
+};
+
+export const BVinDeepLinkGate: React.FC = () => {
+  const { uid } = useParams();
+  const location = useLocation();
+  return <AppOpenGate kind="store" uid={uid} skipGate={!!location.state?.skipGate} />;
 };

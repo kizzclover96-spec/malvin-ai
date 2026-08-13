@@ -623,7 +623,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   modalTitleText: { margin: 0, fontSize: '16px', fontWeight: '600' },
   closeTriggerBtn: { background: 'none', border: 'none', cursor: 'pointer', padding: '4px' },
   modalFormBody: { display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '12px' },
-  glassNavigationPillContainer: { position: 'fixed', bottom: '16px', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '24px', backgroundColor: 'rgba(255, 255, 255, 0.8)', backdropFilter: 'blur(10px)', padding: '12px 24px', borderRadius: '30px', boxShadow: '0 8px 32px rgba(0,0,0,0.08)', border: '1px solid rgba(255,255,255,0.4)', zIndex: 999 },
+  glassNavigationPillContainer: { position: 'fixed', top: '16px', right: '16px', display: 'flex', gap: '24px', backgroundColor: 'rgba(255, 255, 255, 0.8)', backdropFilter: 'blur(10px)', padding: '12px 24px', borderRadius: '30px', boxShadow: '0 8px 32px rgba(0,0,0,0.08)', border: '1px solid rgba(255,255,255,0.4)', zIndex: 999 },
   navActionButtonItem: { background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' },
   activePillIndicatorDot: { position: 'absolute', bottom: '-4px', width: '4px', height: '4px', backgroundColor: '#0066FF', borderRadius: '50%' }
 };

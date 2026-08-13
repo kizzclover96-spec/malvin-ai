@@ -40,6 +40,10 @@ import MobileView from "./components/business/MobileView";
 import FoodDashboard from "./components/order/Food";
 import SalonDashboard from "./components/appointment/salonDashboard";
 import Category from "./pages/navigation/Category";
+import BVin from "./components/business/B-Vin";
+import BVinStore from "./components/business/BVinStore";
+import NoticeView from "./pages/system/NoticeView";
+import ScannerPairClaim from "./pages/system/ScannerPairClaim";
 import { StoreFrontend } from './components/order/Store';
 import SalonStore from "./components/appointment/salonStore";
 import HotelDashboard from "./components/hotel/hotelDashboard";
@@ -49,7 +53,7 @@ import MechanicDashboard from "./components/mechanic/mechanicDashboard";
 import ServiceDashboard from "./components/service/serviceDashboard";
 import MechanicStore from "./components/mechanic/mechanicStore";
 import ServiceStore from "./components/service/serviceStore";
-import { FoodDeepLinkGate, SalonDeepLinkGate, HotelDeepLinkGate, MechanicDeepLinkGate, ServiceDeepLinkGate, consumePendingDeepLink } from "./components/addons/AppOpenGate";
+import { FoodDeepLinkGate, SalonDeepLinkGate, HotelDeepLinkGate, MechanicDeepLinkGate, ServiceDeepLinkGate, BVinDeepLinkGate, consumePendingDeepLink } from "./components/addons/AppOpenGate";
 import { FloatingTeamHub } from "./components/addons/FloatingTeamHub";
 import { VinBackLauncher } from "./components/vinback/VinBackLauncher";
 import { WorkerDashboard } from './components/team/workerDashboard';
@@ -516,8 +520,11 @@ function App() {
           <Route path="/salon/:uid" element={<AccessGate locked={systemStatus.storesLocked} message={systemStatus.message}><SalonDeepLinkGate /><SalonStore onExecuteWalletPayment={handleWalletPaymentExecution} /></AccessGate>} />
           <Route path="/hotel/:uid" element={<AccessGate locked={systemStatus.storesLocked} message={systemStatus.message}><HotelDeepLinkGate /><HotelStore /></AccessGate>} />
           <Route path="/vinback/:tagId" element={<VinBackScan />} />
+          <Route path="/pair-scanner/:businessId/:sessionId" element={<ScannerPairClaim />} />
           <Route path="/mechanic/:uid" element={<AccessGate locked={systemStatus.storesLocked} message={systemStatus.message}><MechanicDeepLinkGate /><MechanicStore /></AccessGate>} />
           <Route path="/service/:uid" element={<AccessGate locked={systemStatus.storesLocked} message={systemStatus.message}><ServiceDeepLinkGate /><ServiceStore /></AccessGate>} />
+          <Route path="/store/:uid" element={<AccessGate locked={systemStatus.storesLocked} message={systemStatus.message}><BVinDeepLinkGate /><BVinStore /></AccessGate>} />
+          <Route path="/notice/:businessId" element={<NoticeView />} />
           
           <Route path="/terms" element={<Terms />} />
           <Route path="/cookiePolicy" element={<CookiePolicy />} />
@@ -572,14 +579,23 @@ function App() {
               ) : flowStep === "options" ? (
                 <UserOption 
                   onSelectCustomer={() => setFlowStep("front")} 
-                  onSelectWorker={() => setFlowStep("category")} 
+                  onSelectWorker={() => setFlowStep("BVin")} 
                   premiumStatus={premiumStatus}
                 />
               ) : flowStep === "front" ? (
                 <AccessGate locked={systemStatus.customerHubLocked} message={systemStatus.message}>
                   <Front onExecuteWalletPayment={handleWalletPaymentExecution} />
                 </AccessGate>
+              ) : flowStep === "BVin" ? (
+                <BVin
+                  businessId={user?.uid}
+                  businessName={user?.displayName || "My Business"}
+                  logoUrl={user?.photoURL}
+                />
               ) : flowStep === "category" ? (
+                // Legacy category picker — no longer reachable from "I'm a
+                // business" (that now opens BVin directly above), kept only
+                // so nothing breaks if something else still points here.
                 <Category onSelect={handleCategorySelect} />
               ) : flowStep === "food" ? (
                 <FoodDashboard userEmail={user?.email} currentUserId={user?.uid} />
@@ -614,15 +630,19 @@ function App() {
         </Routes>
       </div>
 
-      {user && !isAdmin && !isStorefrontPath && (isWorker || (flowStep !== "front" && flowStep !== "options")) && (
+      {user && !isAdmin && !isStorefrontPath && flowStep !== "BVin" &&
+        (isWorker || (flowStep !== "front" && flowStep !== "options")) && (
         <FloatingTeamHub managerUid={isWorker ? assignedManagerUid : user.uid} />
       )}
 
       {/* VinBack tag creation/management — same "currently on a business
-          dashboard" gate as FloatingTeamHub above, so every business type
-          (salon/hotel/mechanic/service/food/generic) gets it without each
-          dashboard needing its own copy wired in. */}
-      {user && !isAdmin && !isStorefrontPath && (isWorker || (flowStep !== "front" && flowStep !== "options")) && (
+          dashboard" gate as FloatingTeamHub above, so every pre-B-Vin
+          business type (salon/hotel/mechanic/service/food) still gets it.
+          Excluded from the BVin flow itself: its VinBack Tags bento card
+          opens the same VinBackTagCreate/VinBackTagList modals directly,
+          so this floating circle would just be a redundant duplicate. */}
+      {user && !isAdmin && !isStorefrontPath && flowStep !== "BVin" &&
+        (isWorker || (flowStep !== "front" && flowStep !== "options")) && (
         <VinBackLauncher />
       )}
 
