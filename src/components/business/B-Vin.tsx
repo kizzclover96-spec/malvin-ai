@@ -62,6 +62,7 @@ import { MalvinSystemDashboard } from "../records/MalvinSystemDashboard";
 import SaaSEnvironmentVault from "./SaaSEnvironmentVault";
 import CatalogueSetupWizard, { CatalogueSetupResult } from "./CatalogueSetupWizard";
 import ProductFormModal from "./ProductFormModal";
+import { AppsConnectionsPill, ConnectionsStrip } from "./AppsConnectionsPanel";
 import { ToolKey, ToolDef, ToolState, TOOLS, DEFAULT_TOOLS, CATEGORY_ORDER, CATEGORY_TINTS } from "../../config/bvinTools";
 import styles from "./BVin.module.css";
 
@@ -640,6 +641,8 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
             </motion.div>
           </div>
 
+          <AppsConnectionsPill businessId={businessId} accent={accent} />
+
           <div className={styles.rightGroup} style={{ justifyContent: "flex-end", flex: "1 1 0" }}>
             <div className={styles.clickChip} title="Total clicks">
               <MousePointerClick size={13} />
@@ -697,30 +700,58 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
       ) : (
         <main style={{ padding: "8px 18px 110px" }}>
           {activeTab === "dashboard" && (
-            <motion.div layout style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gridAutoFlow: "dense", gap: 12, maxWidth: 1080, margin: "0 auto" }}>
-              {bentoToolDefs.length === 0 && (
+            <>
+              {/* Top row: fixed-size Connections glass panel on the left,
+                  matching the combined height of Live Notices + VinBack Tags
+                  stacked on the right — same layout as every other business
+                  category's header row, just generalized. Both cards keep
+                  using BentoCard as normal; grid-column/-row styling on a
+                  fixedPlacement tool is simply inert once it's outside the
+                  CSS grid, so nothing extra is needed there. */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, maxWidth: 1080, margin: "0 auto 12px" }}>
+                <ConnectionsStrip businessId={businessId} accent={accent} />
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  <BentoCard
+                    tool={TOOLS.find((t) => t.key === "customerNotice")!}
+                    span={2}
+                    order={0}
+                    pinned={false}
+                    theme={theme}
+                    accent={accent}
+                    extra={<CustomerNoticeCard theme={theme} accent={accent} colors={colors} text={customerNoticeText} setText={setCustomerNoticeText} qrValue={noticeQrValue} />}
+                  />
+                  <BentoCard
+                    tool={TOOLS.find((t) => t.key === "vinbackTags")!}
+                    span={2}
+                    order={0}
+                    pinned={false}
+                    theme={theme}
+                    accent={accent}
+                    extra={<VinBackTagsCard theme={theme} accent={accent} tags={vinbackTags} onCreate={() => setVinbackCreateOpen(true)} onViewAll={() => setVinbackListOpen(true)} />}
+                  />
+                </div>
+              </div>
+
+              <motion.div layout style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gridAutoFlow: "dense", gap: 12, maxWidth: 1080, margin: "0 auto" }}>
+              {bentoToolDefs.filter((t) => t.key !== "customerNotice" && t.key !== "vinbackTags").length === 0 && (
                 <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "60px 20px", color: theme.subtext }}>
                   <LayoutGrid size={30} style={{ marginBottom: 10, opacity: 0.5 }} />
-                  <p style={{ fontSize: 14 }}>Nothing enabled yet. Open the gear icon → <b>Enable Tools</b> to build your dashboard.</p>
+                  <p style={{ fontSize: 14 }}>Nothing else enabled yet. Open the gear icon → <b>Enable Tools</b> to build out your dashboard.</p>
                 </div>
               )}
               <AnimatePresence>
-                {bentoToolDefs.map((t, idx) => (
+                {bentoToolDefs.filter((t) => t.key !== "customerNotice" && t.key !== "vinbackTags").map((t, idx) => (
                   <BentoCard
                     key={t.key}
                     tool={t}
-                    span={t.fixedPlacement === "under-top-right" ? 2 : t.shape === "rectangle" ? 4 : 2}
+                    span={t.shape === "rectangle" ? 4 : 2}
                     order={pinnedTools[t.key] !== undefined ? pinnedTools[t.key]! : 1000 + idx}
                     pinned={pinnedTools[t.key] !== undefined}
                     theme={theme}
                     accent={accent}
                     extra={
-                      t.key === "customerNotice" ? (
-                        <CustomerNoticeCard theme={theme} accent={accent} colors={colors} text={customerNoticeText} setText={setCustomerNoticeText} qrValue={noticeQrValue} />
-                      ) : t.key === "receiveMoney" ? (
+                      t.key === "receiveMoney" ? (
                         <ReceiveMoneyCard theme={theme} accent={accent} connected={stripeConnected} payoutsEnabled={stripePayoutsEnabled} />
-                      ) : t.key === "vinbackTags" ? (
-                        <VinBackTagsCard theme={theme} accent={accent} tags={vinbackTags} onCreate={() => setVinbackCreateOpen(true)} onViewAll={() => setVinbackListOpen(true)} />
                       ) : t.key === "catalogue" ? (
                         <CatalogueCard businessId={businessId} theme={theme} accent={accent} config={catalogueConfig} />
                       ) : t.key === "prices" ? (
@@ -751,6 +782,7 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
                 </div>
               )}
             </motion.div>
+            </>
           )}
 
           {activeTab === "chat" && tools.chat && (
@@ -929,8 +961,7 @@ const TabButton: React.FC<{ active: boolean; label: string; accent: string; onCl
 
 const BentoCard: React.FC<{ tool: ToolDef; span: number; order: number; pinned: boolean; theme: any; accent: string; extra?: React.ReactNode }> = ({ tool, span, order, pinned, theme, accent, extra }) => {
   const placementStyle: React.CSSProperties =
-    tool.fixedPlacement === "top-left" ? { gridColumn: "1 / span 2", gridRow: 1 }
-    : tool.fixedPlacement === "top-right" ? { gridColumn: "3 / span 2", gridRow: 1 }
+    tool.fixedPlacement === "top-right" ? { gridColumn: "3 / span 2", gridRow: 1 }
     : tool.fixedPlacement === "under-top-right" ? { gridColumn: "3 / span 2", gridRow: 2 }
     : { gridColumn: `span ${span}`, order };
 

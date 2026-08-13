@@ -733,6 +733,221 @@ export const createBVinCheckoutSession = onCall(
 
 /*
 =====================================
+4c. B-VIN — APPS & CONNECTIONS: ADD WEBSITE
+=====================================
+Inspects a URL server-side and, if it looks safe, resolves a display name
++ icon for it and saves it to business/{businessId}/connections/{id}.
+Runs entirely in this Cloud Function rather than the client so that:
+  1. The actual outbound fetch never touches a customer/business browser
+     (no way to use this as an open proxy or leak a client IP to an
+     arbitrary target).
+  2. SSRF protections (blocking localhost/private IP ranges, non-http(s)
+     schemes) are enforced somewhere a modified client can't bypass them.
+  3. The "safety" check is real, not decorative — see checkUrlSafety below
+     for exactly what it does and does not catch.
+*/
+const WEBSITE_CONNECTION_LIMIT: RateLimitRule = { name: "website_connection", max: 10, windowMs: 60 * 60 * 1000 };
+
+/**
+ * Best-effort safety gate before we ever fetch a business-submitted URL.
+ *  - Only http/https — blocks javascript:, data:, file:, etc. outright.
+ *  - Blocks localhost, loopback, link-local, and private (RFC1918) IP
+ *    literals — the classic SSRF targets (cloud metadata endpoints etc.)
+ *  - Optionally checks Google's Web Risk API if GOOGLE_WEB_RISK_KEY is
+ *    configured; if it isn't, this step is skipped rather than failing
+ *    closed, since that's an opt-in API this project may not have enabled.
+ *    (Web Risk, not Safe Browsing — Safe Browsing's terms restrict it to
+ *    non-commercial use; Web Risk is Google's equivalent for commercial
+ *    products like Malvin, same underlying threat lists.)
+ * This is NOT full malware/antivirus scanning — there's no local file
+ * execution happening, so "carrying malicious files" mostly reduces to
+ * "does the destination host a phishing/malware page", which is exactly
+ * what Web Risk is for. Without that key configured, this function still
+ * protects against SSRF and non-http(s) schemes, just not against a
+ * legitimately-reachable-but-malicious website.
+ */
+async function checkUrlSafety(rawUrl: string): Promise<{ url: URL; warning?: string }> {
+  let url: URL;
+  try {
+    url = new URL(rawUrl);
+  } catch {
+    throw new HttpsError("invalid-argument", "That doesn't look like a valid website address.");
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    throw new HttpsError("invalid-argument", "Only http:// and https:// links are allowed.");
+  }
+
+  const hostname = url.hostname.toLowerCase();
+  const blockedHosts = ["localhost", "127.0.0.1", "0.0.0.0", "::1", "metadata.google.internal"];
+  if (blockedHosts.includes(hostname)) {
+    throw new HttpsError("invalid-argument", "That address can't be connected.");
+  }
+  // Private/link-local IPv4 ranges (RFC1918 + 169.254.0.0/16), covers the
+  // common SSRF targets even without a DNS resolution step.
+  const ipv4 = hostname.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (ipv4) {
+    const [a, b] = [parseInt(ipv4[1], 10), parseInt(ipv4[2], 10)];
+    const isPrivate =
+      a === 10 ||
+      (a === 172 && b >= 16 && b <= 31) ||
+      (a === 192 && b === 168) ||
+      (a === 169 && b === 254);
+    if (isPrivate) throw new HttpsError("invalid-argument", "That address can't be connected.");
+  }
+
+  let warning: string | undefined;
+  if (process.env.GOOGLE_WEB_RISK_KEY) {
+    try {
+      // Lookup API (uris:search) — the generally-available, GA endpoint.
+      // (Web Risk also has a newer "Evaluate API" at v1eap1, but that's
+      // still gated behind Google's early-access program, so it isn't
+      // something every project can just turn on the way this one can.)
+      const params = new URLSearchParams({ uri: url.toString(), key: process.env.GOOGLE_WEB_RISK_KEY });
+      params.append("threatTypes", "MALWARE");
+      params.append("threatTypes", "SOCIAL_ENGINEERING");
+      params.append("threatTypes", "UNWANTED_SOFTWARE");
+
+      const wrRes = await fetch(`https://webrisk.googleapis.com/v1/uris:search?${params.toString()}`);
+      const wrData: any = await wrRes.json().catch(() => ({}));
+      // A match means `threat.threatTypes` comes back populated; a clean
+      // URL returns an empty {} body, not an empty array — there's no
+      // "matches" field the way the old Safe Browsing response had.
+      if (wrData?.threat?.threatTypes?.length) {
+        throw new HttpsError("failed-precondition", "This website was flagged as unsafe and can't be connected.");
+      }
+    } catch (err) {
+      if (err instanceof HttpsError) throw err;
+      // Web Risk itself unreachable — don't block the connection over an
+      // unrelated network hiccup, just proceed without that signal.
+      warning = "web_risk_unavailable";
+    }
+  }
+
+  return { url, warning };
+}
+
+/** Pulls <title>, favicon, apple-touch-icon, and og:image out of raw HTML with plain regex — no DOM/cheerio dependency needed for this. */
+function extractMetadata(html: string, baseUrl: URL): { title: string | null; iconUrl: string | null } {
+  const titleMatch = html.match(/<title[^>]*>([^<]*)<\/title>/i);
+  const title = titleMatch ? titleMatch[1].trim().slice(0, 120) : null;
+
+  const resolve = (href: string) => {
+    try {
+      return new URL(href, baseUrl).toString();
+    } catch {
+      return null;
+    }
+  };
+
+  // Priority: apple-touch-icon > any <link rel="icon"> > og:image > /favicon.ico fallback.
+  const appleTouchMatch = html.match(/<link[^>]+rel=["'][^"']*apple-touch-icon[^"']*["'][^>]*href=["']([^"']+)["']/i);
+  if (appleTouchMatch) {
+    const resolved = resolve(appleTouchMatch[1]);
+    if (resolved) return { title, iconUrl: resolved };
+  }
+
+  const iconMatch = html.match(/<link[^>]+rel=["'](?:shortcut )?icon["'][^>]*href=["']([^"']+)["']/i);
+  if (iconMatch) {
+    const resolved = resolve(iconMatch[1]);
+    if (resolved) return { title, iconUrl: resolved };
+  }
+
+  const ogImageMatch = html.match(/<meta[^>]+property=["']og:image["'][^>]*content=["']([^"']+)["']/i);
+  if (ogImageMatch) {
+    const resolved = resolve(ogImageMatch[1]);
+    if (resolved) return { title, iconUrl: resolved };
+  }
+
+  // Last resort — most sites serve SOMETHING at /favicon.ico even without
+  // an explicit <link> tag; the client falls back to domain initials if
+  // this 404s when actually rendered.
+  return { title, iconUrl: `${baseUrl.origin}/favicon.ico` };
+}
+
+export const addWebsiteConnection = onCall(
+  { secrets: ["GOOGLE_WEB_RISK_KEY"] },
+  withMonitoring(async (request) => {
+    await assertNotLocked("stores");
+    const db = getDb();
+
+    const { businessId, url: rawUrl } = request.data;
+    const uid = request.auth?.uid;
+    if (!uid) throw new HttpsError("unauthenticated", "Authentication required.");
+    if (!businessId || uid !== businessId) throw new HttpsError("permission-denied", "You can only connect apps to your own business.");
+    if (!rawUrl || typeof rawUrl !== "string") throw new HttpsError("invalid-argument", "A website address is required.");
+
+    await enforceRateLimit({ ip: getClientIp(request.rawRequest), uid }, [WEBSITE_CONNECTION_LIMIT]);
+
+    const { url } = await checkUrlSafety(rawUrl);
+
+    let html = "";
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
+      const res = await fetch(url.toString(), {
+        redirect: "follow",
+        signal: controller.signal,
+        headers: { "User-Agent": "MalvinAI-LinkPreview/1.0" },
+      });
+      clearTimeout(timeout);
+
+      if (!res.ok) throw new HttpsError("failed-precondition", "Couldn't reach that website.");
+
+      const finalUrl = new URL(res.url);
+      // Re-run the SSRF check against the URL we actually ended up at —
+      // a redirect chain is exactly how an open fetch gets turned into
+      // an SSRF primitive.
+      await checkUrlSafety(finalUrl.toString());
+
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.includes("text/html")) {
+        throw new HttpsError("failed-precondition", "That address doesn't look like a regular website.");
+      }
+
+      // Cap how much we read — this is a metadata scrape, not a mirror.
+      const reader = res.body?.getReader();
+      const chunks: Uint8Array[] = [];
+      let total = 0;
+      const MAX_BYTES = 512 * 1024;
+      if (reader) {
+        while (total < MAX_BYTES) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          if (value) {
+            chunks.push(value);
+            total += value.length;
+          }
+        }
+        reader.cancel().catch(() => {});
+      }
+      html = Buffer.concat(chunks.map((c) => Buffer.from(c))).toString("utf-8");
+    } catch (err: any) {
+      if (err instanceof HttpsError) throw err;
+      throw new HttpsError("failed-precondition", "Couldn't reach that website. Double-check the address and try again.");
+    }
+
+    const { title, iconUrl } = extractMetadata(html, url);
+    const domain = url.hostname.replace(/^www\./, "");
+    const name = title || domain;
+
+    const connectionId = `web_${Date.now()}`;
+    const connection = {
+      type: "website",
+      name,
+      url: url.toString(),
+      domain,
+      iconUrl,
+      addedAt: Date.now(),
+    };
+
+    await db.collection("business").doc(businessId).collection("connections").doc(connectionId).set(connection);
+
+    return { connectionId, ...connection };
+  })
+);
+
+/*
+=====================================
 5. STRIPE WEBHOOK LISTENER (DIRECT PAYMENTS)
 =====================================
 */

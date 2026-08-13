@@ -76,7 +76,7 @@ export interface ToolDef {
   shape: ToolShape;
   alwaysOn?: boolean;
   noBento?: boolean;
-  fixedPlacement?: "top-left" | "top-right" | "under-top-right";
+  fixedPlacement?: "top-right" | "under-top-right";
   fullscreen?: boolean;
   /** false = business-only; the customer store must never render or query it. */
   customerVisible?: boolean;
@@ -114,7 +114,7 @@ export const TOOLS: ToolDef[] = [
 
   { key: "orders", label: "Orders", icon: ClipboardList, description: "Take and track customer orders.", category: "Transactions & Bookings", shape: "square", customerVisible: true },
   { key: "reservations", label: "Reservations", icon: CalendarCheck, description: "Let people book a time slot.", category: "Transactions & Bookings", shape: "square", customerVisible: true },
-  { key: "receiveMoney", label: "Receive Money", icon: Wallet, description: "Get paid straight to your account.", category: "Transactions & Bookings", shape: "square", fixedPlacement: "top-left", customerVisible: false },
+  { key: "receiveMoney", label: "Receive Money", icon: Wallet, description: "Get paid straight to your account.", category: "Transactions & Bookings", shape: "square", customerVisible: false },
   { key: "receipts", label: "Receipts", icon: Receipt, description: "Send a receipt after every order.", category: "Transactions & Bookings", shape: "square", customerVisible: false },
   { key: "loyalty", label: "Loyalty", icon: Gift, description: "Reward repeat customers.", category: "Transactions & Bookings", shape: "square", customerVisible: true },
   { key: "vinbackTags", label: "VinBack Tags", icon: Tag, description: "Bring past customers back.", category: "Transactions & Bookings", shape: "square", alwaysOn: true, fixedPlacement: "under-top-right", customerVisible: false },
