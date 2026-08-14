@@ -2379,6 +2379,64 @@ export const expireBusinessVerifications = onSchedule(
   }
 );
 
+/*
+=====================================
+B-VIN REQUEST STAFF — EXPIRE "TO GO" ORDER PHOTOS
+=====================================
+RequestStaffFlow.tsx (customer side) uploads a photo of the customer's
+current order to business/{id}/togoPhotos/{callId}.jpg when they use the
+"take my order to go" option, purely so staff can judge packaging size —
+it's genuinely not meant to be kept around. This runs every 5 minutes
+(the shortest practical Cloud Scheduler interval for this) and deletes
+both the Storage file and the serviceCalls doc's photoUrl/photoExpiresAt
+fields for anything past its 5-minute expiry, regardless of whether
+staff ever actually opened it.
+
+Requires a Firestore index for the collectionGroup('serviceCalls') query
+below — a single-field index on photoExpiresAt, scoped to "Collection
+group" rather than "Collection". Firestore will refuse this exact query
+until that index exists; the error message it throws on first run
+includes a direct console link to create it with the right fields
+pre-filled.
+*/
+export const expireTogoPhotos = onSchedule(
+  { schedule: "every 5 minutes" },
+  async () => {
+    const db = getDb();
+    const { getStorage } = require("firebase-admin/storage");
+    const bucket = getStorage().bucket();
+
+    const snap = await db
+      .collectionGroup("serviceCalls")
+      .where("photoExpiresAt", "<=", Date.now())
+      .get();
+
+    if (snap.empty) return;
+
+    let cleared = 0;
+    const { FieldValue } = require("firebase-admin/firestore");
+    await Promise.all(
+      snap.docs.map(async (docSnap: any) => {
+        const data = docSnap.data();
+        const storagePath = data.photoStoragePath;
+        if (!storagePath) return; // already cleared, or never had a photo to begin with
+        if (storagePath) {
+          await bucket.file(storagePath).delete().catch(() => {
+            /* already gone, or never actually uploaded — either way, nothing left to clean up */
+          });
+        }
+        await docSnap.ref.update({
+          photoUrl: FieldValue.delete(),
+          photoStoragePath: FieldValue.delete(),
+          photoExpiresAt: FieldValue.delete(),
+        }).catch(() => {});
+        cleared++;
+      })
+    );
+    console.log(`expireTogoPhotos: cleared ${cleared} expired to-go photo(s).`);
+  }
+);
+
 /**
  * The same digest on demand. The app calls this right after a merchant signs
  * in, so the reminder is accurate at that moment instead of waiting for the

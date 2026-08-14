@@ -13,6 +13,12 @@ import {
   X,
   Check,
   Loader2,
+  BadgeCheck,
+  Phone,
+  Frown,
+  Globe,
+  MapPin,
+  Clock,
 } from "lucide-react";
 import {
   doc,
@@ -30,6 +36,9 @@ import {
 import { firestore as db, auth } from "../../firebase";
 import { applyStorefrontIdentity, waitForRealAuthUid } from "../../services/storefrontAuth";
 import { ToolState, isCustomerVisible } from "../../config/bvinTools";
+import { useAccountStanding } from "../../hooks/useAccountStanding";
+import { useLanguage } from "../../contexts/LanguageContext";
+import RequestStaffFlow from "./RequestStaffFlow";
 
 /* ============================================================================
    BVinStore — the unified customer-facing storefront for every B-Vin
@@ -64,6 +73,12 @@ interface BVinColors {
 interface BVinProfile {
   name: string;
   logoUrl?: string;
+  bio?: string;
+  address?: string;
+  phone?: string;
+  openingTime?: string;
+  closingTime?: string;
+  allowToGo?: boolean;
   enabledTools: ToolState;
   colors: BVinColors;
 }
@@ -136,12 +151,78 @@ const BVinStore: React.FC = () => {
       setProfile({
         name: p.name || "Business",
         logoUrl: p.logoUrl,
+        bio: p.bio || "",
+        address: p.address || "",
+        phone: p.phone || "",
+        openingTime: p.openingTime || "",
+        closingTime: p.closingTime || "",
+        allowToGo: !!p.allowToGo,
         enabledTools: data.enabledTools || {},
         colors: { ...DEFAULT_COLORS, ...(p.colors || {}) },
       });
     });
     return () => unsub();
   }, [businessId]);
+
+  // Star rating — average of business/{id}/reviews, only fetched (and only
+  // rendered) when the business has Reviews enabled.
+  const [avgRating, setAvgRating] = useState<number | null>(null);
+  const [reviewCount, setReviewCount] = useState(0);
+  useEffect(() => {
+    if (!businessId || !profile?.enabledTools.reviews) return;
+    const unsub = onSnapshot(collection(db, "business", businessId, "reviews"), (snap) => {
+      if (snap.empty) {
+        setAvgRating(null);
+        setReviewCount(0);
+        return;
+      }
+      const ratings = snap.docs.map((d) => (d.data() as any).rating || 0);
+      setAvgRating(ratings.reduce((a, b) => a + b, 0) / ratings.length);
+      setReviewCount(ratings.length);
+    });
+    return () => unsub();
+  }, [businessId, profile?.enabledTools.reviews]);
+
+  // The language selector glows for a few seconds on every visit — new or
+  // returning customer alike — purely so first-time (and easily-missed)
+  // visitors notice it's there at all.
+  const [langGlow, setLangGlow] = useState(true);
+  useEffect(() => {
+    const t = setTimeout(() => setLangGlow(false), 4000);
+    return () => clearTimeout(t);
+  }, []);
+
+  const { isVerified } = useAccountStanding(businessId);
+  const { language, languages, setLanguage } = useLanguage();
+  const [langMenuOpen, setLangMenuOpen] = useState(false);
+  const [langSearch, setLangSearch] = useState("");
+  const [contactOpen, setContactOpen] = useState(false);
+  const [complaintOpen, setComplaintOpen] = useState(false);
+  const [complaintText, setComplaintText] = useState("");
+  const [complaintSent, setComplaintSent] = useState(false);
+  const chatSectionRef = useRef<HTMLDivElement>(null);
+  const contactPhone = profile?.phone || "";
+
+  const setStoreTab = (tab: "chat") => {
+    if (tab === "chat") chatSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const submitComplaint = async () => {
+    if (!complaintText.trim()) return;
+    try {
+      const uid = await waitForRealAuthUid(auth);
+      await addDoc(collection(db, "business", businessId, "complaints"), {
+        text: complaintText.trim(),
+        customerUid: uid || "guest",
+        createdAt: serverTimestamp(),
+      });
+      setComplaintSent(true);
+      setComplaintText("");
+      setTimeout(() => { setComplaintOpen(false); setComplaintSent(false); }, 2200);
+    } catch {
+      /* best-effort — no retry UI for a lightweight complaint box */
+    }
+  };
 
   // Every store open came from scanning (or tapping) one of the business's
   // QR codes — that's exactly what B-Vin's Analytics card wants to count.
@@ -405,12 +486,132 @@ const BVinStore: React.FC = () => {
       `}</style>
 
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "20px 18px 14px" }}>
-        {profile.logoUrl && (
-          <img src={profile.logoUrl} alt={profile.name} style={{ width: 42, height: 42, borderRadius: "50%", objectFit: "cover" }} />
-        )}
-        <h1 style={{ fontSize: 18, fontWeight: 800, margin: 0 }}>{profile.name}</h1>
+      <div style={{ position: "relative", padding: "20px 16px 16px" }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
+          {/* Top-left: logo, name, verified badge, then bio/address/hours/rating stacked below */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+              {profile.logoUrl ? (
+                <img src={profile.logoUrl} alt={profile.name} style={{ width: 44, height: 44, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
+              ) : (
+                <div style={{ width: 44, height: 44, borderRadius: "50%", background: `${theme.accent}1c`, flexShrink: 0 }} />
+              )}
+              <div style={{ minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                  <h1 style={{ fontSize: 17, fontWeight: 800, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{profile.name}</h1>
+                  {isVerified && <BadgeCheck size={15} color="#007fff" style={{ flexShrink: 0 }} />}
+                </div>
+              </div>
+            </div>
+
+            {profile.bio && <p style={{ fontSize: 12, opacity: 0.65, margin: "0 0 3px", lineHeight: 1.4 }}>{profile.bio}</p>}
+            {profile.address && (
+              <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11.5, opacity: 0.55, marginBottom: 3 }}>
+                <MapPin size={11} /> {profile.address}
+              </div>
+            )}
+            {(profile.openingTime || profile.closingTime) && (
+              <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11.5, opacity: 0.55, marginBottom: 3 }}>
+                <Clock size={11} /> {profile.openingTime || "—"} – {profile.closingTime || "—"}
+              </div>
+            )}
+            {tools.reviews && avgRating !== null && (
+              <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11.5, fontWeight: 700 }}>
+                <Star size={12} fill={theme.accent} color={theme.accent} />
+                {avgRating.toFixed(1)} <span style={{ opacity: 0.5, fontWeight: 500 }}>({reviewCount})</span>
+              </div>
+            )}
+          </div>
+
+          {/* Top-right: glass pill (chat / complaints / contact / language) */}
+          <div style={{ position: "relative", flexShrink: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 4, padding: 5, borderRadius: 999, background: "rgba(255,255,255,0.6)", backdropFilter: "blur(20px) saturate(180%)", WebkitBackdropFilter: "blur(20px) saturate(180%)", border: "1px solid rgba(255,255,255,0.8)", boxShadow: "0 8px 22px rgba(0,0,0,0.08)" }}>
+              {tools.chat && (
+                <button onClick={() => setStoreTab("chat")} title="Chat" style={pillIconBtnStyle(theme.accent)}>
+                  <MessageCircle size={15} />
+                </button>
+              )}
+              {tools.complaints && (
+                <button onClick={() => setComplaintOpen(true)} title="Report an issue" style={pillIconBtnStyle(theme.accent)}>
+                  <span style={{ fontSize: 15, lineHeight: 1 }}>😠</span>
+                </button>
+              )}
+              {tools.contactBusiness && (
+                <button onClick={() => setContactOpen(true)} title="Contact" style={pillIconBtnStyle(theme.accent)}>
+                  <Phone size={14} />
+                </button>
+              )}
+              {/* Language selector is always present, regardless of enabled tools */}
+              <motion.button
+                onClick={() => setLangMenuOpen((v) => !v)}
+                title="Language"
+                animate={langGlow ? { boxShadow: [`0 0 0 0px ${theme.accent}55`, `0 0 0 7px ${theme.accent}00`] } : {}}
+                transition={langGlow ? { duration: 1.1, repeat: Infinity } : {}}
+                style={{ ...pillIconBtnStyle(theme.accent), background: langGlow ? `${theme.accent}22` : "transparent" }}
+              >
+                <Globe size={15} />
+              </motion.button>
+            </div>
+
+            <AnimatePresence>
+              {langMenuOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: -6, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -6, scale: 0.96 }}
+                  style={{ position: "absolute", top: 46, right: 0, zIndex: 50, width: 220, maxHeight: 300, background: "#fff", borderRadius: 16, padding: 8, boxShadow: "0 20px 50px rgba(0,0,0,0.18)", display: "flex", flexDirection: "column" }}
+                >
+                  <input value={langSearch} onChange={(e) => setLangSearch(e.target.value)} placeholder="Search language…" style={{ fontSize: 12, padding: "8px 10px", borderRadius: 9, border: "1px solid rgba(0,0,0,0.08)", marginBottom: 6 }} />
+                  <div style={{ overflowY: "auto" }}>
+                    {languages.filter((l) => l.name.toLowerCase().includes(langSearch.trim().toLowerCase())).map((l) => (
+                      <button key={l.code} onClick={() => { setLanguage(l.code); setLangMenuOpen(false); }} style={{ display: "flex", justifyContent: "space-between", width: "100%", padding: "7px 9px", borderRadius: 8, border: "none", background: language === l.code ? `${theme.accent}18` : "transparent", fontSize: 12.5, cursor: "pointer", textAlign: "left" }}>
+                        {l.name}
+                        {language === l.code && <Check size={12} color={theme.accent} />}
+                      </button>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
       </div>
+
+      {/* Floating Request Staff button — obvious, high-contrast circle */}
+      {tools.requestStaff && (
+        <RequestStaffFlow businessId={businessId} accent={theme.accent} allowToGo={!!profile.allowToGo} />
+      )}
+
+      {/* Contact popup */}
+      <AnimatePresence>
+        {contactOpen && (
+          <SimplePopup onClose={() => setContactOpen(false)} title="Contact us" accent={theme.accent}>
+            {contactPhone ? (
+              <a href={`tel:${contactPhone}`} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "13px 16px", borderRadius: 14, background: theme.accent, color: "#fff", fontWeight: 700, textDecoration: "none" }}>
+                <Phone size={15} /> {contactPhone}
+              </a>
+            ) : (
+              <p style={{ fontSize: 13, opacity: 0.6, textAlign: "center" }}>No contact number listed yet.</p>
+            )}
+          </SimplePopup>
+        )}
+      </AnimatePresence>
+
+      {/* Complaint popup */}
+      <AnimatePresence>
+        {complaintOpen && (
+          <SimplePopup onClose={() => setComplaintOpen(false)} title="Raise an issue" accent={theme.accent}>
+            {complaintSent ? (
+              <p style={{ fontSize: 13, fontWeight: 700, color: theme.accent, textAlign: "center" }}>Thanks — the business has been notified.</p>
+            ) : (
+              <>
+                <textarea value={complaintText} onChange={(e) => setComplaintText(e.target.value)} rows={4} placeholder="What went wrong?" style={{ width: "100%", fontSize: 13, padding: 12, borderRadius: 14, border: "1px solid rgba(0,0,0,0.1)", resize: "none", marginBottom: 12 }} />
+                <button onClick={submitComplaint} disabled={!complaintText.trim()} style={{ width: "100%", border: "none", borderRadius: 14, padding: "12px 16px", fontSize: 13.5, fontWeight: 800, color: "#fff", background: theme.accent, cursor: "pointer", opacity: !complaintText.trim() ? 0.5 : 1 }}>
+                  Send
+                </button>
+              </>
+            )}
+          </SimplePopup>
+        )}
+      </AnimatePresence>
 
       <div style={{ padding: "0 18px", display: "flex", flexDirection: "column", gap: 22, maxWidth: 640, margin: "0 auto" }}>
         {/* Catalogue */}
@@ -512,7 +713,7 @@ const BVinStore: React.FC = () => {
 
         {/* Chat */}
         {tools.chat && (
-          <section>
+          <section ref={chatSectionRef}>
             <SectionTitle icon={MessageCircle} label="Message this business" accent={theme.accent} />
             <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 220, overflowY: "auto", marginBottom: 10 }}>
               {chatMessages.map((m) => (
@@ -658,6 +859,31 @@ const SectionTitle: React.FC<{ icon: React.ElementType; label: string; accent: s
     <Icon size={16} color={accent} />
     <h2 style={{ fontSize: 14, fontWeight: 800, margin: 0 }}>{label}</h2>
   </div>
+);
+
+const pillIconBtnStyle = (accent: string): React.CSSProperties => ({
+  width: 30, height: 30, borderRadius: "50%", border: "none", background: "transparent",
+  display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: accent,
+});
+
+const SimplePopup: React.FC<{ title: string; accent: string; onClose: () => void; children: React.ReactNode }> = ({ title, accent, onClose, children }) => (
+  <motion.div
+    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+    onClick={onClose}
+    style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(20,20,22,0.4)", backdropFilter: "blur(10px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
+  >
+    <motion.div
+      initial={{ opacity: 0, scale: 0.9, y: 16 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.92 }}
+      onClick={(e) => e.stopPropagation()}
+      style={{ width: "100%", maxWidth: 320, background: "#fff", borderRadius: 24, padding: 22, boxShadow: "0 30px 80px rgba(0,0,0,0.22)", position: "relative" }}
+    >
+      <button onClick={onClose} style={{ position: "absolute", top: 14, right: 14, background: "rgba(0,0,0,0.05)", border: "none", borderRadius: "50%", width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+        <X size={12} />
+      </button>
+      <h3 style={{ margin: "0 0 14px", fontSize: 15, fontWeight: 800, color: "#1d1d1f" }}>{title}</h3>
+      {children}
+    </motion.div>
+  </motion.div>
 );
 
 const inputStyle: React.CSSProperties = {

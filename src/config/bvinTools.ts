@@ -20,6 +20,7 @@ import {
   Bell,
   Clock,
   Star,
+  Frown,
 } from "lucide-react";
 
 /* ============================================================================
@@ -61,6 +62,7 @@ export type ToolKey =
   | "requestStaff"
   | "tableAssistance"
   | "contactBusiness"
+  | "complaints"
   | "productStore"
   | "environment";
 
@@ -111,6 +113,7 @@ export const TOOLS: ToolDef[] = [
   { key: "requestStaff", label: "Request Staff", icon: UserPlus, description: "Customers can call staff over.", category: "In-Person Experience", shape: "square", customerVisible: true },
   { key: "tableAssistance", label: "Table Assistance", icon: Armchair, description: "Table-numbered help requests.", category: "In-Person Experience", shape: "square", customerVisible: true },
   { key: "contactBusiness", label: "Contact Business", icon: Phone, description: "Show a call/message button.", category: "In-Person Experience", shape: "square", customerVisible: true },
+  { key: "complaints", label: "Complaints", icon: Frown, description: "Let customers raise an issue directly.", category: "In-Person Experience", shape: "square", customerVisible: true },
 
   { key: "orders", label: "Orders", icon: ClipboardList, description: "Take and track customer orders.", category: "Transactions & Bookings", shape: "square", customerVisible: true },
   { key: "reservations", label: "Reservations", icon: CalendarCheck, description: "Let people book a time slot.", category: "Transactions & Bookings", shape: "square", customerVisible: true },
@@ -133,7 +136,7 @@ export const DEFAULT_TOOLS: ToolState = {
   analytics: false, receiveMoney: false, vinbackTags: true, customerNotice: true,
   openingStatus: false, receipts: false, teamChat: false, reviews: false, loyalty: false,
   jobRequests: false, requestStaff: false, tableAssistance: false, contactBusiness: false, productStore: false,
-  environment: false,
+  environment: false, complaints: false,
 };
 
 /** Convenience lookup used by the customer store to gate rendering. */

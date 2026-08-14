@@ -114,6 +114,7 @@ interface BVinProfile {
   catalogueConfig?: CatalogueSetupResult;
   offeringsConfig?: CatalogueSetupResult;
   hasSeenTour?: boolean;
+  allowToGo?: boolean;
 }
 
 // The unified per-business document at business/{businessId}. Exactly two
@@ -240,6 +241,8 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
   const [pillExpanded, setPillExpanded] = useState(false);
   const [tooltipTool, setTooltipTool] = useState<ToolKey | null>(null);
   const [catalogueWizardOpen, setCatalogueWizardOpen] = useState(false);
+  const [allowToGo, setAllowToGo] = useState(false);
+  const [allowToGoPromptOpen, setAllowToGoPromptOpen] = useState(false);
   const [offeringsWizardOpen, setOfferingsWizardOpen] = useState(false);
 
   const [vinbackCreateOpen, setVinbackCreateOpen] = useState(false);
@@ -337,6 +340,7 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
       // that just went through the new onboarding wizard (which
       // explicitly writes hasSeenTour: false) ever sees it.
       setHasSeenTour(p.hasSeenTour === false ? false : true);
+      setAllowToGo(!!p.allowToGo);
 
       hydrated.current = true;
     });
@@ -366,6 +370,7 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
       ...(catalogueConfig ? { catalogueConfig } : {}),
       ...(offeringsConfig ? { offeringsConfig } : {}),
       ...(hasSeenTour !== null ? { hasSeenTour } : {}),
+      allowToGo,
     };
 
     // Compare structural data without `updatedAt` to check if genuine changes occurred
@@ -392,7 +397,7 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
   }, [
     businessId, name, logoUrlState, bio, address, phone, openingTime, closingTime, darkMode, clicks, tools,
     pinnedTools, colors, customerNoticeText, stripeConnected, stripeAccountId, catalogueConfig, offeringsConfig,
-    qrScans, noticeScans, hasSeenTour,
+    qrScans, noticeScans, hasSeenTour, allowToGo,
   ]);
 
   useEffect(() => {
@@ -447,6 +452,9 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
     // First-time setup wizards for the two catalogue-style tools.
     if (turningOn && key === "catalogue" && !catalogueConfig) setCatalogueWizardOpen(true);
     if (turningOn && key === "offerings" && !offeringsConfig) setOfferingsWizardOpen(true);
+    // Request Staff has a sub-option customers only see if the manager
+    // opts in here — asked once, right when the tool is switched on.
+    if (turningOn && key === "requestStaff") setAllowToGoPromptOpen(true);
   };
 
   const togglePin = (key: ToolKey, idx: number) => {
@@ -874,8 +882,10 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
                         <OpeningStatusCard theme={theme} accent={accent} openingTime={openingTime} closingTime={closingTime} />
                       ) : t.key === "contactBusiness" ? (
                         <ContactBusinessCard theme={theme} accent={accent} phone={phone} />
-                      ) : t.key === "requestStaff" || t.key === "tableAssistance" ? (
-                        <ServiceCallsCard businessId={businessId} theme={theme} accent={accent} type={t.key === "requestStaff" ? "staff" : "table"} />
+                      ) : t.key === "requestStaff" ? (
+                        <RequestStaffCard businessId={businessId} theme={theme} accent={accent} />
+                      ) : t.key === "tableAssistance" ? (
+                        <ServiceCallsCard businessId={businessId} theme={theme} accent={accent} type="table" />
                       ) : t.key === "productStore" || t.key === "environment" ? (
                         <FullscreenLaunchCard accent={accent} onOpen={() => setFullscreenTool(t.key as "productStore" | "environment")} />
                       ) : undefined
@@ -1026,6 +1036,28 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
             {settingsView === "customize" && (
               <CustomizeView colors={colors} setColors={setColors} name={name} storeQrValue={storeQrValue} onBack={() => setSettingsView("profile")} />
             )}
+          </GlassOverlay>
+        )}
+      </AnimatePresence>
+
+      {/* Asked once, right when Request Staff is switched on */}
+      <AnimatePresence>
+        {allowToGoPromptOpen && (
+          <GlassOverlay onClose={() => setAllowToGoPromptOpen(false)}>
+            <div style={{ textAlign: "center" }}>
+              <h3 style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 800 }}>Also allow "take order to go"?</h3>
+              <p style={{ fontSize: 12.5, color: "rgba(29,29,31,0.6)", margin: "0 0 20px" }}>
+                Customers will get a second option: request their order packaged to go, with a quick photo so your staff knows the right size.
+              </p>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={() => { setAllowToGo(false); setAllowToGoPromptOpen(false); }} style={{ flex: 1, padding: "12px", borderRadius: 13, border: "1px solid rgba(0,0,0,0.08)", background: "#fff", fontSize: 12.5, fontWeight: 700, color: "#1d1d1f", cursor: "pointer" }}>
+                  Not now
+                </button>
+                <button onClick={() => { setAllowToGo(true); setAllowToGoPromptOpen(false); }} style={{ flex: 1, padding: "12px", borderRadius: 13, border: "none", background: accent, fontSize: 12.5, fontWeight: 700, color: "#fff", cursor: "pointer" }}>
+                  Yes, allow it
+                </button>
+              </div>
+            </div>
           </GlassOverlay>
         )}
       </AnimatePresence>
@@ -1553,6 +1585,58 @@ const ServiceCallsCard: React.FC<{ businessId: string; theme: any; accent: strin
           <button onClick={() => resolve(c.id)} style={{ fontSize: 10, fontWeight: 700, color: accent, background: "none", border: "none", cursor: "pointer" }}>Done</button>
         </div>
       ))}
+    </div>
+  );
+};
+
+/* Request Staff — unlike tableAssistance above, this tool covers TWO kinds
+   of request (staff-to-table, and take-order-to-go), so the manager needs
+   a real breakdown: how many of each, and which table numbers, not just a
+   single waiting count. Reads calls of type "requestStaff" / "togo" from
+   the same serviceCalls collection tableAssistance uses (type "table"),
+   just filtered differently. */
+const RequestStaffCard: React.FC<{ businessId: string; theme: any; accent: string }> = ({ businessId, theme, accent }) => {
+  const [calls, setCalls] = useState<any[]>([]);
+  useEffect(() => {
+    if (!businessId) return;
+    const q = query(collection(firestore, "business", businessId, "serviceCalls"), where("type", "in", ["requestStaff", "togo"]));
+    const unsub = onSnapshot(q, (snap) => setCalls(snap.docs.map((d) => ({ id: d.id, ...d.data() }))));
+    return () => unsub();
+  }, [businessId]);
+  const resolve = (id: string) => setDoc(doc(firestore, "business", businessId, "serviceCalls", id), { resolved: true }, { merge: true });
+  const active = calls.filter((c) => !c.resolved);
+  const staffCount = active.filter((c) => c.type === "requestStaff").length;
+  const togoCount = active.filter((c) => c.type === "togo").length;
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 14, marginBottom: 8 }}>
+        <div>
+          <div style={{ fontSize: 20, fontWeight: 800 }}>{active.length}</div>
+          <div style={{ fontSize: 10, color: theme.subtext }}>total waiting</div>
+        </div>
+        <div>
+          <div style={{ fontSize: 20, fontWeight: 800, color: accent }}>{staffCount}</div>
+          <div style={{ fontSize: 10, color: theme.subtext }}>staff calls</div>
+        </div>
+        <div>
+          <div style={{ fontSize: 20, fontWeight: 800, color: accent }}>{togoCount}</div>
+          <div style={{ fontSize: 10, color: theme.subtext }}>to go</div>
+        </div>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 90, overflowY: "auto" }}>
+        {active.slice(0, 5).map((c) => (
+          <div key={c.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11, gap: 8 }}>
+            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {c.type === "togo" ? "🥡" : "🧑‍💼"} Table {c.tableNumber || "—"}
+              {c.photoUrl && (
+                <a href={c.photoUrl} target="_blank" rel="noopener noreferrer" style={{ marginLeft: 6, color: accent, fontWeight: 700 }}>photo</a>
+              )}
+            </span>
+            <button onClick={() => resolve(c.id)} style={{ fontSize: 10, fontWeight: 700, color: accent, background: "none", border: "none", cursor: "pointer", flexShrink: 0 }}>Done</button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 };
