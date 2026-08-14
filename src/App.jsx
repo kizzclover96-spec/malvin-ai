@@ -37,23 +37,13 @@ import MarketFront from "./components/business/MarketFront";
 import Dashboard from "./components/business/dashboard";
 import DeviceSwitch from "./pages/navigation/DeviceSwitch";
 import MobileView from "./components/business/MobileView";
-import FoodDashboard from "./components/order/Food";
-import SalonDashboard from "./components/appointment/salonDashboard";
 import Category from "./pages/navigation/Category";
 import BVin from "./components/business/B-Vin";
 import BVinStore from "./components/business/BVinStore";
 import NoticeView from "./pages/system/NoticeView";
 import ScannerPairClaim from "./pages/system/ScannerPairClaim";
-import { StoreFrontend } from './components/order/Store';
-import SalonStore from "./components/appointment/salonStore";
-import HotelDashboard from "./components/hotel/hotelDashboard";
-import HotelStore from "./components/hotel/hotelStore";
 import VinBackScan from "./components/vinback/VinBackScan";
-import MechanicDashboard from "./components/mechanic/mechanicDashboard";
-import ServiceDashboard from "./components/service/serviceDashboard";
-import MechanicStore from "./components/mechanic/mechanicStore";
-import ServiceStore from "./components/service/serviceStore";
-import { FoodDeepLinkGate, SalonDeepLinkGate, HotelDeepLinkGate, MechanicDeepLinkGate, ServiceDeepLinkGate, BVinDeepLinkGate, consumePendingDeepLink } from "./components/addons/AppOpenGate";
+import { BVinDeepLinkGate, consumePendingDeepLink } from "./components/addons/AppOpenGate";
 import { FloatingTeamHub } from "./components/addons/FloatingTeamHub";
 import { VinBackLauncher } from "./components/vinback/VinBackLauncher";
 import { WorkerDashboard } from './components/team/workerDashboard';
@@ -500,12 +490,7 @@ function App() {
     location.pathname.startsWith("/chat/");
 
   const handleCategorySelect = (type) => {
-    if (type === "food") { setFlowStep("food"); return; }
     if (type === "fashion") { setFlowStep("device"); return; }
-    if (type === "explore") { setFlowStep("SalonDashboard"); return; }
-    if (type === "hotel") { setFlowStep("HotelDashboard"); return; }
-    if (type === "mechanic") { setFlowStep("MechanicDashboard"); return; }
-    if (type === "service") { setFlowStep("ServiceDashboard"); return; }
     if (type === "records") { setFlowStep("recordsDashboard"); return; }
     if (type === "premium") { setFlowStep("premiumView"); return; }
   };
@@ -516,14 +501,8 @@ function App() {
         <Routes>
           <Route path="/chat/:brandId" element={<MarketFront />} />
           
-          {/* 🟢 Passing the wallet execution mechanism directly down into routing subcomponents */}
-          <Route path="/food/:Uid" element={<AccessGate locked={systemStatus.storesLocked} message={systemStatus.message}><FoodDeepLinkGate /><StoreFrontend onExecuteWalletPayment={handleWalletPaymentExecution} /></AccessGate>} />
-          <Route path="/salon/:uid" element={<AccessGate locked={systemStatus.storesLocked} message={systemStatus.message}><SalonDeepLinkGate /><SalonStore onExecuteWalletPayment={handleWalletPaymentExecution} /></AccessGate>} />
-          <Route path="/hotel/:uid" element={<AccessGate locked={systemStatus.storesLocked} message={systemStatus.message}><HotelDeepLinkGate /><HotelStore /></AccessGate>} />
           <Route path="/vinback/:tagId" element={<VinBackScan />} />
           <Route path="/pair-scanner/:businessId/:sessionId" element={<ScannerPairClaim />} />
-          <Route path="/mechanic/:uid" element={<AccessGate locked={systemStatus.storesLocked} message={systemStatus.message}><MechanicDeepLinkGate /><MechanicStore /></AccessGate>} />
-          <Route path="/service/:uid" element={<AccessGate locked={systemStatus.storesLocked} message={systemStatus.message}><ServiceDeepLinkGate /><ServiceStore /></AccessGate>} />
           <Route path="/store/:uid" element={<AccessGate locked={systemStatus.storesLocked} message={systemStatus.message}><BVinDeepLinkGate /><BVinStore /></AccessGate>} />
           <Route path="/notice/:businessId" element={<NoticeView />} />
           
@@ -598,16 +577,6 @@ function App() {
                 // business" (that now opens BVin directly above), kept only
                 // so nothing breaks if something else still points here.
                 <Category onSelect={handleCategorySelect} />
-              ) : flowStep === "food" ? (
-                <FoodDashboard userEmail={user?.email} currentUserId={user?.uid} />
-              ) : flowStep === "SalonDashboard" ? (
-                <SalonDashboard userEmail={user?.email} currentUserId={user?.uid} />
-              ) : flowStep === "HotelDashboard" ? (
-                <HotelDashboard />
-              ) : flowStep === "MechanicDashboard" ? (
-                <MechanicDashboard />
-              ) : flowStep === "ServiceDashboard" ? (
-                <ServiceDashboard />
               ) : flowStep === "recordsDashboard" ? (
                 <MalvinSystemDashboard userEmail={user?.email} currentUserId={user?.uid} />
               ) : flowStep === "device" ? (

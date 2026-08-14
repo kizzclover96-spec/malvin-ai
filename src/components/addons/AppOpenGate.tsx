@@ -36,7 +36,7 @@ export function consumePendingDeepLink(): string | null {
 }
 
 interface AppOpenGateProps {
-  kind: 'food' | 'salon' | 'hotel' | 'mechanic' | 'service' | 'store';
+  kind: 'store';
   uid: string | undefined;
   /** True when this render IS the post-login resumption of a scan the
    *  person already saw the login/install flow for (see App.jsx) — skips
@@ -278,36 +278,6 @@ if (typeof document !== 'undefined' && !document.getElementById('malvin-gate-key
 
 // Thin, route-ready wrappers so App.jsx only has to drop these in next to the
 // existing storefront elements — no prop wiring needed there.
-export const FoodDeepLinkGate: React.FC = () => {
-  const { Uid } = useParams();
-  const location = useLocation();
-  return <AppOpenGate kind="food" uid={Uid} skipGate={!!location.state?.skipGate} />;
-};
-
-export const SalonDeepLinkGate: React.FC = () => {
-  const { uid } = useParams();
-  const location = useLocation();
-  return <AppOpenGate kind="salon" uid={uid} skipGate={!!location.state?.skipGate} />;
-};
-
-export const HotelDeepLinkGate: React.FC = () => {
-  const { uid } = useParams();
-  const location = useLocation();
-  return <AppOpenGate kind="hotel" uid={uid} skipGate={!!location.state?.skipGate} />;
-};
-
-export const MechanicDeepLinkGate: React.FC = () => {
-  const { uid } = useParams();
-  const location = useLocation();
-  return <AppOpenGate kind="mechanic" uid={uid} skipGate={!!location.state?.skipGate} />;
-};
-
-export const ServiceDeepLinkGate: React.FC = () => {
-  const { uid } = useParams();
-  const location = useLocation();
-  return <AppOpenGate kind="service" uid={uid} skipGate={!!location.state?.skipGate} />;
-};
-
 export const BVinDeepLinkGate: React.FC = () => {
   const { uid } = useParams();
   const location = useLocation();
