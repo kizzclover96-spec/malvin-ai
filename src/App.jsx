@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { onAuthStateChanged } from "firebase/auth";
 import { httpsCallable } from "firebase/functions";
 import { auth, firestore as db, functions } from "./firebase";
@@ -527,17 +526,11 @@ function App() {
             path="/"
             element={
               !user ? (
-                <AnimatePresence mode="wait">
-                  {!showLogin ? (
-                    <motion.div key="landing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.4, ease: "easeInOut" }}>
-                      <LandingPage onLoginClick={() => setShowLogin(true)} />
-                    </motion.div>
-                  ) : (
-                    <motion.div key="login" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.4, ease: "easeInOut" }}>
-                      <Login />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                !showLogin ? (
+                  <LandingPage onLoginClick={() => setShowLogin(true)} />
+                ) : (
+                  <Login />
+                )
               ) : isPendingAdmin ? (
                 <AdminApplicationGate record={adminRole.record} />
               ) : isAdmin ? (
