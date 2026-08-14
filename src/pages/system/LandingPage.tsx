@@ -8,10 +8,13 @@ interface LandingPageProps {
 }
 
 const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
-  const productMockupUrl = "/mockup.png"; 
   const yourLogoUrl = "/logo.png"; 
+  // Drop your own licensed photo at this path — a background image of
+  // people using their phones works well here, similar to what you sent
+  // as reference. Whatever you use, it sits behind a dark overlay (below)
+  // so the glass card and text stay legible over any photo.
+  const heroBackgroundUrl = "/hero-bg.jpg";
   const [activeTab, setActiveTab] = useState('home');
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const partners = [
     { name: "google", icon: "https://www.vectorlogo.zone/logos/google/google-icon.svg" },
@@ -44,6 +47,22 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
             0% { opacity: 0; transform: translateY(20px); }
             100% { opacity: 1; transform: translateY(0); }
           }
+
+          @keyframes syncPulse {
+            0%, 100% { opacity: 0.2; }
+            50% { opacity: 0.9; }
+          }
+          .sync-pulse-line { animation: syncPulse 2.4s ease-in-out infinite; }
+          .sync-pulse-line:nth-of-type(2) { animation-delay: 0.4s; }
+          .sync-pulse-line:nth-of-type(3) { animation-delay: 0.8s; }
+          .sync-pulse-line:nth-of-type(4) { animation-delay: 1.2s; }
+
+          @keyframes driftGlow {
+            0%   { transform: translate(0, 0) scale(1); }
+            50%  { transform: translate(4%, 6%) scale(1.12); }
+            100% { transform: translate(0, 0) scale(1); }
+          }
+          .drift-glow { animation: driftGlow 14s ease-in-out infinite; }
 
           .animate {
             opacity: 0;
@@ -98,15 +117,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
               max-height: none !important;
               overflow-y: auto !important; /* Restore normal scrolling on mobile devices */
             }
-            .desktop-nav { display: none !important; }
-            .mobile-nav-toggle { display: flex !important; }
-            .main-workspace-grid { 
-              grid-template-columns: 1fr !important; 
-              gap: 40px !important; 
-              padding: 40px 24px !important;
-              text-align: center !important;
-            }
-            .main-workspace-grid > div { text-align: center !important; }
             .hero-title { font-size: 2.6rem !important; }
             .hero-buttons { justify-content: center; flex-direction: column; width: 100%; }
             .hero-buttons button { width: 100%; }
@@ -115,235 +125,243 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
             .partner-stripe { padding: 20px 24px !important; overflow-x: auto; }
             .partner-flex { justify-content: flex-start !important; gap: 24px !important; }
             .mockup-wrapper { max-height: 340px !important; }
+            .hero-device-ring { display: none !important; }
+            .hero-glass-card { padding: 32px 24px !important; }
+            .hero-glass-card h1 { font-size: 1.9rem !important; }
           }
         `}
       </style>
 
-      {/* --- BACKGROUND GLOW EFFECTS --- */}
-      <div style={{ position: 'absolute', top: '-10%', left: '-10%', width: '70vw', height: '70vw', background: 'radial-gradient(circle, rgba(0, 212, 255, 0.08) 0%, transparent 70%)', filter: 'blur(80px)', pointerEvents: 'none', zIndex: 1 }} />
-      <div style={{ position: 'absolute', bottom: '-10%', right: '-10%', width: '70vw', height: '70vw', background: 'radial-gradient(circle, rgba(147, 51, 234, 0.06) 0%, transparent 70%)', filter: 'blur(80px)', pointerEvents: 'none', zIndex: 1 }} />
+      {/* --- BACKGROUND GLOW EFFECTS (animated: slow drift) --- */}
+      <div className="drift-glow" style={{ position: 'absolute', top: '-10%', left: '-10%', width: '70vw', height: '70vw', background: 'radial-gradient(circle, rgba(0, 212, 255, 0.08) 0%, transparent 70%)', filter: 'blur(80px)', pointerEvents: 'none', zIndex: 1 }} />
+      <div className="drift-glow" style={{ position: 'absolute', bottom: '-10%', right: '-10%', width: '70vw', height: '70vw', background: 'radial-gradient(circle, rgba(147, 51, 234, 0.06) 0%, transparent 70%)', filter: 'blur(80px)', pointerEvents: 'none', zIndex: 1, animationDelay: '3s' }} />
 
-      {/* --- NAVBAR --- */}
-      <nav className="navbar-container animate" style={{
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '25px 60px',
-        maxWidth: '1600px', width: '100%', margin: '0 auto', boxSizing: 'border-box', zIndex: 100,
-        position: 'relative'
-      }}>
-        {/* Brand Identity */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ 
-            width: '38px', height: '38px', borderRadius: '50%', 
-            border: '2px solid rgba(255,255,255,0.1)', overflow: 'hidden', 
-            background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center'
-          }}>
-             <img src={yourLogoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+      {/* --- PERSISTENT GLASS CARD (nav + brand always here; hero content only on Home) --- */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: 0, zIndex: 10, overflowY: 'auto', padding: '32px 24px' }}>
+        <div className="animate hero-glass-card" style={{
+          position: 'relative', width: '100%', maxWidth: 640, textAlign: 'center', flexShrink: 0,
+          background: 'rgba(10, 8, 20, 0.55)', border: '1px solid rgba(255,255,255,0.14)',
+          borderRadius: 28, padding: '30px 40px', backdropFilter: 'blur(28px) saturate(160%)', WebkitBackdropFilter: 'blur(28px) saturate(160%)',
+          boxShadow: '0 30px 80px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.08)',
+          marginBottom: activeTab === 'home' ? 0 : 28,
+        }}>
+          {/* Nav row — no Register button, no top bar; this is the only navigation now */}
+          <div className="glass-nav-row" style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 26, marginBottom: 18 }}>
+            <span onClick={() => setActiveTab('home')} className={`nav-link ${activeTab === 'home' ? 'active' : ''}`}>Home</span>
+            <span onClick={() => setActiveTab('explore')} className={`nav-link ${activeTab === 'explore' ? 'active' : ''}`}>Explore</span>
+            <span onClick={() => setActiveTab('about')} className={`nav-link ${activeTab === 'about' ? 'active' : ''}`}>About</span>
+            <Link to="/faq" className="nav-link">FAQ</Link>
+            <span onClick={() => setActiveTab('news')} className={`nav-link ${activeTab === 'news' ? 'active' : ''}`}>News</span>
           </div>
-          <div style={{ fontSize: '1.4rem', fontWeight: '900', letterSpacing: '1px', color: '#fff' }}>
-            MALVIN
-          </div>
-        </div>
 
-        {/* Desktop Links Menu */}
-        <div className="desktop-nav" style={{ display: 'flex', gap: '35px', alignItems: 'center' }}>
-          <span onClick={() => setActiveTab('home')} className={`nav-link ${activeTab === 'home' ? 'active' : ''}`}>Home</span>
-          <span onClick={() => setActiveTab('explore')} className={`nav-link ${activeTab === 'explore' ? 'active' : ''}`}>Explore</span>
-          <Link to="/about" className="nav-link">About</Link>
-          <Link to="/faq" className="nav-link">FAQ</Link>
-          <span onClick={() => setActiveTab('news')} className={`nav-link ${activeTab === 'news' ? 'active' : ''}`}>News</span>
-        </div>
-
-        <div className="desktop-nav">
-          <button onClick={onLoginClick} className="btn-register">Register</button>
-        </div>
-
-        {/* Mobile Burger Toggle */}
-        <button 
-          className="mobile-nav-toggle"
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          style={{
-            display: 'none', flexDirection: 'column', gap: '6px', background: 'none', border: 'none', cursor: 'pointer', padding: '4px', zIndex: 110
-          }}
-        >
-          <div style={{ width: '24px', height: '2px', backgroundColor: '#fff', transition: '0.3s', transform: mobileMenuOpen ? 'rotate(45deg) translate(6px, 5px)' : 'none' }} />
-          <div style={{ width: '24px', height: '2px', backgroundColor: '#fff', transition: '0.3s', opacity: mobileMenuOpen ? 0 : 1 }} />
-          <div style={{ width: '24px', height: '2px', backgroundColor: '#fff', transition: '0.3s', transform: mobileMenuOpen ? 'rotate(-45deg) translate(6px, -6px)' : 'none' }} />
-        </button>
-
-        {/* Full-Screen Mobile Drawer */}
-        {mobileMenuOpen && (
-          <div style={{
-            position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: '#04020b',
-            display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '32px', zIndex: 105
-          }}>
-            <span onClick={() => { setActiveTab('home'); setMobileMenuOpen(false); }} style={{ fontSize: '1.5rem' }} className={`nav-link ${activeTab === 'home' ? 'active' : ''}`}>Home</span>
-            <span onClick={() => { setActiveTab('explore'); setMobileMenuOpen(false); }} style={{ fontSize: '1.5rem' }} className={`nav-link ${activeTab === 'explore' ? 'active' : ''}`}>Explore</span>
-            <Link to="/about" onClick={() => setMobileMenuOpen(false)} style={{ fontSize: '1.5rem' }} className="nav-link">About</Link>
-            <Link to="/faq" onClick={() => setMobileMenuOpen(false)} style={{ fontSize: '1.5rem' }} className="nav-link">FAQ</Link>
-            <span onClick={() => { setActiveTab('news'); setMobileMenuOpen(false); }} style={{ fontSize: '1.5rem' }} className={`nav-link ${activeTab === 'news' ? 'active' : ''}`}>News</span>
-            <button onClick={() => { onLoginClick(); setMobileMenuOpen(false); }} className="btn-register" style={{ padding: '14px 40px', fontSize: '1.1rem' }}>Register</button>
-          </div>
-        )}
-      </nav>
-
-      {/* --- WORKSPACE ROUTING PANEL --- */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, zIndex: 10 }}>
-        
-        {activeTab === 'explore' && <Explore />}
-        {activeTab === 'about' && <About />}
-
-        {activeTab === 'news' && (
-          <div className="animate delay-1" style={{ flex: 1, overflowY: 'auto', padding: '40px 60px 80px' }}>
-            <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-              <h2 style={{ fontSize: '2.4rem', fontWeight: '800', marginBottom: '8px' }}>What's New</h2>
-              <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '1rem', lineHeight: '1.6', marginBottom: '36px' }}>
-                Recent updates to the Malvin AI platform.
-              </p>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                {[
-                  {
-                    title: 'Push notifications now work on iPhone — no App Store required',
-                    desc: "Add Malvin to your iPhone Home Screen from Safari and get real push notifications, the same as a native app — no Apple Developer account or App Store listing needed on our end.",
-                  },
-                  {
-                    title: 'Emergency, Today, This Week, or Schedule — urgency on every service request',
-                    desc: 'Requesting a Mechanic or Service job now asks how urgent it is. Emergency requests jump straight to the top of the business\'s job board, ahead of everything else.',
-                  },
-                  {
-                    title: 'Preferred time on service requests',
-                    desc: 'Let the business know roughly when you want the job done — "tomorrow morning," "Sat after 2pm," whatever works for you — right when you submit the request.',
-                  },
-                  {
-                    title: 'Smarter QR handoff',
-                    desc: "Scan a Malvin code with your phone's regular camera and it now recognizes whether you already have the app installed — handing you straight into it if so, or walking you through getting set up if not.",
-                  },
-                  {
-                    title: 'One uid, multiple businesses',
-                    desc: 'The same business owner can now run a Food account and a Salon account side-by-side, each fully independent — separate pages, separate ratings, separate entries in your Recent Businesses.',
-                  },
-                  {
-                    title: 'Independent ratings per business',
-                    desc: "A business's star rating no longer mixes with a different category business run by the same owner — each is scored entirely on its own.",
-                  },
-                ].map((item, i) => (
-                  <div
-                    key={i}
-                    style={{
-                      background: 'rgba(255,255,255,0.02)',
-                      border: '1px solid rgba(255,255,255,0.06)',
-                      borderRadius: '16px',
-                      padding: '20px 24px',
-                    }}
-                  >
-                    <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#fff', marginBottom: '6px' }}>{item.title}</h3>
-                    <p style={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.55)', lineHeight: '1.6', margin: 0 }}>{item.desc}</p>
-                  </div>
-                ))}
-              </div>
+          {/* MALVIN wordmark — sits between the nav row and the hero eyebrow */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: activeTab === 'home' ? 22 : 0 }}>
+            <div style={{ width: 30, height: 30, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.1)', overflow: 'hidden', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <img src={yourLogoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             </div>
+            <span style={{ fontSize: '1.1rem', fontWeight: 900, letterSpacing: '1.5px', color: '#fff' }}>MALVIN</span>
           </div>
-        )}
 
-        {activeTab === 'home' && (
-          <main className="main-workspace-grid" style={{
-            display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', alignItems: 'center', gap: '60px',
-            maxWidth: '1600px', width: '100%', margin: '0 auto', padding: '0 60px', boxSizing: 'border-box',
-            flex: 1, minHeight: 0
-          }}>
-            {/* Left Column Text Content */}
-            <div className="animate delay-1" style={{ textAlign: 'left' }}>
-              <h1 className="hero-title" style={{ fontSize: '3.8rem', fontWeight: '800', lineHeight: '1.15', letterSpacing: '-1.5px', marginBottom: '16px', color: '#ffffff' }}>
-                Point your phone <br />
-                at the street. <br />
+          {activeTab === 'home' && (
+            <>
+              <h2 style={{ fontSize: '0.85rem', color: '#a855f7', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: '18px' }}>
+                One QR Code. Every Customer.
+              </h2>
+
+              <h1 className="hero-title" style={{ fontSize: '2.6rem', fontWeight: '800', lineHeight: '1.2', letterSpacing: '-1px', marginBottom: '18px', color: '#ffffff' }}>
+                Manage every customer interaction{" "}
                 <span style={{
                   background: 'linear-gradient(90deg, #ffffff 30%, #a855f7 70%, #00d4ff 100%)',
                   WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-                }}>Book, order, or chat — instantly.</span>
+                }}>with one unique QR code.</span>
               </h1>
-              <h2 style={{ fontSize: '1.1rem', color: '#a855f7', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '20px' }}>Local Discovery, Powered by AI</h2>
-              
-              <p style={{ fontSize: '1rem', color: 'rgba(255,255,255,0.5)', lineHeight: '1.6', maxWidth: '520px', marginBottom: '32px', fontWeight: '400' }}>
-                Malvin scans the world around you and surfaces verified local businesses in seconds —
-                restaurants, salons, and more. See who's open, what they offer, and connect instantly.
-                No searching, no scrolling, no guesswork.
+
+              <p style={{ fontSize: '1rem', color: 'rgba(255,255,255,0.62)', lineHeight: '1.65', maxWidth: 480, margin: '0 auto 22px' }}>
+                Generate a single code that connects your business, syncs every device your team uses, and keeps every customer interaction organized in one place.
               </p>
 
-              <div className="hero-buttons" style={{ display: 'flex', flexWrap: 'wrap', gap: '14px', alignItems: 'center', marginBottom: '35px' }}>
+              <p style={{ fontSize: '1rem', fontStyle: 'italic', color: 'rgba(255,255,255,0.85)', margin: '0 0 30px', fontWeight: 500 }}>
+                "It's a kill-two-birds-with-one-stone kind of situation."
+              </p>
+
+              <div className="hero-buttons" style={{ display: 'flex', flexWrap: 'wrap', gap: '14px', alignItems: 'center', justifyContent: 'center', marginBottom: '30px' }}>
                 <button onClick={onLoginClick} className="btn-register" style={{ padding: '15px 28px', fontSize: '0.95rem' }}>
-                  Try the Scanner
+                  Generate Your QR Code
                 </button>
                 <button onClick={onLoginClick} className="btn-outline" style={{ padding: '15px 24px', fontSize: '0.95rem' }}>For Businesses</button>
               </div>
 
-              {/* Data Matrices Grid Row */}
-              <div className="stats-container" style={{ display: 'inline-flex', flexWrap: 'wrap', alignItems: 'center', backgroundColor: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.06)', borderRadius: '16px', padding: '16px 32px', gap: '32px' }}>
+              <div className="stats-container" style={{ display: 'inline-flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '16px', padding: '16px 28px', gap: '28px', marginBottom: 30 }}>
                 <div>
-                  <div style={{ fontSize: '1.3rem', fontWeight: '800', color: '#fff' }}>5km</div>
-                  <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', marginTop: '2px' }}>Live Scan Radius</div>
+                  <div style={{ fontSize: '1.2rem', fontWeight: '800', color: '#fff' }}>1 code</div>
+                  <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', marginTop: '2px' }}>Every Storefront</div>
                 </div>
-                <div style={{ width: '1px', height: '24px', backgroundColor: 'rgba(255,255,255,0.1)' }} className="desktop-nav" />
+                <div style={{ width: '1px', height: '24px', backgroundColor: 'rgba(255,255,255,0.1)' }} />
                 <div>
-                  <div style={{ fontSize: '1.3rem', fontWeight: '800', color: '#fff' }}>Verified</div>
-                  <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', marginTop: '2px' }}>Every Business Checked</div>
+                  <div style={{ fontSize: '1.2rem', fontWeight: '800', color: '#fff' }}>Synced</div>
+                  <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', marginTop: '2px' }}>Across Every Device</div>
                 </div>
-                <div style={{ width: '1px', height: '24px', backgroundColor: 'rgba(255,255,255,0.1)' }} className="desktop-nav" />
+                <div style={{ width: '1px', height: '24px', backgroundColor: 'rgba(255,255,255,0.1)' }} />
                 <div>
-                  <div style={{ fontSize: '1.3rem', fontWeight: '800', color: '#fff' }}>Instant</div>
-                  <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', marginTop: '2px' }}>Book, Order, or Chat</div>
+                  <div style={{ fontSize: '1.2rem', fontWeight: '800', color: '#fff' }}>Instant</div>
+                  <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', marginTop: '2px' }}>Book, Order, or Chat</div>
                 </div>
               </div>
-            </div>
 
-            {/* Right Column Graphic Container */}
-            <div className="animate delay-2 mockup-wrapper" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative', width: '100%' }}>
-              <div style={{ position: 'absolute', width: '100%', height: '100%', background: 'radial-gradient(circle, rgba(6, 182, 212, 0.08) 0%, transparent 70%)', filter: 'blur(30px)', zIndex: 1 }} />
-              <div style={{
-                width: '100%', 
-                maxWidth: '400px', 
-                borderRadius: '24px',
-                border: '1px solid rgba(255, 255, 255, 0.1)', 
-                overflow: 'hidden', 
-                backgroundColor: 'rgba(10, 8, 20, 0.4)',
-                backdropFilter: 'blur(20px)', 
-                boxShadow: '0 24px 48px rgba(0,0,0,0.6)', 
-                zIndex: 2, 
-                aspectRatio: '4/5'
-              }}>
-                <img src={productMockupUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              {/* Integrated platform logos — moved in from the old footer stripe */}
+              <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 20 }}>
+                <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '1.5px', fontWeight: '600', marginBottom: 12 }}>
+                  Integrated Platforms
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '24px' }}>
+                  {partners.map((p) => (
+                    <div key={p.name} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <img className="partner-logo" src={p.icon} alt={p.name} style={{ width: '16px', height: '16px', objectFit: 'contain' }} />
+                      <span style={{ color: 'rgba(255, 255, 255, 0.3)', fontWeight: '700', fontSize: '0.85rem', letterSpacing: '-0.3px' }}>
+                        {p.name.toLowerCase()}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
+            </>
+          )}
+        </div>
+
+        {/* Background photo + device diagram sit behind the card, Home only */}
+        {activeTab === 'home' && (
+          <div className="hero-device-ring" style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none' }}>
+            <div style={{
+              position: 'absolute', inset: 0,
+              backgroundImage: `linear-gradient(180deg, rgba(4,2,11,0.55) 0%, rgba(4,2,11,0.8) 65%, rgba(4,2,11,0.95) 100%), url(${heroBackgroundUrl})`,
+              backgroundSize: 'cover', backgroundPosition: 'center',
+            }} />
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
+              <defs>
+                <linearGradient id="syncLine" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stopColor="#00d4ff" stopOpacity="0.7" />
+                  <stop offset="100%" stopColor="#a855f7" stopOpacity="0.2" />
+                </linearGradient>
+              </defs>
+              <line className="sync-pulse-line" x1="50" y1="50" x2="16" y2="22" stroke="url(#syncLine)" strokeWidth="0.25" />
+              <line className="sync-pulse-line" x1="50" y1="50" x2="86" y2="18" stroke="url(#syncLine)" strokeWidth="0.25" />
+              <line className="sync-pulse-line" x1="50" y1="50" x2="12" y2="78" stroke="url(#syncLine)" strokeWidth="0.25" />
+              <line className="sync-pulse-line" x1="50" y1="50" x2="88" y2="82" stroke="url(#syncLine)" strokeWidth="0.25" />
+            </svg>
+            <div style={{
+              position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
+              width: 74, height: 74, borderRadius: 18, background: 'rgba(255,255,255,0.95)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 0 0 10px rgba(0,212,255,0.08), 0 20px 50px rgba(0,0,0,0.5)',
+            }}>
+              <MiniQrGlyph />
             </div>
-          </main>
+            <PhoneStorefront top="10%" left="10%" accent="#00d4ff" label="Café Nova" />
+            <PhoneStorefront top="6%" left="80%" accent="#a855f7" label="Studio Lux" />
+            <PhoneStorefront top="70%" left="4%" accent="#22c55e" label="Fresh Cuts" />
+            <PhoneStorefront top="74%" left="82%" accent="#f59e0b" label="Auto Care" />
+          </div>
         )}
 
-      </div>
+        {activeTab === 'explore' && <Explore />}
+        {activeTab === 'about' && <About />}
 
-      {/* --- INTEGRATION FOOTER STRIPE --- */}
-      <section className="partner-stripe animate delay-3" style={{
-        background: 'linear-gradient(90deg, rgba(4, 2, 11, 1) 0%, rgba(15, 10, 35, 0.8) 50%, rgba(4, 2, 11, 1) 100%)',
-        borderTop: '1px solid rgba(255, 255, 255, 0.06)', padding: '24px 0', zIndex: 10, width: '100%',
-      }}>
-        <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 60px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div className="partner-flex" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '20px' }}>
-            <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '1.5px', fontWeight: '600' }}>
-              INTEGRATED PLATFORMS
-            </div>
-            
-            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '32px' }}>
-              {partners.map((p) => (
-                <div key={p.name} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <img className="partner-logo" src={p.icon} alt={p.name} style={{ width: '18px', height: '18px', objectFit: 'contain' }} />
-                  <span style={{ color: 'rgba(255, 255, 255, 0.3)', fontWeight: '700', fontSize: '1rem', letterSpacing: '-0.5px' }}>
-                    {p.name.toLowerCase()}
-                  </span>
+        {activeTab === 'news' && (
+          <div className="animate delay-1" style={{ width: '100%', maxWidth: '800px', padding: '0 0 60px' }}>
+            <h2 style={{ fontSize: '2.4rem', fontWeight: '800', marginBottom: '8px' }}>What's New</h2>
+            <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '1rem', lineHeight: '1.6', marginBottom: '36px' }}>
+              Recent updates to the Malvin AI platform.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              {[
+                {
+                  title: 'Push notifications now work on iPhone — no App Store required',
+                  desc: "Add Malvin to your iPhone Home Screen from Safari and get real push notifications, the same as a native app — no Apple Developer account or App Store listing needed on our end.",
+                },
+                {
+                  title: 'Emergency, Today, This Week, or Schedule — urgency on every service request',
+                  desc: 'Requesting a Mechanic or Service job now asks how urgent it is. Emergency requests jump straight to the top of the business\'s job board, ahead of everything else.',
+                },
+                {
+                  title: 'Preferred time on service requests',
+                  desc: 'Let the business know roughly when you want the job done — "tomorrow morning," "Sat after 2pm," whatever works for you — right when you submit the request.',
+                },
+                {
+                  title: 'Smarter QR handoff',
+                  desc: "Scan a Malvin code with your phone's regular camera and it now recognizes whether you already have the app installed — handing you straight into it if so, or walking you through getting set up if not.",
+                },
+                {
+                  title: 'One uid, multiple businesses',
+                  desc: 'The same business owner can now run a Food account and a Salon account side-by-side, each fully independent — separate pages, separate ratings, separate entries in your Recent Businesses.',
+                },
+                {
+                  title: 'Independent ratings per business',
+                  desc: "A business's star rating no longer mixes with a different category business run by the same owner — each is scored entirely on its own.",
+                },
+              ].map((item, i) => (
+                <div
+                  key={i}
+                  style={{
+                    background: 'rgba(255,255,255,0.02)',
+                    border: '1px solid rgba(255,255,255,0.06)',
+                    borderRadius: '16px',
+                    padding: '20px 24px',
+                  }}
+                >
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#fff', marginBottom: '6px' }}>{item.title}</h3>
+                  <p style={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.55)', lineHeight: '1.6', margin: 0 }}>{item.desc}</p>
                 </div>
               ))}
             </div>
           </div>
-        </div>
-      </section>
+        )}
+      </div>
 
     </div>
   );
 };
+
+const MiniQrGlyph: React.FC = () => {
+  // A recognizable QR-style pattern — not a real scannable code, purely
+  // decorative for the hero's "synced devices" diagram.
+  const cells = [
+    1,1,1,0,1,0,1,1,1,
+    1,0,1,0,0,0,1,0,1,
+    1,0,1,1,0,1,1,0,1,
+    1,1,1,0,1,0,1,1,1,
+    0,0,0,1,1,1,0,0,0,
+    1,1,1,0,1,0,1,0,1,
+    1,0,1,1,0,1,1,1,1,
+    1,0,1,0,0,0,1,0,0,
+    1,1,1,0,1,1,1,1,1,
+  ];
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(9, 1fr)', gap: 1.5, width: 48, height: 48 }}>
+      {cells.map((on, i) => (
+        <div key={i} style={{ background: on ? '#0a0814' : 'transparent', borderRadius: 0.5 }} />
+      ))}
+    </div>
+  );
+};
+
+const PhoneStorefront: React.FC<{ top: string; left: string; accent: string; label: string }> = ({ top, left, accent, label }) => (
+  <div className="hero-phone" style={{
+    position: 'absolute', top, left, transform: 'translate(-50%,-50%)',
+    width: 84, height: 150, borderRadius: 16, background: 'rgba(15,12,28,0.85)',
+    border: '1px solid rgba(255,255,255,0.14)', overflow: 'hidden',
+    boxShadow: '0 16px 40px rgba(0,0,0,0.5)',
+  }}>
+    <div style={{ height: 34, background: accent, display: 'flex', alignItems: 'center', padding: '0 8px' }}>
+      <span style={{ fontSize: 8, fontWeight: 800, color: '#0a0814', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
+    </div>
+    <div style={{ padding: '10px 8px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{ height: 26, borderRadius: 6, background: 'rgba(255,255,255,0.08)' }} />
+      <div style={{ height: 8, width: '70%', borderRadius: 4, background: 'rgba(255,255,255,0.12)' }} />
+      <div style={{ height: 8, width: '50%', borderRadius: 4, background: 'rgba(255,255,255,0.08)' }} />
+      <div style={{ height: 20, borderRadius: 6, background: `${accent}33`, marginTop: 4 }} />
+    </div>
+  </div>
+);
 
 export default LandingPage;
