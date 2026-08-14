@@ -242,6 +242,96 @@ export default function Login() {
         }
 
         /* --------------------------------------------------
+           CORNER CIRCLES — bold solid shapes sitting behind
+           everything else (the blurred orbs/grid/glass card
+           all paint on top of / over this layer).
+        -------------------------------------------------- */
+
+        .corner-shapes {
+          position: absolute;
+          inset: 0;
+          overflow: hidden;
+          pointer-events: none;
+          z-index: -6;
+        }
+
+        .corner-circle {
+          position: absolute;
+          border-radius: 50%;
+          background: linear-gradient(135deg, #12b0ff, #0090e7);
+          box-shadow: 0 30px 80px rgba(0, 144, 231, 0.35);
+        }
+
+        .corner-circle--tr {
+          width: 640px;
+          height: 640px;
+          top: -260px;
+          right: -260px;
+        }
+
+        .corner-circle--bl {
+          width: 720px;
+          height: 720px;
+          bottom: -300px;
+          left: -300px;
+        }
+
+        .corner-bubble {
+          position: absolute;
+          border-radius: 50%;
+          background: #ffffff;
+          box-shadow: 0 12px 30px rgba(15, 23, 42, 0.18);
+        }
+
+        /* top-right cluster: one mid bubble, one tiny dot */
+        .corner-circle--tr .corner-bubble.mid {
+          width: 130px;
+          height: 130px;
+          bottom: 60px;
+          left: 40px;
+        }
+        .corner-circle--tr .corner-bubble.tiny {
+          width: 26px;
+          height: 26px;
+          bottom: 40px;
+          left: 185px;
+        }
+
+        /* bottom-left cluster: one ringed bubble, one tiny dot */
+        .corner-circle--bl .corner-bubble.mid {
+          width: 150px;
+          height: 150px;
+          top: 130px;
+          right: 90px;
+          border: 1.5px solid rgba(15, 23, 42, 0.14);
+        }
+        .corner-circle--bl .corner-bubble.tiny {
+          width: 34px;
+          height: 34px;
+          top: 175px;
+          right: 55px;
+        }
+
+        @media (max-width: 600px) {
+          .corner-circle--tr {
+            width: 420px;
+            height: 420px;
+            top: -180px;
+            right: -180px;
+          }
+          .corner-circle--bl {
+            width: 460px;
+            height: 460px;
+            bottom: -200px;
+            left: -200px;
+          }
+          .corner-circle--tr .corner-bubble.mid { width: 86px; height: 86px; }
+          .corner-circle--tr .corner-bubble.tiny { width: 18px; height: 18px; }
+          .corner-circle--bl .corner-bubble.mid { width: 98px; height: 98px; }
+          .corner-circle--bl .corner-bubble.tiny { width: 22px; height: 22px; }
+        }
+
+        /* --------------------------------------------------
            BACKGROUND
         -------------------------------------------------- */
 
@@ -1354,6 +1444,21 @@ export default function Login() {
           }
         }
       `}</style>
+
+      {/* --------------------------------------------------
+          CORNER CIRCLES (behind the blur layer)
+      -------------------------------------------------- */}
+
+      <div className="corner-shapes">
+        <div className="corner-circle corner-circle--tr">
+          <div className="corner-bubble mid" />
+          <div className="corner-bubble tiny" />
+        </div>
+        <div className="corner-circle corner-circle--bl">
+          <div className="corner-bubble mid" />
+          <div className="corner-bubble tiny" />
+        </div>
+      </div>
 
       {/* --------------------------------------------------
           BACKGROUND
