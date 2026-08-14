@@ -43,6 +43,7 @@ import {
   Package,
   Layers,
   Trash2,
+  ExternalLink,
   Pin,
   Search,
 } from "lucide-react";
@@ -842,11 +843,16 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
         {qrModalOpen && (
           <GlassOverlay onClose={() => setQrModalOpen(false)}>
             <h3 style={{ margin: "0 0 16px", fontSize: 17, fontWeight: 800 }}>Your store QR code</h3>
-            <div style={{ background: "#fff", borderRadius: 20, padding: 20, display: "flex", justifyContent: "center", marginBottom: 18, border: "1px solid rgba(0,0,0,0.06)" }}>
+            <button
+              onClick={() => window.open(storeQrValue, "_blank", "noopener,noreferrer")}
+              title="Open your store"
+              style={{ background: "#fff", borderRadius: 20, padding: 20, display: "flex", justifyContent: "center", marginBottom: 18, border: "1px solid rgba(0,0,0,0.06)", width: "100%", cursor: "pointer" }}
+            >
               <QRCodeCanvas id="bvin-store-qr" value={storeQrValue} size={180} fgColor={colors.qr} bgColor="#ffffff" />
-            </div>
+            </button>
             {/* Exempt from the blend rule — these stay tied to the QR/scan identity */}
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <ModalActionButton icon={ExternalLink} label="Open store" accent={accent} onClick={() => window.open(storeQrValue, "_blank", "noopener,noreferrer")} />
               <ModalActionButton icon={Download} label="Download" accent={accent} onClick={() => downloadQr("bvin-store-qr", `${name}-qr.png`)} />
               <ModalActionButton icon={Copy} label="Copy link" accent={accent} onClick={() => navigator.clipboard?.writeText(storeQrValue)} />
               <ModalActionButton icon={Link2} label="Share link" accent={accent} onClick={() => navigator.share?.({ url: storeQrValue, title: name }).catch(() => {})} />

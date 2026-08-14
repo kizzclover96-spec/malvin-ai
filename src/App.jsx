@@ -495,6 +495,7 @@ function App() {
     location.pathname.startsWith("/hotel/") ||
     location.pathname.startsWith("/mechanic/") ||
     location.pathname.startsWith("/service/") ||
+    location.pathname.startsWith("/store/") ||
     location.pathname.startsWith("/vinback/") ||
     location.pathname.startsWith("/chat/");
 
