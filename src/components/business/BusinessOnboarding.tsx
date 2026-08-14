@@ -15,6 +15,7 @@ import { doc, setDoc, collection, addDoc, serverTimestamp } from "firebase/fires
 import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 import { firestore, storage } from "../../firebase";
 import { grantOnboardingVerification } from "../../services/bvinConnections";
+import { useLanguage } from "../../contexts/LanguageContext";
 import { TOOLS, DEFAULT_TOOLS, CATEGORY_ORDER, CATEGORY_TINTS, ToolKey, ToolState } from "../../config/bvinTools";
 
 /* ============================================================================
@@ -47,13 +48,15 @@ interface Props {
   businessId: string;
   defaultName?: string;
   accent: string;
-  onComplete: () => void;
+  onComplete: (result: { profile: Record<string, any>; enabledTools: ToolState }) => void;
 }
 
-type Step = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+type Step = -1 | 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
 const BusinessOnboarding: React.FC<Props> = ({ businessId, defaultName, accent, onComplete }) => {
-  const [step, setStep] = useState<Step>(0);
+  const { language, languages, setLanguage } = useLanguage();
+  const [step, setStep] = useState<Step>(-1);
+  const capturedRef = useRef<{ profile: Record<string, any>; enabledTools: ToolState } | null>(null);
 
   // Collected across the four setup screens
   const [name, setName] = useState(defaultName || "");
@@ -65,6 +68,8 @@ const BusinessOnboarding: React.FC<Props> = ({ businessId, defaultName, accent, 
   const [logoPreview, setLogoPreview] = useState("");
   const [selectedTools, setSelectedTools] = useState<Set<ToolKey>>(new Set(["customerNotice", "vinbackTags"]));
   const [paymentsEnabled, setPaymentsEnabled] = useState<boolean | null>(null);
+  const [langSearch, setLangSearch] = useState("");
+  const [setupError, setSetupError] = useState(false);
 
   const pickLogo = (f: File | null) => {
     setLogoFile(f);
@@ -84,6 +89,7 @@ const BusinessOnboarding: React.FC<Props> = ({ businessId, defaultName, accent, 
 
   const runSetup = async () => {
     setStep(5);
+    setSetupError(false);
     const minWait = new Promise((r) => setTimeout(r, PROCESSING_MS));
 
     const doWrites = async () => {
@@ -102,23 +108,42 @@ const BusinessOnboarding: React.FC<Props> = ({ businessId, defaultName, accent, 
       selectedTools.forEach((key) => { enabledTools[key] = true; });
       enabledTools.receiveMoney = !!paymentsEnabled;
 
+      const profilePayload = {
+        name: name.trim() || "My Business",
+        bio: bio.trim(),
+        address: address.trim(),
+        openingTime,
+        closingTime,
+        ...(logoUrl ? { logoUrl } : {}),
+        preferredLanguage: language,
+        // Gates the first-time UI tour (see CoachMarks below) — flips to
+        // true the moment the tour finishes or is skipped, so it never
+        // shows again for this business.
+        hasSeenTour: false,
+      };
+
       await setDoc(
         doc(firestore, "business", businessId),
         {
           businessId,
-          profile: {
-            name: name.trim() || "My Business",
-            bio: bio.trim(),
-            address: address.trim(),
-            openingTime,
-            closingTime,
-            ...(logoUrl ? { logoUrl } : {}),
-          },
+          profile: profilePayload,
           enabledTools,
           updatedAt: Date.now(),
         },
         { merge: true }
       );
+
+      // Handed straight to B-Vin.tsx via onComplete below, so the dashboard
+      // can seed its state from what we already know we just wrote instead
+      // of waiting on Firestore's onSnapshot round-trip — that listener
+      // deliberately ignores its own pending/local echo (see B-Vin.tsx's
+      // hasPendingWrites check, added to kill an earlier infinite-write
+      // bug), which meant a freshly onboarded business could sit looking
+      // at an empty dashboard for a beat, or in a slow/flaky-connection
+      // case, no confirmed snapshot ever arrived on this specific page
+      // load at all — completely indistinguishable from "it didn't save,"
+      // even though the write itself had already succeeded.
+      capturedRef.current = { profile: profilePayload, enabledTools };
 
       // The 24-day welcome verification grant — routed through a Cloud
       // Function rather than written directly here. users/{uid}/isVerified
@@ -145,13 +170,26 @@ const BusinessOnboarding: React.FC<Props> = ({ businessId, defaultName, accent, 
       }).catch(() => {});
     };
 
-    await Promise.all([doWrites(), minWait]);
-    setStep(6);
+    try {
+      await Promise.all([doWrites(), minWait]);
+      setStep(6);
+    } catch (err) {
+      // The actual fix for "why doesn't it save": previously an error here
+      // (permission-denied, offline, whatever) just left runSetup's promise
+      // rejected with nothing awaiting it — the screen stayed on the 30s
+      // processing spinner forever, and setStep(6)/onComplete never ran,
+      // so nothing ever got handed back to the dashboard. Now it's visible
+      // and recoverable instead of a silent, permanent hang.
+      console.error("Business onboarding failed to save:", err);
+      setSetupError(true);
+    }
   };
 
   useEffect(() => {
     if (step !== 6) return;
-    const t = setTimeout(onComplete, 10000);
+    const t = setTimeout(() => {
+      if (capturedRef.current) onComplete(capturedRef.current);
+    }, 10000);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
@@ -161,6 +199,36 @@ const BusinessOnboarding: React.FC<Props> = ({ businessId, defaultName, accent, 
       {step > 0 && step < 5 && <ProgressBar step={step} accent={accent} />}
       <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, overflowY: "auto" }}>
         <AnimatePresence mode="wait">
+          {step === -1 && (
+            <motion.div key="lang" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }} transition={{ duration: 0.35 }} style={{ width: "100%", maxWidth: 340, textAlign: "center" }}>
+              <div style={{ width: 52, height: 52, borderRadius: 16, background: `${accent}14`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 18px" }}>
+                <Globe size={22} color={accent} />
+              </div>
+              <h1 style={{ fontSize: 19, fontWeight: 800, margin: "0 0 8px", color: "#1d1d1f" }}>Choose your language</h1>
+              <p style={{ fontSize: 13, color: "rgba(29,29,31,0.55)", margin: "0 0 20px" }}>This sets the language for your whole dashboard — change it anytime later.</p>
+              <input
+                value={langSearch}
+                onChange={(e) => setLangSearch(e.target.value)}
+                placeholder="Search language…"
+                style={{ width: "100%", fontSize: 13.5, padding: "11px 14px", borderRadius: 13, border: "1px solid rgba(0,0,0,0.08)", background: "rgba(0,0,0,0.025)", marginBottom: 10 }}
+              />
+              <div style={{ maxHeight: 260, overflowY: "auto", display: "flex", flexDirection: "column", gap: 4, marginBottom: 18, textAlign: "left" }}>
+                {languages
+                  .filter((l) => l.name.toLowerCase().includes(langSearch.trim().toLowerCase()))
+                  .map((l) => (
+                    <button
+                      key={l.code}
+                      onClick={() => setLanguage(l.code)}
+                      style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "10px 12px", borderRadius: 12, border: language === l.code ? `1.5px solid ${accent}` : "1px solid rgba(0,0,0,0.06)", background: language === l.code ? `${accent}10` : "#fff", color: "#1d1d1f", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                    >
+                      {l.name}
+                      {language === l.code && <Check size={14} color={accent} />}
+                    </button>
+                  ))}
+              </div>
+              <PrimaryButton accent={accent} onClick={() => setStep(0)}>Continue</PrimaryButton>
+            </motion.div>
+          )}
           {step === 0 && <Welcome key="s0" accent={accent} onContinue={() => setStep(1)} />}
           {step === 1 && (
             <StepShell key="s1" title="Tell customers about your business" icon={Store} accent={accent} note="Almost there — just the basics for now.">
@@ -258,8 +326,20 @@ const BusinessOnboarding: React.FC<Props> = ({ businessId, defaultName, accent, 
               <PrimaryButton accent={accent} onClick={runSetup} disabled={paymentsEnabled === null}>Done</PrimaryButton>
             </StepShell>
           )}
-          {step === 5 && <Processing key="s5" accent={accent} />}
-          {step === 6 && <Success key="s6" accent={accent} onFinish={onComplete} />}
+          {step === 5 && !setupError && <Processing key="s5" accent={accent} />}
+          {step === 5 && setupError && (
+            <motion.div key="setupError" initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ textAlign: "center", maxWidth: 320 }}>
+              <div style={{ width: 56, height: 56, borderRadius: "50%", background: "rgba(220,60,60,0.1)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 18px" }}>
+                <Store size={24} color="#c23a3a" />
+              </div>
+              <h2 style={{ fontSize: 16, fontWeight: 800, margin: "0 0 8px", color: "#1d1d1f" }}>Couldn't save your setup</h2>
+              <p style={{ fontSize: 12.5, color: "rgba(29,29,31,0.6)", margin: "0 0 20px" }}>
+                Check your connection and try again — nothing's been lost, your answers are still right here.
+              </p>
+              <PrimaryButton accent={accent} onClick={runSetup}>Try again</PrimaryButton>
+            </motion.div>
+          )}
+          {step === 6 && <Success key="s6" accent={accent} onFinish={() => capturedRef.current && onComplete(capturedRef.current)} />}
         </AnimatePresence>
       </div>
     </div>

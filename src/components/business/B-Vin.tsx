@@ -65,6 +65,7 @@ import SaaSEnvironmentVault from "./SaaSEnvironmentVault";
 import Premium from "../addons/Premium";
 import CatalogueSetupWizard, { CatalogueSetupResult } from "./CatalogueSetupWizard";
 import BusinessOnboarding from "./BusinessOnboarding";
+import TourGuide, { TourStep } from "./TourGuide";
 import ProductFormModal from "./ProductFormModal";
 import { AppsConnectionsPill, ConnectionsStrip } from "./AppsConnectionsPanel";
 import { cancelPremiumSubscription, downloadMyData, deleteMyData } from "../../services/bvinConnections";
@@ -112,6 +113,7 @@ interface BVinProfile {
   stripeAccountId?: string | null;
   catalogueConfig?: CatalogueSetupResult;
   offeringsConfig?: CatalogueSetupResult;
+  hasSeenTour?: boolean;
 }
 
 // The unified per-business document at business/{businessId}. Exactly two
@@ -258,6 +260,15 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
 
   // Track last synced payload string to avoid redundant writes
   const lastSyncedRef = useRef<string>("");
+  const [hasSeenTour, setHasSeenTour] = useState<boolean | null>(null); // null = not yet known
+  const tourNameRef = useRef<HTMLDivElement>(null);
+  const tourStatusPillRef = useRef<HTMLDivElement>(null);
+  const tourIslandRef = useRef<HTMLDivElement>(null);
+  const tourAppsRef = useRef<HTMLDivElement>(null);
+  const tourClicksRef = useRef<HTMLDivElement>(null);
+  const tourLangRef = useRef<HTMLButtonElement>(null);
+  const tourGearRef = useRef<HTMLButtonElement>(null);
+  const tourNavRef = useRef<HTMLElement>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const checkedOnboarding = useRef(false);
 
@@ -320,6 +331,12 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
       setStripeAccountId(p.stripeAccountId || null);
       if (p.catalogueConfig) setCatalogueConfig(p.catalogueConfig);
       if (p.offeringsConfig) setOfferingsConfig(p.offeringsConfig);
+      // Strictly === false, not just falsy — an existing business that
+      // predates this feature has no hasSeenTour field at all
+      // (undefined), and must never trigger the tour. Only a business
+      // that just went through the new onboarding wizard (which
+      // explicitly writes hasSeenTour: false) ever sees it.
+      setHasSeenTour(p.hasSeenTour === false ? false : true);
 
       hydrated.current = true;
     });
@@ -348,6 +365,7 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
       stripeAccountId,
       ...(catalogueConfig ? { catalogueConfig } : {}),
       ...(offeringsConfig ? { offeringsConfig } : {}),
+      ...(hasSeenTour !== null ? { hasSeenTour } : {}),
     };
 
     // Compare structural data without `updatedAt` to check if genuine changes occurred
@@ -374,7 +392,7 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
   }, [
     businessId, name, logoUrlState, bio, address, phone, openingTime, closingTime, darkMode, clicks, tools,
     pinnedTools, colors, customerNoticeText, stripeConnected, stripeAccountId, catalogueConfig, offeringsConfig,
-    qrScans, noticeScans,
+    qrScans, noticeScans, hasSeenTour,
   ]);
 
   useEffect(() => {
@@ -539,10 +557,55 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
         businessId={businessId}
         defaultName={businessName}
         accent={accent}
-        onComplete={() => setShowOnboarding(false)}
+        onComplete={(result) => {
+          // Seed straight from what onboarding just wrote, rather than
+          // waiting on this component's onSnapshot listener to reflect it
+          // — that listener deliberately ignores its own pending/local
+          // echo (hasPendingWrites, above), which on a slow or flaky
+          // connection could leave a freshly onboarded business staring
+          // at an empty dashboard even though the write had genuinely
+          // already succeeded. This makes the hand-off instant either way.
+          const p = result.profile || {};
+          if (p.name) setName(p.name);
+          if (p.logoUrl) setLogoUrlState(p.logoUrl);
+          setBio(p.bio || "");
+          setAddress(p.address || "");
+          setOpeningTime(p.openingTime || "");
+          setClosingTime(p.closingTime || "");
+          setTools((prev) => ({ ...prev, ...result.enabledTools }));
+          setHasSeenTour(false);
+
+          // Matches the shape the write-back effect compares against, so
+          // it doesn't immediately fire a redundant duplicate save right
+          // after onboarding already wrote this exact data.
+          lastSyncedRef.current = JSON.stringify({
+            profile: {
+              name: p.name || "", logoUrl: p.logoUrl || "", bio: p.bio || "", address: p.address || "",
+              phone: "", openingTime: p.openingTime || "", closingTime: p.closingTime || "",
+              darkMode: false, clicks: 0, qrScans: 0, noticeScans: 0,
+              pinnedTools: {}, colors: DEFAULT_COLORS, customerNoticeText,
+              stripeConnected: false, stripeAccountId: null,
+            },
+            enabledTools: { ...DEFAULT_TOOLS, ...result.enabledTools },
+          });
+
+          hydrated.current = true;
+          setShowOnboarding(false);
+        }}
       />
     );
   }
+
+  const tourSteps: TourStep[] = [
+    { ref: tourNameRef as React.RefObject<HTMLElement | null>, title: "Your business", body: "Your logo and name — tap the gear icon anytime to edit your profile, hours, and address." },
+    { ref: tourStatusPillRef as React.RefObject<HTMLElement | null>, title: "Premium & Verification", body: "Go Premium to unlock 0% payment fees, then request verification once you're ready." },
+    { ref: tourIslandRef as React.RefObject<HTMLElement | null>, title: "Your tools", body: "Displays all your enabled tools. Tap a tool icon to disable it, or hold the pill to see every enabled tool at once." },
+    { ref: tourAppsRef as React.RefObject<HTMLElement | null>, title: "Apps & Connections", body: "Add your website and apps here to easily access them from your dashboard." },
+    { ref: tourClicksRef as React.RefObject<HTMLElement | null>, title: "Total clicks", body: "How many times customers have interacted with your dashboard and store." },
+    { ref: tourLangRef as React.RefObject<HTMLElement | null>, title: "Language", body: "Switch your whole dashboard's language anytime — it updates instantly." },
+    { ref: tourGearRef as React.RefObject<HTMLElement | null>, title: "Settings", body: "Edit your profile, enable or disable tools, and customize your colors here." },
+    { ref: tourNavRef, title: "Dashboard & Team", body: "Switch between your dashboard, staff chat, and team management here." },
+  ];
 
   return (
     <div
@@ -551,9 +614,16 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
     >
       <GlobalStyle />
 
+      {hasSeenTour === false && showHeader && (
+        <TourGuide
+          steps={tourSteps}
+          onFinish={() => setHasSeenTour(true)}
+        />
+      )}
+
       {showHeader && (
         <div className={styles.headerRow}>
-          <div className={styles.leftGroup}>
+          <div className={styles.leftGroup} ref={tourNameRef}>
             <div className={styles.avatarHolder}>
               {logoUrlState ? <img src={logoUrlState} alt={name} /> : <UserCircle2 size={20} color={theme.subtext} />}
             </div>
@@ -561,14 +631,16 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
             {isVerified && <BadgeCheck size={16} color="#007fff" style={{ flexShrink: 0 }} />}
           </div>
 
-          <BusinessStatusPill
-            businessId={businessId}
-            isPremium={isPremium}
-            isVerified={isVerified}
-            onOpenPremium={() => setFullscreenTool("premium")}
-          />
+          <div ref={tourStatusPillRef}>
+            <BusinessStatusPill
+              businessId={businessId}
+              isPremium={isPremium}
+              isVerified={isVerified}
+              onOpenPremium={() => setFullscreenTool("premium")}
+            />
+          </div>
 
-          <div className={styles.pillOuter}>
+          <div className={styles.pillOuter} ref={tourIslandRef}>
             {/* Backdrop blur layer, shown only while the island is expanded */}
             <AnimatePresence>
               {pillExpanded && (
@@ -676,16 +748,16 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
             </motion.div>
           </div>
 
-          <AppsConnectionsPill businessId={businessId} accent={accent} />
+          <div ref={tourAppsRef}><AppsConnectionsPill businessId={businessId} accent={accent} /></div>
 
           <div className={styles.rightGroup} style={{ justifyContent: "flex-end", flex: "1 1 0" }}>
-            <div className={styles.clickChip} title="Total clicks">
+            <div className={styles.clickChip} title="Total clicks" ref={tourClicksRef}>
               <MousePointerClick size={13} />
               <span>{clicks}</span>
             </div>
 
             <div style={{ position: "relative" }} data-no-translate>
-              <button className={styles.langChip} onClick={() => setLangOpen((v) => !v)}>
+              <button className={styles.langChip} onClick={() => setLangOpen((v) => !v)} ref={tourLangRef}>
                 {isTranslating ? <span className="bvin-spin-globe"><Globe size={14} /></span> : <Globe size={14} />}
                 {languages.find((l) => l.code === language)?.name.slice(0, 8) || "English"}
               </button>
@@ -712,7 +784,7 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
               </AnimatePresence>
             </div>
 
-            <button className={styles.gearBtn} onClick={() => { setSettingsOpen(true); setSettingsView("root"); }}>
+            <button className={styles.gearBtn} onClick={() => { setSettingsOpen(true); setSettingsView("root"); }} ref={tourGearRef}>
               <GearIcon size={16} />
             </button>
           </div>
@@ -831,7 +903,7 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
 
       {/* ============================ BOTTOM TABS ============================ */}
       {!fullscreenTool && (
-        <nav style={{ position: "fixed", bottom: 18, left: "50%", transform: "translateX(-50%)", display: "flex", gap: 4, background: "rgba(255,255,255,0.85)", border: `1px solid ${theme.cardBorder}`, backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)", borderRadius: 999, padding: 5, zIndex: 40, boxShadow: "0 10px 34px rgba(0,0,0,0.12)" }}>
+        <nav ref={tourNavRef} style={{ position: "fixed", bottom: 18, left: "50%", transform: "translateX(-50%)", display: "flex", gap: 4, background: "rgba(255,255,255,0.85)", border: `1px solid ${theme.cardBorder}`, backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)", borderRadius: 999, padding: 5, zIndex: 40, boxShadow: "0 10px 34px rgba(0,0,0,0.12)" }}>
           <TabButton active={activeTab === "dashboard"} label="Dashboard" accent={accent} onClick={() => setActiveTab("dashboard")} />
           {tools.chat && <TabButton active={activeTab === "chat"} label="Chat" accent={accent} onClick={() => setActiveTab("chat")} />}
           <TabButton active={activeTab === "team"} label="Team" accent={accent} onClick={() => setActiveTab("team")} />
@@ -998,12 +1070,13 @@ const GlobalStyle: React.FC = () => (
 
 /* Left of the top island: exactly one of three states shows at a time —
    Premium (upsell) -> Request Verification (once premium) -> Verified
-   (once granted, either by admin or the onboarding wizard's 24-day grant). */
+   (once granted, either by admin or the onboarding wizard's 24-day grant).
+   Note: verification's actual expiry tracking (verifiedUntil in RTDB,
+   cleared by expireBusinessVerifications) is unaffected by this — it's
+   just not surfaced in this pill anymore. */
 const BusinessStatusPill: React.FC<{ businessId: string; isPremium: boolean; isVerified: boolean; onOpenPremium: () => void }> = ({ businessId, isPremium, isVerified, onOpenPremium }) => {
   const [requested, setRequested] = useState(false);
   const [requesting, setRequesting] = useState(false);
-  const [verifiedUntil, setVerifiedUntil] = useState<number | null>(null);
-  const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
     if (!businessId || !isPremium || isVerified) return;
@@ -1018,38 +1091,10 @@ const BusinessStatusPill: React.FC<{ businessId: string; isPremium: boolean; isV
     return () => unsub();
   }, [businessId, isPremium, isVerified]);
 
-  // Verified-but-not-Premium should only ever happen via the temporary
-  // 24-day onboarding grant (a real Premium+admin verification stays
-  // verified regardless of Premium status, but nothing else should land
-  // a non-Premium account here) — so this combination gets its own
-  // visible countdown specifically to make it easy for an admin skimming
-  // the dashboard to notice and double check, per the "hard to trace" ask.
-  useEffect(() => {
-    if (!businessId || isPremium || !isVerified) return;
-    const unsub = onValue(rtdbRef(rtdb, `users/${businessId}/verifiedUntil`), (snap) => {
-      setVerifiedUntil(snap.exists() ? snap.val() : null);
-    });
-    return () => unsub();
-  }, [businessId, isPremium, isVerified]);
-
-  useEffect(() => {
-    if (!verifiedUntil) return;
-    const t = setInterval(() => setNow(Date.now()), 60000);
-    return () => clearInterval(t);
-  }, [verifiedUntil]);
-
   if (isVerified) {
-    const showNonPremiumCountdown = !isPremium && verifiedUntil && verifiedUntil > now;
     return (
-      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "8px 13px", borderRadius: 999, background: "rgba(0,127,255,0.1)", border: "1px solid rgba(0,127,255,0.25)", fontSize: 12, fontWeight: 800, color: "#007fff" }}>
-          <BadgeCheck size={13} /> Verified
-        </div>
-        {showNonPremiumCountdown && (
-          <div title="Non-Premium accounts are only verified via the temporary onboarding grant" style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 11px", borderRadius: 999, background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.3)", fontSize: 11, fontWeight: 800, color: "#b45309" }}>
-            <Clock size={11} /> Non-Premium · {formatCountdown(verifiedUntil - now)}
-          </div>
-        )}
+      <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "8px 13px", borderRadius: 999, background: "rgba(0,127,255,0.1)", border: "1px solid rgba(0,127,255,0.25)", fontSize: 12, fontWeight: 800, color: "#007fff" }}>
+        <BadgeCheck size={13} /> Verified
       </div>
     );
   }
@@ -1093,15 +1138,6 @@ const BusinessStatusPill: React.FC<{ businessId: string; isPremium: boolean; isV
     </button>
   );
 };
-
-function formatCountdown(ms: number): string {
-  const totalMinutes = Math.max(0, Math.floor(ms / 60000));
-  const days = Math.floor(totalMinutes / 1440);
-  const hours = Math.floor((totalMinutes % 1440) / 60);
-  if (days > 0) return `${days}d ${hours}h left`;
-  const minutes = totalMinutes % 60;
-  return `${hours}h ${minutes}m left`;
-}
 
 const TabButton: React.FC<{ active: boolean; label: string; accent: string; onClick: () => void }> = ({ active, label, accent, onClick }) => (
   <button className="bvin-tab-btn" onClick={onClick} style={{ background: active ? accent : "transparent", color: active ? "#fff" : "rgba(29,29,31,0.55)" }}>{label}</button>
