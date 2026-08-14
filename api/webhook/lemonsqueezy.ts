@@ -172,6 +172,12 @@ export default async function handler(req: any, res: any) {
         tier: planFromWebhook, 
         premiumPlan: planFromWebhook,
         premiumSince: Date.now(),
+        // 🆕 NEW — needed by cancelPremiumSubscription (malvinbackend/src/index.ts),
+        // which has no other way to know which LemonSqueezy subscription
+        // belongs to this user. body.data.id is the subscription's own id
+        // for every subscription_* event (present from subscription_created
+        // onward, so this stays correct across renewals/plan changes too).
+        subscriptionId: body.data?.id || null,
         updatedAt: admin.database.ServerValue.TIMESTAMP
       });
       console.log(`Successfully upgraded user ${userId} to plan: ${planFromWebhook}`);

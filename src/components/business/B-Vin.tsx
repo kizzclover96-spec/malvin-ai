@@ -42,12 +42,13 @@ import {
   Armchair,
   Package,
   Layers,
+  Trash2,
   Pin,
   Search,
 } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import { doc, onSnapshot, setDoc, collection, query, where, addDoc, serverTimestamp } from "firebase/firestore";
-import { ref as rtdbRef, set, remove, onValue, serverTimestamp as rtdbServerTimestamp } from "firebase/database";
+import { ref as rtdbRef, set, update as rtdbUpdate, remove, onValue, serverTimestamp as rtdbServerTimestamp } from "firebase/database";
 import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 import { firestore, auth, db as rtdb, storage } from "../../firebase";
 import { createBusinessStripeAccount, createStripeOnboardingLink, checkStripeAccount } from "../../stripe";
@@ -60,9 +61,12 @@ import VinBackTagCreate from "../vinback/VinBackTagCreate";
 import VinBackTagList from "../vinback/VinBackTagList";
 import { MalvinSystemDashboard } from "../records/MalvinSystemDashboard";
 import SaaSEnvironmentVault from "./SaaSEnvironmentVault";
+import Premium from "../addons/Premium";
 import CatalogueSetupWizard, { CatalogueSetupResult } from "./CatalogueSetupWizard";
+import BusinessOnboarding from "./BusinessOnboarding";
 import ProductFormModal from "./ProductFormModal";
 import { AppsConnectionsPill, ConnectionsStrip } from "./AppsConnectionsPanel";
+import { cancelPremiumSubscription, downloadMyData, deleteMyData } from "../../services/bvinConnections";
 import { ToolKey, ToolDef, ToolState, TOOLS, DEFAULT_TOOLS, CATEGORY_ORDER, CATEGORY_TINTS } from "../../config/bvinTools";
 import styles from "./BVin.module.css";
 
@@ -213,11 +217,11 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
   const [catalogueConfig, setCatalogueConfig] = useState<CatalogueSetupResult | null>(null);
   const [offeringsConfig, setOfferingsConfig] = useState<CatalogueSetupResult | null>(null);
 
-  const { isVerified } = useAccountStanding(businessId);
+  const { isPremium, isVerified } = useAccountStanding(businessId);
   const { language, languages, isTranslating, setLanguage } = useLanguage();
 
   const [activeTab, setActiveTab] = useState<"dashboard" | "team" | "chat">("dashboard");
-  const [fullscreenTool, setFullscreenTool] = useState<"productStore" | "environment" | null>(null);
+  const [fullscreenTool, setFullscreenTool] = useState<"productStore" | "environment" | "premium" | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsView, setSettingsView] = useState<"root" | "profile" | "tools" | "customize">("root");
   const [langOpen, setLangOpen] = useState(false);
@@ -253,6 +257,8 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
 
   // Track last synced payload string to avoid redundant writes
   const lastSyncedRef = useRef<string>("");
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const checkedOnboarding = useRef(false);
 
   useEffect(() => {
     if (!businessId) return;
@@ -262,9 +268,19 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
       if (snap.metadata.hasPendingWrites) return;
 
       if (!snap.exists()) {
+        // First time this uid has ever opened "I'm a business" — walk them
+        // through the setup wizard instead of dropping them on an empty
+        // dashboard. Only fires once per mount even if the listener re-fires
+        // with another "doesn't exist yet" snapshot before the wizard's own
+        // write lands.
+        if (!checkedOnboarding.current) {
+          checkedOnboarding.current = true;
+          setShowOnboarding(true);
+        }
         hydrated.current = true;
         return;
       }
+      checkedOnboarding.current = true;
       const data = snap.data() as BVinDoc;
       const p = data.profile || ({} as BVinProfile);
 
@@ -516,6 +532,17 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
 
   const showHeader = activeTab !== "team" && !fullscreenTool;
 
+  if (showOnboarding) {
+    return (
+      <BusinessOnboarding
+        businessId={businessId}
+        defaultName={businessName}
+        accent={accent}
+        onComplete={() => setShowOnboarding(false)}
+      />
+    );
+  }
+
   return (
     <div
       style={{ minHeight: "100vh", width: "100%", background: theme.pageBg, color: theme.text, fontFamily: `${colors.font}, sans-serif`, position: "relative", overflowX: "hidden", transition: "background 0.5s ease, color 0.5s ease" }}
@@ -532,6 +559,13 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
             <span className={styles.businessName} style={{ color: theme.text }}>{name}</span>
             {isVerified && <BadgeCheck size={16} color="#007fff" style={{ flexShrink: 0 }} />}
           </div>
+
+          <BusinessStatusPill
+            businessId={businessId}
+            isPremium={isPremium}
+            isVerified={isVerified}
+            onOpenPremium={() => setFullscreenTool("premium")}
+          />
 
           <div className={styles.pillOuter}>
             {/* Backdrop blur layer, shown only while the island is expanded */}
@@ -692,6 +726,7 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
           </button>
           {fullscreenTool === "productStore" && <MalvinSystemDashboard />}
           {fullscreenTool === "environment" && <SaaSEnvironmentVault userEmail={auth.currentUser?.email || ""} />}
+          {fullscreenTool === "premium" && <Premium onBack={() => setFullscreenTool(null)} />}
         </div>
       ) : activeTab === "team" ? (
         <div style={{ position: "fixed", inset: 0, zIndex: 15, background: theme.pageBg }}>
@@ -905,7 +940,7 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
               </div>
             )}
             {settingsView === "profile" && (
-              <ProfileView accent={accent} darkMode={darkMode} setDarkMode={setDarkMode} isVerified={isVerified} name={name} setName={setName} bio={bio} setBio={setBio} address={address} setAddress={setAddress} phone={phone} setPhone={setPhone} openingTime={openingTime} setOpeningTime={setOpeningTime} closingTime={closingTime} setClosingTime={setClosingTime} logoUrl={logoUrlState} onLogoFile={handleLogoFile} onBack={() => setSettingsView("root")} onCustomize={() => setSettingsView("customize")} />
+              <ProfileView accent={accent} darkMode={darkMode} setDarkMode={setDarkMode} isVerified={isVerified} isPremium={isPremium} businessId={businessId} name={name} setName={setName} bio={bio} setBio={setBio} address={address} setAddress={setAddress} phone={phone} setPhone={setPhone} openingTime={openingTime} setOpeningTime={setOpeningTime} closingTime={closingTime} setClosingTime={setClosingTime} logoUrl={logoUrlState} onLogoFile={handleLogoFile} onBack={() => setSettingsView("root")} onCustomize={() => setSettingsView("customize")} />
             )}
             {settingsView === "tools" && (
               <ToolsView accent={accent} tools={tools} toggleTool={toggleTool} onBack={() => setSettingsView("root")} tooltipTool={tooltipTool} showTooltipFor={showTooltipFor} />
@@ -954,6 +989,113 @@ const GlobalStyle: React.FC = () => (
     @keyframes bvinSpin { to { transform: rotate(360deg); } }
   `}</style>
 );
+
+/* Left of the top island: exactly one of three states shows at a time —
+   Premium (upsell) -> Request Verification (once premium) -> Verified
+   (once granted, either by admin or the onboarding wizard's 24-day grant). */
+const BusinessStatusPill: React.FC<{ businessId: string; isPremium: boolean; isVerified: boolean; onOpenPremium: () => void }> = ({ businessId, isPremium, isVerified, onOpenPremium }) => {
+  const [requested, setRequested] = useState(false);
+  const [requesting, setRequesting] = useState(false);
+  const [verifiedUntil, setVerifiedUntil] = useState<number | null>(null);
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    if (!businessId || !isPremium || isVerified) return;
+    // verification_requests/{id} itself is admin-read-only (see
+    // database.rules.json), so the business can't read its own request
+    // back from there. verificationRequestedAt on the business's own
+    // users/{uid} node — which they can always read — is written
+    // alongside it purely so this button knows to show "Requested".
+    const unsub = onValue(rtdbRef(rtdb, `users/${businessId}/verificationRequestedAt`), (snap) => {
+      setRequested(snap.exists());
+    });
+    return () => unsub();
+  }, [businessId, isPremium, isVerified]);
+
+  // Verified-but-not-Premium should only ever happen via the temporary
+  // 24-day onboarding grant (a real Premium+admin verification stays
+  // verified regardless of Premium status, but nothing else should land
+  // a non-Premium account here) — so this combination gets its own
+  // visible countdown specifically to make it easy for an admin skimming
+  // the dashboard to notice and double check, per the "hard to trace" ask.
+  useEffect(() => {
+    if (!businessId || isPremium || !isVerified) return;
+    const unsub = onValue(rtdbRef(rtdb, `users/${businessId}/verifiedUntil`), (snap) => {
+      setVerifiedUntil(snap.exists() ? snap.val() : null);
+    });
+    return () => unsub();
+  }, [businessId, isPremium, isVerified]);
+
+  useEffect(() => {
+    if (!verifiedUntil) return;
+    const t = setInterval(() => setNow(Date.now()), 60000);
+    return () => clearInterval(t);
+  }, [verifiedUntil]);
+
+  if (isVerified) {
+    const showNonPremiumCountdown = !isPremium && verifiedUntil && verifiedUntil > now;
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "8px 13px", borderRadius: 999, background: "rgba(0,127,255,0.1)", border: "1px solid rgba(0,127,255,0.25)", fontSize: 12, fontWeight: 800, color: "#007fff" }}>
+          <BadgeCheck size={13} /> Verified
+        </div>
+        {showNonPremiumCountdown && (
+          <div title="Non-Premium accounts are only verified via the temporary onboarding grant" style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 11px", borderRadius: 999, background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.3)", fontSize: 11, fontWeight: 800, color: "#b45309" }}>
+            <Clock size={11} /> Non-Premium · {formatCountdown(verifiedUntil - now)}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (!isPremium) {
+    return (
+      <button
+        onClick={onOpenPremium}
+        style={{ display: "flex", alignItems: "center", gap: 5, padding: "8px 13px", borderRadius: 999, border: "none", background: "linear-gradient(135deg,#7c5cff,#4f9cf9)", color: "#fff", fontSize: 12, fontWeight: 800, cursor: "pointer", boxShadow: "0 8px 18px rgba(79,156,249,0.35)" }}
+      >
+        <Star size={12} /> Premium
+      </button>
+    );
+  }
+
+  return (
+    <button
+      onClick={async () => {
+        if (requested || requesting) return;
+        setRequesting(true);
+        try {
+          const requestedAt = Date.now();
+          await Promise.all([
+            // The actual request an admin reviews and, if approved, grants
+            // by setting users/{uid}/isVerified = true directly (no
+            // verifiedUntil, since an admin grant isn't the 24-day
+            // onboarding freebie and shouldn't auto-expire the same way).
+            set(rtdbRef(rtdb, `verification_requests/${businessId}`), { businessId, uid: businessId, status: "pending", requestedAt }),
+            // The business's own readable copy, purely to drive this button.
+            rtdbUpdate(rtdbRef(rtdb, `users/${businessId}`), { verificationRequestedAt: requestedAt }),
+          ]);
+          setRequested(true);
+        } finally {
+          setRequesting(false);
+        }
+      }}
+      disabled={requested || requesting}
+      style={{ display: "flex", alignItems: "center", gap: 5, padding: "8px 13px", borderRadius: 999, border: "1px solid rgba(0,0,0,0.08)", background: requested ? "rgba(0,0,0,0.04)" : "linear-gradient(150deg, #ffffff, #eef0f3)", color: requested ? "rgba(29,29,31,0.5)" : "#1d1d1f", fontSize: 12, fontWeight: 800, cursor: requested ? "default" : "pointer", boxShadow: requested ? "none" : "0 3px 10px rgba(0,0,0,0.1)" }}
+    >
+      <BadgeCheck size={13} /> {requested ? "Requested" : "Request Verification"}
+    </button>
+  );
+};
+
+function formatCountdown(ms: number): string {
+  const totalMinutes = Math.max(0, Math.floor(ms / 60000));
+  const days = Math.floor(totalMinutes / 1440);
+  const hours = Math.floor((totalMinutes % 1440) / 60);
+  if (days > 0) return `${days}d ${hours}h left`;
+  const minutes = totalMinutes % 60;
+  return `${hours}h ${minutes}m left`;
+}
 
 const TabButton: React.FC<{ active: boolean; label: string; accent: string; onClick: () => void }> = ({ active, label, accent, onClick }) => (
   <button className="bvin-tab-btn" onClick={onClick} style={{ background: active ? accent : "transparent", color: active ? "#fff" : "rgba(29,29,31,0.55)" }}>{label}</button>
@@ -1426,6 +1568,8 @@ const ProfileView: React.FC<{
   darkMode: boolean;
   setDarkMode: (v: boolean) => void;
   isVerified: boolean;
+  isPremium: boolean;
+  businessId: string;
   name: string;
   setName: (v: string) => void;
   bio: string;
@@ -1447,6 +1591,8 @@ const ProfileView: React.FC<{
   darkMode,
   setDarkMode,
   isVerified,
+  isPremium,
+  businessId,
   name,
   setName,
   bio,
@@ -1475,6 +1621,66 @@ const ProfileView: React.FC<{
 
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+  const [cancelDone, setCancelDone] = useState(false);
+
+  const [downloading, setDownloading] = useState(false);
+
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const handleCancelPremium = async () => {
+    setCancelling(true);
+    setCancelError(null);
+    try {
+      await cancelPremiumSubscription({});
+      setCancelDone(true);
+      setCancelConfirmOpen(false);
+    } catch (err: any) {
+      setCancelError(err?.message || "Couldn't cancel your subscription. Try again or contact support.");
+    } finally {
+      setCancelling(false);
+    }
+  };
+
+  const handleDownloadData = async () => {
+    setDownloading(true);
+    try {
+      const result: any = await downloadMyData({});
+      const blob = new Blob([JSON.stringify(result.data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `malvin-business-data-${businessId}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Download my data failed:", err);
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const handleDeleteData = async () => {
+    if (deleteConfirmText.trim().toUpperCase() !== "DELETE") return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await deleteMyData({});
+      // Account (including Firebase Auth) is gone server-side at this
+      // point — reload sends them back to a signed-out state naturally,
+      // there's no dashboard left to return them to.
+      window.location.href = "/";
+    } catch (err: any) {
+      setDeleteError(err?.message || "Couldn't delete your data. Try again or contact support.");
+      setDeleting(false);
+    }
+  };
 
   // Keep the editor in sync when Firestore loads or another device changes
   // the saved profile.
@@ -1728,7 +1934,108 @@ const ProfileView: React.FC<{
             {saving ? "Saving…" : saved ? "Saved" : "Save changes"}
           </span>
         </button>
+
+        {isPremium && (
+          <button
+            onClick={() => setCancelConfirmOpen(true)}
+            style={{ background: "none", border: "none", padding: "4px 2px", fontSize: 12, fontWeight: 700, color: accent, cursor: "pointer", textAlign: "center", marginTop: 2 }}
+          >
+            Cancel Premium
+          </button>
+        )}
+        {cancelDone && (
+          <p style={{ fontSize: 11.5, color: "#22c55e", fontWeight: 600, textAlign: "center", margin: "2px 0 0" }}>
+            Your subscription will end at the close of the current billing period.
+          </p>
+        )}
+
+        <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
+          <button
+            onClick={handleDownloadData}
+            disabled={downloading}
+            style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "14px 10px", borderRadius: 16, border: "1px solid rgba(0,0,0,0.08)", background: "rgba(0,0,0,0.02)", cursor: downloading ? "default" : "pointer", opacity: downloading ? 0.6 : 1 }}
+          >
+            <Download size={16} color="#1d1d1f" />
+            <span style={{ fontSize: 11.5, fontWeight: 700, color: "#1d1d1f" }}>{downloading ? "Preparing…" : "Download my data"}</span>
+          </button>
+          <button
+            onClick={() => setDeleteConfirmOpen(true)}
+            style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "14px 10px", borderRadius: 16, border: "1px solid rgba(220,60,60,0.18)", background: "rgba(220,60,60,0.05)", cursor: "pointer" }}
+          >
+            <Trash2 size={16} color="#c23a3a" />
+            <span style={{ fontSize: 11.5, fontWeight: 700, color: "#c23a3a" }}>Delete my data</span>
+          </button>
+        </div>
       </div>
+
+      {/* Cancel Premium confirmation */}
+      <AnimatePresence>
+        {cancelConfirmOpen && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            onClick={() => !cancelling && setCancelConfirmOpen(false)}
+            style={{ position: "fixed", inset: 0, zIndex: 300, background: "rgba(20,20,22,0.4)", backdropFilter: "blur(10px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+              onClick={(e) => e.stopPropagation()}
+              style={{ width: "100%", maxWidth: 320, background: "rgba(255,255,255,0.96)", borderRadius: 26, padding: 26, boxShadow: "0 30px 80px rgba(0,0,0,0.22)", textAlign: "center" }}
+            >
+              <h3 style={{ fontSize: 15.5, fontWeight: 800, margin: "0 0 8px", color: "#1d1d1f" }}>Cancel Premium?</h3>
+              <p style={{ fontSize: 12.5, color: "rgba(29,29,31,0.6)", margin: "0 0 18px", lineHeight: 1.5 }}>
+                You'll keep Premium benefits until the end of your current billing period, then your account reverts to free.
+              </p>
+              {cancelError && <p style={{ fontSize: 12, color: "#c23a3a", margin: "0 0 14px" }}>{cancelError}</p>}
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={() => setCancelConfirmOpen(false)} disabled={cancelling} style={{ flex: 1, padding: "12px", borderRadius: 13, border: "1px solid rgba(0,0,0,0.08)", background: "#fff", fontSize: 12.5, fontWeight: 700, color: "#1d1d1f", cursor: "pointer" }}>
+                  Keep Premium
+                </button>
+                <button onClick={handleCancelPremium} disabled={cancelling} style={{ flex: 1, padding: "12px", borderRadius: 13, border: "none", background: "#c23a3a", fontSize: 12.5, fontWeight: 700, color: "#fff", cursor: cancelling ? "default" : "pointer", opacity: cancelling ? 0.7 : 1 }}>
+                  {cancelling ? "Cancelling…" : "Cancel it"}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete my data — irreversible, typed confirmation required */}
+      <AnimatePresence>
+        {deleteConfirmOpen && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            onClick={() => !deleting && setDeleteConfirmOpen(false)}
+            style={{ position: "fixed", inset: 0, zIndex: 300, background: "rgba(20,20,22,0.4)", backdropFilter: "blur(10px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+              onClick={(e) => e.stopPropagation()}
+              style={{ width: "100%", maxWidth: 340, background: "rgba(255,255,255,0.96)", borderRadius: 26, padding: 26, boxShadow: "0 30px 80px rgba(0,0,0,0.22)", textAlign: "center" }}
+            >
+              <Trash2 size={26} color="#c23a3a" style={{ marginBottom: 10 }} />
+              <h3 style={{ fontSize: 15.5, fontWeight: 800, margin: "0 0 8px", color: "#1d1d1f" }}>Delete all your data?</h3>
+              <p style={{ fontSize: 12.5, color: "rgba(29,29,31,0.6)", margin: "0 0 16px", lineHeight: 1.5 }}>
+                This permanently deletes your business profile, catalogue, orders, connections, and account. This can't be undone.
+              </p>
+              <input
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder='Type "DELETE" to confirm'
+                style={{ width: "100%", padding: "11px 13px", borderRadius: 12, border: "1px solid rgba(220,60,60,0.25)", background: "rgba(220,60,60,0.04)", fontSize: 13, textAlign: "center", marginBottom: 14 }}
+              />
+              {deleteError && <p style={{ fontSize: 12, color: "#c23a3a", margin: "0 0 14px" }}>{deleteError}</p>}
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={() => setDeleteConfirmOpen(false)} disabled={deleting} style={{ flex: 1, padding: "12px", borderRadius: 13, border: "1px solid rgba(0,0,0,0.08)", background: "#fff", fontSize: 12.5, fontWeight: 700, color: "#1d1d1f", cursor: "pointer" }}>
+                  Cancel
+                </button>
+                <button onClick={handleDeleteData} disabled={deleting || deleteConfirmText.trim().toUpperCase() !== "DELETE"} style={{ flex: 1, padding: "12px", borderRadius: 13, border: "none", background: "#c23a3a", fontSize: 12.5, fontWeight: 700, color: "#fff", cursor: deleting ? "default" : "pointer", opacity: deleting || deleteConfirmText.trim().toUpperCase() !== "DELETE" ? 0.5 : 1 }}>
+                  {deleting ? "Deleting…" : "Delete everything"}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

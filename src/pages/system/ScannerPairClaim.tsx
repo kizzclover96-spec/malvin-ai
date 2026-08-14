@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { ref, onValue, update, remove, onDisconnect, serverTimestamp } from "firebase/database";
-import { db as rtdb } from "../../firebase";
+import { db as rtdb, auth } from "../../firebase";
+import { signInAnonymously } from "firebase/auth";
 import { Html5Qrcode } from "html5-qrcode";
 import { Camera, CheckCircle2, XCircle, ScanLine } from "lucide-react";
 
@@ -28,25 +29,42 @@ const ScannerPairClaim: React.FC = () => {
   const sessionPath = businessId && sessionId ? `scannerSessions/${businessId}/${sessionId}` : null;
 
   // Verify the session still exists (hasn't expired / been revoked) before
-  // offering to claim it.
+  // offering to claim it. A guest arriving here has no prior relationship
+  // with this app at all, so this signs them in anonymously first — same
+  // convention as VinBackScan.tsx for the same reason: the RTDB rules for
+  // this path require *some* signed-in session (anonymous is fine) before
+  // allowing read/write, since a stranger reading/writing here is exactly
+  // the point of a temporary scanner-pairing link.
   useEffect(() => {
     if (!sessionPath) {
       setStatus("expired");
       return;
     }
-    const sRef = ref(rtdb, sessionPath);
-    const unsub = onValue(
-      sRef,
-      (snap) => {
-        const val = snap.val();
-        if (!val || (val.expiresAt && val.expiresAt < Date.now() && val.status !== "claimed")) {
-          setStatus((prev) => (prev === "scanning" ? prev : "expired"));
+    let unsub = () => {};
+    (async () => {
+      if (!auth.currentUser) {
+        try {
+          await signInAnonymously(auth);
+        } catch (err) {
+          console.error("Anonymous sign-in failed:", err);
+          setStatus("expired");
           return;
         }
-        setStatus((prev) => (prev === "checking" ? "ready" : prev));
-      },
-      () => setStatus("expired")
-    );
+      }
+      const sRef = ref(rtdb, sessionPath);
+      unsub = onValue(
+        sRef,
+        (snap) => {
+          const val = snap.val();
+          if (!val || (val.expiresAt && val.expiresAt < Date.now() && val.status !== "claimed")) {
+            setStatus((prev) => (prev === "scanning" ? prev : "expired"));
+            return;
+          }
+          setStatus((prev) => (prev === "checking" ? "ready" : prev));
+        },
+        () => setStatus("expired")
+      );
+    })();
     return () => unsub();
   }, [sessionPath]);
 

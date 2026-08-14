@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState } from "react";
 import { auth, functions } from "../../firebase";
 import {
   GoogleAuthProvider,
@@ -15,10 +15,14 @@ import { useNavigate } from "react-router-dom";
 import { ref, update, serverTimestamp } from "firebase/database";
 import { db } from "../../firebase";
 import { initializeUser } from "../../services/initializeUser";
+import { Mail, Lock, Eye, EyeOff } from "lucide-react";
+
+const ACCENT = "#4F9CF9"; // same blue used across B-Vin
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [agreed, setAgreed] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
@@ -30,63 +34,13 @@ export default function Login() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const navigate = useNavigate();
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-
-  // MATRIX EFFECT
-  useEffect(() => {
-    if (!canvasRef.current) return;
-
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    const chars = "010101010101010101";
-    const fontSize = 14;
-
-    const resize = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-    };
-
-    resize();
-
-    const columns = Math.floor(canvas.width / fontSize);
-    const drops = Array(columns).fill(1);
-
-    const draw = () => {
-      ctx.fillStyle = "rgba(0,0,0,0.1)";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      ctx.fillStyle = "rgba(0,102,255,0.35)";
-      ctx.font = fontSize + "px monospace";
-
-      for (let i = 0; i < drops.length; i++) {
-        const text = chars[Math.floor(Math.random() * chars.length)];
-        ctx.fillText(text, i * fontSize, drops[i] * fontSize);
-
-        if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
-          drops[i] = 0;
-        }
-        drops[i]++;
-      }
-    };
-
-    const interval = setInterval(draw, 33);
-
-    window.addEventListener("resize", resize);
-
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener("resize", resize);
-    };
-  }, []);
 
   const saveUserMetadata = async (userUid: string) => {
     try {
       // Get public IP
       const ipRes = await fetch('https://api.ipify.org?format=json');
       const { ip } = await ipRes.json();
-      
+
       // Get Device/Browser info
       const userAgent = navigator.userAgent;
 
@@ -145,7 +99,7 @@ export default function Login() {
         provider.setCustomParameters({ prompt: "select_account" });
         userCredential = await signInWithPopup(auth, provider);
       }
-      
+
       // Capture metadata after success
       if (userCredential.user) {
         await saveUserMetadata(userCredential.user.uid);
@@ -192,203 +146,195 @@ export default function Login() {
   return (
     <div style={{
       position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
-      backgroundColor: '#000',
+      backgroundColor: '#ffffff',
       display: 'flex', flexDirection: 'column',
-      zIndex: 9999, fontFamily: 'sans-serif', color: '#ffffff',
+      zIndex: 9999, fontFamily: 'Inter, sans-serif', color: '#0f1115',
       overflow: 'hidden'
     }}>
 
-      {/* --- ROTATION ANIMATIONS --- */}
       <style>{`
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        @keyframes spinRev { 0% { transform: rotate(360deg); } 100% { transform: rotate(0deg); } }
+        @keyframes driftA {
+          0%   { transform: translate(-8%, -6%) scale(1); }
+          50%  { transform: translate(6%, 8%) scale(1.15); }
+          100% { transform: translate(-8%, -6%) scale(1); }
+        }
+        @keyframes driftB {
+          0%   { transform: translate(6%, 4%) scale(1); }
+          50%  { transform: translate(-8%, -8%) scale(1.1); }
+          100% { transform: translate(6%, 4%) scale(1); }
+        }
+        @keyframes driftC {
+          0%   { transform: translate(0%, 8%) scale(1); }
+          50%  { transform: translate(4%, -6%) scale(1.08); }
+          100% { transform: translate(0%, 8%) scale(1); }
+        }
+        .bvin-login-input::placeholder { color: rgba(15,17,21,0.35); }
       `}</style>
 
-      {/* 1. BASE IMAGE */}
-      <div style={{
-        position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
-        backgroundImage: 'url("/Malvin self.png")',
-        backgroundSize: 'cover', backgroundPosition: 'center',
-        opacity: 0.6, zIndex: -3
-      }} />
+      {/* Soft light-blue blobs drifting slowly across the white background */}
+      <div style={{ position: 'absolute', top: '10%', left: '8%', width: 420, height: 420, borderRadius: '50%', background: `${ACCENT}22`, filter: 'blur(90px)', animation: 'driftA 16s ease-in-out infinite', zIndex: 0 }} />
+      <div style={{ position: 'absolute', bottom: '5%', right: '6%', width: 380, height: 380, borderRadius: '50%', background: `${ACCENT}1c`, filter: 'blur(90px)', animation: 'driftB 20s ease-in-out infinite', zIndex: 0 }} />
+      <div style={{ position: 'absolute', top: '45%', right: '20%', width: 260, height: 260, borderRadius: '50%', background: `${ACCENT}18`, filter: 'blur(80px)', animation: 'driftC 24s ease-in-out infinite', zIndex: 0 }} />
 
-      {/* 2. MATRIX CANVAS */}
-      <canvas ref={canvasRef} style={{
-        position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
-        zIndex: -2, pointerEvents: 'none'
-      }} />
-
-      {/* 3. ROTATING TECH RINGS */}
-      <div style={{
-        position: 'absolute', top: '50%', left: '50%', width: '500px', height: '500px',
-        border: '1px dashed rgba(0, 102, 255, 0.4)', borderRadius: '50%',
-        marginLeft: '-250px', marginTop: '-250px',
-        animation: 'spin 15s linear infinite', zIndex: -1
-      }} />
-      <div style={{
-        position: 'absolute', top: '50%', left: '50%', width: '400px', height: '400px',
-        border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '50%',
-        marginLeft: '-200px', marginTop: '-200px',
-        animation: 'spinRev 10s linear infinite', zIndex: -1
-      }} />
-      
       {/* LOGIN UI */}
-      <div style={{ flex: 1.5 }}></div>
-      
-      <div style={{ display: 'flex', justifyContent: 'center', width: '100%', paddingBottom: '20px', zIndex: 10 }}>
-        <div style={{ 
-          textAlign: 'center', 
-          padding: '40px 30px', 
-          backgroundColor: 'rgba(0, 0, 0, 0.4)',
-          width: '85%', maxWidth: '450px', 
-          borderRadius: '32px', 
-          backdropFilter: 'blur(30px)', 
-          WebkitBackdropFilter: 'blur(30px)',
-          border: '1.5px solid rgba(255, 255, 255, 0.4)', 
-          boxShadow: '0 0 40px rgba(0, 102, 255, 0.2)',
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', zIndex: 10 }}>
+        <div style={{
+          textAlign: 'center',
+          padding: '44px 34px',
+          backgroundColor: 'rgba(255, 255, 255, 0.55)',
+          width: '100%', maxWidth: '440px',
+          borderRadius: '32px',
+          backdropFilter: 'blur(34px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(34px) saturate(180%)',
+          border: '1px solid rgba(255, 255, 255, 0.9)',
+          boxShadow: `0 30px 70px rgba(79,156,249,0.18), inset 0 1px 1px rgba(255,255,255,0.9)`,
           display: 'flex', flexDirection: 'column', alignItems: 'center'
         }}>
-          <h1 style={{ fontSize: '3rem', letterSpacing: '0.8rem', fontWeight: '900', textTransform: 'uppercase', margin: '0 0 0.5rem 0', color: '#fff' }}>
-            MALVIN
+          <h1 style={{ fontSize: '2.4rem', fontWeight: 900, letterSpacing: '-0.02em', margin: '0 0 10px 0', color: '#0f1115' }}>
+            {isSignUp ? "Sign up" : "Log in"}
           </h1>
 
-          <p style={{ opacity: 0.7, marginBottom: '2rem', fontSize: '0.8rem', letterSpacing: '0.2rem' }}>
-            THE FUTURE IN YOUR PALMS
+          <p style={{ opacity: 0.6, marginBottom: '28px', fontSize: '0.85rem', lineHeight: 1.6, maxWidth: 320 }}>
+            Please make sure to read and agree to our Terms and Conditions before continuing — you'll need to accept them below to sign in.
           </p>
 
-          <form onSubmit={handleAuth} style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '10px' }}>
-            <input 
-              type="email" 
-              placeholder="Email Address" 
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              style={{
-                padding: '15px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.3)',
-                backgroundColor: 'rgba(255, 255, 255, 0.1)', color: '#fff', outline: 'none'
-              }}
-            />
-            <input 
-              type="password" 
-              placeholder="Password" 
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              style={{
-                padding: '15px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.3)',
-                backgroundColor: 'rgba(255, 255, 255, 0.1)', color: '#fff', outline: 'none'
-              }}
-            />
-
-            {/* REMEMBER ME TOGGLE */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', textAlign: 'left' }}>
-              <input 
-                type="checkbox" 
-                id="rememberMe"
-                checked={rememberMe} 
-                onChange={(e) => setRememberMe(e.target.checked)} 
+          <form onSubmit={handleAuth} style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '6px' }}>
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <Mail size={16} color="rgba(15,17,21,0.4)" style={{ position: 'absolute', left: 18 }} />
+              <input
+                type="email"
+                placeholder="Enter your email address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="bvin-login-input"
+                style={{
+                  width: '100%', padding: '15px 16px 15px 46px', borderRadius: '999px', border: '1px solid rgba(15,17,21,0.1)',
+                  backgroundColor: 'rgba(255,255,255,0.6)', color: '#0f1115', outline: 'none', fontSize: '0.9rem'
+                }}
               />
-              <label htmlFor="rememberMe" style={{ cursor: 'pointer', opacity: 0.8 }}>
-                Remember my login
-              </label>
             </div>
 
-            {/* TERMS & POLICIES */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', textAlign: 'left', margin: '5px 0' }}>
-              <div style={{ fontSize: "0.8rem" }}>
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <Lock size={16} color="rgba(15,17,21,0.4)" style={{ position: 'absolute', left: 18 }} />
+              <input
+                type={showPassword ? "text" : "password"}
+                placeholder="Enter your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="bvin-login-input"
+                style={{
+                  width: '100%', padding: '15px 46px 15px 46px', borderRadius: '999px', border: '1px solid rgba(15,17,21,0.1)',
+                  backgroundColor: 'rgba(255,255,255,0.6)', color: '#0f1115', outline: 'none', fontSize: '0.9rem'
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                style={{ position: 'absolute', right: 16, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', color: ACCENT }}
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+
+            {/* Remember me + Terms agreement — side by side */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '2px 6px', fontSize: '0.78rem', textAlign: 'left' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', opacity: 0.75, whiteSpace: 'nowrap' }}>
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  style={{ accentColor: ACCENT, width: 14, height: 14 }}
+                />
+                Remind me
+              </label>
+
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
                 <input
                   type="checkbox"
                   checked={agreed}
                   onChange={(e) => setAgreed(e.target.checked)}
-                />{" "}
-                I agree to{" "}
-                <span onClick={() => navigate("/terms")} style={{ color: "#00d4ff", cursor: "pointer" }}>
-                  Terms
-                </span>{" "}
-                and{" "}
-                <span onClick={() => navigate("/privacy")} style={{ color: "#00d4ff", cursor: "pointer" }}>
-                  Privacy Policy
-                </span>{" "}
-                and{" "}
-                <span onClick={() => navigate("/refund-policy")} style={{ color: "#00d4ff", cursor: "pointer" }}>
-                  Refund, Cancellation & Withdrawal Policy
-                </span>{" "}
-                and{" "}
-                <span onClick={() => navigate("/cookiePolicy")} style={{ color: "#00d4ff", cursor: "pointer" }}>
-                  Cookie Policy
-                </span>{" "}
-                and{" "}
-                <span onClick={() => navigate("/communityGuidelines")} style={{ color: "#00d4ff", cursor: "pointer" }}>
-                  Community Guidelines
-                </span>{" "}
-                and{" "}
-                <span onClick={() => navigate("/aiTransparencyNotice")} style={{ color: "#00d4ff", cursor: "pointer" }}>
-                  AI Transparency Notice
+                  style={{ accentColor: ACCENT, width: 14, height: 14, flexShrink: 0 }}
+                />
+                <span style={{ opacity: 0.8 }}>
+                  I agree to{" "}
+                  <span onClick={() => navigate("/terms")} style={{ color: ACCENT, cursor: "pointer", fontWeight: 700 }}>
+                    Terms & Conditions
+                  </span>
                 </span>
-              </div>
+              </label>
             </div>
 
-            <button 
+            <button
               type="submit"
               disabled={!agreed || isSubmitting}
               style={{
-                padding: '15px', borderRadius: '12px', border: '2px solid #ffffff', 
-                backgroundColor: agreed ? '#0066ff' : '#333', 
-                color: agreed ? '#fff' : '#888', 
-                fontWeight: 'bold', 
-                fontSize: '1rem', cursor: agreed && !isSubmitting ? 'pointer' : 'not-allowed', 
-                marginTop: '5px',
-                transition: '0.3s'
+                padding: '16px', borderRadius: '999px', border: 'none',
+                backgroundColor: agreed ? ACCENT : 'rgba(15,17,21,0.12)',
+                color: agreed ? '#fff' : 'rgba(15,17,21,0.35)',
+                fontWeight: 800,
+                fontSize: '1rem', cursor: agreed && !isSubmitting ? 'pointer' : 'not-allowed',
+                marginTop: '6px',
+                boxShadow: agreed ? `0 14px 30px ${ACCENT}44` : 'none',
+                transition: '0.25s'
               }}
             >
-              {isSubmitting ? "Please wait…" : isSignUp ? "Create Account" : "Sign In"}
+              {isSubmitting ? "Please wait…" : isSignUp ? "Create Account" : "Log in"}
             </button>
           </form>
 
           {/* TOGGLE SIGN-IN / SIGN-UP */}
-          <p 
-            onClick={() => setIsSignUp(!isSignUp)} 
-            style={{ fontSize: '0.85rem', cursor: 'pointer', textDecoration: 'underline', opacity: 0.8, marginBottom: '8px' }}
+          <p
+            onClick={() => setIsSignUp(!isSignUp)}
+            style={{ fontSize: '0.82rem', cursor: 'pointer', opacity: 0.7, marginTop: '16px', marginBottom: '4px' }}
           >
-            {isSignUp ? "Already have an account? Sign In" : "New here? Create an account"}
+            {isSignUp ? "Already have an account? " : "Didn't have an account? "}
+            <span style={{ color: ACCENT, fontWeight: 700, textDecoration: 'underline' }}>
+              {isSignUp ? "Log in" : "Sign up"}
+            </span>
           </p>
 
-          {/* FORGOT PASSWORD BUTTON */}
+          {/* FORGOT PASSWORD */}
           {!isSignUp && (
-            <p 
-              onClick={isSubmitting ? undefined : handleForgotPassword} 
-              style={{ fontSize: '0.8rem', cursor: isSubmitting ? 'default' : 'pointer', textDecoration: 'underline', color: '#00d4ff', opacity: isSubmitting ? 0.5 : 0.9, marginBottom: '10px' }}
+            <p
+              onClick={isSubmitting ? undefined : handleForgotPassword}
+              style={{ fontSize: '0.78rem', cursor: isSubmitting ? 'default' : 'pointer', color: ACCENT, opacity: isSubmitting ? 0.4 : 0.85, marginBottom: '10px' }}
             >
               Forgot Password?
             </p>
           )}
 
-          <div style={{ margin: '5px 0', opacity: 0.3, fontSize: '0.8rem' }}>OR</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', margin: '14px 0' }}>
+            <div style={{ flex: 1, height: 1, background: 'rgba(15,17,21,0.1)' }} />
+            <span style={{ fontSize: '0.72rem', opacity: 0.4, fontWeight: 700, letterSpacing: 1 }}>OR</span>
+            <div style={{ flex: 1, height: 1, background: 'rgba(15,17,21,0.1)' }} />
+          </div>
 
-          <button 
+          <button
             type="button"
             disabled={!agreed || isSubmitting}
-            onClick={handleGoogleLogin} 
+            onClick={handleGoogleLogin}
             style={{
-              width: '100%', padding: '15px 0', borderRadius: '16px', border: 'none',
-              backgroundColor: agreed ? '#fff' : '#222', 
-              color: agreed ? '#000' : '#666', 
-              fontSize: '1rem', fontWeight: '800', 
+              width: '100%', padding: '15px 0', borderRadius: '999px', border: '1px solid rgba(15,17,21,0.1)',
+              backgroundColor: agreed ? 'rgba(255,255,255,0.8)' : 'rgba(15,17,21,0.04)',
+              color: agreed ? '#0f1115' : 'rgba(15,17,21,0.35)',
+              fontSize: '0.92rem', fontWeight: 700,
               cursor: agreed ? 'pointer' : 'not-allowed',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px',
-              transition: '0.3s'
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
+              transition: '0.25s'
             }}
           >
-            <img 
-              src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" 
-              alt="Google Logo" 
-              style={{ width: '20px', height: '20px', opacity: agreed ? 1 : 0.3 }} 
+            <img
+              src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+              alt="Google Logo"
+              style={{ width: '18px', height: '18px', opacity: agreed ? 1 : 0.3 }}
             />
             Continue with Google
           </button>
 
           {/* IMPRESSUM LINK */}
-          <p style={{ marginTop: "15px", fontSize: "0.75rem", opacity: 0.7 }}>
+          <p style={{ marginTop: "18px", fontSize: "0.72rem", opacity: 0.45 }}>
             <span
               onClick={() => navigate("/impressum")}
               style={{ cursor: "pointer", textDecoration: "underline" }}
@@ -399,8 +345,8 @@ export default function Login() {
         </div>
       </div>
 
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', paddingBottom: '30px' }}>
-        <p style={{ opacity: 0.5, letterSpacing: '0.3rem', fontSize: '0.65rem', textTransform: 'uppercase' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', paddingBottom: '24px', zIndex: 10 }}>
+        <p style={{ opacity: 0.3, letterSpacing: '0.25rem', fontSize: '0.6rem', textTransform: 'uppercase', fontWeight: 700 }}>
           MALVIN AI • 2026
         </p>
       </div>

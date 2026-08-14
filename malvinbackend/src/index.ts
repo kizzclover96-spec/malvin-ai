@@ -2132,6 +2132,253 @@ export const remindPendingWork = onSchedule(
   }
 );
 
+/*
+=====================================
+B-VIN PROFILE — CANCEL PREMIUM
+=====================================
+LemonSqueezy is the actual source of truth for the subscription — this
+just tells them to cancel it (at period end, not instantly, matching
+LemonSqueezy's own "cancelled" semantics: access continues until the
+current billing period ends, then subscription_cancelled/expired fires
+on api/webhook/lemonsqueezy.ts and flips premium back to false there).
+Needs LEMONSQUEEZY_API_KEY — a new secret, since nothing in this codebase
+previously needed to call LemonSqueezy's API rather than just receive
+webhooks from it. subscriptionId is read from users/{uid}, populated by
+the webhook's subscription_created/updated handler.
+*/
+export const cancelPremiumSubscription = onCall(
+  { secrets: ["LEMONSQUEEZY_API_KEY"] },
+  withMonitoring(async (request) => {
+    const uid = request.auth?.uid;
+    if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+
+    const rtdb = getRtdb();
+    const userSnap = await rtdb.ref(`users/${uid}`).get();
+    const userData = userSnap.val() || {};
+    const subscriptionId = userData.subscriptionId;
+
+    if (!userData.premium || !subscriptionId) {
+      throw new HttpsError("failed-precondition", "No active premium subscription found for this account.");
+    }
+
+    if (!process.env.LEMONSQUEEZY_API_KEY) {
+      throw new HttpsError("failed-precondition", "Subscription cancellation isn't configured on the server yet.");
+    }
+
+    const res = await fetch(`https://api.lemonsqueezy.com/v1/subscriptions/${subscriptionId}`, {
+      method: "PATCH",
+      headers: {
+        Accept: "application/vnd.api+json",
+        "Content-Type": "application/vnd.api+json",
+        Authorization: `Bearer ${process.env.LEMONSQUEEZY_API_KEY}`,
+      },
+      body: JSON.stringify({
+        data: { type: "subscriptions", id: subscriptionId, attributes: { cancelled: true } },
+      }),
+    });
+
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => "");
+      console.error("cancelPremiumSubscription: LemonSqueezy rejected the cancel request:", errBody);
+      throw new HttpsError("internal", "Couldn't cancel the subscription with LemonSqueezy. Please try again or contact support.");
+    }
+
+    // Reflect immediately in RTDB rather than waiting for LemonSqueezy's
+    // subscription_cancelled webhook — that still fires and will re-set
+    // the same fields, this just avoids the UI showing "Premium" for
+    // however long the webhook round-trip takes.
+    await rtdb.ref(`users/${uid}`).update({ premiumCancelling: true });
+
+    return { cancelled: true };
+  })
+);
+
+/*
+=====================================
+B-VIN PROFILE — DOWNLOAD MY DATA
+=====================================
+Compiles everything under business/{uid} (profile, enabledTools, and every
+known subcollection) plus the RTDB users/{uid} node into one JSON object,
+returned directly to the client — B-Vin.tsx triggers a browser download
+from the response rather than this function emailing anything, since
+there's no attachment-sending path already wired up for that.
+*/
+const BUSINESS_SUBCOLLECTIONS = [
+  "products", "offerings", "priceList", "team", "connections", "reviews",
+  "loyalty", "jobRequests", "orders", "reservations", "serviceCalls", "chats",
+];
+
+export const downloadMyData = onCall(
+  withMonitoring(async (request) => {
+    const uid = request.auth?.uid;
+    if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+
+    const db = getDb();
+    const rtdb = getRtdb();
+
+    const bizSnap = await db.collection("business").doc(uid).get();
+    const business: Record<string, any> = bizSnap.exists ? bizSnap.data() : null;
+
+    if (business) {
+      for (const sub of BUSINESS_SUBCOLLECTIONS) {
+        const subSnap = await db.collection("business").doc(uid).collection(sub).get();
+        if (!subSnap.empty) {
+          business[`_${sub}`] = subSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+        }
+      }
+    }
+
+    const rtdbSnap = await rtdb.ref(`users/${uid}`).get();
+    // Never include security-internal fields in an export the user
+    // downloads themselves — lastIp/userAgent are logging metadata, not
+    // "their data" in the sense this button means.
+    const rtdbData = rtdbSnap.val() || {};
+    delete rtdbData.security;
+
+    return {
+      exportedAt: new Date().toISOString(),
+      uid,
+      business,
+      account: rtdbData,
+    };
+  })
+);
+
+/*
+=====================================
+B-VIN PROFILE — DELETE MY DATA
+=====================================
+GDPR-style erasure: removes business/{uid} (Firestore doc + every known
+subcollection), users/{uid} (Realtime Database), and the Firebase Auth
+account itself. Irreversible — B-Vin.tsx's confirmation dialog is the only
+safety net before this runs; there's no soft-delete/undo window here.
+Does NOT touch other users' data that merely references this uid (e.g. an
+order a customer placed with this business) — cleaning those up is a
+separate, larger data-retention question this button isn't trying to solve.
+*/
+export const deleteMyData = onCall(
+  withMonitoring(async (request) => {
+    const uid = request.auth?.uid;
+    if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+
+    const db = getDb();
+    const rtdb = getRtdb();
+
+    const bizRef = db.collection("business").doc(uid);
+    for (const sub of BUSINESS_SUBCOLLECTIONS) {
+      const subSnap = await bizRef.collection(sub).get();
+      const batch = db.batch();
+      subSnap.docs.forEach((d: any) => batch.delete(d.ref));
+      if (!subSnap.empty) await batch.commit();
+    }
+    await bizRef.delete().catch(() => {});
+
+    await rtdb.ref(`users/${uid}`).remove().catch(() => {});
+
+    const { getAuth } = require("firebase-admin/auth");
+    await getAuth().deleteUser(uid).catch((err: any) => {
+      console.error(`deleteMyData: failed to delete auth account for ${uid}:`, err);
+    });
+
+    return { deleted: true };
+  })
+);
+
+/*
+=====================================
+B-VIN — GRANT ONBOARDING VERIFICATION (server-side, hard to forge)
+=====================================
+The 24-day welcome verification used to be written directly by the client
+(BusinessOnboarding.tsx calling update() on users/{uid}) — but users/{uid}
+grants the owner broad self-write, so that was trivially fake-able by
+anyone who opened devtools and ran the same RTDB write themselves.
+database.rules.json now locks users/{uid}/isVerified and .../verifiedUntil
+behind a .validate rule that only the admin email (or, as here, the Admin
+SDK — which bypasses rules entirely) can satisfy. This callable is the
+only legitimate way a client can ever get that grant: it runs the write
+itself with the Admin SDK, and — the actual "hard to forge" part — it's
+idempotent per account. usedOnboardingGrant is set the first time this
+succeeds and checked on every call after, so a client can't just call this
+function on a loop to keep refreshing their own free verification forever.
+*/
+export const grantOnboardingVerification = onCall(
+  withMonitoring(async (request) => {
+    const uid = request.auth?.uid;
+    if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+    const businessId = request.data?.businessId;
+    if (!businessId || businessId !== uid) {
+      throw new HttpsError("permission-denied", "You can only grant this to your own business.");
+    }
+
+    const rtdb = getRtdb();
+    const usedRef = rtdb.ref(`users/${uid}/usedOnboardingGrant`);
+    const alreadyUsed = (await usedRef.get()).val();
+    if (alreadyUsed) {
+      // Not an error — onboarding may re-run this call if the client
+      // retried after a network hiccup. Just confirm nothing further
+      // happens rather than silently granting a second time.
+      return { granted: false, reason: "already_used" };
+    }
+
+    const verifiedUntil = Date.now() + 24 * 24 * 60 * 60 * 1000; // 24 days
+    await rtdb.ref(`users/${uid}`).update({
+      isVerified: true,
+      verifiedUntil,
+      usedOnboardingGrant: true,
+    });
+
+    return { granted: true, verifiedUntil };
+  })
+);
+
+/*
+=====================================
+B-VIN — EXPIRE ONBOARDING VERIFICATION GRANTS
+=====================================
+The other half of grantOnboardingVerification above: once verifiedUntil
+passes, isVerified and verifiedUntil are PERMANENTLY REMOVED (not just
+flipped to false) — the free grant truly ends, and getting verified again
+means the business goes Premium and requests it through an admin (see the
+"Request Verification" pill / verification_requests node), not that an
+expired timestamp just sits there silently doing nothing. Runs with the
+Admin SDK, so it isn't affected by the .validate lock above.
+*/
+export const expireBusinessVerifications = onSchedule(
+  { schedule: "every 24 hours", timeZone: "Europe/Berlin" },
+  async () => {
+    const rtdb = getRtdb();
+
+    // Requires a .indexOn: ["verifiedUntil"] rule under users in
+    // database.rules.json for this to run efficiently at scale — see the
+    // rules file. Without it RTDB will still answer the query but logs a
+    // "no index" warning.
+    const snap = await rtdb
+      .ref("users")
+      .orderByChild("verifiedUntil")
+      .endAt(Date.now())
+      .once("value");
+
+    if (!snap.exists()) return;
+
+    const updates: Record<string, null> = {};
+    snap.forEach((child: any) => {
+      const val = child.val();
+      // Only ever touches accounts that actually went through the
+      // timestamped grant — an admin-granted, non-expiring verification
+      // (isVerified: true with no verifiedUntil) is never touched here.
+      if (val?.isVerified && val?.verifiedUntil) {
+        updates[`${child.key}/isVerified`] = null;
+        updates[`${child.key}/verifiedUntil`] = null;
+      }
+      return false;
+    });
+
+    if (Object.keys(updates).length === 0) return;
+    await rtdb.ref().update(updates);
+    console.log(`expireBusinessVerifications: cleared ${Object.keys(updates).length / 2} expired grant(s).`);
+  }
+);
+
 /**
  * The same digest on demand. The app calls this right after a merchant signs
  * in, so the reminder is accurate at that moment instead of waiting for the
