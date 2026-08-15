@@ -32,6 +32,8 @@ import {
   limit,
   increment,
   updateDoc,
+  getDoc,
+  getDocs,
 } from "firebase/firestore";
 import { firestore as db, auth } from "../../firebase";
 import { applyStorefrontIdentity, resolveGuestUid } from "../../services/storefrontAuth";
@@ -180,23 +182,32 @@ const BVinStore: React.FC = () => {
   }, [businessId]);
 
   // Star rating — average of business/{id}/reviews, only fetched (and only
-  // rendered) when the business has Reviews enabled.
+  // rendered) when the business has Reviews enabled. Deliberately a
+  // one-time fetch, not onSnapshot — a customer doesn't need to see a
+  // brand-new review pop in live while they're browsing, and a live
+  // listener here means re-reading the WHOLE reviews collection every
+  // time anyone leaves a review, for every customer currently on the
+  // page at once. Re-fetches once per mount, which is the same
+  // "accurate as of when you loaded the page" freshness most storefronts
+  // actually have anyway.
   const [avgRating, setAvgRating] = useState<number | null>(null);
   const [reviewCount, setReviewCount] = useState(0);
+  const refreshReviews = React.useCallback(async () => {
+    if (!businessId) return;
+    const snap = await getDocs(collection(db, "business", businessId, "reviews"));
+    if (snap.empty) {
+      setAvgRating(null);
+      setReviewCount(0);
+      return;
+    }
+    const ratings = snap.docs.map((d) => (d.data() as any).rating || 0);
+    setAvgRating(ratings.reduce((a, b) => a + b, 0) / ratings.length);
+    setReviewCount(ratings.length);
+  }, [businessId]);
   useEffect(() => {
     if (!businessId || !profile?.enabledTools.reviews) return;
-    const unsub = onSnapshot(collection(db, "business", businessId, "reviews"), (snap) => {
-      if (snap.empty) {
-        setAvgRating(null);
-        setReviewCount(0);
-        return;
-      }
-      const ratings = snap.docs.map((d) => (d.data() as any).rating || 0);
-      setAvgRating(ratings.reduce((a, b) => a + b, 0) / ratings.length);
-      setReviewCount(ratings.length);
-    });
-    return () => unsub();
-  }, [businessId, profile?.enabledTools.reviews]);
+    refreshReviews();
+  }, [businessId, profile?.enabledTools.reviews, refreshReviews]);
 
   // The language selector glows for a few seconds on every visit — new or
   // returning customer alike — purely so first-time (and easily-missed)
@@ -278,9 +289,9 @@ const BVinStore: React.FC = () => {
 
   useEffect(() => {
     if (!businessId || !profile?.enabledTools.loyalty || !effectiveUid) return;
-    const ref = doc(db, "business", businessId, "loyalty", effectiveUid);
-    const unsub = onSnapshot(ref, (snap) => setLoyaltyPoints(snap.exists() ? (snap.data() as any).points || 0 : 0));
-    return () => unsub();
+    getDoc(doc(db, "business", businessId, "loyalty", effectiveUid)).then((snap) => {
+      setLoyaltyPoints(snap.exists() ? (snap.data() as any).points || 0 : 0);
+    });
   }, [businessId, profile?.enabledTools.loyalty, effectiveUid]);
 
   /* --------------------------- StoreFront handshake --------------------------- */
@@ -443,6 +454,7 @@ const BVinStore: React.FC = () => {
       at: serverTimestamp(),
     });
     setReviewSent(true);
+    refreshReviews();
   };
 
   /* ==================================================================== */

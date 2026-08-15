@@ -9,6 +9,7 @@ interface VinBackTag {
   propertyName: string;
   address: string;
   contact1: string;
+  contact2Name?: string;
   contact2: string;
   code: string;
   status: 'in_possession' | 'missing' | 'found';

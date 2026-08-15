@@ -11,6 +11,7 @@ interface VinBackTag {
   propertyName: string;
   address: string;
   contact1: string;
+  contact2Name?: string;
   contact2: string;
   status: 'in_possession' | 'missing' | 'found';
 }
@@ -170,7 +171,7 @@ export default function VinBackScan() {
             </div>
             {tag.contact2 && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#e2e8f0' }}>
-                <Phone size={14} color="#64748b" /> {tag.contact2}
+                <Phone size={14} color="#64748b" /> {tag.contact2Name ? `${tag.contact2Name} — ${tag.contact2}` : tag.contact2}
               </div>
             )}
           </div>

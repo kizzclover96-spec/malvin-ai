@@ -8,9 +8,30 @@ import { Bell } from "lucide-react";
    this business want me to know" screen, not a place with any writes to
    protect) scanned from the Customer Notice bento card's QR in B-Vin. */
 
+/**
+ * "HH:MM" -> minutes since midnight, or null if it doesn't parse. Handles
+ * hours that wrap past midnight (e.g. open 18:00, close 02:00) — anything
+ * that isn't a plain same-day open<close range.
+ */
+function isOpenNow(openingTime?: string, closingTime?: string): boolean | null {
+  if (!openingTime || !closingTime) return null;
+  const toMinutes = (t: string) => {
+    const [h, m] = t.split(":").map(Number);
+    if (Number.isNaN(h) || Number.isNaN(m)) return null;
+    return h * 60 + m;
+  };
+  const open = toMinutes(openingTime);
+  const close = toMinutes(closingTime);
+  if (open === null || close === null) return null;
+  const now = new Date();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  if (open === close) return true; // same time both ways reads as "open 24 hours"
+  return open < close ? nowMin >= open && nowMin < close : nowMin >= open || nowMin < close;
+}
+
 const NoticeView: React.FC = () => {
   const { businessId } = useParams<{ businessId: string }>();
-  const [state, setState] = useState<{ name: string; text: string; accent: string; font: string } | null>(null);
+  const [state, setState] = useState<{ name: string; text: string; isDefaultStatus: boolean; open: boolean | null; hours: string; accent: string; font: string } | null>(null);
   const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
@@ -23,9 +44,20 @@ const NoticeView: React.FC = () => {
       }
       const data = snap.data() as any;
       const p = data.profile || {};
+      const customText = (p.customerNoticeText || "").trim();
+      const open = isOpenNow(p.openingTime, p.closingTime);
+      const hours = p.openingTime && p.closingTime ? `${p.openingTime} – ${p.closingTime}` : "";
+
       setState({
         name: p.name || "Business",
-        text: p.customerNoticeText || "No notice has been set.",
+        // Falls back to a live Open/Closed read of business hours only
+        // when the owner genuinely hasn't set a notice — not a permanent
+        // substitute for one, just something more useful than a blank
+        // "no notice has been set" until they do.
+        text: customText || (open === null ? "No notice has been set." : open ? "Open now" : "Closed now"),
+        isDefaultStatus: !customText && open !== null,
+        open,
+        hours,
         accent: p.colors?.accent || "#22c55e",
         font: p.colors?.font || "Inter",
       });
@@ -82,7 +114,27 @@ const NoticeView: React.FC = () => {
             <Bell size={20} color={state.accent} />
           </div>
           <h1 style={{ fontSize: 15, fontWeight: 800, margin: "0 0 10px" }}>{state.name}</h1>
-          <p style={{ fontSize: 14, lineHeight: 1.5, color: "#333", margin: 0, whiteSpace: "pre-wrap" }}>{state.text}</p>
+          {state.isDefaultStatus ? (
+            <>
+              <span
+                style={{
+                  display: "inline-block",
+                  fontSize: 12,
+                  fontWeight: 800,
+                  padding: "5px 12px",
+                  borderRadius: 999,
+                  background: state.open ? "#22c55e1c" : "#ef44441c",
+                  color: state.open ? "#16a34a" : "#dc2626",
+                  marginBottom: state.hours ? 8 : 0,
+                }}
+              >
+                {state.text}
+              </span>
+              {state.hours && <p style={{ fontSize: 12.5, color: "#888", margin: 0 }}>{state.hours}</p>}
+            </>
+          ) : (
+            <p style={{ fontSize: 14, lineHeight: 1.5, color: "#333", margin: 0, whiteSpace: "pre-wrap" }}>{state.text}</p>
+          )}
         </div>
       )}
     </div>

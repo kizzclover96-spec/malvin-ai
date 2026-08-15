@@ -2386,11 +2386,21 @@ B-VIN REQUEST STAFF — EXPIRE "TO GO" ORDER PHOTOS
 RequestStaffFlow.tsx (customer side) uploads a photo of the customer's
 current order to business/{id}/togoPhotos/{callId}.jpg when they use the
 "take my order to go" option, purely so staff can judge packaging size —
-it's genuinely not meant to be kept around. This runs every 5 minutes
-(the shortest practical Cloud Scheduler interval for this) and deletes
-both the Storage file and the serviceCalls doc's photoUrl/photoExpiresAt
-fields for anything past its 5-minute expiry, regardless of whether
-staff ever actually opened it.
+it's genuinely not meant to be kept around. Runs every 15 minutes (widened
+from every 5 minutes to cut the fixed scheduled-invocation baseline 3x —
+this was running, and being billed, on a timer regardless of whether the
+to-go feature was ever actually used) and deletes both the Storage file
+and the serviceCalls doc's photoUrl/photoExpiresAt fields for anything
+past its expiry, regardless of whether staff ever actually opened it.
+
+Worth knowing: the photo itself still individually expires at +5 minutes
+(set client-side in RequestStaffFlow.tsx) — widening the SWEEP interval
+means the worst-case time a photo can actually sit around before this
+job gets to it went from ~10 minutes (5min expiry + up to 5min sweep lag)
+to ~20 minutes (5min expiry + up to 15min sweep lag). If that's too long
+for how sensitive these photos are, drop the schedule back down rather
+than the photo's own 5-minute expiry — the expiry number is what a
+customer actually sees promised to them in the app.
 
 Requires a Firestore index for the collectionGroup('serviceCalls') query
 below — a single-field index on photoExpiresAt, scoped to "Collection
@@ -2400,7 +2410,7 @@ includes a direct console link to create it with the right fields
 pre-filled.
 */
 export const expireTogoPhotos = onSchedule(
-  { schedule: "every 5 minutes" },
+  { schedule: "every 15 minutes" },
   async () => {
     const db = getDb();
     const { getStorage } = require("firebase-admin/storage");
@@ -3238,6 +3248,7 @@ export const createVinBackTag = onCall(
     const propertyName = String(request.data?.propertyName || "").trim();
     const address = String(request.data?.address || "").trim();
     const contact1 = String(request.data?.contact1 || "").trim();
+    const contact2Name = String(request.data?.contact2Name || "").trim();
     const contact2 = String(request.data?.contact2 || "").trim();
     if (!ownerName || !propertyName || !contact1) {
       throw new HttpsError("invalid-argument", "Owner name, property name, and at least one contact are required.");
@@ -3297,6 +3308,7 @@ export const createVinBackTag = onCall(
         propertyName,
         address,
         contact1,
+        contact2Name,
         contact2,
         code,
         status: "in_possession",

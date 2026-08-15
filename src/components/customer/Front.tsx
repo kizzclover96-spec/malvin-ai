@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Mail, Bell, HardDrive, Tag, QrCode, Link2, X, Check, Camera, ChevronRight, Trash2, ScanLine, Sparkles } from "lucide-react";
+import { Mail, Bell, HardDrive, Tag, QrCode, Link2, X, Check, Camera, ChevronRight, Trash2, ScanLine, Sparkles, LogOut } from "lucide-react";
 import { doc, setDoc, addDoc, deleteDoc, collection, onSnapshot, serverTimestamp, orderBy, query } from "firebase/firestore";
 import { firestore as db, auth } from "../../firebase";
+import { signOut } from "firebase/auth";
 import { Html5Qrcode } from "html5-qrcode";
 import { NotificationBell } from "./Notification";
 import VinBackTagCreate from "../vinback/VinBackTagCreate";
@@ -47,6 +48,7 @@ export const Front: React.FC = () => {
   const [tagListOpen, setTagListOpen] = useState(false);
   const [linksListOpen, setLinksListOpen] = useState(false);
   const [storageMenuOpen, setStorageMenuOpen] = useState(false);
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   const [saveFlowOpen, setSaveFlowOpen] = useState(false);
 
   const [savedLinks, setSavedLinks] = useState<SavedLink[]>([]);
@@ -127,6 +129,10 @@ export const Front: React.FC = () => {
                   <button onClick={() => { setStorageMenuOpen(false); setLinksListOpen(true); }} style={storageMenuItemStyle}>
                     <Link2 size={15} color={ACCENT} /> Saved links & QR codes
                   </button>
+                  <div style={{ height: 1, background: "rgba(15,23,42,0.06)", margin: "4px 4px" }} />
+                  <button onClick={() => { setStorageMenuOpen(false); setLogoutConfirmOpen(true); }} style={{ ...storageMenuItemStyle, color: "#c23a3a" }}>
+                    <LogOut size={15} color="#c23a3a" /> Log out
+                  </button>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -173,6 +179,31 @@ export const Front: React.FC = () => {
         slotsUsed={slotsUsed}
         overFreeLimit={overFreeLimit}
       />
+
+      <AnimatePresence>
+        {logoutConfirmOpen && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            onClick={() => setLogoutConfirmOpen(false)}
+            style={{ position: "fixed", inset: 0, zIndex: 300, background: "rgba(20,20,22,0.45)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.92, y: 16 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.94 }}
+              onClick={(e) => e.stopPropagation()}
+              style={{ width: "100%", maxWidth: 320, background: "#fff", borderRadius: 24, padding: 24, boxShadow: "0 30px 80px rgba(0,0,0,0.25)", textAlign: "center" }}
+            >
+              <h3 style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 800 }}>Log out?</h3>
+              <p style={{ fontSize: 12.5, color: "rgba(15,23,42,0.55)", margin: "0 0 20px" }}>
+                You'll need to sign in again to get back to your tags and saved links.
+              </p>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={() => setLogoutConfirmOpen(false)} style={ghostBtnStyle}>Cancel</button>
+                <button onClick={() => signOut(auth)} style={{ ...primaryBtnStyle, flex: 1, background: "#c23a3a" }}>Log out</button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

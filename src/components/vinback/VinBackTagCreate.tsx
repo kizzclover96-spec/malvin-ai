@@ -26,6 +26,7 @@ export default function VinBackTagCreate({ onClose, onCreated }: Props) {
   const [propertyName, setPropertyName] = useState('');
   const [address, setAddress] = useState('');
   const [contact1, setContact1] = useState('');
+  const [contact2Name, setContact2Name] = useState('');
   const [contact2, setContact2] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [result, setResult] = useState<{ tagId: string; code: string; qrDataUrl: string; link: string } | null>(null);
@@ -75,6 +76,7 @@ export default function VinBackTagCreate({ onClose, onCreated }: Props) {
         propertyName: propertyName.trim(),
         address: address.trim(),
         contact1: contact1.trim(),
+        contact2Name: contact2Name.trim(),
         contact2: contact2.trim(),
       });
 
@@ -247,7 +249,7 @@ export default function VinBackTagCreate({ onClose, onCreated }: Props) {
                 </div>
 
                 <div>
-                  <label className={labelClass}>Contact 1</label>
+                  <label className={labelClass}>Your phone or email</label>
                   <input
                     value={contact1} onChange={(e) => setContact1(e.target.value)} required
                     placeholder="Phone or email"
@@ -256,10 +258,15 @@ export default function VinBackTagCreate({ onClose, onCreated }: Props) {
                 </div>
 
                 <div>
-                  <label className={labelClass}>Contact 2 <span className="normal-case text-neutral-300 dark:text-neutral-600 font-semibold">(optional)</span></label>
+                  <label className={labelClass}>Secondary contact <span className="normal-case text-neutral-300 dark:text-neutral-600 font-semibold">(optional)</span></label>
+                  <input
+                    value={contact2Name} onChange={(e) => setContact2Name(e.target.value)}
+                    placeholder="Name"
+                    className={`${inputClass} mb-2`}
+                  />
                   <input
                     value={contact2} onChange={(e) => setContact2(e.target.value)}
-                    placeholder="A secondary contact"
+                    placeholder="Their phone or email"
                     className={inputClass}
                   />
                 </div>

@@ -12,6 +12,7 @@ import {
   Link2,
   Camera,
   User,
+  LogOut,
   Wrench,
   Palette,
   Type,
@@ -47,11 +48,12 @@ import {
   Pin,
   Search,
 } from "lucide-react";
-import { QRCodeCanvas } from "qrcode.react";
+import BrandedQrCode from "./BrandedQrCode";
 import { doc, onSnapshot, setDoc, collection, query, where, addDoc, serverTimestamp } from "firebase/firestore";
 import { ref as rtdbRef, set, update as rtdbUpdate, remove, onValue, serverTimestamp as rtdbServerTimestamp } from "firebase/database";
 import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 import { firestore, auth, db as rtdb, storage } from "../../firebase";
+import { signOut } from "firebase/auth";
 import { createBusinessStripeAccount, createStripeOnboardingLink, checkStripeAccount } from "../../stripe";
 import { storeOrigin, PUBLIC_ORIGIN } from "../../services/vinLink";
 import { useAccountStanding } from "../../hooks/useAccountStanding";
@@ -212,7 +214,14 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
   const [tools, setTools] = useState<ToolState>(DEFAULT_TOOLS);
   const [pinnedTools, setPinnedTools] = useState<Partial<Record<ToolKey, number>>>({});
   const [colors, setColors] = useState<BVinColors>(DEFAULT_COLORS);
-  const [customerNoticeText, setCustomerNoticeText] = useState("We are currently on holiday — we'll be back soon!");
+  // Genuinely empty, not a hardcoded starter message — CustomerNoticeCard's
+  // textarea already shows placeholder text as a visual hint. This actual
+  // state gets auto-saved via the debounced write below, so a hardcoded
+  // string here would get written to every new business's profile whether
+  // they ever touched this card or not — which would silently defeat
+  // NoticeView.tsx's "show Open/Closed until the owner sets a real
+  // notice" fallback, since the field would never actually be empty.
+  const [customerNoticeText, setCustomerNoticeText] = useState("");
   const [stripeConnected, setStripeConnected] = useState(false);
   const [stripeAccountId, setStripeAccountId] = useState<string | null>(null);
   const [stripePayoutsEnabled, setStripePayoutsEnabled] = useState(false);
@@ -227,6 +236,7 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
   const [activeTab, setActiveTab] = useState<"dashboard" | "team" | "chat">("dashboard");
   const [fullscreenTool, setFullscreenTool] = useState<"productStore" | "environment" | "premium" | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   const [settingsView, setSettingsView] = useState<"root" | "profile" | "tools" | "customize">("root");
   const [langOpen, setLangOpen] = useState(false);
   const [langSearch, setLangSearch] = useState("");
@@ -930,7 +940,7 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
               title="Open your store"
               style={{ background: "#fff", borderRadius: 20, padding: 20, display: "flex", justifyContent: "center", marginBottom: 18, border: "1px solid rgba(0,0,0,0.06)", width: "100%", cursor: "pointer" }}
             >
-              <QRCodeCanvas id="bvin-store-qr" value={storeQrValue} size={180} fgColor={colors.qr} bgColor="#ffffff" />
+              <BrandedQrCode id="bvin-store-qr" value={storeQrValue} size={180} />
             </button>
             {/* Exempt from the blend rule — these stay tied to the QR/scan identity */}
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -961,7 +971,7 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
               ) : (
                 <>
                   <div style={{ background: "#fff", borderRadius: 20, padding: 18, display: "inline-block", position: "relative", border: "1px solid rgba(0,0,0,0.06)" }}>
-                    {pairingUrl ? <QRCodeCanvas value={pairingUrl} size={160} fgColor={colors.qr} /> : (
+                    {pairingUrl ? <BrandedQrCode value={pairingUrl} size={160} /> : (
                       <div style={{ width: 160, height: 160, display: "flex", alignItems: "center", justifyContent: "center", color: "#999", fontSize: 12 }}>Generating code…</div>
                     )}
                   </div>
@@ -1024,6 +1034,7 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   <SettingsRootButton icon={User} label="Profile" accent={accent} onClick={() => setSettingsView("profile")} />
                   <SettingsRootButton icon={Wrench} label="Enable Tools" accent={accent} onClick={() => setSettingsView("tools")} />
+                  <SettingsRootButton icon={LogOut} label="Log out" accent="#c23a3a" onClick={() => setLogoutConfirmOpen(true)} />
                 </div>
               </div>
             )}
@@ -1036,6 +1047,28 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
             {settingsView === "customize" && (
               <CustomizeView colors={colors} setColors={setColors} name={name} storeQrValue={storeQrValue} onBack={() => setSettingsView("profile")} />
             )}
+          </GlassOverlay>
+        )}
+      </AnimatePresence>
+
+      {/* Log out confirmation */}
+      <AnimatePresence>
+        {logoutConfirmOpen && (
+          <GlassOverlay onClose={() => setLogoutConfirmOpen(false)}>
+            <div style={{ textAlign: "center" }}>
+              <h3 style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 800 }}>Log out?</h3>
+              <p style={{ fontSize: 12.5, color: "rgba(29,29,31,0.6)", margin: "0 0 20px" }}>
+                You'll need to sign in again to get back to your dashboard.
+              </p>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={() => setLogoutConfirmOpen(false)} style={{ flex: 1, padding: "12px", borderRadius: 13, border: "1px solid rgba(0,0,0,0.08)", background: "#fff", fontSize: 12.5, fontWeight: 700, color: "#1d1d1f", cursor: "pointer" }}>
+                  Cancel
+                </button>
+                <button onClick={() => signOut(auth)} style={{ flex: 1, padding: "12px", borderRadius: 13, border: "none", background: "#c23a3a", fontSize: 12.5, fontWeight: 700, color: "#fff", cursor: "pointer" }}>
+                  Log out
+                </button>
+              </div>
+            </div>
           </GlassOverlay>
         )}
       </AnimatePresence>
@@ -1298,10 +1331,9 @@ const CustomerNoticeCard: React.FC<{
       </button>
 
       <div style={{ display: "none" }}>
-        <QRCodeCanvas
+        <BrandedQrCode
           id="bvin-notice-qr-hidden"
           value={qrValue}
-          fgColor={colors.qr}
           size={256}
         />
       </div>
@@ -2250,7 +2282,7 @@ const CustomizeView: React.FC<{ colors: BVinColors; setColors: (fn: (c: BVinColo
       </div>
       <div style={{ borderRadius: 18, overflow: "hidden", marginBottom: 16, border: "1px solid rgba(0,0,0,0.06)" }}>
         {tab === "qr" ? (
-          <div style={{ background: "#fff", padding: 20, display: "flex", justifyContent: "center" }}><QRCodeCanvas value={storeQrValue} size={140} fgColor={colors.qr} /></div>
+          <div style={{ background: "#fff", padding: 20, display: "flex", justifyContent: "center" }}><BrandedQrCode value={storeQrValue} size={140} /></div>
         ) : tab === "store" ? (
           <div style={{ background: colors.storeBg, color: colors.storeText, padding: 20, fontFamily: colors.font }}>
             <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 6 }}>{name}</div>
@@ -2313,7 +2345,37 @@ const BackHeader: React.FC<{ title: string; onBack: () => void }> = ({ title, on
 function downloadQr(canvasId: string, filename: string) {
   const canvas = document.getElementById(canvasId) as HTMLCanvasElement | null;
   if (!canvas) return;
-  const url = canvas.toDataURL("image/png");
+
+  const captionHeight = Math.round(canvas.width * 0.14);
+  const composite = document.createElement("canvas");
+  composite.width = canvas.width;
+  composite.height = canvas.height + captionHeight;
+  const ctx = composite.getContext("2d");
+  if (!ctx) {
+    // Compositing failed for some reason — still let the download happen
+    // with a plain QR rather than silently doing nothing.
+    const url = canvas.toDataURL("image/png");
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    return;
+  }
+
+  // Same cream background BrandedQrCode.tsx uses, so the caption strip
+  // reads as part of one designed image rather than a mismatched white
+  // bar glued under a cream QR code.
+  ctx.fillStyle = "#FDF8ED";
+  ctx.fillRect(0, 0, composite.width, composite.height);
+  ctx.drawImage(canvas, 0, 0);
+
+  ctx.fillStyle = "#0B1220";
+  ctx.font = `800 ${Math.round(captionHeight * 0.34)}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("SCAN FOR INFORMATION", composite.width / 2, canvas.height + captionHeight / 2);
+
+  const url = composite.toDataURL("image/png");
   const a = document.createElement("a");
   a.href = url;
   a.download = filename;
