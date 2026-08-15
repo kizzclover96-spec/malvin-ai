@@ -1,4 +1,4 @@
-import { signInWithCustomToken, type Auth } from 'firebase/auth';
+import { signInWithCustomToken, signInAnonymously, type Auth } from 'firebase/auth';
 
 // Avoids re-signing-in on every MALVIN_USER message a store receives — the
 // parent can resend identity more than once per session (a retried
@@ -129,4 +129,36 @@ export function waitForRealAuthUid(auth: Auth, timeoutMs = 4000): Promise<string
       resolve(auth.currentUser?.uid ?? null);
     }, timeoutMs);
   });
+}
+
+/**
+ * The function every store action (placing an order, sending a chat
+ * message, requesting staff, leaving a review, anything Firestore's rules
+ * gate on request.auth.uid) should actually call — waitForRealAuthUid()
+ * alone can only ever succeed if this page is embedded in StoreFront.tsx's
+ * <iframe> AND that parent actually sends a MALVIN_USER handshake with a
+ * real customer's custom token. In practice the overwhelming majority of
+ * store visits are someone scanning a QR code directly with their phone
+ * camera — landing straight on stores.malvinai.com with no parent page at
+ * all — so there is no handshake to wait for, ever, for that visitor.
+ * Customers of this storefront do not sign in.
+ *
+ * This resolves the real identity WITHOUT the pointless multi-second wait
+ * in that (overwhelmingly common) case: if this page isn't even inside an
+ * iframe, there is no handshake possible, so it signs in anonymously
+ * immediately. If it IS inside an iframe (embedded via the main app,
+ * where a real handshake genuinely might arrive), it gives that a short
+ * window before falling back the same way. Either way this resolves to a
+ * real, write-capable uid — never null — so callers can stop treating
+ * "no identity yet" as a failure state.
+ */
+export async function resolveGuestUid(auth: Auth): Promise<string> {
+  if (auth.currentUser?.uid) return auth.currentUser.uid;
+
+  const isEmbedded = typeof window !== "undefined" && window.self !== window.top;
+  const real = await waitForRealAuthUid(auth, isEmbedded ? 1500 : 0);
+  if (real) return real;
+
+  const cred = await signInAnonymously(auth);
+  return cred.user.uid;
 }

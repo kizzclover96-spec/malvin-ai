@@ -34,7 +34,7 @@ import {
   updateDoc,
 } from "firebase/firestore";
 import { firestore as db, auth } from "../../firebase";
-import { applyStorefrontIdentity, waitForRealAuthUid } from "../../services/storefrontAuth";
+import { applyStorefrontIdentity, resolveGuestUid } from "../../services/storefrontAuth";
 import { ToolState, isCustomerVisible } from "../../config/bvinTools";
 import { useAccountStanding } from "../../hooks/useAccountStanding";
 import { useLanguage } from "../../contexts/LanguageContext";
@@ -97,7 +97,7 @@ interface CartItem {
 }
 
 const DEFAULT_COLORS: BVinColors = {
-  accent: "#22c55e",
+  accent: "#4F9CF9",
   storeBg: "#faf8f4",
   storeText: "#0b0b0b",
   font: "Inter",
@@ -110,6 +110,21 @@ const BVinStore: React.FC = () => {
   const [profile, setProfile] = useState<BVinProfile | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [activeUser, setActiveUser] = useState<{ uid: string; email: string | null; isGuest: boolean } | null>(null);
+  // activeUser is ONLY ever set by the postMessage handshake below, which
+  // requires this page to be embedded in StoreFront.tsx's <iframe> with a
+  // parent that actually sends MALVIN_USER — never true for someone who
+  // scanned a QR code directly with their phone camera, which is the
+  // normal way a customer reaches this page. guestUid is resolved
+  // independently (real handshake if one's coming, anonymous sign-in
+  // immediately otherwise — see resolveGuestUid) so chat and loyalty work
+  // for that overwhelmingly common case instead of silently never loading.
+  const [guestUid, setGuestUid] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    resolveGuestUid(auth).then((uid) => { if (!cancelled) setGuestUid(uid); });
+    return () => { cancelled = true; };
+  }, []);
+  const effectiveUid = activeUser?.uid || guestUid;
 
   const [products, setProducts] = useState<Product[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -195,25 +210,23 @@ const BVinStore: React.FC = () => {
   const { isVerified } = useAccountStanding(businessId);
   const { language, languages, setLanguage } = useLanguage();
   const [langMenuOpen, setLangMenuOpen] = useState(false);
+  const [showLangPrompt, setShowLangPrompt] = useState(true);
+  const [entryLangSearch, setEntryLangSearch] = useState("");
   const [langSearch, setLangSearch] = useState("");
   const [contactOpen, setContactOpen] = useState(false);
   const [complaintOpen, setComplaintOpen] = useState(false);
   const [complaintText, setComplaintText] = useState("");
   const [complaintSent, setComplaintSent] = useState(false);
-  const chatSectionRef = useRef<HTMLDivElement>(null);
+  const [chatOpen, setChatOpen] = useState(false);
   const contactPhone = profile?.phone || "";
-
-  const setStoreTab = (tab: "chat") => {
-    if (tab === "chat") chatSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
 
   const submitComplaint = async () => {
     if (!complaintText.trim()) return;
     try {
-      const uid = await waitForRealAuthUid(auth);
+      const uid = await resolveGuestUid(auth);
       await addDoc(collection(db, "business", businessId, "complaints"), {
         text: complaintText.trim(),
-        customerUid: uid || "guest",
+        customerUid: uid,
         createdAt: serverTimestamp(),
       });
       setComplaintSent(true);
@@ -249,9 +262,9 @@ const BVinStore: React.FC = () => {
   /* --------------------------- Chat (lightweight, self-contained) --------------------------- */
 
   useEffect(() => {
-    if (!businessId || !profile?.enabledTools.chat || !activeUser?.uid) return;
+    if (!businessId || !profile?.enabledTools.chat || !effectiveUid) return;
     const q = query(
-      collection(db, "business", businessId, "chats", activeUser.uid, "messages"),
+      collection(db, "business", businessId, "chats", effectiveUid, "messages"),
       orderBy("at", "asc"),
       limit(100)
     );
@@ -259,16 +272,16 @@ const BVinStore: React.FC = () => {
       setChatMessages(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })));
     });
     return () => unsub();
-  }, [businessId, profile?.enabledTools.chat, activeUser?.uid]);
+  }, [businessId, profile?.enabledTools.chat, effectiveUid]);
 
   /* --------------------------- Loyalty --------------------------- */
 
   useEffect(() => {
-    if (!businessId || !profile?.enabledTools.loyalty || !activeUser?.uid) return;
-    const ref = doc(db, "business", businessId, "loyalty", activeUser.uid);
+    if (!businessId || !profile?.enabledTools.loyalty || !effectiveUid) return;
+    const ref = doc(db, "business", businessId, "loyalty", effectiveUid);
     const unsub = onSnapshot(ref, (snap) => setLoyaltyPoints(snap.exists() ? (snap.data() as any).points || 0 : 0));
     return () => unsub();
-  }, [businessId, profile?.enabledTools.loyalty, activeUser?.uid]);
+  }, [businessId, profile?.enabledTools.loyalty, effectiveUid]);
 
   /* --------------------------- StoreFront handshake --------------------------- */
 
@@ -349,8 +362,7 @@ const BVinStore: React.FC = () => {
     setOrderError(null);
     setPlacingOrder(true);
     try {
-      const realUid = await waitForRealAuthUid(auth);
-      if (!realUid) throw new Error("Still connecting to your account — try again in a moment.");
+      const realUid = await resolveGuestUid(auth);
 
       const orderRef = await addDoc(collection(db, "business", businessId, "orders"), {
         customerUid: realUid,
@@ -399,8 +411,7 @@ const BVinStore: React.FC = () => {
 
   const sendReservation = async () => {
     if (!businessId) return;
-    const realUid = await waitForRealAuthUid(auth);
-    if (!realUid) return;
+    const realUid = await resolveGuestUid(auth);
     await addDoc(collection(db, "business", businessId, "reservations"), {
       customerUid: realUid,
       name: reservationName,
@@ -413,9 +424,8 @@ const BVinStore: React.FC = () => {
   };
 
   const sendChatMessage = async () => {
-    if (!businessId || !activeUser?.uid || !chatText.trim()) return;
-    const realUid = await waitForRealAuthUid(auth);
-    if (!realUid) return;
+    if (!businessId || !chatText.trim()) return;
+    const realUid = effectiveUid || (await resolveGuestUid(auth));
     await addDoc(collection(db, "business", businessId, "chats", realUid, "messages"), {
       from: "customer",
       text: chatText.trim(),
@@ -426,8 +436,7 @@ const BVinStore: React.FC = () => {
 
   const submitReview = async () => {
     if (!businessId || myRating === 0) return;
-    const realUid = await waitForRealAuthUid(auth);
-    if (!realUid) return;
+    const realUid = await resolveGuestUid(auth);
     await setDoc(doc(db, "business", businessId, "reviews", realUid), {
       rating: myRating,
       text: reviewText,
@@ -473,9 +482,12 @@ const BVinStore: React.FC = () => {
         color: theme.storeText,
         fontFamily: `${theme.font}, sans-serif`,
         paddingBottom: 90,
+        position: "relative",
+        overflowX: "hidden",
       }}
     >
       <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&display=swap');
         * { box-sizing: border-box; }
         .bvin-store-btn {
           border: none; border-radius: 12px; cursor: pointer;
@@ -483,102 +495,171 @@ const BVinStore: React.FC = () => {
         }
         .bvin-store-btn:hover { filter: brightness(1.05); transform: translateY(-1px); }
         .bvin-store-btn:active { transform: scale(0.97); }
+        .bvin-store-name { font-family: 'Fraunces', 'Inter', serif; }
+        @keyframes bvinDrift {
+          0%, 100% { transform: translate(0,0) scale(1); }
+          50% { transform: translate(3%, 4%) scale(1.08); }
+        }
+        .bvin-drift { animation: bvinDrift 15s ease-in-out infinite; }
+        .bvin-card {
+          background: rgba(255,255,255,0.55);
+          border: 1px solid rgba(127,127,127,0.14);
+          border-radius: 20px;
+          padding: 18px;
+          backdrop-filter: blur(6px);
+          -webkit-backdrop-filter: blur(6px);
+        }
       `}</style>
 
-      {/* Header */}
-      <div style={{ position: "relative", padding: "20px 16px 16px" }}>
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
-          {/* Top-left: logo, name, verified badge, then bio/address/hours/rating stacked below */}
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-              {profile.logoUrl ? (
-                <img src={profile.logoUrl} alt={profile.name} style={{ width: 44, height: 44, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
-              ) : (
-                <div style={{ width: 44, height: 44, borderRadius: "50%", background: `${theme.accent}1c`, flexShrink: 0 }} />
-              )}
-              <div style={{ minWidth: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                  <h1 style={{ fontSize: 17, fontWeight: 800, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{profile.name}</h1>
-                  {isVerified && <BadgeCheck size={15} color="#007fff" style={{ flexShrink: 0 }} />}
-                </div>
-              </div>
-            </div>
+      {/* Ambient background — soft accent-tinted glow + a faint dot texture, tuned
+          to whatever accent color this particular business picked, so it reads
+          right for a café, a salon, a garage, or anything else. */}
+      <div style={{ position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none", zIndex: 0 }}>
+        <div className="bvin-drift" style={{ position: "absolute", top: "-12%", right: "-10%", width: "60vw", height: "60vw", maxWidth: 480, maxHeight: 480, background: `radial-gradient(circle, ${theme.accent}22 0%, transparent 70%)`, filter: "blur(60px)" }} />
+        <div className="bvin-drift" style={{ position: "absolute", bottom: "5%", left: "-15%", width: "55vw", height: "55vw", maxWidth: 420, maxHeight: 420, background: `radial-gradient(circle, ${theme.accent}18 0%, transparent 70%)`, filter: "blur(60px)", animationDelay: "4s" }} />
+        <div style={{ position: "absolute", inset: 0, opacity: 0.5, backgroundImage: `radial-gradient(${theme.accent}14 1px, transparent 1px)`, backgroundSize: "22px 22px", maskImage: "radial-gradient(ellipse 80% 60% at 50% 0%, black 30%, transparent 85%)" }} />
+      </div>
 
-            {profile.bio && <p style={{ fontSize: 12, opacity: 0.65, margin: "0 0 3px", lineHeight: 1.4 }}>{profile.bio}</p>}
-            {profile.address && (
-              <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11.5, opacity: 0.55, marginBottom: 3 }}>
-                <MapPin size={11} /> {profile.address}
-              </div>
+      <div style={{ position: "relative", zIndex: 1 }}>
+      {/* Header */}
+      <div style={{ position: "relative", padding: "20px 18px 16px", maxWidth: 640, margin: "0 auto" }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
+          {/* Top-left: logo beside a column of [name+badge, bio directly under it] */}
+          <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "flex-start", gap: 10 }}>
+            {profile.logoUrl ? (
+              <img src={profile.logoUrl} alt={profile.name} style={{ width: 44, height: 44, borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: `2px solid ${theme.accent}` }} />
+            ) : (
+              <div style={{ width: 44, height: 44, borderRadius: "50%", background: `${theme.accent}1c`, flexShrink: 0, border: `2px solid ${theme.accent}` }} />
             )}
-            {(profile.openingTime || profile.closingTime) && (
-              <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11.5, opacity: 0.55, marginBottom: 3 }}>
-                <Clock size={11} /> {profile.openingTime || "—"} – {profile.closingTime || "—"}
+            <div style={{ minWidth: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                <h1 className="bvin-store-name" style={{ fontSize: 18, fontWeight: 700, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{profile.name}</h1>
+                {isVerified && <BadgeCheck size={15} color="#007fff" style={{ flexShrink: 0 }} />}
               </div>
-            )}
-            {tools.reviews && avgRating !== null && (
-              <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11.5, fontWeight: 700 }}>
-                <Star size={12} fill={theme.accent} color={theme.accent} />
-                {avgRating.toFixed(1)} <span style={{ opacity: 0.5, fontWeight: 500 }}>({reviewCount})</span>
-              </div>
-            )}
+              {profile.bio && <p style={{ fontSize: 12, opacity: 0.65, margin: "2px 0 0", lineHeight: 1.4 }}>{profile.bio}</p>}
+              {profile.address && (
+                <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11.5, opacity: 0.55, marginTop: 5 }}>
+                  <MapPin size={11} /> {profile.address}
+                </div>
+              )}
+              {(profile.openingTime || profile.closingTime) && (
+                <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11.5, opacity: 0.55, marginTop: 4 }}>
+                  <Clock size={11} /> {profile.openingTime || "—"} – {profile.closingTime || "—"}
+                </div>
+              )}
+              {tools.reviews && avgRating !== null && (
+                <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11.5, fontWeight: 700, marginTop: 4 }}>
+                  <Star size={12} fill={theme.accent} color={theme.accent} />
+                  {avgRating.toFixed(1)} <span style={{ opacity: 0.5, fontWeight: 500 }}>({reviewCount})</span>
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* Top-right: glass pill (chat / complaints / contact / language) */}
-          <div style={{ position: "relative", flexShrink: 0 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 4, padding: 5, borderRadius: 999, background: "rgba(255,255,255,0.6)", backdropFilter: "blur(20px) saturate(180%)", WebkitBackdropFilter: "blur(20px) saturate(180%)", border: "1px solid rgba(255,255,255,0.8)", boxShadow: "0 8px 22px rgba(0,0,0,0.08)" }}>
-              {tools.chat && (
-                <button onClick={() => setStoreTab("chat")} title="Chat" style={pillIconBtnStyle(theme.accent)}>
-                  <MessageCircle size={15} />
-                </button>
-              )}
-              {tools.complaints && (
-                <button onClick={() => setComplaintOpen(true)} title="Report an issue" style={pillIconBtnStyle(theme.accent)}>
-                  <span style={{ fontSize: 15, lineHeight: 1 }}>😠</span>
-                </button>
-              )}
-              {tools.contactBusiness && (
-                <button onClick={() => setContactOpen(true)} title="Contact" style={pillIconBtnStyle(theme.accent)}>
-                  <Phone size={14} />
-                </button>
-              )}
-              {/* Language selector is always present, regardless of enabled tools */}
-              <motion.button
-                onClick={() => setLangMenuOpen((v) => !v)}
-                title="Language"
-                animate={langGlow ? { boxShadow: [`0 0 0 0px ${theme.accent}55`, `0 0 0 7px ${theme.accent}00`] } : {}}
-                transition={langGlow ? { duration: 1.1, repeat: Infinity } : {}}
-                style={{ ...pillIconBtnStyle(theme.accent), background: langGlow ? `${theme.accent}22` : "transparent" }}
-              >
-                <Globe size={15} />
-              </motion.button>
+          {/* Top-right: glass pill, plus the Request Staff circle sitting directly beside it */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+            <div style={{ position: "relative" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 4, padding: 5, borderRadius: 999, background: "rgba(255,255,255,0.6)", backdropFilter: "blur(20px) saturate(180%)", WebkitBackdropFilter: "blur(20px) saturate(180%)", border: "1px solid rgba(255,255,255,0.8)", boxShadow: "0 8px 22px rgba(0,0,0,0.08)" }}>
+                {tools.chat && (
+                  <button onClick={() => setChatOpen(true)} title="Chat" style={pillIconBtnStyle(theme.accent)}>
+                    <MessageCircle size={15} />
+                  </button>
+                )}
+                {tools.complaints && (
+                  <button onClick={() => setComplaintOpen(true)} title="Report an issue" style={pillIconBtnStyle(theme.accent)}>
+                    <span style={{ fontSize: 15, lineHeight: 1 }}>😠</span>
+                  </button>
+                )}
+                {tools.contactBusiness && (
+                  <button onClick={() => setContactOpen(true)} title="Contact" style={pillIconBtnStyle(theme.accent)}>
+                    <Phone size={14} />
+                  </button>
+                )}
+                {/* Language selector is always present, regardless of enabled tools */}
+                <motion.button
+                  onClick={() => setLangMenuOpen((v) => !v)}
+                  title="Language"
+                  animate={langGlow ? { boxShadow: [`0 0 0 0px ${theme.accent}55`, `0 0 0 7px ${theme.accent}00`] } : {}}
+                  transition={langGlow ? { duration: 1.1, repeat: Infinity } : {}}
+                  style={{ ...pillIconBtnStyle(theme.accent), background: langGlow ? `${theme.accent}22` : "transparent" }}
+                >
+                  <Globe size={15} />
+                </motion.button>
+              </div>
+
+              <AnimatePresence>
+                {langMenuOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -6, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -6, scale: 0.96 }}
+                    style={{ position: "absolute", top: 46, right: 0, zIndex: 50, width: 220, maxHeight: 300, background: "#fff", borderRadius: 16, padding: 8, boxShadow: "0 20px 50px rgba(0,0,0,0.18)", display: "flex", flexDirection: "column" }}
+                  >
+                    <input value={langSearch} onChange={(e) => setLangSearch(e.target.value)} placeholder="Search language…" style={{ fontSize: 12, padding: "8px 10px", borderRadius: 9, border: "1px solid rgba(0,0,0,0.08)", marginBottom: 6 }} />
+                    <div style={{ overflowY: "auto" }}>
+                      {languages.filter((l) => l.name.toLowerCase().includes(langSearch.trim().toLowerCase())).map((l) => (
+                        <button key={l.code} onClick={() => { setLanguage(l.code); setLangMenuOpen(false); }} style={{ display: "flex", justifyContent: "space-between", width: "100%", padding: "7px 9px", borderRadius: 8, border: "none", background: language === l.code ? `${theme.accent}18` : "transparent", fontSize: 12.5, cursor: "pointer", textAlign: "left" }}>
+                          {l.name}
+                          {language === l.code && <Check size={12} color={theme.accent} />}
+                        </button>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
-            <AnimatePresence>
-              {langMenuOpen && (
-                <motion.div
-                  initial={{ opacity: 0, y: -6, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -6, scale: 0.96 }}
-                  style={{ position: "absolute", top: 46, right: 0, zIndex: 50, width: 220, maxHeight: 300, background: "#fff", borderRadius: 16, padding: 8, boxShadow: "0 20px 50px rgba(0,0,0,0.18)", display: "flex", flexDirection: "column" }}
-                >
-                  <input value={langSearch} onChange={(e) => setLangSearch(e.target.value)} placeholder="Search language…" style={{ fontSize: 12, padding: "8px 10px", borderRadius: 9, border: "1px solid rgba(0,0,0,0.08)", marginBottom: 6 }} />
-                  <div style={{ overflowY: "auto" }}>
-                    {languages.filter((l) => l.name.toLowerCase().includes(langSearch.trim().toLowerCase())).map((l) => (
-                      <button key={l.code} onClick={() => { setLanguage(l.code); setLangMenuOpen(false); }} style={{ display: "flex", justifyContent: "space-between", width: "100%", padding: "7px 9px", borderRadius: 8, border: "none", background: language === l.code ? `${theme.accent}18` : "transparent", fontSize: 12.5, cursor: "pointer", textAlign: "left" }}>
-                        {l.name}
-                        {language === l.code && <Check size={12} color={theme.accent} />}
-                      </button>
-                    ))}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+            {tools.requestStaff && (
+              <RequestStaffFlow businessId={businessId} accent={theme.accent} allowToGo={!!profile.allowToGo} />
+            )}
           </div>
         </div>
       </div>
 
-      {/* Floating Request Staff button — obvious, high-contrast circle */}
-      {tools.requestStaff && (
-        <RequestStaffFlow businessId={businessId} accent={theme.accent} allowToGo={!!profile.allowToGo} />
-      )}
+      {/* Language prompt — shown in German every time someone opens the store,
+          prompting them to pick whichever language they're actually
+          comfortable in. Dismissible without picking (defaults stay put). */}
+      <AnimatePresence>
+        {showLangPrompt && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            style={{ position: "fixed", inset: 0, zIndex: 300, background: "rgba(20,20,22,0.45)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.92, y: 16 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.94 }}
+              transition={{ type: "spring", stiffness: 300, damping: 28 }}
+              style={{ width: "100%", maxWidth: 340, background: "#fff", borderRadius: 26, padding: 26, boxShadow: "0 30px 80px rgba(0,0,0,0.25)" }}
+            >
+              <div style={{ width: 46, height: 46, borderRadius: 14, background: `${theme.accent}18`, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>
+                <Globe size={20} color={theme.accent} />
+              </div>
+              <h3 style={{ margin: "0 0 4px", fontSize: 17, fontWeight: 800, color: "#1d1d1f" }}>Sprache auswählen</h3>
+              <p style={{ fontSize: 12.5, color: "rgba(29,29,31,0.6)", margin: "0 0 16px" }}>
+                Bitte wählen Sie Ihre bevorzugte Sprache aus.
+              </p>
+              <input
+                value={entryLangSearch}
+                onChange={(e) => setEntryLangSearch(e.target.value)}
+                placeholder="Sprache suchen…"
+                style={{ width: "100%", fontSize: 13, padding: "10px 12px", borderRadius: 11, border: "1px solid rgba(0,0,0,0.08)", marginBottom: 10 }}
+              />
+              <div style={{ maxHeight: 240, overflowY: "auto", display: "flex", flexDirection: "column", gap: 3, marginBottom: 14 }}>
+                {languages.filter((l) => l.name.toLowerCase().includes(entryLangSearch.trim().toLowerCase())).map((l) => (
+                  <button
+                    key={l.code}
+                    onClick={() => { setLanguage(l.code); setShowLangPrompt(false); }}
+                    style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", padding: "10px 12px", borderRadius: 11, border: language === l.code ? `1.5px solid ${theme.accent}` : "1px solid rgba(0,0,0,0.06)", background: language === l.code ? `${theme.accent}10` : "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", textAlign: "left", color: "#1d1d1f" }}
+                  >
+                    {l.name}
+                    {language === l.code && <Check size={13} color={theme.accent} />}
+                  </button>
+                ))}
+              </div>
+              <button onClick={() => setShowLangPrompt(false)} style={{ width: "100%", background: "none", border: "none", fontSize: 12, fontWeight: 700, color: "rgba(29,29,31,0.4)", cursor: "pointer", padding: 4 }}>
+                Später · Not now
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Contact popup */}
       <AnimatePresence>
@@ -613,11 +694,44 @@ const BVinStore: React.FC = () => {
         )}
       </AnimatePresence>
 
+      {/* Chat popup — only ever shown when the chat icon in the header pill is tapped */}
+      <AnimatePresence>
+        {chatOpen && (
+          <SimplePopup onClose={() => setChatOpen(false)} title="Message this business" accent={theme.accent}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 320, overflowY: "auto", marginBottom: 10 }}>
+              {chatMessages.length === 0 && <p style={{ fontSize: 12.5, opacity: 0.5, textAlign: "center" }}>No messages yet — say hello.</p>}
+              {chatMessages.map((m) => (
+                <div
+                  key={m.id}
+                  style={{
+                    alignSelf: m.from === "customer" ? "flex-end" : "flex-start",
+                    background: m.from === "customer" ? theme.accent : "rgba(0,0,0,0.06)",
+                    color: m.from === "customer" ? "#fff" : theme.storeText,
+                    padding: "8px 12px",
+                    borderRadius: 14,
+                    fontSize: 13,
+                    maxWidth: "80%",
+                  }}
+                >
+                  {m.text}
+                </div>
+              ))}
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input placeholder="Type a message…" value={chatText} onChange={(e) => setChatText(e.target.value)} style={{ ...inputStyle, flex: 1 }} onKeyDown={(e) => e.key === "Enter" && sendChatMessage()} />
+              <button className="bvin-store-btn" style={{ background: theme.accent, color: "#fff", padding: "0 14px" }} onClick={sendChatMessage}>
+                <Send size={15} />
+              </button>
+            </div>
+          </SimplePopup>
+        )}
+      </AnimatePresence>
+
       <div style={{ padding: "0 18px", display: "flex", flexDirection: "column", gap: 22, maxWidth: 640, margin: "0 auto" }}>
         {/* Catalogue */}
         {tools.catalogue && (
-          <section>
-            <SectionTitle icon={ShoppingBag} label="Menu" accent={theme.accent} />
+          <section className="bvin-card">
+            <SectionTitle icon={ShoppingBag} label="Catalogue" accent={theme.accent} />
             <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>
               {products.length === 0 && <p style={{ fontSize: 13, opacity: 0.6 }}>Nothing listed yet.</p>}
               {products.map((p) => (
@@ -629,7 +743,7 @@ const BVinStore: React.FC = () => {
                     {tools.orders && (
                       <button
                         className="bvin-store-btn"
-                        style={{ background: theme.accent, color: "#06210f", fontSize: 11.5, padding: "6px 10px", width: "100%" }}
+                        style={{ background: theme.accent, color: "#fff", fontSize: 11.5, padding: "6px 10px", width: "100%" }}
                         onClick={() => addToCart(p)}
                       >
                         Add
@@ -644,10 +758,10 @@ const BVinStore: React.FC = () => {
 
         {/* Orders (no catalogue — simple request) */}
         {tools.orders && !tools.catalogue && (
-          <section>
+          <section className="bvin-card">
             <SectionTitle icon={ShoppingBag} label="Place an order" accent={theme.accent} />
             <p style={{ fontSize: 13, opacity: 0.65, marginBottom: 10 }}>Send a request and the business will confirm it.</p>
-            <button className="bvin-store-btn" style={{ background: theme.accent, color: "#06210f", padding: "12px 16px", width: "100%" }} onClick={placeOrder} disabled={placingOrder}>
+            <button className="bvin-store-btn" style={{ background: theme.accent, color: "#fff", padding: "12px 16px", width: "100%" }} onClick={placeOrder} disabled={placingOrder}>
               {placingOrder ? "Sending…" : "Request order"}
             </button>
           </section>
@@ -655,7 +769,7 @@ const BVinStore: React.FC = () => {
 
         {/* Reservations */}
         {tools.reservations && (
-          <section>
+          <section className="bvin-card">
             <SectionTitle icon={CalendarCheck} label="Book a time" accent={theme.accent} />
             {reservationSent ? (
               <p style={{ fontSize: 13, color: theme.accent, fontWeight: 700 }}>
@@ -666,7 +780,7 @@ const BVinStore: React.FC = () => {
                 <input placeholder="Your name" value={reservationName} onChange={(e) => setReservationName(e.target.value)} style={inputStyle} />
                 <input placeholder="Preferred time" value={reservationTime} onChange={(e) => setReservationTime(e.target.value)} style={inputStyle} />
                 <textarea placeholder="Anything else?" value={reservationNote} onChange={(e) => setReservationNote(e.target.value)} rows={2} style={{ ...inputStyle, resize: "none" }} />
-                <button className="bvin-store-btn" style={{ background: theme.accent, color: "#06210f", padding: "11px 16px" }} onClick={sendReservation}>
+                <button className="bvin-store-btn" style={{ background: theme.accent, color: "#fff", padding: "11px 16px" }} onClick={sendReservation}>
                   Request booking
                 </button>
               </div>
@@ -676,7 +790,7 @@ const BVinStore: React.FC = () => {
 
         {/* Reviews */}
         {tools.reviews && (
-          <section>
+          <section className="bvin-card">
             <SectionTitle icon={Star} label="Leave a review" accent={theme.accent} />
             {reviewSent ? (
               <p style={{ fontSize: 13, color: theme.accent, fontWeight: 700 }}>Thanks for the feedback!</p>
@@ -695,7 +809,7 @@ const BVinStore: React.FC = () => {
                   ))}
                 </div>
                 <textarea placeholder="Optional comment" value={reviewText} onChange={(e) => setReviewText(e.target.value)} rows={2} style={{ ...inputStyle, resize: "none", marginBottom: 8 }} />
-                <button className="bvin-store-btn" style={{ background: theme.accent, color: "#06210f", padding: "10px 16px" }} onClick={submitReview} disabled={myRating === 0}>
+                <button className="bvin-store-btn" style={{ background: theme.accent, color: "#fff", padding: "10px 16px" }} onClick={submitReview} disabled={myRating === 0}>
                   Submit
                 </button>
               </div>
@@ -705,40 +819,9 @@ const BVinStore: React.FC = () => {
 
         {/* Loyalty */}
         {tools.loyalty && (
-          <section>
+          <section className="bvin-card">
             <SectionTitle icon={Gift} label="Your points" accent={theme.accent} />
             <div style={{ fontSize: 26, fontWeight: 800 }}>{loyaltyPoints ?? "—"}</div>
-          </section>
-        )}
-
-        {/* Chat */}
-        {tools.chat && (
-          <section ref={chatSectionRef}>
-            <SectionTitle icon={MessageCircle} label="Message this business" accent={theme.accent} />
-            <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 220, overflowY: "auto", marginBottom: 10 }}>
-              {chatMessages.map((m) => (
-                <div
-                  key={m.id}
-                  style={{
-                    alignSelf: m.from === "customer" ? "flex-end" : "flex-start",
-                    background: m.from === "customer" ? theme.accent : "rgba(0,0,0,0.06)",
-                    color: m.from === "customer" ? "#06210f" : theme.storeText,
-                    padding: "8px 12px",
-                    borderRadius: 14,
-                    fontSize: 13,
-                    maxWidth: "80%",
-                  }}
-                >
-                  {m.text}
-                </div>
-              ))}
-            </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <input placeholder="Type a message…" value={chatText} onChange={(e) => setChatText(e.target.value)} style={{ ...inputStyle, flex: 1 }} onKeyDown={(e) => e.key === "Enter" && sendChatMessage()} />
-              <button className="bvin-store-btn" style={{ background: theme.accent, color: "#06210f", padding: "0 14px" }} onClick={sendChatMessage}>
-                <Send size={15} />
-              </button>
-            </div>
           </section>
         )}
 
@@ -752,10 +835,10 @@ const BVinStore: React.FC = () => {
 
       {/* Cart bar (catalogue + orders) */}
       {tools.catalogue && tools.orders && cart.length > 0 && (
-        <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, padding: 14 }}>
+        <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, padding: 14, display: "flex", justifyContent: "center" }}>
           <button
             className="bvin-store-btn"
-            style={{ background: theme.accent, color: "#06210f", width: "100%", padding: "14px 18px", display: "flex", justifyContent: "space-between", alignItems: "center" }}
+            style={{ background: theme.accent, color: "#fff", width: "100%", maxWidth: 640, padding: "14px 18px", display: "flex", justifyContent: "space-between", alignItems: "center" }}
             onClick={() => setCartOpen(true)}
           >
             <span>{cart.reduce((n, i) => n + i.quantity, 0)} item(s)</span>
@@ -810,7 +893,7 @@ const BVinStore: React.FC = () => {
             </div>
             <button
               className="bvin-store-btn"
-              style={{ background: theme.accent, color: "#06210f", width: "100%", padding: "13px 16px" }}
+              style={{ background: theme.accent, color: "#fff", width: "100%", padding: "13px 16px" }}
               onClick={() => {
                 setCartOpen(false);
                 placeOrder();
@@ -850,6 +933,7 @@ const BVinStore: React.FC = () => {
           </motion.div>
         )}
       </AnimatePresence>
+      </div>
     </div>
   );
 };

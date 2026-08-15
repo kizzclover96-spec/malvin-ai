@@ -1,10 +1,10 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, User, Package, Camera, Check } from "lucide-react";
+import { X, User, Package, Camera, Check, Plus } from "lucide-react";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 import { firestore as db, storage, auth } from "../../firebase";
-import { waitForRealAuthUid } from "../../services/storefrontAuth";
+import { resolveGuestUid } from "../../services/storefrontAuth";
 
 /* ============================================================================
    RequestStaffFlow
@@ -41,11 +41,11 @@ const RequestStaffFlow: React.FC<{ businessId: string; accent: string; allowToGo
     if (!tableNumber.trim()) return;
     setSubmitting(true);
     try {
-      const uid = await waitForRealAuthUid(auth);
+      const uid = await resolveGuestUid(auth);
       await addDoc(collection(db, "business", businessId, "serviceCalls"), {
         type: "requestStaff",
         tableNumber: tableNumber.trim(),
-        customerUid: uid || "guest",
+        customerUid: uid,
         resolved: false,
         createdAt: serverTimestamp(),
       });
@@ -65,7 +65,7 @@ const RequestStaffFlow: React.FC<{ businessId: string; accent: string; allowToGo
     if (!tableNumber.trim() || !photoFile) return;
     setSubmitting(true);
     try {
-      const uid = await waitForRealAuthUid(auth);
+      const uid = await resolveGuestUid(auth);
       const callId = `togo_${Date.now()}`;
       let photoUrl: string | undefined;
       let photoStoragePath: string | undefined;
@@ -80,7 +80,7 @@ const RequestStaffFlow: React.FC<{ businessId: string; accent: string; allowToGo
       await addDoc(collection(db, "business", businessId, "serviceCalls"), {
         type: "togo",
         tableNumber: tableNumber.trim(),
-        customerUid: uid || "guest",
+        customerUid: uid,
         resolved: false,
         ...(photoUrl ? { photoUrl, photoStoragePath } : {}),
         // Purely informational for the manager UI — the actual deletion is
@@ -98,23 +98,31 @@ const RequestStaffFlow: React.FC<{ businessId: string; accent: string; allowToGo
 
   return (
     <>
-      {/* The floating circular button itself — deliberately high-contrast
-          so it's obvious to spot at a glance, per spec. */}
+      {/* No longer self-positioned — BVinStore.tsx places this directly
+          beside the header pill now, sized a little larger than it rather
+          than as a bottom-corner floating action button. */}
       <motion.button
         onClick={() => setStep("menu")}
         whileTap={{ scale: 0.92 }}
-        animate={{ scale: [1, 1.06, 1] }}
+        animate={{ scale: [1, 1.05, 1] }}
         transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
         style={{
-          position: "fixed", bottom: 100, right: 18, zIndex: 60,
-          width: 58, height: 58, borderRadius: "50%", border: "none",
+          position: "relative", flexShrink: 0, zIndex: 40,
+          width: 46, height: 46, borderRadius: "50%", border: "none",
           background: accent, color: "#fff", cursor: "pointer",
           display: "flex", alignItems: "center", justifyContent: "center",
-          boxShadow: `0 14px 32px ${accent}66`,
+          boxShadow: `0 10px 24px ${accent}55`,
         }}
         title="Request staff"
       >
-        <User size={24} />
+        <User size={19} />
+        <span style={{
+          position: "absolute", top: -2, right: -2, width: 17, height: 17, borderRadius: "50%",
+          background: "#fff", color: accent, display: "flex", alignItems: "center", justifyContent: "center",
+          boxShadow: "0 2px 6px rgba(0,0,0,0.25)", border: `1.5px solid ${accent}`,
+        }}>
+          <Plus size={10} strokeWidth={3} />
+        </span>
       </motion.button>
 
       <AnimatePresence>
