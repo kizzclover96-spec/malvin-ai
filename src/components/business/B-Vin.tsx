@@ -47,6 +47,7 @@ import {
   ExternalLink,
   Pin,
   Search,
+  Sparkles,
 } from "lucide-react";
 import BrandedQrCode from "./BrandedQrCode";
 import { doc, onSnapshot, setDoc, collection, query, where, addDoc, serverTimestamp } from "firebase/firestore";
@@ -62,7 +63,7 @@ import { TeamHub } from "../team/teamHub";
 import Chats from "./Chats";
 import VinBackTagCreate from "../vinback/VinBackTagCreate";
 import VinBackTagList from "../vinback/VinBackTagList";
-import { MalvinSystemDashboard } from "../records/MalvinSystemDashboard";
+import { SystemInventory } from "../records/SystemInventory";
 import SaaSEnvironmentVault from "./SaaSEnvironmentVault";
 import Premium from "../addons/Premium";
 import CatalogueSetupWizard, { CatalogueSetupResult } from "./CatalogueSetupWizard";
@@ -70,8 +71,13 @@ import BusinessOnboarding from "./BusinessOnboarding";
 import TourGuide, { TourStep } from "./TourGuide";
 import ProductFormModal from "./ProductFormModal";
 import { AppsConnectionsPill, ConnectionsStrip } from "./AppsConnectionsPanel";
+import ConnectSystemInventoryModal from "./ConnectSystemInventoryModal";
+import WorkerPermissionsModal, { WorkerAccess, DEFAULT_WORKER_ACCESS } from "../team/WorkerPermissionsModal";
+import { recordStorageUsage, useStorageUsage } from "../../utils/storage";
+import StorageWarningBanner from "../addons/StorageWarningBanner";
 import { cancelPremiumSubscription, downloadMyData, deleteMyData } from "../../services/bvinConnections";
 import { ToolKey, ToolDef, ToolState, TOOLS, DEFAULT_TOOLS, CATEGORY_ORDER, CATEGORY_TINTS } from "../../config/bvinTools";
+import { BUSINESS_TYPES, BUSINESS_TYPE_TOOLS } from "../../config/businessToolRecommendations";
 import styles from "./BVin.module.css";
 
 /* ============================================================================
@@ -117,6 +123,8 @@ interface BVinProfile {
   offeringsConfig?: CatalogueSetupResult;
   hasSeenTour?: boolean;
   allowToGo?: boolean;
+  workerAccess?: WorkerAccess;
+  systemInventoryEnabled?: boolean;
 }
 
 // The unified per-business document at business/{businessId}. Exactly two
@@ -229,11 +237,16 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
   const [connectError, setConnectError] = useState<string | null>(null);
   const [catalogueConfig, setCatalogueConfig] = useState<CatalogueSetupResult | null>(null);
   const [offeringsConfig, setOfferingsConfig] = useState<CatalogueSetupResult | null>(null);
+  const [workerAccess, setWorkerAccess] = useState<WorkerAccess>(DEFAULT_WORKER_ACCESS);
+  const [systemInventoryEnabled, setSystemInventoryEnabled] = useState(false);
+  const [workerPermissionsOpen, setWorkerPermissionsOpen] = useState(false);
+  const [connectSystemOpen, setConnectSystemOpen] = useState(false);
 
   const { isPremium, isVerified } = useAccountStanding(businessId);
+  const storageState = useStorageUsage(businessId);
   const { language, languages, isTranslating, setLanguage } = useLanguage();
 
-  const [activeTab, setActiveTab] = useState<"dashboard" | "team" | "chat">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "team" | "chat" | "receipts">("dashboard");
   const [fullscreenTool, setFullscreenTool] = useState<"productStore" | "environment" | "premium" | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
@@ -344,6 +357,8 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
       setStripeAccountId(p.stripeAccountId || null);
       if (p.catalogueConfig) setCatalogueConfig(p.catalogueConfig);
       if (p.offeringsConfig) setOfferingsConfig(p.offeringsConfig);
+      if (p.workerAccess) setWorkerAccess((prev) => ({ ...prev, ...p.workerAccess }));
+      setSystemInventoryEnabled(!!p.systemInventoryEnabled);
       // Strictly === false, not just falsy — an existing business that
       // predates this feature has no hasSeenTour field at all
       // (undefined), and must never trigger the tour. Only a business
@@ -381,6 +396,8 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
       ...(offeringsConfig ? { offeringsConfig } : {}),
       ...(hasSeenTour !== null ? { hasSeenTour } : {}),
       allowToGo,
+      workerAccess,
+      systemInventoryEnabled,
     };
 
     // Compare structural data without `updatedAt` to check if genuine changes occurred
@@ -407,7 +424,7 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
   }, [
     businessId, name, logoUrlState, bio, address, phone, openingTime, closingTime, darkMode, clicks, tools,
     pinnedTools, colors, customerNoticeText, stripeConnected, stripeAccountId, catalogueConfig, offeringsConfig,
-    qrScans, noticeScans, hasSeenTour, allowToGo,
+    qrScans, noticeScans, hasSeenTour, allowToGo, workerAccess, systemInventoryEnabled,
   ]);
 
   useEffect(() => {
@@ -448,6 +465,12 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
     const def = TOOLS.find((t) => t.key === key);
     if (def?.alwaysOn) return;
     const turningOn = !tools[key];
+    // Tools whose backend cost scales with usage (extra worker seats, heavier
+    // analytics queries) require Premium before they can be switched on.
+    if (turningOn && def?.premiumOnly && !isPremium) {
+      setFullscreenTool("premium");
+      return;
+    }
     setTools((prev) => {
       const next = { ...prev, [key]: !prev[key] };
       if (key === "receiveMoney" && next.receiveMoney && !stripeConnected) setConnectPopupOpen(true);
@@ -465,6 +488,10 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
     // Request Staff has a sub-option customers only see if the manager
     // opts in here — asked once, right when the tool is switched on.
     if (turningOn && key === "requestStaff") setAllowToGoPromptOpen(true);
+    // Turning on "Add Workers" is where the manager decides what every
+    // worker on the roster is allowed to do — asked right away, same
+    // pattern as the catalogue/offerings wizards above.
+    if (turningOn && key === "teamChat") setWorkerPermissionsOpen(true);
   };
 
   const togglePin = (key: ToolKey, idx: number) => {
@@ -555,6 +582,7 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
       const fileRef = storageRef(storage, `business/${businessId}/logo.jpg`);
       const snap = await uploadBytes(fileRef, file);
       setLogoUrlState(await getDownloadURL(snap.ref));
+      recordStorageUsage(businessId, file.size);
     } catch (err) {
       console.error("Logo upload failed:", err);
     }
@@ -766,7 +794,7 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
             </motion.div>
           </div>
 
-          <div ref={tourAppsRef}><AppsConnectionsPill businessId={businessId} accent={accent} /></div>
+          <div ref={tourAppsRef}><AppsConnectionsPill businessId={businessId} accent={accent} onConnectSystem={() => setConnectSystemOpen(true)} isPremium={isPremium} onRequirePremium={() => setFullscreenTool("premium")} /></div>
 
           <div className={styles.rightGroup} style={{ justifyContent: "flex-end", flex: "1 1 0" }}>
             <div className={styles.clickChip} title="Total clicks" ref={tourClicksRef}>
@@ -815,13 +843,17 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
           <button onClick={() => setFullscreenTool(null)} style={{ position: "fixed", top: 14, right: 14, zIndex: 61, background: "rgba(255,255,255,0.12)", border: "none", borderRadius: "50%", width: 34, height: 34, color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <X size={16} />
           </button>
-          {fullscreenTool === "productStore" && <MalvinSystemDashboard />}
+          {fullscreenTool === "productStore" && <SystemInventory />}
           {fullscreenTool === "environment" && <SaaSEnvironmentVault userEmail={auth.currentUser?.email || ""} />}
           {fullscreenTool === "premium" && <Premium onBack={() => setFullscreenTool(null)} />}
         </div>
       ) : activeTab === "team" ? (
         <div style={{ position: "fixed", inset: 0, zIndex: 15, background: theme.pageBg }}>
           <TeamHub managerUid={businessId} />
+        </div>
+      ) : activeTab === "receipts" ? (
+        <div style={{ position: "fixed", inset: 0, zIndex: 15, background: theme.pageBg, overflow: "auto", padding: "20px 18px 110px" }}>
+          <ReceiptsView businessId={businessId} theme={theme} accent={accent} />
         </div>
       ) : (
         <main style={{ padding: "8px 18px 110px" }}>
@@ -926,6 +958,7 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
         <nav ref={tourNavRef} style={{ position: "fixed", bottom: 18, left: "50%", transform: "translateX(-50%)", display: "flex", gap: 4, background: "rgba(255,255,255,0.85)", border: `1px solid ${theme.cardBorder}`, backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)", borderRadius: 999, padding: 5, zIndex: 40, boxShadow: "0 10px 34px rgba(0,0,0,0.12)" }}>
           <TabButton active={activeTab === "dashboard"} label="Dashboard" accent={accent} onClick={() => setActiveTab("dashboard")} />
           {tools.chat && <TabButton active={activeTab === "chat"} label="Chat" accent={accent} onClick={() => setActiveTab("chat")} />}
+          {tools.receiveMoney && stripeConnected && <TabButton active={activeTab === "receipts"} label="Receipts" accent={accent} onClick={() => setActiveTab("receipts")} />}
           <TabButton active={activeTab === "team"} label="Team" accent={accent} onClick={() => setActiveTab("team")} />
         </nav>
       )}
@@ -1039,10 +1072,13 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
               </div>
             )}
             {settingsView === "profile" && (
-              <ProfileView accent={accent} darkMode={darkMode} setDarkMode={setDarkMode} isVerified={isVerified} isPremium={isPremium} businessId={businessId} name={name} setName={setName} bio={bio} setBio={setBio} address={address} setAddress={setAddress} phone={phone} setPhone={setPhone} openingTime={openingTime} setOpeningTime={setOpeningTime} closingTime={closingTime} setClosingTime={setClosingTime} logoUrl={logoUrlState} onLogoFile={handleLogoFile} onBack={() => setSettingsView("root")} onCustomize={() => setSettingsView("customize")} />
+              <>
+                <StorageWarningBanner state={storageState} accent={accent} />
+                <ProfileView accent={accent} darkMode={darkMode} setDarkMode={setDarkMode} isVerified={isVerified} isPremium={isPremium} businessId={businessId} name={name} setName={setName} bio={bio} setBio={setBio} address={address} setAddress={setAddress} phone={phone} setPhone={setPhone} openingTime={openingTime} setOpeningTime={setOpeningTime} closingTime={closingTime} setClosingTime={setClosingTime} logoUrl={logoUrlState} onLogoFile={handleLogoFile} onBack={() => setSettingsView("root")} onCustomize={() => setSettingsView("customize")} />
+              </>
             )}
             {settingsView === "tools" && (
-              <ToolsView accent={accent} tools={tools} toggleTool={toggleTool} onBack={() => setSettingsView("root")} tooltipTool={tooltipTool} showTooltipFor={showTooltipFor} />
+              <ToolsView accent={accent} tools={tools} toggleTool={toggleTool} onBack={() => setSettingsView("root")} tooltipTool={tooltipTool} showTooltipFor={showTooltipFor} isPremium={isPremium} />
             )}
             {settingsView === "customize" && (
               <CustomizeView colors={colors} setColors={setColors} name={name} storeQrValue={storeQrValue} onBack={() => setSettingsView("profile")} />
@@ -1113,6 +1149,25 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
         accent={accent}
         onClose={() => setOfferingsWizardOpen(false)}
         onComplete={(result) => setOfferingsConfig(result)}
+      />
+
+      <WorkerPermissionsModal
+        open={workerPermissionsOpen}
+        value={workerAccess}
+        onChange={setWorkerAccess}
+        onClose={() => setWorkerPermissionsOpen(false)}
+        onOpenTeamHub={() => { setActiveTab("team"); }}
+        accent={accent}
+      />
+
+      <ConnectSystemInventoryModal
+        open={connectSystemOpen}
+        enabled={systemInventoryEnabled}
+        businessId={businessId}
+        onEnable={() => setSystemInventoryEnabled(true)}
+        onOpen={() => setFullscreenTool("productStore")}
+        onClose={() => setConnectSystemOpen(false)}
+        accent={accent}
       />
     </div>
   );
@@ -1475,6 +1530,7 @@ const OfferingsCard: React.FC<{ businessId: string; theme: any; accent: string; 
         const fileRef = storageRef(storage, `business/${businessId}/team/${workerId}.jpg`);
         const snap = await uploadBytes(fileRef, wFile);
         pictureURL = await getDownloadURL(snap.ref);
+        recordStorageUsage(businessId, wFile.size);
       }
       await setDoc(doc(firestore, "business", businessId, "team", workerId), { name: wName.trim(), catchyPhrase: wPhrase.trim(), pictureURL, createdAt: serverTimestamp() });
       setWName(""); setWPhrase(""); pickFile(null); setWorkerFormOpen(false);
@@ -1532,6 +1588,60 @@ const OfferingsCard: React.FC<{ businessId: string; theme: any; accent: string; 
 };
 
 const JOB_STATUSES = ["received", "in_progress", "done"] as const;
+/* -------------------------------- Receipts -------------------------------- */
+/* Reached from the bottom "Receipts" tab, shown only once payments are on and
+   Stripe is connected. Pulls together every order/appointment/manual order
+   so a manager (or their bookkeeper) has one place to see what's come in. */
+const ReceiptsView: React.FC<{ businessId: string; theme: any; accent: string }> = ({ businessId, theme, accent }) => {
+  const [jobRequests, setJobRequests] = useState<any[]>([]);
+  const [manualOrders, setManualOrders] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!businessId) return;
+    const unsub1 = onSnapshot(collection(firestore, "business", businessId, "jobRequests"), (snap) =>
+      setJobRequests(snap.docs.map((d) => ({ id: d.id, source: "jobRequests", ...d.data() })))
+    );
+    const unsub2 = onSnapshot(collection(firestore, "business", businessId, "manualOrders"), (snap) =>
+      setManualOrders(snap.docs.map((d) => ({ id: d.id, source: "manualOrders", ...d.data() })))
+    );
+    return () => { unsub1(); unsub2(); };
+  }, [businessId]);
+
+  const toMillis = (v: any) => (v?.toMillis ? v.toMillis() : v?.seconds ? v.seconds * 1000 : 0);
+  const combined = [...jobRequests, ...manualOrders].sort((a, b) => toMillis(b.createdAt) - toMillis(a.createdAt));
+
+  return (
+    <div style={{ maxWidth: 640, margin: "0 auto" }}>
+      <h2 style={{ fontSize: 20, fontWeight: 800, color: theme.text, margin: "0 0 4px" }}>Receipts</h2>
+      <p style={{ fontSize: 12.5, color: theme.subtext, margin: "0 0 20px" }}>Every appointment and order, most recent first.</p>
+
+      {combined.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "50px 20px", color: theme.subtext }}>
+          <Receipt size={26} style={{ marginBottom: 10, opacity: 0.5 }} />
+          <p style={{ fontSize: 13.5 }}>Nothing here yet — orders and appointments will show up as they come in.</p>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {combined.map((item) => (
+            <div key={`${item.source}-${item.id}`} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, padding: "14px 16px", borderRadius: 16, background: theme.cardBg, border: `1px solid ${theme.cardBorder}` }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 13.5, fontWeight: 700, color: theme.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {item.title || item.text || item.description || "Order"}
+                </div>
+                <div style={{ fontSize: 11, color: theme.subtext, marginTop: 2 }}>
+                  {item.source === "manualOrders" ? `Typed by ${item.workerName || "staff"}` : "Job request"}
+                  {item.status ? ` · ${String(item.status).replace("_", " ")}` : ""}
+                </div>
+              </div>
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: accent, flexShrink: 0 }} />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const JobRequestsCard: React.FC<{ businessId: string; theme: any; accent: string }> = ({ businessId, theme, accent }) => {
   const [jobs, setJobs] = useState<any[]>([]);
   useEffect(() => {
@@ -2201,9 +2311,31 @@ const ProfileView: React.FC<{
 const profileLabelStyle: React.CSSProperties = { fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4, opacity: 0.5, display: "block", marginBottom: 5 };
 const profileInputStyle: React.CSSProperties = { width: "100%", fontSize: 13.5, padding: "11px 13px", borderRadius: 12, border: "1px solid rgba(0,0,0,0.08)", background: "rgba(0,0,0,0.025)", color: "#1d1d1f", fontFamily: "inherit" };
 
-const ToolsView: React.FC<{ accent: string; tools: ToolState; toggleTool: (key: ToolKey) => void; onBack: () => void; tooltipTool: ToolKey | null; showTooltipFor: (k: ToolKey) => void }> = ({ accent, tools, toggleTool, onBack, tooltipTool, showTooltipFor }) => {
+const ToolsView: React.FC<{ accent: string; tools: ToolState; toggleTool: (key: ToolKey) => void; onBack: () => void; tooltipTool: ToolKey | null; showTooltipFor: (k: ToolKey) => void; isPremium: boolean }> = ({ accent, tools, toggleTool, onBack, tooltipTool, showTooltipFor, isPremium }) => {
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressed = useRef(false);
+
+  // --- AI tool-picker: search bar + face, blurs the grid on focus ---
+  const [aiFocused, setAiFocused] = useState(false);
+  const [aiSearch, setAiSearch] = useState("");
+  const [selectedType, setSelectedType] = useState<string | null>(null);
+  const [placeholderIdx, setPlaceholderIdx] = useState(0);
+
+  useEffect(() => {
+    if (!aiFocused) return;
+    const t = setInterval(() => setPlaceholderIdx((i) => (i + 1) % BUSINESS_TYPES.length), 1600);
+    return () => clearInterval(t);
+  }, [aiFocused]);
+
+  const matchingTypes = BUSINESS_TYPES.filter((b) => b.label.toLowerCase().includes(aiSearch.trim().toLowerCase()));
+  const recommendedKeys = selectedType ? BUSINESS_TYPE_TOOLS[selectedType] : null;
+  const selectedTypeLabel = BUSINESS_TYPES.find((b) => b.key === selectedType)?.label;
+
+  const pickType = (key: string) => {
+    setSelectedType(key);
+    setAiFocused(false);
+    setAiSearch("");
+  };
 
   const handleDown = (key: ToolKey) => {
     longPressed.current = false;
@@ -2215,57 +2347,148 @@ const ToolsView: React.FC<{ accent: string; tools: ToolState; toggleTool: (key: 
   };
 
   return (
-    <div>
+    <div style={{ position: "relative" }}>
       <BackHeader title="Enable Tools" onBack={onBack} />
-      {CATEGORY_ORDER.map((cat) => (
-        <div key={cat} style={{ marginBottom: 20 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-            <span style={{ width: 7, height: 7, borderRadius: "50%", background: CATEGORY_TINTS[cat] }} />
-            <span style={{ fontSize: 11.5, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5, color: "rgba(29,29,31,0.55)" }}>{cat}</span>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
-            {TOOLS.filter((t) => t.category === cat).map((t) => {
-              const on = tools[t.key];
-              return (
-                <div key={t.key} style={{ position: "relative" }}>
-                  <button
-                    onMouseDown={() => handleDown(t.key)}
-                    onMouseUp={() => handleUp(t)}
-                    onMouseLeave={() => pressTimer.current && clearTimeout(pressTimer.current)}
-                    onTouchStart={() => handleDown(t.key)}
-                    onTouchEnd={() => handleUp(t)}
-                    disabled={t.alwaysOn}
-                    style={{
-                      display: "flex", alignItems: "center", gap: 9, padding: "16px 14px", borderRadius: 18, width: "100%",
-                      border: on ? `1.5px solid ${accent}` : "none",
-                      background: on ? `${accent}14` : "linear-gradient(150deg, #ffffff, #eef0f3)",
-                      boxShadow: on ? `0 3px 12px ${accent}22` : "0 3px 10px rgba(0,0,0,0.07), inset 0 1px 0 rgba(255,255,255,0.9)",
-                      color: on ? accent : "#1d1d1f", cursor: t.alwaysOn ? "default" : "pointer",
-                      fontSize: 13, fontWeight: 700, opacity: t.alwaysOn ? 0.85 : 1, textAlign: "left", minHeight: 58,
-                    }}
-                  >
-                    <t.icon size={16} />
-                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.label}</span>
-                  </button>
-                  <AnimatePresence>
-                    {tooltipTool === t.key && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 4, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0 }}
-                        style={{ position: "absolute", top: "100%", left: 0, right: 0, marginTop: 6, background: "#1d1d1f", color: "#fff", fontSize: 11, fontWeight: 600, padding: "8px 10px", borderRadius: 10, zIndex: 20, boxShadow: "0 8px 20px rgba(0,0,0,0.25)" }}
-                      >
-                        {t.description}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              );
-            })}
-          </div>
+
+      {/* Search bar + AI face */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: selectedType ? 10 : 18 }}>
+        <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", borderRadius: 14, background: "rgba(0,0,0,0.04)", border: "1px solid rgba(0,0,0,0.06)" }}>
+          <Search size={14} color="rgba(29,29,31,0.4)" />
+          <input
+            value={aiSearch}
+            onFocus={() => setAiFocused(true)}
+            onChange={(e) => { setAiSearch(e.target.value); setAiFocused(true); }}
+            placeholder="Search tools..."
+            style={{ flex: 1, border: "none", background: "transparent", outline: "none", fontSize: 13, color: "#1d1d1f" }}
+          />
         </div>
-      ))}
-      <p style={{ fontSize: 11, opacity: 0.5 }}>
-        Live Notices and VinBack Tags stay on by default. In the top island: tap an enabled tool to turn it off, hold to pin its position on the dashboard. Hold any tool here to see what it does.
-      </p>
+        <button
+          onClick={() => setAiFocused(true)}
+          style={{ width: 38, height: 38, borderRadius: 12, border: "none", background: `linear-gradient(135deg, ${accent}, ${accent}99)`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, boxShadow: `0 4px 14px ${accent}44` }}
+        >
+          <Sparkles size={16} color="#fff" />
+        </button>
+      </div>
+
+      {/* Active recommendation filter pill */}
+      {selectedType && !aiFocused && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+          <span style={{ fontSize: 11.5, fontWeight: 700, color: accent, background: `${accent}12`, padding: "5px 11px", borderRadius: 999 }}>
+            Recommended for {selectedTypeLabel}
+          </span>
+          <button onClick={() => setSelectedType(null)} style={{ fontSize: 11, color: "rgba(29,29,31,0.45)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>
+            Clear
+          </button>
+        </div>
+      )}
+
+      {/* Tool grid — blurred while the AI panel is focused */}
+      <div style={{ filter: aiFocused ? "blur(6px)" : "none", pointerEvents: aiFocused ? "none" : "auto", transition: "filter 0.2s ease", userSelect: aiFocused ? "none" : "auto" }}>
+        {CATEGORY_ORDER.map((cat) => {
+          const catTools = TOOLS.filter((t) => t.category === cat && (!recommendedKeys || recommendedKeys.includes(t.key)));
+          if (catTools.length === 0) return null;
+          return (
+            <div key={cat} style={{ marginBottom: 20 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                <span style={{ width: 7, height: 7, borderRadius: "50%", background: CATEGORY_TINTS[cat] }} />
+                <span style={{ fontSize: 11.5, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5, color: "rgba(29,29,31,0.55)" }}>{cat}</span>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
+                {catTools.map((t) => {
+                  const on = tools[t.key];
+                  const locked = !!t.premiumOnly && !isPremium;
+                  return (
+                    <div key={t.key} style={{ position: "relative" }}>
+                      <button
+                        onMouseDown={() => handleDown(t.key)}
+                        onMouseUp={() => handleUp(t)}
+                        onMouseLeave={() => pressTimer.current && clearTimeout(pressTimer.current)}
+                        onTouchStart={() => handleDown(t.key)}
+                        onTouchEnd={() => handleUp(t)}
+                        disabled={t.alwaysOn}
+                        style={{
+                          display: "flex", alignItems: "center", gap: 9, padding: "16px 14px", borderRadius: 18, width: "100%",
+                          border: on ? `1.5px solid ${accent}` : "none",
+                          background: on ? `${accent}14` : "linear-gradient(150deg, #ffffff, #eef0f3)",
+                          boxShadow: on ? `0 3px 12px ${accent}22` : "0 3px 10px rgba(0,0,0,0.07), inset 0 1px 0 rgba(255,255,255,0.9)",
+                          color: on ? accent : "#1d1d1f", cursor: t.alwaysOn ? "default" : "pointer",
+                          fontSize: 13, fontWeight: 700, opacity: t.alwaysOn ? 0.85 : locked ? 0.55 : 1, textAlign: "left", minHeight: 58,
+                        }}
+                      >
+                        <t.icon size={16} />
+                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.label}</span>
+                      </button>
+                      {locked && (
+                        <div style={{ position: "absolute", top: 6, right: 6, width: 18, height: 18, borderRadius: "50%", background: "#1d1d1f", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 6px rgba(0,0,0,0.25)" }}>
+                          <Star size={9} color="#FFD700" fill="#FFD700" />
+                        </div>
+                      )}
+                      <AnimatePresence>
+                        {tooltipTool === t.key && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 4, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0 }}
+                            style={{ position: "absolute", top: "100%", left: 0, right: 0, marginTop: 6, background: "#1d1d1f", color: "#fff", fontSize: 11, fontWeight: 600, padding: "8px 10px", borderRadius: 10, zIndex: 20, boxShadow: "0 8px 20px rgba(0,0,0,0.25)" }}
+                          >
+                            {t.description}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+        <p style={{ fontSize: 11, opacity: 0.5 }}>
+          Live Notices and VinBack Tags stay on by default. In the top island: tap an enabled tool to turn it off, hold to pin its position on the dashboard. Hold any tool here to see what it does.
+        </p>
+      </div>
+
+      {/* AI focus overlay — tap anywhere outside the panel to dismiss */}
+      <AnimatePresence>
+        {aiFocused && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            onClick={() => setAiFocused(false)}
+            style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: -40, zIndex: 30, display: "flex", justifyContent: "center", paddingTop: 70 }}
+          >
+            <motion.div
+              onClick={(e) => e.stopPropagation()}
+              initial={{ opacity: 0, y: -10, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -8 }}
+              transition={{ type: "spring", stiffness: 320, damping: 28 }}
+              style={{ width: "100%", maxWidth: 340, background: "rgba(255,255,255,0.97)", backdropFilter: "blur(30px) saturate(180%)", border: "1px solid rgba(255,255,255,0.9)", borderRadius: 24, padding: 20, boxShadow: "0 24px 60px rgba(0,0,0,0.2)", textAlign: "center" }}
+            >
+              <div style={{ width: 44, height: 44, borderRadius: 14, margin: "0 auto 12px", background: `linear-gradient(135deg, ${accent}, ${accent}99)`, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: `0 8px 20px ${accent}44` }}>
+                <Sparkles size={20} color="#fff" />
+              </div>
+              <div style={{ fontSize: 14.5, fontWeight: 800, color: "#1d1d1f", marginBottom: 4 }}>
+                Tell me what type of business you have
+              </div>
+              <div style={{ fontSize: 11.5, color: "rgba(29,29,31,0.5)", marginBottom: 14 }}>
+                I'll suggest the tools you'll actually need.
+              </div>
+              <div style={{ padding: "10px 14px", borderRadius: 12, background: "rgba(0,0,0,0.04)", fontSize: 12.5, color: "rgba(29,29,31,0.4)", marginBottom: 14, textAlign: "left" }}>
+                e.g. {BUSINESS_TYPES[placeholderIdx].label}...
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center" }}>
+                {(aiSearch.trim() ? matchingTypes : BUSINESS_TYPES).map((b) => (
+                  <button
+                    key={b.key}
+                    onClick={() => pickType(b.key)}
+                    style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 13px", borderRadius: 999, border: `1px solid ${accent}33`, background: `${accent}0d`, fontSize: 12, fontWeight: 700, color: accent, cursor: "pointer" }}
+                  >
+                    <span>{b.emoji}</span> {b.label}
+                  </button>
+                ))}
+                {aiSearch.trim() && matchingTypes.length === 0 && (
+                  <span style={{ fontSize: 11.5, color: "rgba(29,29,31,0.4)" }}>No match — try "restaurant", "salon"...</span>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

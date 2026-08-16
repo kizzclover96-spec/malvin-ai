@@ -50,7 +50,7 @@ interface Product {
   history: ProductHistoryEvent[];
 }
 
-export const MalvinSystemDashboard: React.FC = () => {
+export const SystemInventory: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [userId, setUserId] = useState<string | null>(null);

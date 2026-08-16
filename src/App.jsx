@@ -48,7 +48,7 @@ import { FloatingTeamHub } from "./components/addons/FloatingTeamHub";
 import { VinBackLauncher } from "./components/vinback/VinBackLauncher";
 import { WorkerDashboard } from './components/team/workerDashboard';
 import { QrScannerView } from './components/addons/QR Scanner'; 
-import { MalvinSystemDashboard } from "./components/records/MalvinSystemDashboard";
+import { SystemInventory } from "./components/records/SystemInventory";
 import { MalvinAiPersonnelSystem } from "./components/admin/MalvinAiPersonnelSystem";
 import { Front } from './components/customer/Front';
 import TicketCheckout from "./pages/auth/Ticket";
@@ -578,7 +578,7 @@ function App() {
                 // so nothing breaks if something else still points here.
                 <Category onSelect={handleCategorySelect} />
               ) : flowStep === "recordsDashboard" ? (
-                <MalvinSystemDashboard userEmail={user?.email} currentUserId={user?.uid} />
+                <SystemInventory userEmail={user?.email} currentUserId={user?.uid} />
               ) : flowStep === "device" ? (
                 <DeviceSwitch
                   onSelect={(mode) => {

@@ -82,6 +82,8 @@ export interface ToolDef {
   fullscreen?: boolean;
   /** false = business-only; the customer store must never render or query it. */
   customerVisible?: boolean;
+  /** Tools whose backend cost scales with usage (extra seats, server-side scans, pushes) — gated behind Premium. */
+  premiumOnly?: boolean;
 }
 
 export const CATEGORY_ORDER: ToolCategory[] = [
@@ -123,9 +125,9 @@ export const TOOLS: ToolDef[] = [
   { key: "vinbackTags", label: "VinBack Tags", icon: Tag, description: "Bring past customers back.", category: "Transactions & Bookings", shape: "square", alwaysOn: true, fixedPlacement: "under-top-right", customerVisible: false },
   { key: "jobRequests", label: "Job Requests", icon: ListChecks, description: "Track requests from received to done.", category: "Transactions & Bookings", shape: "rectangle", customerVisible: false },
 
-  { key: "analytics", label: "Analytics", icon: BarChart3, description: "See how your business is doing.", category: "Business Tools", shape: "square", customerVisible: false },
-  { key: "teamChat", label: "Team Chat", icon: Users, description: "Talk with your staff.", category: "Business Tools", shape: "square", noBento: true, customerVisible: false },
-  { key: "productStore", label: "Inventory", icon: Package, description: "Full inventory: SKUs, stock, suppliers.", category: "Business Tools", shape: "square", fullscreen: true, customerVisible: false },
+  { key: "analytics", label: "Analytics", icon: BarChart3, description: "See how your business is doing.", category: "Business Tools", shape: "square", customerVisible: false, premiumOnly: true },
+  { key: "teamChat", label: "Add Workers", icon: Users, description: "Invite staff and choose what they're allowed to do.", category: "Business Tools", shape: "square", noBento: true, customerVisible: false, premiumOnly: true },
+  { key: "productStore", label: "System Inventory", icon: Package, description: "Full inventory: SKUs, stock, suppliers. Connect it once to let workers scan and check stock.", category: "Business Tools", shape: "square", fullscreen: true, customerVisible: false },
   { key: "environment", label: "Environment", icon: Layers, description: "Track reselling sources and margins.", category: "Business Tools", shape: "square", fullscreen: true, customerVisible: false },
 ];
 

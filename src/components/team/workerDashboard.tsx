@@ -11,8 +11,12 @@ import {
   limit, 
   onSnapshot, 
   doc, 
-  updateDoc
+  updateDoc,
+  addDoc,
+  serverTimestamp,
+  getDocs
 } from 'firebase/firestore';
+import { WorkerAccess, DEFAULT_WORKER_ACCESS } from './WorkerPermissionsModal';
 
 // --- Interfaces ---
 interface Appointment {
@@ -62,6 +66,23 @@ export const WorkerDashboard: React.FC<WorkerDashboardProps> = ({ businessUid, o
   const [isAiOpen, setIsAiOpen] = useState(false);
   const [aiQuery, setAiQuery] = useState('');
   const [aiResponse, setAiResponse] = useState('');
+
+  // --- What the manager has allowed workers to do (business/{businessUid}.profile) ---
+  const [workerAccess, setWorkerAccess] = useState<WorkerAccess>(DEFAULT_WORKER_ACCESS);
+  const [systemInventoryEnabled, setSystemInventoryEnabled] = useState(false);
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+
+  // Manual order entry panel
+  const [manualOrderOpen, setManualOrderOpen] = useState(false);
+  const [manualOrderText, setManualOrderText] = useState('');
+  const [manualOrderSubmitting, setManualOrderSubmitting] = useState(false);
+  const [manualOrderSent, setManualOrderSent] = useState(false);
+
+  // Inventory scan / lookup panel
+  const [stockLookupOpen, setStockLookupOpen] = useState(false);
+  const [stockBarcode, setStockBarcode] = useState('');
+  const [stockLookupBusy, setStockLookupBusy] = useState(false);
+  const [stockResult, setStockResult] = useState<{ found: boolean; productName?: string; quantity?: number; sku?: string } | null>(null);
 
   const currentUserId = auth.currentUser?.uid;
   const workerName = auth.currentUser?.displayName || auth.currentUser?.email || 'Emma';
@@ -136,6 +157,20 @@ export const WorkerDashboard: React.FC<WorkerDashboardProps> = ({ businessUid, o
     };
   }, [businessUid, currentUserId]);
 
+  // --- What the manager has set from B-Vin (business/{businessUid}.profile) ---
+  useEffect(() => {
+    if (!businessUid) return;
+    const unsub = onSnapshot(doc(db, 'business', businessUid), (snap) => {
+      const profile = snap.data()?.profile;
+      if (profile?.workerAccess) {
+        setWorkerAccess({ ...DEFAULT_WORKER_ACCESS, ...profile.workerAccess });
+      }
+      setSystemInventoryEnabled(!!profile?.systemInventoryEnabled);
+      setPermissionsLoaded(true);
+    });
+    return () => unsub();
+  }, [businessUid]);
+
   // --- Transaction State Mutations ---
   const handleUpdateStatus = async (apptId: string, newStatus: Appointment['status']) => {
     const docRef = doc(db, 'businesses', businessUid, 'appointments', apptId);
@@ -145,6 +180,58 @@ export const WorkerDashboard: React.FC<WorkerDashboardProps> = ({ businessUid, o
   const handleCompleteTask = async (taskId: string) => {
     const docRef = doc(db, 'teamHub', businessUid, 'tasks', taskId);
     await updateDoc(docRef, { status: 'Completed' });
+  };
+
+  // --- Manual order entry: typed up by a worker when there's no QR to scan ---
+  const handleSubmitManualOrder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!manualOrderText.trim() || !businessUid) return;
+    setManualOrderSubmitting(true);
+    try {
+      await addDoc(collection(db, 'business', businessUid, 'manualOrders'), {
+        text: manualOrderText.trim(),
+        workerUid: currentUserId || '',
+        workerName,
+        createdAt: serverTimestamp(),
+        status: 'Pending',
+      });
+      setManualOrderText('');
+      setManualOrderSent(true);
+      setTimeout(() => {
+        setManualOrderSent(false);
+        setManualOrderOpen(false);
+      }, 1200);
+    } catch (error) {
+      console.error('Failed to submit manual order:', error);
+    } finally {
+      setManualOrderSubmitting(false);
+    }
+  };
+
+  // --- Scan & check inventory: read-only stock lookup by barcode ---
+  const handleStockLookup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!stockBarcode.trim() || !businessUid) return;
+    setStockLookupBusy(true);
+    setStockResult(null);
+    try {
+      const q = query(
+        collection(db, 'users', businessUid, 'products'),
+        where('barcode', '==', stockBarcode.trim())
+      );
+      const snap = await getDocs(q);
+      if (snap.empty) {
+        setStockResult({ found: false });
+      } else {
+        const p = snap.docs[0].data() as any;
+        setStockResult({ found: true, productName: p.productName, quantity: p.quantity, sku: p.sku });
+      }
+    } catch (error) {
+      console.error('Stock lookup failed:', error);
+      setStockResult({ found: false });
+    } finally {
+      setStockLookupBusy(false);
+    }
   };
 
   // --- Firebase Session Destruction Call ---
@@ -223,22 +310,43 @@ export const WorkerDashboard: React.FC<WorkerDashboardProps> = ({ businessUid, o
           </div>
         )}
 
-        {/* Central Scan Focus Terminal Area */}
+        {/* Central Action Area — shows only what the manager has allowed */}
         <section style={styles.centerScannerSection}>
-          <div style={styles.scannerWrapper}>
-            <div style={styles.scannerTargetBox}>
-              <div style={{...styles.cornerBracket, top: 0, left: 0, borderTop: '4px solid #3b82f6', borderLeft: '4px solid #3b82f6'}} />
-              <div style={{...styles.cornerBracket, top: 0, right: 0, borderTop: '4px solid #3b82f6', borderRight: '4px solid #3b82f6'}} />
-              <div style={{...styles.cornerBracket, bottom: 0, left: 0, borderBottom: '4px solid #3b82f6', borderLeft: '4px solid #3b82f6'}} />
-              <div style={{...styles.cornerBracket, bottom: 0, right: 0, borderBottom: '4px solid #3b82f6', borderRight: '4px solid #3b82f6'}} />
-              
-              <button style={styles.scanTriggerBtn} onClick={() => onNavigate('qr')}>
-                <span style={{fontSize: '44px', marginBottom: '12px'}}>📷</span>
-                <span style={{fontWeight: '600', letterSpacing: '0.5px'}}>INITIALIZE CAMERA SCAN</span>
-                <span style={{fontSize: '11px', color: '#94a3b8', marginTop: '4px'}}>Tap to process client QR authentication</span>
-              </button>
+          {!permissionsLoaded ? null : !workerAccess.scanCustomerCard && !workerAccess.manualOrderEntry && !workerAccess.scanInventoryLookup ? (
+            <div style={styles.noAccessBox}>
+              <span style={{ fontSize: '32px', marginBottom: '10px' }}>🔒</span>
+              <p style={styles.noAccessText}>Your manager hasn't turned on any tools for you yet. Ask them to enable this from Add Workers in B-Vin.</p>
             </div>
-          </div>
+          ) : (
+            <div style={styles.actionGrid}>
+              {workerAccess.scanCustomerCard && (
+                <button style={styles.actionTile} onClick={() => onNavigate('qr')}>
+                  <span style={{ fontSize: '34px', marginBottom: '10px' }}>📷</span>
+                  <span style={styles.actionTileTitle}>Scan Customer Card</span>
+                  <span style={styles.actionTileSub}>Scan a customer's Malvin QR</span>
+                </button>
+              )}
+              {workerAccess.manualOrderEntry && (
+                <button style={styles.actionTile} onClick={() => setManualOrderOpen(true)}>
+                  <span style={{ fontSize: '34px', marginBottom: '10px' }}>⌨️</span>
+                  <span style={styles.actionTileTitle}>Type Order</span>
+                  <span style={styles.actionTileSub}>No QR? Type what the customer wants</span>
+                </button>
+              )}
+              {workerAccess.scanInventoryLookup && (
+                <button
+                  style={{ ...styles.actionTile, opacity: systemInventoryEnabled ? 1 : 0.5, cursor: systemInventoryEnabled ? 'pointer' : 'not-allowed' }}
+                  onClick={() => { if (systemInventoryEnabled) { setStockResult(null); setStockBarcode(''); setStockLookupOpen(true); } }}
+                >
+                  <span style={{ fontSize: '34px', marginBottom: '10px' }}>📦</span>
+                  <span style={styles.actionTileTitle}>Check Stock</span>
+                  <span style={styles.actionTileSub}>
+                    {systemInventoryEnabled ? 'Scan a barcode to see what\'s in stock' : 'Ask your manager to connect System Inventory'}
+                  </span>
+                </button>
+              )}
+            </div>
+          )}
         </section>
 
       </main>
@@ -260,6 +368,78 @@ export const WorkerDashboard: React.FC<WorkerDashboardProps> = ({ businessUid, o
               </ul>
             </div>
             <button style={styles.closeModalBtn} onClick={() => setSelectedAppointment(null)}>Return to Terminal</button>
+          </div>
+        </div>
+      )}
+
+      {/* Manual Order Entry Modal */}
+      {manualOrderOpen && (
+        <div style={styles.modalOverlay} onClick={() => setManualOrderOpen(false)}>
+          <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <h3 style={styles.modalHeading}>Type Order</h3>
+            <p style={styles.modalSubheading}>What does the customer want?</p>
+            {manualOrderSent ? (
+              <div style={{ textAlign: 'center', padding: '20px 0', color: '#10b981', fontWeight: 600 }}>
+                ✓ Sent to your team
+              </div>
+            ) : (
+              <form onSubmit={handleSubmitManualOrder}>
+                <textarea
+                  value={manualOrderText}
+                  onChange={(e) => setManualOrderText(e.target.value)}
+                  placeholder="e.g. 2x cheeseburger, no onions, 1x cola..."
+                  style={styles.manualOrderTextarea}
+                  required
+                />
+                <div style={{ display: 'flex', gap: '10px', marginTop: '14px' }}>
+                  <button type="button" onClick={() => setManualOrderOpen(false)} style={styles.secondaryModalBtn}>Cancel</button>
+                  <button type="submit" disabled={manualOrderSubmitting} style={styles.closeModalBtn}>
+                    {manualOrderSubmitting ? 'Sending...' : 'Send Order'}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Check Stock Modal */}
+      {stockLookupOpen && (
+        <div style={styles.modalOverlay} onClick={() => setStockLookupOpen(false)}>
+          <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <h3 style={styles.modalHeading}>Check Stock</h3>
+            <p style={styles.modalSubheading}>Scan or type a product barcode</p>
+            <form onSubmit={handleStockLookup} style={{ display: 'flex', gap: '8px' }}>
+              <input
+                type="text"
+                value={stockBarcode}
+                onChange={(e) => setStockBarcode(e.target.value)}
+                placeholder="Barcode / SKU"
+                autoFocus
+                style={styles.aiInput}
+              />
+              <button type="submit" disabled={stockLookupBusy} style={styles.aiSubmit}>
+                {stockLookupBusy ? '...' : 'Check'}
+              </button>
+            </form>
+
+            {stockResult && (
+              <div style={styles.stockResultBox}>
+                {stockResult.found ? (
+                  <>
+                    <div style={{ fontSize: '15px', fontWeight: 700, color: '#fff' }}>{stockResult.productName}</div>
+                    {stockResult.sku && <div style={{ fontSize: '11px', color: '#9ca3af', marginTop: '2px' }}>SKU: {stockResult.sku}</div>}
+                    <div style={{ fontSize: '28px', fontWeight: 800, color: (stockResult.quantity ?? 0) > 0 ? '#10b981' : '#ef4444', marginTop: '8px' }}>
+                      {stockResult.quantity ?? 0} in stock
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ fontSize: '13px', color: '#f87171' }}>No product found with that barcode.</div>
+                )}
+              </div>
+            )}
+
+            <button onClick={() => setStockLookupOpen(false)} style={{ ...styles.closeModalBtn, marginTop: '16px' }}>Close</button>
           </div>
         </div>
       )}
@@ -410,6 +590,82 @@ const styles: { [key: string]: React.CSSProperties } = {
     alignItems: 'center',
     minHeight: '380px',
     padding: '40px 0',
+  },
+  noAccessBox: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    textAlign: 'center',
+    maxWidth: '360px',
+    padding: '24px',
+  },
+  noAccessText: {
+    fontSize: '13px',
+    color: '#9ca3af',
+    lineHeight: '1.5',
+    margin: 0,
+  },
+  actionGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+    gap: '16px',
+    width: '100%',
+    maxWidth: '640px',
+  },
+  actionTile: {
+    background: '#111827',
+    border: '1px solid #1f2937',
+    borderRadius: '16px',
+    padding: '28px 16px',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    textAlign: 'center',
+    cursor: 'pointer',
+    color: '#ffffff',
+  },
+  actionTileTitle: {
+    fontWeight: 600,
+    fontSize: '14px',
+    letterSpacing: '0.3px',
+  },
+  actionTileSub: {
+    fontSize: '11px',
+    color: '#94a3b8',
+    marginTop: '6px',
+    lineHeight: '1.4',
+  },
+  manualOrderTextarea: {
+    width: '100%',
+    minHeight: '100px',
+    background: '#0b0f19',
+    border: '1px solid #1f2937',
+    borderRadius: '8px',
+    padding: '12px',
+    color: '#fff',
+    fontSize: '13px',
+    outline: 'none',
+    boxSizing: 'border-box',
+    resize: 'vertical',
+    fontFamily: 'inherit',
+  },
+  secondaryModalBtn: {
+    flex: 1,
+    background: 'transparent',
+    color: '#9ca3af',
+    border: '1px solid #1f2937',
+    padding: '12px 0',
+    borderRadius: '6px',
+    fontWeight: '600',
+    cursor: 'pointer',
+  },
+  stockResultBox: {
+    marginTop: '16px',
+    background: '#0b0f19',
+    border: '1px solid #1f2937',
+    borderRadius: '10px',
+    padding: '16px',
+    textAlign: 'center',
   },
   scannerWrapper: {
     width: '100%',

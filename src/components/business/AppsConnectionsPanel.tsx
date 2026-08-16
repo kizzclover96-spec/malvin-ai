@@ -34,7 +34,7 @@ type FormStep = "closed" | "menu" | "addWebsite" | "addService" | "scanning" | "
 
 /* -------------------------------- The pill -------------------------------- */
 
-export const AppsConnectionsPill: React.FC<{ businessId: string; accent: string }> = ({ businessId, accent }) => {
+export const AppsConnectionsPill: React.FC<{ businessId: string; accent: string; onConnectSystem?: () => void; isPremium?: boolean; onRequirePremium?: () => void }> = ({ businessId, accent, onConnectSystem, isPremium = true, onRequirePremium }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [step, setStep] = useState<FormStep>("closed");
   const [websiteUrl, setWebsiteUrl] = useState("");
@@ -54,6 +54,11 @@ export const AppsConnectionsPill: React.FC<{ businessId: string; accent: string 
   }, [menuOpen]);
 
   const openForm = (which: "addWebsite" | "addService") => {
+    if (!isPremium) {
+      setMenuOpen(false);
+      onRequirePremium?.();
+      return;
+    }
     setMenuOpen(false);
     setConnectError(null);
     setStep(which);
@@ -137,8 +142,11 @@ export const AppsConnectionsPill: React.FC<{ businessId: string; accent: string 
             }}
           >
             <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 10 }}>What would you like to add?</div>
-            <MenuRow icon={Globe} label="Add Website" sub="Launch any website from Malvin" accent={accent} onClick={() => openForm("addWebsite")} />
-            <MenuRow icon={Plug} label="Add Service" sub="Connect an external service" accent={accent} onClick={() => openForm("addService")} />
+            <MenuRow icon={Globe} label="Add Website" sub="Launch any website from Malvin" accent={accent} onClick={() => openForm("addWebsite")} locked={!isPremium} />
+            <MenuRow icon={Plug} label="Add Service" sub="Connect an external service" accent={accent} onClick={() => openForm("addService")} locked={!isPremium} />
+            {onConnectSystem && (
+              <MenuRow icon={Server} label="Connect System" sub="Link your catalogue & stock" accent={accent} onClick={() => { setMenuOpen(false); onConnectSystem(); }} />
+            )}
             <MenuRow icon={Smartphone} label="Add App" sub="Connect a desktop app" accent={accent} disabled comingSoon />
           </motion.div>
         )}
@@ -244,7 +252,7 @@ export const AppsConnectionsPill: React.FC<{ businessId: string; accent: string 
   );
 };
 
-const MenuRow: React.FC<{ icon: React.ElementType; label: string; sub: string; accent: string; onClick?: () => void; disabled?: boolean; comingSoon?: boolean }> = ({ icon: Icon, label, sub, accent, onClick, disabled, comingSoon }) => (
+const MenuRow: React.FC<{ icon: React.ElementType; label: string; sub: string; accent: string; onClick?: () => void; disabled?: boolean; comingSoon?: boolean; locked?: boolean }> = ({ icon: Icon, label, sub, accent, onClick, disabled, comingSoon, locked }) => (
   <button
     onClick={onClick}
     disabled={disabled}
@@ -261,6 +269,7 @@ const MenuRow: React.FC<{ icon: React.ElementType; label: string; sub: string; a
       <div style={{ fontSize: 12.5, fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}>
         + {label}
         {comingSoon && <span style={{ fontSize: 9, fontWeight: 800, padding: "2px 6px", borderRadius: 999, background: "rgba(0,0,0,0.06)", color: "rgba(0,0,0,0.45)" }}>SOON</span>}
+        {locked && <span style={{ fontSize: 9, fontWeight: 800, padding: "2px 6px", borderRadius: 999, background: "#1d1d1f", color: "#FFD700" }}>PREMIUM</span>}
       </div>
       <div style={{ fontSize: 10.5, color: "rgba(29,29,31,0.5)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{sub}</div>
     </div>
