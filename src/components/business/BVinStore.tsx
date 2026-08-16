@@ -39,6 +39,7 @@ import QRCode from "qrcode";
 import { firestore as db, auth } from "../../firebase";
 import { applyStorefrontIdentity, resolveGuestUid } from "../../services/storefrontAuth";
 import { ToolState, isCustomerVisible } from "../../config/bvinTools";
+import { OfferSticker, SpecialOfferData } from "./OfferSticker";
 import { useAccountStanding } from "../../hooks/useAccountStanding";
 import { useLanguage } from "../../contexts/LanguageContext";
 import RequestStaffFlow from "./RequestStaffFlow";
@@ -85,6 +86,7 @@ interface BVinProfile {
   allowToGo?: boolean;
   enabledTools: ToolState;
   colors: BVinColors;
+  specialOffer?: SpecialOfferData;
 }
 
 interface Product {
@@ -182,6 +184,7 @@ const BVinStore: React.FC = () => {
         allowToGo: !!p.allowToGo,
         enabledTools: data.enabledTools || {},
         colors: { ...DEFAULT_COLORS, ...(p.colors || {}) },
+        specialOffer: p.specialOffer,
       });
     });
     return () => unsub();
@@ -229,6 +232,10 @@ const BVinStore: React.FC = () => {
   const [langMenuOpen, setLangMenuOpen] = useState(false);
   const [showLangPrompt, setShowLangPrompt] = useState(true);
   const [entryLangSearch, setEntryLangSearch] = useState("");
+  // Special Offer splash — dismissed for this page load only; a fresh
+  // scan of the store QR is a fresh mount, so it shows again next time,
+  // same as the language prompt above.
+  const [offerDismissed, setOfferDismissed] = useState(false);
   const [langSearch, setLangSearch] = useState("");
   const [contactOpen, setContactOpen] = useState(false);
   const [complaintOpen, setComplaintOpen] = useState(false);
@@ -515,6 +522,17 @@ const BVinStore: React.FC = () => {
     return acc;
   }, {} as typeof rawTools);
 
+  // The Special Offer splash needs the tool on, an actual sticker saved
+  // (an offer price is the one required field), the owner not having
+  // paused it, and the customer not having dismissed it yet this visit.
+  const showSpecialOffer = !!(
+    tools.specialOffers &&
+    profile.specialOffer &&
+    profile.specialOffer.active &&
+    profile.specialOffer.offerPrice &&
+    !offerDismissed
+  );
+
   return (
     <div
       style={{
@@ -551,6 +569,49 @@ const BVinStore: React.FC = () => {
           -webkit-backdrop-filter: blur(6px);
         }
       `}</style>
+
+      {/* Special Offer splash — the first thing a customer sees, every
+          single time they scan or open this store, whenever the business
+          has an active sticker saved. Sits above everything else on the
+          page, including the language prompt below. Dismiss by tapping
+          the backdrop, the button, or the sticker's own close button. */}
+      <AnimatePresence>
+        {showSpecialOffer && profile.specialOffer && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            onClick={() => setOfferDismissed(true)}
+            style={{ position: "fixed", inset: 0, zIndex: 400, background: "rgba(10,10,14,0.66)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.82, y: 24 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.88 }}
+              transition={{ type: "spring", stiffness: 260, damping: 22 }}
+              onClick={(e) => e.stopPropagation()}
+              style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 20, position: "relative" }}
+            >
+              <button
+                onClick={() => setOfferDismissed(true)}
+                style={{ position: "absolute", top: -14, right: -14, width: 30, height: 30, borderRadius: "50%", background: "rgba(255,255,255,0.95)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", boxShadow: "0 4px 14px rgba(0,0,0,0.25)" }}
+              >
+                <X size={15} color="#1d1d1f" />
+              </button>
+              <OfferSticker
+                design={profile.specialOffer.design}
+                headline={profile.specialOffer.headline}
+                originalPrice={profile.specialOffer.originalPrice}
+                offerPrice={profile.specialOffer.offerPrice}
+                accent={theme.accent}
+                size={230}
+              />
+              <button
+                onClick={() => setOfferDismissed(true)}
+                style={{ background: "rgba(255,255,255,0.95)", color: "#1d1d1f", border: "none", borderRadius: 999, padding: "12px 30px", fontSize: 13.5, fontWeight: 800, cursor: "pointer" }}
+              >
+                Shop now
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Ambient background — soft accent-tinted glow + a faint dot texture, tuned
           to whatever accent color this particular business picked, so it reads

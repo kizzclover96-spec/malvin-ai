@@ -21,6 +21,7 @@ import {
   Clock,
   Star,
   Frown,
+  Percent,
 } from "lucide-react";
 
 /* ============================================================================
@@ -64,7 +65,8 @@ export type ToolKey =
   | "contactBusiness"
   | "complaints"
   | "productStore"
-  | "environment";
+  | "environment"
+  | "specialOffers";
 
 export type ToolShape = "square" | "rectangle";
 export type ToolCategory = "Customer Communication" | "Customer Information" | "In-Person Experience" | "Transactions & Bookings" | "Business Tools";
@@ -107,6 +109,7 @@ export const TOOLS: ToolDef[] = [
   { key: "openingStatus", label: "Opening Status", icon: Clock, description: "Show a live open/closed badge.", category: "Customer Communication", shape: "square", customerVisible: true },
   { key: "chat", label: "Chat", icon: MessageCircle, description: "Let customers message you directly.", category: "Customer Communication", shape: "square", noBento: true, customerVisible: true },
   { key: "reviews", label: "Reviews", icon: Star, description: "Collect ratings from customers.", category: "Customer Communication", shape: "square", customerVisible: true },
+  { key: "specialOffers", label: "Special Offers", icon: Percent, description: "Design a deal sticker — the first thing customers see when they scan your store QR.", category: "Customer Communication", shape: "square", customerVisible: true },
 
   { key: "catalogue", label: "Online Catalogue", icon: BookOpen, description: "Show off products with photos.", category: "Customer Information", shape: "rectangle", customerVisible: true },
   { key: "prices", label: "Prices", icon: Wallet, description: "A quick text price list.", category: "Customer Information", shape: "square", customerVisible: true },
@@ -138,7 +141,7 @@ export const DEFAULT_TOOLS: ToolState = {
   analytics: false, receiveMoney: false, vinbackTags: true, customerNotice: true,
   openingStatus: false, receipts: false, teamChat: false, reviews: false, loyalty: false,
   jobRequests: false, requestStaff: false, tableAssistance: false, contactBusiness: false, productStore: false,
-  environment: false, complaints: false,
+  environment: false, complaints: false, specialOffers: false,
 };
 
 /** Convenience lookup used by the customer store to gate rendering. */

@@ -73,6 +73,7 @@ import ProductFormModal from "./ProductFormModal";
 import { AppsConnectionsPill, ConnectionsStrip } from "./AppsConnectionsPanel";
 import ConnectSystemInventoryModal from "./ConnectSystemInventoryModal";
 import WorkerPermissionsModal, { WorkerAccess, DEFAULT_WORKER_ACCESS } from "../team/WorkerPermissionsModal";
+import { OfferSticker, OFFER_STICKER_DESIGNS, SpecialOfferData, OfferStickerDesign } from "./OfferSticker";
 import { recordStorageUsage, useStorageUsage } from "../../utils/storage";
 import StorageWarningBanner from "../addons/StorageWarningBanner";
 import { cancelPremiumSubscription, downloadMyData, deleteMyData } from "../../services/bvinConnections";
@@ -125,6 +126,7 @@ interface BVinProfile {
   allowToGo?: boolean;
   workerAccess?: WorkerAccess;
   systemInventoryEnabled?: boolean;
+  specialOffer?: SpecialOfferData;
 }
 
 // The unified per-business document at business/{businessId}. Exactly two
@@ -241,6 +243,8 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
   const [systemInventoryEnabled, setSystemInventoryEnabled] = useState(false);
   const [workerPermissionsOpen, setWorkerPermissionsOpen] = useState(false);
   const [connectSystemOpen, setConnectSystemOpen] = useState(false);
+  const [specialOffer, setSpecialOffer] = useState<SpecialOfferData | null>(null);
+  const [offerModalOpen, setOfferModalOpen] = useState(false);
 
   const { isPremium, isVerified } = useAccountStanding(businessId);
   const storageState = useStorageUsage(businessId);
@@ -359,6 +363,7 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
       if (p.offeringsConfig) setOfferingsConfig(p.offeringsConfig);
       if (p.workerAccess) setWorkerAccess((prev) => ({ ...prev, ...p.workerAccess }));
       setSystemInventoryEnabled(!!p.systemInventoryEnabled);
+      if (p.specialOffer) setSpecialOffer(p.specialOffer);
       // Strictly === false, not just falsy — an existing business that
       // predates this feature has no hasSeenTour field at all
       // (undefined), and must never trigger the tour. Only a business
@@ -398,6 +403,7 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
       allowToGo,
       workerAccess,
       systemInventoryEnabled,
+      ...(specialOffer ? { specialOffer } : {}),
     };
 
     // Compare structural data without `updatedAt` to check if genuine changes occurred
@@ -424,7 +430,7 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
   }, [
     businessId, name, logoUrlState, bio, address, phone, openingTime, closingTime, darkMode, clicks, tools,
     pinnedTools, colors, customerNoticeText, stripeConnected, stripeAccountId, catalogueConfig, offeringsConfig,
-    qrScans, noticeScans, hasSeenTour, allowToGo, workerAccess, systemInventoryEnabled,
+    qrScans, noticeScans, hasSeenTour, allowToGo, workerAccess, systemInventoryEnabled, specialOffer,
   ]);
 
   useEffect(() => {
@@ -492,6 +498,9 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
     // worker on the roster is allowed to do — asked right away, same
     // pattern as the catalogue/offerings wizards above.
     if (turningOn && key === "teamChat") setWorkerPermissionsOpen(true);
+    // First time switching Special Offers on, jump straight into the
+    // sticker designer instead of leaving an empty tool enabled.
+    if (turningOn && key === "specialOffers" && !specialOffer) setOfferModalOpen(true);
   };
 
   const togglePin = (key: ToolKey, idx: number) => {
@@ -511,7 +520,13 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
   };
   const handlePillPressEnd = (key: ToolKey) => {
     if (pillPressTimer.current) clearTimeout(pillPressTimer.current);
-    if (!pillLongPressed.current) toggleTool(key);
+    if (pillLongPressed.current) return;
+    // Special Offers behaves differently from every other tool in the
+    // pill: once it's on, tapping its icon reopens the sticker designer
+    // instead of quick-disabling it — turning it off entirely still
+    // happens from Enable Tools like normal.
+    if (key === "specialOffers") { setOfferModalOpen(true); return; }
+    toggleTool(key);
   };
 
   // Long-press on the island's background (not on a specific tool square)
@@ -729,7 +744,7 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
                             transition={{ type: "spring", stiffness: 400, damping: 28 }}
                             className={styles.toolSquare}
                             style={{ background: `${accent}1c`, color: accent }}
-                            title={t.alwaysOn ? t.label : `Tap to disable · hold to pin — ${t.label}`}
+                            title={t.alwaysOn ? t.label : t.key === "specialOffers" ? `Tap to edit sticker · hold to pin — ${t.label}` : `Tap to disable · hold to pin — ${t.label}`}
                             onMouseDown={(e) => { e.stopPropagation(); handlePillPressStart(t.key, idx); }}
                             onMouseUp={(e) => { e.stopPropagation(); handlePillPressEnd(t.key); }}
                             onMouseLeave={() => pillPressTimer.current && clearTimeout(pillPressTimer.current)}
@@ -934,6 +949,8 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
                         <ServiceCallsCard businessId={businessId} theme={theme} accent={accent} type="table" />
                       ) : t.key === "productStore" || t.key === "environment" ? (
                         <FullscreenLaunchCard accent={accent} onOpen={() => setFullscreenTool(t.key as "productStore" | "environment")} />
+                      ) : t.key === "specialOffers" ? (
+                        <SpecialOfferBentoCard theme={theme} accent={accent} data={specialOffer} onOpen={() => setOfferModalOpen(true)} />
                       ) : undefined
                     }
                   />
@@ -1173,6 +1190,14 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
         onOpen={() => setFullscreenTool("productStore")}
         onClose={() => setConnectSystemOpen(false)}
         accent={accent}
+      />
+
+      <SpecialOfferModal
+        open={offerModalOpen}
+        accent={accent}
+        initial={specialOffer}
+        onClose={() => setOfferModalOpen(false)}
+        onSave={(data) => { setSpecialOffer(data); setOfferModalOpen(false); }}
       />
     </div>
   );
@@ -1896,6 +1921,122 @@ const SettingsRootButton: React.FC<{ icon: React.ElementType; label: string; acc
     <ChevronRight size={15} opacity={0.4} />
   </button>
 );
+
+/* Special Offers — bento card mini-preview. Shows the sticker at a small
+   size plus a status line, or a nudge to design one if it's never been
+   set up. Either way, the button always reopens the same designer modal
+   (also reachable by tapping the tool's icon in the header pill). */
+const SpecialOfferBentoCard: React.FC<{ theme: any; accent: string; data: SpecialOfferData | null; onOpen: () => void }> = ({ theme, accent, data, onOpen }) => (
+  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+    <div style={{ flexShrink: 0 }}>
+      <OfferSticker
+        design={data?.design || "burst"}
+        headline={data?.headline || "Offer"}
+        originalPrice={data?.originalPrice || ""}
+        offerPrice={data?.offerPrice || "?"}
+        accent={accent}
+        size={62}
+      />
+    </div>
+    <div style={{ flex: 1, minWidth: 0 }}>
+      {data?.offerPrice ? (
+        <>
+          <div style={{ fontSize: 12, fontWeight: 700, color: theme.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{data.headline || "Special offer"}</div>
+          <div style={{ fontSize: 10.5, fontWeight: 700, color: data.active ? accent : theme.subtext, marginTop: 2 }}>{data.active ? "Showing to customers" : "Hidden right now"}</div>
+        </>
+      ) : (
+        <p style={{ fontSize: 11.5, color: theme.subtext, margin: 0 }}>First thing customers see when they scan your store QR.</p>
+      )}
+      <button onClick={onOpen} style={{ ...smallBtnStyle(accent, true), marginTop: 8 }}>{data?.offerPrice ? "Edit" : "Design"}</button>
+    </div>
+  </div>
+);
+
+const offerInputStyle: React.CSSProperties = { flex: 1, fontSize: 13, padding: "10px 12px", borderRadius: 11, border: "1px solid rgba(0,0,0,0.08)", fontFamily: "inherit", minWidth: 0 };
+
+/* Special Offers designer — pick one of 5 sticker shapes, write what's on
+   offer and the two prices (original shown crossed out, offer shown
+   big), preview it live, then save. Saving is what BVinStore reads to
+   show the sticker first, before anything else, on every store open. */
+const SpecialOfferModal: React.FC<{
+  open: boolean;
+  accent: string;
+  initial: SpecialOfferData | null;
+  onClose: () => void;
+  onSave: (data: SpecialOfferData) => void;
+}> = ({ open, accent, initial, onClose, onSave }) => {
+  const [design, setDesign] = useState<OfferStickerDesign>(initial?.design || "burst");
+  const [headline, setHeadline] = useState(initial?.headline || "");
+  const [originalPrice, setOriginalPrice] = useState(initial?.originalPrice || "");
+  const [offerPrice, setOfferPrice] = useState(initial?.offerPrice || "");
+  const [active, setActive] = useState(initial?.active !== false);
+
+  useEffect(() => {
+    if (!open) return;
+    setDesign(initial?.design || "burst");
+    setHeadline(initial?.headline || "");
+    setOriginalPrice(initial?.originalPrice || "");
+    setOfferPrice(initial?.offerPrice || "");
+    setActive(initial?.active !== false);
+  }, [open, initial]);
+
+  if (!open) return null;
+
+  const canSave = offerPrice.trim().length > 0;
+
+  return (
+    <GlassOverlay onClose={onClose}>
+      <h3 style={{ margin: "0 0 4px", fontSize: 17, fontWeight: 800 }}>Special Offer Sticker</h3>
+      <p style={{ fontSize: 12.5, color: "rgba(29,29,31,0.55)", margin: "0 0 16px" }}>
+        Shown first, every time a customer scans your store QR.
+      </p>
+
+      <div style={{ display: "flex", justifyContent: "center", marginBottom: 18 }}>
+        <OfferSticker design={design} headline={headline || "Your headline"} originalPrice={originalPrice} offerPrice={offerPrice || "Price"} accent={accent} size={160} />
+      </div>
+
+      <div style={{ display: "flex", gap: 8, marginBottom: 16, overflowX: "auto", paddingBottom: 4 }}>
+        {OFFER_STICKER_DESIGNS.map((d) => (
+          <button
+            key={d.key}
+            onClick={() => setDesign(d.key)}
+            title={d.label}
+            style={{ flexShrink: 0, padding: 4, borderRadius: 14, border: design === d.key ? `2px solid ${accent}` : "2px solid transparent", background: "rgba(0,0,0,0.03)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+          >
+            <OfferSticker design={d.key} headline="" originalPrice="" offerPrice="" accent={accent} size={50} />
+          </button>
+        ))}
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
+        <input value={headline} onChange={(e) => setHeadline(e.target.value)} placeholder="What's on offer (e.g. All Haircuts)" style={offerInputStyle} />
+        <div style={{ display: "flex", gap: 8 }}>
+          <input value={originalPrice} onChange={(e) => setOriginalPrice(e.target.value)} placeholder="Original price (optional)" style={offerInputStyle} />
+          <input value={offerPrice} onChange={(e) => setOfferPrice(e.target.value)} placeholder="Offer price" style={offerInputStyle} />
+        </div>
+      </div>
+
+      <button
+        onClick={() => setActive((a) => !a)}
+        style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "10px 14px", borderRadius: 12, border: "1px solid rgba(0,0,0,0.08)", background: "rgba(0,0,0,0.02)", marginBottom: 14, cursor: "pointer" }}
+      >
+        <span style={{ fontSize: 12.5, fontWeight: 700, color: "#1d1d1f" }}>Show to customers</span>
+        <span style={{ width: 34, height: 20, borderRadius: 999, background: active ? accent : "rgba(0,0,0,0.15)", position: "relative", transition: "background 0.2s", flexShrink: 0 }}>
+          <span style={{ position: "absolute", top: 2, left: active ? 16 : 2, width: 16, height: 16, borderRadius: "50%", background: "#fff", transition: "left 0.2s" }} />
+        </span>
+      </button>
+
+      <button
+        className="bvin-accent-btn"
+        style={{ background: accent, opacity: canSave ? 1 : 0.5, cursor: canSave ? "pointer" : "default" }}
+        disabled={!canSave}
+        onClick={() => onSave({ design, headline: headline.trim(), originalPrice: originalPrice.trim(), offerPrice: offerPrice.trim(), active, updatedAt: Date.now() })}
+      >
+        Save sticker
+      </button>
+    </GlassOverlay>
+  );
+};
 
 const ProfileView: React.FC<{
   accent: string;
