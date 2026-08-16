@@ -5,12 +5,7 @@ import { auth, firestore as db, functions } from "./firebase";
 import { registerPushNotifications, clearPushToken, sendSignInNotification, resetSignInGreeting, notifyPendingWorkOnSignIn, resetPendingWorkReminder } from "./services/pushNotifications";
 import { 
   collection, 
-  collectionGroup, 
-  getDocs, 
-  query, 
-  where, 
   doc, 
-  updateDoc, 
   serverTimestamp,
   runTransaction
 } from "firebase/firestore";
@@ -329,41 +324,42 @@ function App() {
           const targetEmail = currentUser.email?.trim() || "";
           const targetEmailLower = currentUser.email?.toLowerCase().trim() || "";
           
-          // Only run the query if a valid email address exists
+          // Only run the check if a valid email address exists.
+          //
+          // 🛠️ FIX: this used to do the collectionGroup query + updateDoc
+          // right here on the client. That correctly set workerUid/uid on
+          // the invite doc, but the doc's ID stays the random memberId
+          // teamHub.tsx generated at invite time — it never becomes the
+          // worker's own uid. Firestore's isTeamMember() rule checks
+          // membership by exists()-at-a-path-keyed-by-the-caller's-uid, so
+          // that update alone could never satisfy it: every claimed
+          // worker still got permission-denied on every team-gated write
+          // (manualOrders, teamHub, jobRequests, businesses/{uid}).
+          //
+          // The lookup+claim now happens server-side in claimTeamInvite
+          // (malvinbackend/src/index.ts), which does the same thing this
+          // block used to, but also mirrors the result into a `teamOf`
+          // custom claim — the same tamper-proof-token pattern already
+          // used for `premium` below and the admin `cap` map. Rules read
+          // that claim instead of trying to reconcile mismatched document
+          // IDs. Forcing a fresh token straight after is what makes the
+          // new claim visible to Firestore for the rest of this session.
           if (targetEmail) {
-            const memberQuery = query(
-              collectionGroup(db, "members"), 
-              where("email", "in", [targetEmail, targetEmailLower])
-            );
-            
-            const memberDocsSnapshot = await getDocs(memberQuery);
+            try {
+              const claimTeamInvite = httpsCallable(functions, "claimTeamInvite");
+              const result = await claimTeamInvite();
+              const claimData = result?.data || {};
 
-            if (!memberDocsSnapshot.empty) {
-              const matchedMemberDoc = memberDocsSnapshot.docs[0];
-              const memberData = matchedMemberDoc.data();
-              
-              if (memberData.role !== 'Manager') { 
-                const matchedDocId = matchedMemberDoc.id;
-                const currentStatus = memberData.status;
-                const pathSegments = matchedMemberDoc.ref.path.split('/');
-                const foundManagerUid = pathSegments[1]; 
-
-                setAssignedManagerUid(foundManagerUid);
+              if (claimData.isWorker && claimData.managerUid) {
+                setAssignedManagerUid(claimData.managerUid);
                 setIsWorker(true);
-
-                if (currentStatus === "pending") {
-                  await updateDoc(doc(db, "managerMembers", foundManagerUid, "members", matchedDocId), {
-                    workerUid: currentUser.uid,
-                    uid: currentUser.uid,
-                    status: "active",
-                    joinedAt: serverTimestamp()
-                  });
-                }
+                await currentUser.getIdToken(true);
               } else {
                 setIsWorker(false);
                 setAssignedManagerUid("");
               }
-            } else {
+            } catch (claimError) {
+              console.error("Team invite claim check failed:", claimError);
               setIsWorker(false);
               setAssignedManagerUid("");
             }

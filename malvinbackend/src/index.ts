@@ -1834,6 +1834,88 @@ export const syncPremiumClaims = onCall(async (request) => {
 
 /*
 =====================================
+14.5. TEAM INVITE CLAIM (SELF-HEAL)
+=====================================
+Why this exists: managerMembers/{managerUid}/members/{memberId} invite docs
+are created by the manager with a random memberId (see teamHub.tsx's
+executeSaveMemberInvitation) — the invited worker's uid isn't known yet at
+invite time, only their email. Firestore's isTeamMember() rule, though,
+checks membership by exists() at a path keyed by the CALLER's own uid, which
+that random-id doc can never satisfy no matter what fields get set on it.
+
+App.jsx used to "claim" a pending invite entirely client-side: a
+collectionGroup query by email, then an updateDoc setting workerUid/uid to
+the caller. That satisfied the *document's* fields but never changed
+isTeamMember()'s exists()-by-uid check, so every claimed worker still failed
+every isTeamMember()-gated write (manualOrders, teamHub, jobRequests,
+businesses/{uid}) — permission-denied regardless of accepting the invite.
+
+This moves that lookup+claim server-side (Admin SDK, same trust boundary as
+syncPremiumClaims/syncAdminClaims above) and, critically, also mirrors the
+result into a custom claim — `teamOf: { [managerUid]: true }` — the same
+tamper-proof-token pattern already used for `premium` and the admin `cap`
+map. isTeamMember() below reads that claim instead of trying to reconcile
+mismatched document IDs. Same one-token-refresh caveat as those: the caller
+must getIdTokenResult(true) again after this resolves before the new claim
+is visible to Firestore rules.
+
+Safety: `uid`/`email` always come from the verified auth token, never from
+anything the client sends — a caller can only ever claim an invite that was
+addressed to their own verified email.
+*/
+export const claimTeamInvite = onCall(async (request) => {
+  if (!request.auth?.uid) {
+    throw new HttpsError("unauthenticated", "Sign in to join a team.");
+  }
+
+  const uid = request.auth.uid;
+  const email = request.auth.token.email as string | undefined;
+  if (!email) {
+    return { isWorker: false };
+  }
+
+  const db = getDb();
+  const { FieldValue } = require("firebase-admin/firestore");
+  const emailLower = email.toLowerCase().trim();
+
+  const snap = await db
+    .collectionGroup("members")
+    .where("email", "in", [email, emailLower])
+    .get();
+
+  const memberDoc = snap.docs.find((d: any) => d.data().role !== "Manager");
+  const managerUid = memberDoc?.ref.parent.parent?.id;
+
+  if (!memberDoc || !managerUid) {
+    return { isWorker: false };
+  }
+
+  const data = memberDoc.data();
+  if (data.status === "pending" || !data.workerUid || data.workerUid === uid) {
+    await memberDoc.ref.update({
+      workerUid: uid,
+      uid,
+      status: "active",
+      joinedAt: data.joinedAt || FieldValue.serverTimestamp(),
+    });
+  }
+
+  const { getAuth } = require("firebase-admin/auth");
+  const authAdmin = getAuth();
+  const userRecord = await authAdmin.getUser(uid);
+  const existingClaims = userRecord.customClaims || {};
+  const teamOf = { ...(existingClaims.teamOf || {}), [managerUid]: true };
+
+  await authAdmin.setCustomUserClaims(uid, {
+    ...existingClaims,
+    teamOf,
+  });
+
+  return { isWorker: true, managerUid };
+});
+
+/*
+=====================================
 15. SEND PUSH ON NEW NOTIFICATION
 =====================================
 The client's pushNotification() helper (see Notification.tsx) only ever
