@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Mail, Bell, HardDrive, Tag, QrCode, Link2, X, Check, Camera, ChevronRight, Trash2, ScanLine, Sparkles, LogOut } from "lucide-react";
 import { doc, setDoc, addDoc, deleteDoc, collection, onSnapshot, serverTimestamp, orderBy, query } from "firebase/firestore";
 import { firestore as db, auth } from "../../firebase";
-import { signOut } from "firebase/auth";
+import { signOut, onAuthStateChanged, type User } from "firebase/auth";
 import { Html5Qrcode } from "html5-qrcode";
 import { NotificationBell } from "./Notification";
 import VinBackTagCreate from "../vinback/VinBackTagCreate";
@@ -42,7 +42,22 @@ interface BillingStatus {
 }
 
 export const Front: React.FC = () => {
-  const user = auth.currentUser;
+  // Reactive, not a synchronous auth.currentUser read — Firebase Auth
+  // restores a persisted session asynchronously, so reading
+  // auth.currentUser directly at render time can momentarily return
+  // null-then-real-user (or vice versa on sign-out) without this
+  // component re-rendering to pick it up. That race is what was firing
+  // "Missing or insufficient permissions" on the notifications/savedLinks/
+  // billing listeners below: they'd occasionally spin up with a uid
+  // before request.auth was actually attached server-side. Subscribing
+  // via onAuthStateChanged guarantees `user` only ever reflects a
+  // confirmed auth state, and updates (tearing down old listeners via the
+  // [user?.uid] deps below) the instant it changes.
+  const [user, setUser] = useState<User | null>(() => auth.currentUser);
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (u) => setUser(u));
+    return () => unsub();
+  }, []);
 
   const [tagCreateOpen, setTagCreateOpen] = useState(false);
   const [tagListOpen, setTagListOpen] = useState(false);
