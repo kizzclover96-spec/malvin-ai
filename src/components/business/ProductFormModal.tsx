@@ -11,7 +11,11 @@ import { firestore, storage } from "../../firebase";
    fields the business picked in CatalogueSetupWizard (picture, price, name,
    duration, description, discount, category, stock, variants). Only the
    fields they actually chose are shown; everything writes straight to
-   b-vin/{businessId}/products.
+   business/{businessId}/products — matching both the storage.rules path
+   (business/{businessId}/**, publicly readable) and the Firestore path
+   BVinStore.tsx reads the storefront catalogue from. (Previously this
+   wrote to a "b-vin/..." path that neither of those matched, which is
+   why uploads got a 403 and saved products never appeared in-store.)
 ============================================================================ */
 
 interface Props {
@@ -53,7 +57,7 @@ const ProductFormModal: React.FC<Props> = ({ open, onClose, businessId, fields, 
       let imageUrl = "";
       if (has("picture") && file) {
         const productId = `product_${Date.now()}`;
-        const fileRef = storageRef(storage, `b-vin/${businessId}/products/${productId}.jpg`);
+        const fileRef = storageRef(storage, `business/${businessId}/products/${productId}.jpg`);
         const snap = await uploadBytes(fileRef, file);
         imageUrl = await getDownloadURL(snap.ref);
       }
@@ -68,7 +72,7 @@ const ProductFormModal: React.FC<Props> = ({ open, onClose, businessId, fields, 
       if (has("variants")) payload.variants = variants.split(",").map((v) => v.trim()).filter(Boolean);
       if (has("picture") && imageUrl) payload.imageUrl = imageUrl;
 
-      await addDoc(collection(firestore, "b-vin", businessId, "products"), payload);
+      await addDoc(collection(firestore, "business", businessId, "products"), payload);
       reset();
       onClose();
     } catch (err: any) {
