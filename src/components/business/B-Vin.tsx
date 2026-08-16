@@ -246,7 +246,7 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
   const storageState = useStorageUsage(businessId);
   const { language, languages, isTranslating, setLanguage } = useLanguage();
 
-  const [activeTab, setActiveTab] = useState<"dashboard" | "team" | "chat" | "receipts">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "team" | "chat" | "receipts" | "allOrders">("dashboard");
   const [fullscreenTool, setFullscreenTool] = useState<"productStore" | "environment" | "premium" | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
@@ -855,6 +855,10 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
         <div style={{ position: "fixed", inset: 0, zIndex: 15, background: theme.pageBg, overflow: "auto", padding: "20px 18px 110px" }}>
           <ReceiptsView businessId={businessId} theme={theme} accent={accent} />
         </div>
+      ) : activeTab === "allOrders" ? (
+        <div style={{ position: "fixed", inset: 0, zIndex: 15, background: theme.pageBg, overflow: "auto", padding: "20px 18px 110px" }}>
+          <AllOrdersView businessId={businessId} theme={theme} accent={accent} />
+        </div>
       ) : (
         <main style={{ padding: "8px 18px 110px" }}>
           {activeTab === "dashboard" && (
@@ -959,6 +963,7 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
           <TabButton active={activeTab === "dashboard"} label="Dashboard" accent={accent} onClick={() => setActiveTab("dashboard")} />
           {tools.chat && <TabButton active={activeTab === "chat"} label="Chat" accent={accent} onClick={() => setActiveTab("chat")} />}
           {tools.receiveMoney && stripeConnected && <TabButton active={activeTab === "receipts"} label="Receipts" accent={accent} onClick={() => setActiveTab("receipts")} />}
+          <TabButton active={activeTab === "allOrders"} label="Orders" accent={accent} onClick={() => setActiveTab("allOrders")} />
           <TabButton active={activeTab === "team"} label="Team" accent={accent} onClick={() => setActiveTab("team")} />
         </nav>
       )}
@@ -1631,6 +1636,67 @@ const ReceiptsView: React.FC<{ businessId: string; theme: any; accent: string }>
                 <div style={{ fontSize: 11, color: theme.subtext, marginTop: 2 }}>
                   {item.source === "manualOrders" ? `Typed by ${item.workerName || "staff"}` : "Job request"}
                   {item.status ? ` · ${String(item.status).replace("_", " ")}` : ""}
+                </div>
+              </div>
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: accent, flexShrink: 0 }} />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* ------------------------------- All Orders ------------------------------- */
+/* Bottom-pill tab, next to Dashboard and Team. Shows every order a worker
+   has sent in — whether typed by hand (Type Order) or scanned off a
+   customer's "that's all" order QR (see src/utils/orderQr.ts + the
+   worker's QR Scanner.tsx) — most recent first. */
+const AllOrdersView: React.FC<{ businessId: string; theme: any; accent: string }> = ({ businessId, theme, accent }) => {
+  const [orders, setOrders] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!businessId) return;
+    const unsub = onSnapshot(collection(firestore, "business", businessId, "manualOrders"), (snap) =>
+      setOrders(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
+    );
+    return () => unsub();
+  }, [businessId]);
+
+  const toMillis = (v: any) => (v?.toMillis ? v.toMillis() : v?.seconds ? v.seconds * 1000 : 0);
+  const sorted = [...orders].sort((a, b) => toMillis(b.createdAt) - toMillis(a.createdAt));
+
+  return (
+    <div style={{ maxWidth: 640, margin: "0 auto" }}>
+      <h2 style={{ fontSize: 20, fontWeight: 800, color: theme.text, margin: "0 0 4px" }}>All Orders</h2>
+      <p style={{ fontSize: 12.5, color: theme.subtext, margin: "0 0 20px" }}>Every order your team has sent in, most recent first.</p>
+
+      {sorted.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "50px 20px", color: theme.subtext }}>
+          <Receipt size={26} style={{ marginBottom: 10, opacity: 0.5 }} />
+          <p style={{ fontSize: 13.5 }}>Nothing here yet — orders your workers type or scan in will show up here.</p>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {sorted.map((order) => (
+            <div key={order.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, padding: "14px 16px", borderRadius: 16, background: theme.cardBg, border: `1px solid ${theme.cardBorder}` }}>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                {Array.isArray(order.items) && order.items.length > 0 ? (
+                  order.items.map((item: any, idx: number) => (
+                    <div key={idx} style={{ fontSize: 13, color: theme.text, display: "flex", justifyContent: "space-between", gap: 8 }}>
+                      <span>{item.quantity}x {item.name}</span>
+                      {typeof item.price === "number" && <span style={{ color: theme.subtext }}>€{(item.price * item.quantity).toFixed(2)}</span>}
+                    </div>
+                  ))
+                ) : (
+                  <div style={{ fontSize: 13.5, fontWeight: 700, color: theme.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {order.text || "Order"}
+                  </div>
+                )}
+                <div style={{ fontSize: 11, color: theme.subtext, marginTop: 4 }}>
+                  {order.source === "scanned" ? "Scanned" : `Typed by ${order.workerName || "staff"}`}
+                  {order.seatNumber ? ` · Seat ${order.seatNumber}` : ""}
+                  {order.status ? ` · ${String(order.status).replace("_", " ")}` : ""}
                 </div>
               </div>
               <span style={{ width: 8, height: 8, borderRadius: "50%", background: accent, flexShrink: 0 }} />

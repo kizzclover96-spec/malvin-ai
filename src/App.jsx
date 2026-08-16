@@ -540,6 +540,7 @@ function App() {
               ) : isWorker ? (
                 workerSubScreen === "qr" ? (
                   <QrScannerView 
+                    businessUid={assignedManagerUid}
                     onScanSuccess={(decodedText) => {
                       console.log("Scanned QR Text:", decodedText);
                       setWorkerSubScreen("dashboard");

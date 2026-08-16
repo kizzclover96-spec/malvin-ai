@@ -189,6 +189,7 @@ export const WorkerDashboard: React.FC<WorkerDashboardProps> = ({ businessUid, o
     setManualOrderSubmitting(true);
     try {
       await addDoc(collection(db, 'business', businessUid, 'manualOrders'), {
+        source: 'typed',
         text: manualOrderText.trim(),
         workerUid: currentUserId || '',
         workerName,

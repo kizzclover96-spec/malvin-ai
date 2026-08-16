@@ -35,12 +35,14 @@ import {
   getDoc,
   getDocs,
 } from "firebase/firestore";
+import QRCode from "qrcode";
 import { firestore as db, auth } from "../../firebase";
 import { applyStorefrontIdentity, resolveGuestUid } from "../../services/storefrontAuth";
 import { ToolState, isCustomerVisible } from "../../config/bvinTools";
 import { useAccountStanding } from "../../hooks/useAccountStanding";
 import { useLanguage } from "../../contexts/LanguageContext";
 import RequestStaffFlow from "./RequestStaffFlow";
+import { encodeOrderQr } from "../../utils/orderQr";
 
 /* ============================================================================
    BVinStore — the unified customer-facing storefront for every B-Vin
@@ -131,6 +133,10 @@ const BVinStore: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
+  // "That's all" flow: instead of paying online, the customer shows this QR
+  // to a worker, who scans it and keys the order in themselves.
+  const [orderQrSrc, setOrderQrSrc] = useState<string | null>(null);
+  const [orderQrBusy, setOrderQrBusy] = useState(false);
 
   const [reservationName, setReservationName] = useState("");
   const [reservationNote, setReservationNote] = useState("");
@@ -417,6 +423,29 @@ const BVinStore: React.FC = () => {
       setOrderError(err?.message || "Couldn't place your order. Try again.");
     } finally {
       setPlacingOrder(false);
+    }
+  };
+
+  // "That's all" — no online payment, just a QR the customer shows a
+  // worker in person. Nothing is written to Firestore here; the order is
+  // encoded directly into the QR itself and read back out by the worker's
+  // scanner (see src/utils/orderQr.ts).
+  const showOrderQr = async () => {
+    if (!businessId || cart.length === 0) return;
+    setOrderQrBusy(true);
+    try {
+      const raw = encodeOrderQr({
+        businessId,
+        items: cart.map((i) => ({ name: i.product.name, price: i.product.price, quantity: i.quantity })),
+        total: cartTotal,
+      });
+      const dataUrl = await QRCode.toDataURL(raw, { width: 280, margin: 1, errorCorrectionLevel: "M" });
+      setCartOpen(false);
+      setOrderQrSrc(dataUrl);
+    } catch {
+      setOrderError("Couldn't build your order QR. Try again.");
+    } finally {
+      setOrderQrBusy(false);
     }
   };
 
@@ -914,7 +943,29 @@ const BVinStore: React.FC = () => {
             >
               {placingOrder ? "Placing order…" : "Place order"}
             </button>
+            <button
+              className="bvin-store-btn"
+              style={{ background: "transparent", color: theme.accent, border: `1px solid ${theme.accent}`, width: "100%", padding: "13px 16px", marginTop: 8 }}
+              onClick={showOrderQr}
+              disabled={orderQrBusy}
+            >
+              {orderQrBusy ? "Preparing QR…" : "That's all — show QR to staff"}
+            </button>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Order QR — customer shows this to a worker instead of paying online */}
+      <AnimatePresence>
+        {orderQrSrc && (
+          <SimplePopup title="Show this to staff" accent={theme.accent} onClose={() => setOrderQrSrc(null)}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+              <img src={orderQrSrc} alt="Order QR" style={{ width: 220, height: 220, borderRadius: 12 }} />
+              <p style={{ fontSize: 12, color: "#6b6b6f", textAlign: "center", margin: 0 }}>
+                A staff member will scan this to take your order. No payment is made from this screen.
+              </p>
+            </div>
+          </SimplePopup>
         )}
       </AnimatePresence>
 
