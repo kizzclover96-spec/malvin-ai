@@ -1,429 +1,878 @@
+
 import React from 'react';
-import { Helmet } from "react-helmet-async";
+import { Helmet } from 'react-helmet-async';
 
 const About = () => {
+    const structuredData = {
+        '@context': 'https://schema.org',
+        '@type': 'SoftwareApplication',
+        name: 'Malvin AI',
+        url: 'https://malvinai.com',
+        description:
+            'Malvin AI is a QR technology platform for businesses and individuals. It provides VINQR for business connections, a business dashboard, VINBACK for property recovery, and tools for saving QR codes and links.',
+        applicationCategory: 'BusinessApplication',
+        operatingSystem: 'Web',
+        brand: {
+            '@type': 'Brand',
+            name: 'Malvin AI'
+        }
+    };
+
+    const products = [
+        {
+            number: '01',
+            name: 'VINQR',
+            title: 'Connect customers with your business.',
+            description:
+                'VINQR is Malvin AI’s QR technology for businesses. Place a Malvin QR code where customers can see it. When they scan it, they can open your business experience and interact with your business directly.',
+            points: [
+                'Create a digital connection between your physical business and customers.',
+                'Customers scan instead of searching for your business manually.',
+                'Use your QR code across physical locations and printed materials.'
+            ]
+        },
+        {
+            number: '02',
+            name: 'Business Dashboard',
+            title: 'Your business. Your tools.',
+            description:
+                'Malvin AI gives businesses a central dashboard where they can enable the tools that fit their needs. Businesses do not have to use every feature. They can build their workspace around how they operate.',
+            points: [
+                'Manage your Malvin business experience from one place.',
+                'Enable the tools your business actually needs.',
+                'Keep your digital business presence organized.'
+            ]
+        },
+        {
+            number: '03',
+            name: 'VINBACK',
+            title: 'Give lost property a way home.',
+            description:
+                'VINBACK is Malvin AI’s QR-powered property recovery system. Owners place a VINBACK tag on their property. If something goes missing, the owner can mark it as missing so a finder can scan the tag and contact the owner.',
+            points: [
+                'Attach a QR-powered VINBACK tag to your property.',
+                'Mark property as missing when it is lost.',
+                'Receive a notification when the tag is scanned and see where it was scanned.'
+            ]
+        },
+        {
+            number: '04',
+            name: 'Save QR & Links',
+            title: 'Keep important digital information in one place.',
+            description:
+                'Malvin AI makes it easier to keep useful QR codes and website links accessible. Save important links and QR codes instead of losing them in screenshots, messages, notes, or browser history.',
+            points: [
+                'Save important QR codes.',
+                'Save useful website links.',
+                'Keep your important digital information accessible.'
+            ]
+        }
+    ];
+
     return (
         <>
             <Helmet>
-                <title>About Malvin AI | Shop • Connect • Share</title>
-                <meta name="description" content="Malvin AI is an intelligent commerce and connection platform designed to bring businesses and customers closer than ever before." />
-                <link rel="canonical" href="https://malvinai.com/about" />
+                <title>
+                    About Malvin AI | QR Technology for Businesses & Property
+                </title>
+
+                <meta
+                    name="description"
+                    content="Malvin AI is a QR technology platform for businesses and individuals. Use VINQR to connect customers with businesses, VINBACK to help recover lost property, and Save QR & Links to keep important digital information accessible."
+                />
+
+                <link
+                    rel="canonical"
+                    href="https://malvinai.com/about"
+                />
+
+                <meta
+                    property="og:title"
+                    content="About Malvin AI | QR Technology"
+                />
+
+                <meta
+                    property="og:description"
+                    content="Malvin AI uses QR technology to connect customers with businesses, help recover lost property, and keep important QR codes and links accessible."
+                />
+
+                <meta
+                    property="og:url"
+                    content="https://malvinai.com/about"
+                />
+
+                <meta
+                    property="og:type"
+                    content="website"
+                />
+
+                <script type="application/ld+json">
+                    {JSON.stringify(structuredData)}
+                </script>
             </Helmet>
-            <div className="animate delay-1" style={{ 
-                display: 'flex', 
-                flexDirection: 'column',
-                alignItems: 'center', 
-                minHeight: '100vh',
-                width: '100%',
-                padding: '40px 24px 80px 24px',
-                boxSizing: 'border-box'
-            }}>
-                <div style={{ maxWidth: '800px', width: '100%', textAlign: 'left' }}>
-                    
-                    {/* --- HEADER --- */}
-                    <h2 style={{ 
-                        fontSize: '3rem', 
-                        fontWeight: '800', 
-                        marginBottom: '12px',
-                        background: 'linear-gradient(90deg, #ffffff 50%, #a855f7 100%)',
-                        WebkitBackgroundClip: 'text', 
-                        WebkitTextFillColor: 'transparent'
-                    }}>
-                        About Malvin AI
-                    </h2>
 
-                    <h3 style={{
-                        fontSize: '1.4rem',
-                        fontWeight: '600',
-                        color: '#06b6d4',
-                        marginBottom: '32px'
-                    }}>
-                        Bridging the Gap Between Businesses and Customers
-                    </h3>
-                    
-                    {/* --- MAIN INTRO --- */}
-                    <p style={{ 
-                        fontSize: '1.15rem', 
-                        lineHeight: '1.7', 
-                        color: 'rgba(255, 255, 255, 0.85)', 
-                        marginBottom: '20px' 
-                    }}>
-                        Malvin AI is an intelligent commerce and connection platform designed to bring businesses and customers closer than ever before.
-                    </p>
+            <main
+                style={{
+                    minHeight: '100vh',
+                    width: '100%',
+                    background: '#ffffff',
+                    color: '#0f172a',
+                    overflow: 'hidden'
+                }}
+            >
+                {/* =====================================================
+                    HERO
+                ===================================================== */}
+                <section
+                    aria-labelledby="about-title"
+                    style={{
+                        position: 'relative',
+                        padding: '90px 24px 80px',
+                        borderBottom: '1px solid #e2e8f0',
+                        overflow: 'hidden'
+                    }}
+                >
+                    {/* Blue background glow */}
+                    <div
+                        aria-hidden="true"
+                        style={{
+                            position: 'absolute',
+                            top: '-250px',
+                            right: '-180px',
+                            width: '600px',
+                            height: '600px',
+                            borderRadius: '50%',
+                            background:
+                                'radial-gradient(circle, rgba(37,99,235,0.12), transparent 68%)',
+                            pointerEvents: 'none'
+                        }}
+                    />
 
-                    <p style={{ 
-                        fontSize: '1.05rem', 
-                        lineHeight: '1.7', 
-                        color: 'rgba(255, 255, 255, 0.7)', 
-                        marginBottom: '20px' 
-                    }}>
-                        In today's world, many businesses struggle to reach new customers, manage their operations efficiently, and adapt to changing digital expectations. At the same time, customers often struggle to discover trusted businesses, access services easily, and build meaningful connections with brands around them.
-                    </p>
+                    <div
+                        style={{
+                            position: 'relative',
+                            zIndex: 2,
+                            maxWidth: '1000px',
+                            margin: '0 auto'
+                        }}
+                    >
+                        <div
+                            style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                padding: '8px 14px',
+                                borderRadius: '999px',
+                                background: '#eff6ff',
+                                border: '1px solid #dbeafe',
+                                color: '#2563eb',
+                                fontSize: '0.72rem',
+                                fontWeight: '800',
+                                letterSpacing: '1.5px',
+                                textTransform: 'uppercase',
+                                marginBottom: '24px'
+                            }}
+                        >
+                            <span
+                                style={{
+                                    width: '7px',
+                                    height: '7px',
+                                    borderRadius: '50%',
+                                    background: '#2563eb'
+                                }}
+                            />
+                            About Malvin AI
+                        </div>
 
-                    <p style={{ 
-                        fontSize: '1.1rem', 
-                        fontWeight: '600',
-                        color: '#ffffff', 
-                        marginBottom: '20px' 
-                    }}>
-                        Malvin AI was created to solve this gap.
-                    </p>
+                        <h1
+                            id="about-title"
+                            style={{
+                                maxWidth: '900px',
+                                margin: '0 0 24px',
+                                fontSize:
+                                    'clamp(3rem, 7vw, 6.2rem)',
+                                lineHeight: '0.98',
+                                letterSpacing: '-4px',
+                                fontWeight: '850',
+                                color: '#0f172a'
+                            }}
+                        >
+                            QR technology for{' '}
+                            <span style={{ color: '#2563eb' }}>
+                                real-world connections.
+                            </span>
+                        </h1>
 
-                    <p style={{ 
-                        fontSize: '1.05rem', 
-                        lineHeight: '1.7', 
-                        color: 'rgba(255, 255, 255, 0.7)', 
-                        marginBottom: '36px' 
-                    }}>
-                        By combining artificial intelligence, digital commerce tools, and smart discovery technology, Malvin creates a seamless environment where businesses can grow, manage, and connect — while customers can discover, interact, and experience businesses in a smarter way.
-                    </p>
+                        <p
+                            style={{
+                                maxWidth: '760px',
+                                margin: 0,
+                                fontSize: '1.2rem',
+                                lineHeight: '1.75',
+                                color: '#475569'
+                            }}
+                        >
+                            Malvin AI is a QR technology platform that makes
+                            it easier for people, businesses, and physical
+                            property to connect with digital information.
+                        </p>
+                    </div>
+                </section>
 
-                    {/* --- SECTION 1 --- */}
-                    <h3 style={{ 
-                        fontSize: '1.6rem', 
-                        fontWeight: '700', 
-                        color: '#ffffff', 
-                        marginTop: '32px', 
-                        marginBottom: '16px' 
-                    }}>
-                        Built for Businesses. Designed for Customers.
-                    </h3>
-
-                    <p style={{ 
-                        fontSize: '1.05rem', 
-                        lineHeight: '1.7', 
-                        color: 'rgba(255, 255, 255, 0.7)', 
-                        marginBottom: '16px' 
-                    }}>
-                        Whether you are a small business looking for new ways to expand, a growing brand searching for better organization, or an established company improving customer engagement, Malvin AI provides the tools to help you move forward.
-                    </p>
-
-                    <p style={{ 
-                        fontSize: '1.05rem', 
-                        lineHeight: '1.7', 
-                        color: 'rgba(255, 255, 255, 0.7)', 
-                        marginBottom: '16px' 
-                    }}>
-                        Businesses can create their digital presence, manage products and services, communicate with customers, organize teams, and explore new ways of reaching their audience — all from one connected platform.
-                    </p>
-
-                    <p style={{ 
-                        fontSize: '1.05rem', 
-                        lineHeight: '1.7', 
-                        color: 'rgba(255, 255, 255, 0.7)', 
-                        marginBottom: '36px' 
-                    }}>
-                        Customers can discover nearby Malvin-supported businesses, explore products and services, communicate directly with brands, make bookings, place orders, and experience a more connected way of interacting with local businesses.
-                    </p>
-
-                    {/* --- SECTION 2 --- */}
-                    <h3 style={{ 
-                        fontSize: '1.6rem', 
-                        fontWeight: '700', 
-                        color: '#ffffff', 
-                        marginTop: '32px', 
-                        marginBottom: '16px' 
-                    }}>
-                        Discover Businesses Around You with VINQR & Vinscanner
-                    </h3>
-
-                    <p style={{ 
-                        fontSize: '1.05rem', 
-                        lineHeight: '1.7', 
-                        color: 'rgba(255, 255, 255, 0.7)', 
-                        marginBottom: '16px' 
-                    }}>
-                        Malvin AI introduces a smarter way to discover the world around you.
-                    </p>
-
-                    <p style={{ 
-                        fontSize: '1.05rem', 
-                        lineHeight: '1.7', 
-                        color: 'rgba(255, 255, 255, 0.7)', 
-                        marginBottom: '16px' 
-                    }}>
-                        With VINQR and Vinscanner technology, customers can scan and discover Malvin-certified businesses nearby, explore their profiles, view available services, and connect instantly.
-                    </p>
-
-                    <p style={{ 
-                        fontSize: '1.05rem', 
-                        lineHeight: '1.7', 
-                        color: 'rgba(255, 255, 255, 0.7)', 
-                        marginBottom: '36px' 
-                    }}>
-                        Instead of searching endlessly for businesses, Malvin helps bring the right businesses closer to the right customers.
-                    </p>
-
-                    {/* --- SECTION 2.5: CATEGORIES --- */}
-                    <h3 style={{ 
-                        fontSize: '1.6rem', 
-                        fontWeight: '700', 
-                        color: '#ffffff', 
-                        marginTop: '32px', 
-                        marginBottom: '16px' 
-                    }}>
-                        Five Categories, One App
-                    </h3>
-
-                    <p style={{ 
-                        fontSize: '1.05rem', 
-                        lineHeight: '1.7', 
-                        color: 'rgba(255, 255, 255, 0.7)', 
-                        marginBottom: '20px' 
-                    }}>
-                        Malvin currently supports Food, Salon, Hotel, Mechanic, and Service businesses — each with its own storefront experience built around how that kind of business actually operates, from ordering off a live menu to requesting a repair quote and flagging how urgent it is.
-                    </p>
-
-                    <p style={{ 
-                        fontSize: '1.05rem', 
-                        lineHeight: '1.7', 
-                        color: 'rgba(255, 255, 255, 0.7)', 
-                        marginBottom: '36px' 
-                    }}>
-                        A single owner can even run more than one — a Food account and a Salon account under the same person are still treated as two completely independent businesses, each with its own page, its own rating, and its own place in a customer's history.
-                    </p>
-
-                    {/* --- SECTION 2.6: NO APP STORE NEEDED --- */}
-                    <h3 style={{ 
-                        fontSize: '1.6rem', 
-                        fontWeight: '700', 
-                        color: '#ffffff', 
-                        marginTop: '32px', 
-                        marginBottom: '16px' 
-                    }}>
-                        Get Started Without an App Store
-                    </h3>
-
-                    <p style={{ 
-                        fontSize: '1.05rem', 
-                        lineHeight: '1.7', 
-                        color: 'rgba(255, 255, 255, 0.7)', 
-                        marginBottom: '36px' 
-                    }}>
-                        Scanning a Malvin link opens straight in your browser first, so you can see a business's details before installing anything. Android offers a one-tap install; iPhone users can add Malvin to their Home Screen from Safari and use it like a full app — including real push notifications — no App Store required.
-                    </p>
-
-                    {/* --- SECTION 3: FEATURES LIST --- */}
-                    <h3 style={{ 
-                        fontSize: '1.6rem', 
-                        fontWeight: '700', 
-                        color: '#ffffff', 
-                        marginTop: '32px', 
-                        marginBottom: '16px' 
-                    }}>
-                        Powerful Tools for Modern Businesses
-                    </h3>
-
-                    <p style={{ 
-                        fontSize: '1.05rem', 
-                        lineHeight: '1.7', 
-                        color: 'rgba(255, 255, 255, 0.7)', 
-                        marginBottom: '20px' 
-                    }}>
-                        Malvin AI provides businesses with a complete digital workspace designed for growth:
-                    </p>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '36px' }}>
+                {/* =====================================================
+                    WHAT IS MALVIN
+                ===================================================== */}
+                <section
+                    aria-labelledby="what-is-malvin"
+                    style={{
+                        padding: '90px 24px'
+                    }}
+                >
+                    <div
+                        style={{
+                            maxWidth: '1000px',
+                            margin: '0 auto',
+                            display: 'grid',
+                            gridTemplateColumns:
+                                'minmax(240px, 0.7fr) minmax(0, 1.3fr)',
+                            gap: '70px',
+                            alignItems: 'start'
+                        }}
+                    >
                         <div>
-                            <h4 style={{ fontSize: '1.15rem', color: '#06b6d4', fontWeight: '700', marginBottom: '4px' }}>
-                                • Business Management
-                            </h4>
-                            <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '1rem', lineHeight: '1.6' }}>
-                                Manage products, services, and important business operations from one centralized environment.
+                            <p
+                                style={{
+                                    color: '#2563eb',
+                                    fontSize: '0.72rem',
+                                    fontWeight: '800',
+                                    letterSpacing: '1.5px',
+                                    textTransform: 'uppercase',
+                                    margin: '0 0 10px'
+                                }}
+                            >
+                                The idea
                             </p>
+
+                            <h2
+                                id="what-is-malvin"
+                                style={{
+                                    fontSize: 'clamp(2rem, 4vw, 3rem)',
+                                    lineHeight: '1.08',
+                                    letterSpacing: '-1.5px',
+                                    margin: 0,
+                                    fontWeight: '800'
+                                }}
+                            >
+                                What is Malvin AI?
+                            </h2>
                         </div>
 
                         <div>
-                            <h4 style={{ fontSize: '1.15rem', color: '#06b6d4', fontWeight: '700', marginBottom: '4px' }}>
-                                • Team Hub
-                            </h4>
-                            <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '1rem', lineHeight: '1.6' }}>
-                                Connect your entire team in one personalized workspace. Managers can communicate, assign tasks, and monitor workflows while keeping everyone aligned.
+                            <p
+                                style={{
+                                    fontSize: '1.12rem',
+                                    lineHeight: '1.8',
+                                    color: '#334155',
+                                    margin: '0 0 22px'
+                                }}
+                            >
+                                Malvin AI uses QR technology to create simple
+                                connections between the physical and digital
+                                world.
                             </p>
-                        </div>
 
-                        <div>
-                            <h4 style={{ fontSize: '1.15rem', color: '#06b6d4', fontWeight: '700', marginBottom: '4px' }}>
-                                • Customer Engagement
-                            </h4>
-                            <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '1rem', lineHeight: '1.6' }}>
-                                Build stronger relationships through communication tools, ratings, and digital interactions that help businesses improve trust and customer experience.
-                            </p>
-                        </div>
-
-                        <div>
-                            <h4 style={{ fontSize: '1.15rem', color: '#06b6d4', fontWeight: '700', marginBottom: '4px' }}>
-                                • Smart Business Growth
-                            </h4>
-                            <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '1rem', lineHeight: '1.6' }}>
-                                Whether you are starting a new business or expanding an existing brand, Malvin provides tools designed to help you reach more customers and operate more efficiently.
+                            <p
+                                style={{
+                                    fontSize: '1rem',
+                                    lineHeight: '1.8',
+                                    color: '#64748b',
+                                    margin: 0
+                                }}
+                            >
+                                A QR code can connect a customer to a
+                                business, connect a finder to the owner of
+                                lost property, or give someone quick access
+                                to important digital information. Malvin AI
+                                brings these experiences together in one
+                                platform.
                             </p>
                         </div>
                     </div>
+                </section>
 
-                    {/* --- SECTION 4 --- */}
-                    <h3 style={{ 
-                        fontSize: '1.6rem', 
-                        fontWeight: '700', 
-                        color: '#ffffff', 
-                        marginTop: '32px', 
-                        marginBottom: '16px' 
-                    }}>
-                        Powered by Artificial Intelligence
-                    </h3>
+                {/* =====================================================
+                    CORE PRODUCTS
+                ===================================================== */}
+                <section
+                    aria-labelledby="malvin-products"
+                    style={{
+                        padding: '90px 24px',
+                        background: '#f8fafc',
+                        borderTop: '1px solid #e2e8f0',
+                        borderBottom: '1px solid #e2e8f0'
+                    }}
+                >
+                    <div
+                        style={{
+                            maxWidth: '1000px',
+                            margin: '0 auto'
+                        }}
+                    >
+                        <div
+                            style={{
+                                maxWidth: '700px',
+                                marginBottom: '50px'
+                            }}
+                        >
+                            <p
+                                style={{
+                                    color: '#2563eb',
+                                    fontSize: '0.72rem',
+                                    fontWeight: '800',
+                                    letterSpacing: '1.5px',
+                                    textTransform: 'uppercase',
+                                    margin: '0 0 10px'
+                                }}
+                            >
+                                What we build
+                            </p>
 
-                    <p style={{ 
-                        fontSize: '1.05rem', 
-                        lineHeight: '1.7', 
-                        color: 'rgba(255, 255, 255, 0.7)', 
-                        marginBottom: '16px' 
-                    }}>
-                        AI is at the heart of Malvin.
-                    </p>
+                            <h2
+                                id="malvin-products"
+                                style={{
+                                    fontSize: 'clamp(2rem, 4vw, 3rem)',
+                                    lineHeight: '1.08',
+                                    letterSpacing: '-1.5px',
+                                    margin: '0 0 16px',
+                                    fontWeight: '800'
+                                }}
+                            >
+                                Four simple products.
+                            </h2>
 
-                    <p style={{ 
-                        fontSize: '1.05rem', 
-                        lineHeight: '1.7', 
-                        color: 'rgba(255, 255, 255, 0.7)', 
-                        marginBottom: '16px' 
-                    }}>
-                        Our intelligent systems help create smarter interactions between businesses and customers by improving discovery, organization, and digital experiences.
-                    </p>
+                            <p
+                                style={{
+                                    fontSize: '1.05rem',
+                                    lineHeight: '1.75',
+                                    color: '#64748b',
+                                    margin: 0
+                                }}
+                            >
+                                Each part of Malvin AI is designed around a
+                                specific real-world problem.
+                            </p>
+                        </div>
 
-                    <p style={{ 
-                        fontSize: '1.05rem', 
-                        lineHeight: '1.7', 
-                        color: 'rgba(255, 255, 255, 0.7)', 
-                        marginBottom: '36px' 
-                    }}>
-                        Malvin AI is designed to make technology easier to use, helping businesses focus on what matters most — serving their customers and growing their brand.
-                    </p>
+                        <div
+                            style={{
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '20px'
+                            }}
+                        >
+                            {products.map((product) => (
+                                <article
+                                    key={product.name}
+                                    style={{
+                                        background: '#ffffff',
+                                        border: '1px solid #e2e8f0',
+                                        borderRadius: '26px',
+                                        padding:
+                                            '32px clamp(22px, 4vw, 42px)',
+                                        boxShadow:
+                                            '0 12px 40px rgba(15,23,42,0.045)'
+                                    }}
+                                >
+                                    <div
+                                        style={{
+                                            display: 'flex',
+                                            gap: '22px',
+                                            alignItems: 'flex-start'
+                                        }}
+                                    >
+                                        <div
+                                            style={{
+                                                flex: '0 0 auto',
+                                                width: '48px',
+                                                height: '48px',
+                                                borderRadius: '15px',
+                                                background: '#eff6ff',
+                                                border:
+                                                    '1px solid #dbeafe',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                color: '#2563eb',
+                                                fontSize: '0.78rem',
+                                                fontWeight: '900'
+                                            }}
+                                        >
+                                            {product.number}
+                                        </div>
 
-                    {/* --- SECTION 5 --- */}
-                    <h3 style={{ 
-                        fontSize: '1.6rem', 
-                        fontWeight: '700', 
-                        color: '#ffffff', 
-                        marginTop: '32px', 
-                        marginBottom: '16px' 
-                    }}>
-                        Our Vision
-                    </h3>
+                                        <div style={{ flex: 1 }}>
+                                            <p
+                                                style={{
+                                                    color: '#2563eb',
+                                                    fontSize: '0.72rem',
+                                                    fontWeight: '800',
+                                                    letterSpacing: '1.2px',
+                                                    textTransform:
+                                                        'uppercase',
+                                                    margin:
+                                                        '0 0 7px'
+                                                }}
+                                            >
+                                                {product.name}
+                                            </p>
 
-                    <p style={{ 
-                        fontSize: '1.05rem', 
-                        lineHeight: '1.7', 
-                        color: 'rgba(255, 255, 255, 0.7)', 
-                        marginBottom: '16px' 
-                    }}>
-                        Malvin AI is building the future of connected commerce.
-                    </p>
+                                            <h3
+                                                style={{
+                                                    fontSize:
+                                                        'clamp(1.35rem, 3vw, 1.9rem)',
+                                                    lineHeight: '1.2',
+                                                    letterSpacing:
+                                                        '-0.6px',
+                                                    margin:
+                                                        '0 0 13px',
+                                                    fontWeight: '800',
+                                                    color: '#0f172a'
+                                                }}
+                                            >
+                                                {product.title}
+                                            </h3>
 
-                    <p style={{ 
-                        fontSize: '1.05rem', 
-                        lineHeight: '1.7', 
-                        color: 'rgba(255, 255, 255, 0.7)', 
-                        marginBottom: '16px' 
-                    }}>
-                        Our vision is to create a global system where anyone, anywhere, can discover, connect, and interact with businesses effortlessly.
-                    </p>
+                                            <p
+                                                style={{
+                                                    fontSize:
+                                                        '0.98rem',
+                                                    lineHeight: '1.75',
+                                                    color: '#64748b',
+                                                    maxWidth:
+                                                        '760px',
+                                                    margin:
+                                                        '0 0 20px'
+                                                }}
+                                            >
+                                                {product.description}
+                                            </p>
 
-                    <p style={{ 
-                        fontSize: '1.05rem', 
-                        lineHeight: '1.7', 
-                        color: 'rgba(255, 255, 255, 0.7)', 
-                        marginBottom: '16px' 
-                    }}>
-                        Imagine entering a new country and being able to discover local businesses, understand their services, communicate, order, book, and complete payments without worrying about barriers such as location or currency.
-                    </p>
+                                            <ul
+                                                style={{
+                                                    margin: 0,
+                                                    padding: 0,
+                                                    listStyle:
+                                                        'none',
+                                                    display: 'flex',
+                                                    flexDirection:
+                                                        'column',
+                                                    gap: '9px'
+                                                }}
+                                            >
+                                                {product.points.map(
+                                                    (point) => (
+                                                        <li
+                                                            key={point}
+                                                            style={{
+                                                                display:
+                                                                    'flex',
+                                                                gap: '10px',
+                                                                alignItems:
+                                                                    'flex-start',
+                                                                fontSize:
+                                                                    '0.9rem',
+                                                                lineHeight:
+                                                                    '1.55',
+                                                                color: '#475569'
+                                                            }}
+                                                        >
+                                                            <span
+                                                                aria-hidden="true"
+                                                                style={{
+                                                                    width: '7px',
+                                                                    height: '7px',
+                                                                    minWidth:
+                                                                        '7px',
+                                                                    marginTop:
+                                                                        '7px',
+                                                                    borderRadius:
+                                                                        '50%',
+                                                                    background:
+                                                                        '#2563eb'
+                                                                }}
+                                                            />
+                                                            {point}
+                                                        </li>
+                                                    )
+                                                )}
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </article>
+                            ))}
+                        </div>
+                    </div>
+                </section>
 
-                    <p style={{ 
-                        fontSize: '1.05rem', 
-                        lineHeight: '1.7', 
-                        color: 'rgba(255, 255, 255, 0.7)', 
-                        marginBottom: '36px' 
-                    }}>
-                        Malvin AI aims to make global commerce more accessible, connected, and intelligent.
-                    </p>
+                {/* =====================================================
+                    HOW IT WORKS
+                ===================================================== */}
+                <section
+                    aria-labelledby="how-malvin-works"
+                    style={{
+                        padding: '100px 24px'
+                    }}
+                >
+                    <div
+                        style={{
+                            maxWidth: '1000px',
+                            margin: '0 auto'
+                        }}
+                    >
+                        <div
+                            style={{
+                                textAlign: 'center',
+                                maxWidth: '700px',
+                                margin: '0 auto 55px'
+                            }}
+                        >
+                            <p
+                                style={{
+                                    color: '#2563eb',
+                                    fontSize: '0.72rem',
+                                    fontWeight: '800',
+                                    letterSpacing: '1.5px',
+                                    textTransform: 'uppercase',
+                                    marginBottom: '10px'
+                                }}
+                            >
+                                How it works
+                            </p>
 
-                    {/* --- SECTION 6 --- */}
-                    <h3 style={{ 
-                        fontSize: '1.6rem', 
-                        fontWeight: '700', 
-                        color: '#ffffff', 
-                        marginTop: '32px', 
-                        marginBottom: '16px' 
-                    }}>
-                        A Platform Built on Connection
-                    </h3>
+                            <h2
+                                id="how-malvin-works"
+                                style={{
+                                    fontSize:
+                                        'clamp(2rem, 4vw, 3rem)',
+                                    lineHeight: '1.08',
+                                    letterSpacing: '-1.5px',
+                                    margin: '0 0 15px',
+                                    fontWeight: '800'
+                                }}
+                            >
+                                It starts with a scan.
+                            </h2>
 
-                    <p style={{ 
-                        fontSize: '1.05rem', 
-                        lineHeight: '1.7', 
-                        color: 'rgba(255, 255, 255, 0.7)', 
-                        marginBottom: '16px' 
-                    }}>
-                        Malvin AI serves as a technology platform connecting customers with independent businesses and brands. Businesses remain responsible for their own products, services, and customer experiences.
-                    </p>
+                            <p
+                                style={{
+                                    fontSize: '1.05rem',
+                                    lineHeight: '1.75',
+                                    color: '#64748b',
+                                    margin: 0
+                                }}
+                            >
+                                Malvin AI is designed around one of the
+                                simplest interactions people already know:
+                                scanning a QR code.
+                            </p>
+                        </div>
 
-                    <p style={{ 
-                        fontSize: '1.05rem', 
-                        lineHeight: '1.7', 
-                        color: 'rgba(255, 255, 255, 0.7)', 
-                        marginBottom: '36px' 
-                    }}>
-                        For safety and the best experience, users should only interact with official Malvin-generated VINQR codes and links. Malvin-certified codes and links help ensure a trusted connection between customers and businesses.
-                    </p>
+                        <div
+                            style={{
+                                display: 'grid',
+                                gridTemplateColumns:
+                                    'repeat(3, 1fr)',
+                                gap: '18px'
+                            }}
+                        >
+                            {[
+                                {
+                                    number: '01',
+                                    title: 'Scan',
+                                    text: 'Scan a Malvin QR code using a phone camera.'
+                                },
+                                {
+                                    number: '02',
+                                    title: 'Connect',
+                                    text: 'Open the relevant business, property, or digital experience.'
+                                },
+                                {
+                                    number: '03',
+                                    title: 'Act',
+                                    text: 'Interact, contact, recover, or save the information you need.'
+                                }
+                            ].map((step) => (
+                                <div
+                                    key={step.number}
+                                    style={{
+                                        padding: '30px 25px',
+                                        borderRadius: '22px',
+                                        border:
+                                            '1px solid #e2e8f0',
+                                        background: '#ffffff'
+                                    }}
+                                >
+                                    <div
+                                        style={{
+                                            color: '#2563eb',
+                                            fontSize: '0.72rem',
+                                            fontWeight: '900',
+                                            letterSpacing: '1px',
+                                            marginBottom: '22px'
+                                        }}
+                                    >
+                                        {step.number}
+                                    </div>
 
-                    {/* --- SECTION 7 --- */}
-                    <h3 style={{ 
-                        fontSize: '1.6rem', 
-                        fontWeight: '700', 
-                        color: '#ffffff', 
-                        marginTop: '32px', 
-                        marginBottom: '16px' 
-                    }}>
-                        Founded With a Vision
-                    </h3>
+                                    <h3
+                                        style={{
+                                            fontSize: '1.35rem',
+                                            fontWeight: '800',
+                                            margin:
+                                                '0 0 10px',
+                                            color: '#0f172a'
+                                        }}
+                                    >
+                                        {step.title}
+                                    </h3>
 
-                    <p style={{ 
-                        fontSize: '1.05rem', 
-                        lineHeight: '1.7', 
-                        color: 'rgba(255, 255, 255, 0.7)', 
-                        marginBottom: '20px' 
-                    }}>
-                        Malvin AI was founded by young entrepreneur Praise Eloghosaruwen Imasuen with a mission to empower businesses with smarter technology and create better connections between brands and people.
-                    </p>
+                                    <p
+                                        style={{
+                                            fontSize: '0.92rem',
+                                            lineHeight: '1.65',
+                                            color: '#64748b',
+                                            margin: 0
+                                        }}
+                                    >
+                                        {step.text}
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </section>
 
-                    <div style={{ 
-                        background: 'rgba(6, 182, 212, 0.05)', 
-                        borderLeft: '4px solid #06b6d4', 
-                        padding: '16px 20px', 
-                        borderRadius: '0 12px 12px 0',
-                        marginBottom: '36px' 
-                    }}>
-                        <p style={{ fontSize: '1rem', fontWeight: '600', color: '#ffffff', marginBottom: '8px' }}>
-                            The goal is simple:
+                {/* =====================================================
+                    WHY
+                ===================================================== */}
+                <section
+                    aria-labelledby="why-malvin"
+                    style={{
+                        padding: '90px 24px',
+                        background: '#0f172a',
+                        color: '#ffffff'
+                    }}
+                >
+                    <div
+                        style={{
+                            maxWidth: '1000px',
+                            margin: '0 auto',
+                            display: 'grid',
+                            gridTemplateColumns:
+                                'minmax(240px, 0.8fr) minmax(0, 1.2fr)',
+                            gap: '70px',
+                            alignItems: 'center'
+                        }}
+                    >
+                        <div>
+                            <p
+                                style={{
+                                    color: '#60a5fa',
+                                    fontSize: '0.72rem',
+                                    fontWeight: '800',
+                                    letterSpacing: '1.5px',
+                                    textTransform: 'uppercase',
+                                    margin: '0 0 10px'
+                                }}
+                            >
+                                Why Malvin
+                            </p>
+
+                            <h2
+                                id="why-malvin"
+                                style={{
+                                    fontSize:
+                                        'clamp(2rem, 4vw, 3rem)',
+                                    lineHeight: '1.08',
+                                    letterSpacing: '-1.5px',
+                                    margin: 0,
+                                    fontWeight: '800'
+                                }}
+                            >
+                                Making the physical world easier to
+                                connect.
+                            </h2>
+                        </div>
+
+                        <div>
+                            <p
+                                style={{
+                                    fontSize: '1.05rem',
+                                    lineHeight: '1.8',
+                                    color: '#cbd5e1',
+                                    margin: '0 0 22px'
+                                }}
+                            >
+                                Digital information is everywhere, but
+                                getting from a physical object or location
+                                to the right digital experience is not
+                                always simple.
+                            </p>
+
+                            <p
+                                style={{
+                                    fontSize: '1.05rem',
+                                    lineHeight: '1.8',
+                                    color: '#94a3b8',
+                                    margin: 0
+                                }}
+                            >
+                                Malvin AI uses QR technology to shorten
+                                that distance. A business can connect with
+                                a customer. A lost item can connect with
+                                its owner. A QR code can connect someone
+                                with information they want to keep.
+                            </p>
+                        </div>
+                    </div>
+                </section>
+
+                {/* =====================================================
+                    VISION
+                ===================================================== */}
+                <section
+                    aria-labelledby="malvin-vision"
+                    style={{
+                        padding: '100px 24px'
+                    }}
+                >
+                    <div
+                        style={{
+                            maxWidth: '820px',
+                            margin: '0 auto',
+                            textAlign: 'center'
+                        }}
+                    >
+                        <p
+                            style={{
+                                color: '#2563eb',
+                                fontSize: '0.72rem',
+                                fontWeight: '800',
+                                letterSpacing: '1.5px',
+                                textTransform: 'uppercase',
+                                marginBottom: '12px'
+                            }}
+                        >
+                            Our vision
                         </p>
-                        <p style={{ fontSize: '1.05rem', color: '#06b6d4', fontWeight: '700', margin: 0 }}>
-                            Help businesses grow. Help customers discover. Build a smarter connected world.
+
+                        <h2
+                            id="malvin-vision"
+                            style={{
+                                fontSize:
+                                    'clamp(2.3rem, 5vw, 4rem)',
+                                lineHeight: '1.05',
+                                letterSpacing: '-2px',
+                                margin: '0 0 22px',
+                                fontWeight: '850',
+                                color: '#0f172a'
+                            }}
+                        >
+                            Make every useful connection
+                            <span style={{ color: '#2563eb' }}>
+                                {' '}easier.
+                            </span>
+                        </h2>
+
+                        <p
+                            style={{
+                                fontSize: '1.1rem',
+                                lineHeight: '1.8',
+                                color: '#64748b',
+                                margin: 0
+                            }}
+                        >
+                            Malvin AI is building a simpler way to connect
+                            businesses, people, property, and digital
+                            information using QR technology.
                         </p>
                     </div>
+                </section>
 
-                    {/* --- FOOTER TAGLINE --- */}
-                    <p style={{ 
-                        fontSize: '1.2rem', 
-                        fontWeight: '700', 
-                        color: '#06b6d4', 
-                        borderTop: '1px solid rgba(255,255,255,0.1)', 
-                        paddingTop: '24px',
-                        textAlign: 'center'
-                    }}>
-                        Malvin AI — Shop • Connect • Share
-                    </p>
+                {/* =====================================================
+                    FOUNDER / FINAL
+                ===================================================== */}
+                <section
+                    style={{
+                        padding: '0 24px 90px'
+                    }}
+                >
+                    <div
+                        style={{
+                            maxWidth: '1000px',
+                            margin: '0 auto',
+                            padding: '35px',
+                            borderRadius: '26px',
+                            background: '#eff6ff',
+                            border: '1px solid #dbeafe',
+                            textAlign: 'center'
+                        }}
+                    >
+                        <p
+                            style={{
+                                fontSize: '0.9rem',
+                                lineHeight: '1.7',
+                                color: '#475569',
+                                maxWidth: '680px',
+                                margin: '0 auto 15px'
+                            }}
+                        >
+                            Malvin AI was founded with a simple idea:
+                            technology should make real-world connections
+                            easier, not more complicated.
+                        </p>
 
-                </div>
-            </div>
+                        <p
+                            style={{
+                                fontSize: '1rem',
+                                fontWeight: '800',
+                                color: '#2563eb',
+                                margin: 0
+                            }}
+                        >
+                            Malvin AI · Scan. Connect. Save. Recover.
+                        </p>
+                    </div>
+                </section>
+
+                {/* =====================================================
+                    RESPONSIVE
+                ===================================================== */}
+                <style>
+                    {`
+                        @media (max-width: 800px) {
+                            section > div {
+                                grid-template-columns: 1fr !important;
+                            }
+
+                            section[aria-labelledby="how-malvin-works"] > div > div:last-child {
+                                grid-template-columns: 1fr !important;
+                            }
+                        }
+
+                        @media (max-width: 600px) {
+                            section {
+                                padding-left: 20px !important;
+                                padding-right: 20px !important;
+                            }
+
+                            h1 {
+                                letter-spacing: -2px !important;
+                            }
+                        }
+                    `}
+                </style>
+            </main>
         </>
     );
 };
