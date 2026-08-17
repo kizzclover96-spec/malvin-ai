@@ -107,6 +107,7 @@ interface Product {
 interface CartItem {
   product: Product;
   quantity: number;
+  variant?: string;
 }
 
 const DEFAULT_COLORS: BVinColors = {
@@ -350,20 +351,26 @@ const BVinStore: React.FC = () => {
 
   const theme = profile?.colors || DEFAULT_COLORS;
   const cartTotal = useMemo(() => cart.reduce((sum, i) => sum + i.product.price * i.quantity, 0), [cart]);
+  // Every screen that renders an order's items (dashboard order list,
+  // ReceiptsDrawer, staff QR Scanner) only knows about `item.name` — none
+  // of them know to look for a separate variant field. Baking the chosen
+  // variant into the name itself means all of those keep working with no
+  // changes, instead of only the ones we'd remember to update.
+  const cartItemDisplayName = (i: CartItem) => (i.variant ? `${i.product.name} (${i.variant})` : i.product.name);
 
   /* --------------------------------- Handlers --------------------------------- */
 
-  const addToCart = (product: Product) => {
+  const addToCart = (product: Product, variant?: string) => {
     setCart((prev) => {
-      const existing = prev.find((i) => i.product.id === product.id);
-      if (existing) return prev.map((i) => (i.product.id === product.id ? { ...i, quantity: i.quantity + 1 } : i));
-      return [...prev, { product, quantity: 1 }];
+      const existing = prev.find((i) => i.product.id === product.id && i.variant === variant);
+      if (existing) return prev.map((i) => (i === existing ? { ...i, quantity: i.quantity + 1 } : i));
+      return [...prev, { product, quantity: 1, variant }];
     });
   };
-  const removeFromCart = (productId: string) => {
+  const removeFromCart = (productId: string, variant?: string) => {
     setCart((prev) =>
       prev
-        .map((i) => (i.product.id === productId ? { ...i, quantity: i.quantity - 1 } : i))
+        .map((i) => (i.product.id === productId && i.variant === variant ? { ...i, quantity: i.quantity - 1 } : i))
         .filter((i) => i.quantity > 0)
     );
   };
@@ -399,7 +406,7 @@ const BVinStore: React.FC = () => {
 
       const orderRef = await addDoc(collection(db, "business", businessId, "orders"), {
         customerUid: realUid,
-        items: cart.map((i) => ({ name: i.product.name, price: i.product.price, quantity: i.quantity })),
+        items: cart.map((i) => ({ name: cartItemDisplayName(i), price: i.product.price, quantity: i.quantity })),
         total: cartTotal,
         status: "pending_payment",
         createdAt: serverTimestamp(),
@@ -452,7 +459,7 @@ const BVinStore: React.FC = () => {
     try {
       const raw = encodeOrderQr({
         businessId,
-        items: cart.map((i) => ({ name: i.product.name, price: i.product.price, quantity: i.quantity })),
+        items: cart.map((i) => ({ name: cartItemDisplayName(i), price: i.product.price, quantity: i.quantity })),
         total: cartTotal,
       });
       const dataUrl = await QRCode.toDataURL(raw, { width: 280, margin: 1, errorCorrectionLevel: "M" });
@@ -863,9 +870,16 @@ const BVinStore: React.FC = () => {
                       <button
                         className="bvin-store-btn"
                         style={{ background: theme.accent, color: "#fff", fontSize: 11.5, padding: "6px 10px", width: "100%" }}
-                        onClick={(e) => { e.stopPropagation(); addToCart(p); }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          // Variants (size, flavor, etc.) need a choice before this can
+                          // become a valid cart line — send them to the detail view to
+                          // pick one instead of guessing a default here.
+                          if (p.variants && p.variants.length > 0) setSelectedProduct(p);
+                          else addToCart(p);
+                        }}
                       >
-                        Add
+                        {p.variants && p.variants.length > 0 ? "Choose" : "Add"}
                       </button>
                     )}
                   </div>
@@ -994,15 +1008,16 @@ const BVinStore: React.FC = () => {
               </button>
             </div>
             {cart.map((i) => (
-              <div key={i.product.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <div key={`${i.product.id}-${i.variant || ""}`} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                 <div>
                   <div style={{ fontSize: 13.5, fontWeight: 600 }}>{i.product.name}</div>
+                  {i.variant && <div style={{ fontSize: 11.5, opacity: 0.55 }}>{i.variant}</div>}
                   <div style={{ fontSize: 12, opacity: 0.6 }}>{formatPrice(i.product.price, profile.currency)}</div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <button onClick={() => removeFromCart(i.product.id)} style={qtyBtnStyle}><Minus size={12} /></button>
+                  <button onClick={() => removeFromCart(i.product.id, i.variant)} style={qtyBtnStyle}><Minus size={12} /></button>
                   <span style={{ fontSize: 13, fontWeight: 700, minWidth: 16, textAlign: "center" }}>{i.quantity}</span>
-                  <button onClick={() => addToCart(i.product)} style={qtyBtnStyle}><Plus size={12} /></button>
+                  <button onClick={() => addToCart(i.product, i.variant)} style={qtyBtnStyle}><Plus size={12} /></button>
                 </div>
               </div>
             ))}
@@ -1054,7 +1069,7 @@ const BVinStore: React.FC = () => {
             accent={theme.accent}
             currency={profile.currency}
             canOrder={tools.orders}
-            onAdd={() => { addToCart(selectedProduct); setSelectedProduct(null); }}
+            onAdd={(variant) => { addToCart(selectedProduct, variant); setSelectedProduct(null); }}
             onClose={() => setSelectedProduct(null)}
           />
         )}
@@ -1111,11 +1126,13 @@ const ProductDetailModal: React.FC<{
   accent: string;
   currency?: string;
   canOrder: boolean;
-  onAdd: () => void;
+  onAdd: (variant?: string) => void;
   onClose: () => void;
 }> = ({ product, accent, currency, canOrder, onAdd, onClose }) => {
   const outOfStock = product.stock !== undefined && product.stock <= 0;
-  const hasChips = !!(product.category || product.duration || product.discount || (product.variants && product.variants.length > 0) || product.stock !== undefined);
+  const hasVariants = !!(product.variants && product.variants.length > 0);
+  const [selectedVariant, setSelectedVariant] = useState<string | null>(null);
+  const hasChips = !!(product.category || product.duration || product.discount || product.stock !== undefined);
 
   return (
     <motion.div
@@ -1150,19 +1167,63 @@ const ProductDetailModal: React.FC<{
             <p style={{ fontSize: 13.5, lineHeight: 1.5, color: "rgba(29,29,31,0.7)", margin: "0 0 14px" }}>{product.description}</p>
           )}
 
+          {hasVariants && (
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4, opacity: 0.5, display: "block", marginBottom: 6 }}>
+                Choose one
+              </label>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {product.variants!.map((v) => {
+                  const selected = selectedVariant === v;
+                  return (
+                    <button
+                      key={v}
+                      onClick={() => setSelectedVariant(v)}
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 700,
+                        padding: "7px 12px",
+                        borderRadius: 20,
+                        cursor: "pointer",
+                        border: selected ? `1.5px solid ${accent}` : "1.5px solid rgba(0,0,0,0.1)",
+                        background: selected ? `${accent}18` : "#fff",
+                        color: selected ? accent : "#1d1d1f",
+                      }}
+                    >
+                      {v}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {hasChips && (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
               {product.category && <span style={detailChipStyle}>{product.category}</span>}
               {product.duration && <span style={detailChipStyle}>{product.duration}</span>}
               {!!product.discount && <span style={detailChipStyle}>-{product.discount}%</span>}
               {product.stock !== undefined && <span style={detailChipStyle}>{outOfStock ? "Out of stock" : `${product.stock} in stock`}</span>}
-              {product.variants?.map((v) => <span key={v} style={detailChipStyle}>{v}</span>)}
             </div>
           )}
 
           {canOrder && !outOfStock && (
-            <button className="bvin-store-btn" style={{ background: accent, color: "#fff", padding: "12px 16px", width: "100%", fontSize: 14, fontWeight: 700 }} onClick={onAdd}>
-              Add to order
+            <button
+              className="bvin-store-btn"
+              disabled={hasVariants && !selectedVariant}
+              style={{
+                background: accent,
+                color: "#fff",
+                padding: "12px 16px",
+                width: "100%",
+                fontSize: 14,
+                fontWeight: 700,
+                opacity: hasVariants && !selectedVariant ? 0.45 : 1,
+                cursor: hasVariants && !selectedVariant ? "not-allowed" : "pointer",
+              }}
+              onClick={() => onAdd(selectedVariant || undefined)}
+            >
+              {hasVariants && !selectedVariant ? "Pick an option first" : "Add to order"}
             </button>
           )}
         </div>
