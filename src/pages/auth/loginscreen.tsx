@@ -1,7 +1,10 @@
-import React, { useState, useEffect } from "react";
+
+import React, { useState } from "react";
 import { auth, functions } from "../../firebase";
 import {
   GoogleAuthProvider,
+  FacebookAuthProvider,
+  OAuthProvider,
   signInWithCredential,
   signInWithPopup,
   signInWithEmailAndPassword,
@@ -53,6 +56,19 @@ export default function Login() {
 
   /*
    * ---------------------------------------------------------
+   * COMMON SOCIAL LOGIN FINALIZER
+   * ---------------------------------------------------------
+   */
+
+  const finishSocialLogin = async (userCredential: any) => {
+    if (userCredential?.user) {
+      await saveUserMetadata(userCredential.user.uid);
+      await initializeUser(userCredential.user);
+    }
+  };
+
+  /*
+   * ---------------------------------------------------------
    * PASSWORD RESET
    * ---------------------------------------------------------
    */
@@ -75,7 +91,9 @@ export default function Login() {
 
       await requestReset({ email });
 
-      alert("If an account exists for that email, a reset link has been sent.");
+      alert(
+        "If an account exists for that email, a reset link has been sent."
+      );
     } catch (error: any) {
       Sentry.captureException(error, {
         extra: { flow: "forgotPassword" },
@@ -123,16 +141,112 @@ export default function Login() {
         userCredential = await signInWithPopup(auth, provider);
       }
 
-      if (userCredential.user) {
-        await saveUserMetadata(userCredential.user.uid);
-        await initializeUser(userCredential.user);
-      }
+      await finishSocialLogin(userCredential);
     } catch (error: any) {
       Sentry.captureException(error, {
         extra: { flow: "googleLogin" },
       });
 
-      alert("Login failed: " + error.message);
+      alert("Google login failed: " + error.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  /*
+   * ---------------------------------------------------------
+   * FACEBOOK LOGIN
+   * ---------------------------------------------------------
+   */
+
+  const handleFacebookLogin = async () => {
+    if (!agreed || isSubmitting) return;
+
+    setIsSubmitting(true);
+
+    try {
+      const provider = new FacebookAuthProvider();
+
+      provider.setCustomParameters({
+        display: "popup",
+      });
+
+      const userCredential = await signInWithPopup(auth, provider);
+
+      await finishSocialLogin(userCredential);
+    } catch (error: any) {
+      Sentry.captureException(error, {
+        extra: { flow: "facebookLogin" },
+      });
+
+      alert("Facebook login failed: " + error.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  /*
+   * ---------------------------------------------------------
+   * APPLE LOGIN
+   * ---------------------------------------------------------
+   */
+
+  const handleAppleLogin = async () => {
+    if (!agreed || isSubmitting) return;
+
+    setIsSubmitting(true);
+
+    try {
+      const provider = new OAuthProvider("apple.com");
+
+      provider.addScope("email");
+      provider.addScope("name");
+
+      provider.setCustomParameters({
+        locale: "en",
+      });
+
+      const userCredential = await signInWithPopup(auth, provider);
+
+      await finishSocialLogin(userCredential);
+    } catch (error: any) {
+      Sentry.captureException(error, {
+        extra: { flow: "appleLogin" },
+      });
+
+      alert("Apple login failed: " + error.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  /*
+   * ---------------------------------------------------------
+   * YAHOO LOGIN
+   * ---------------------------------------------------------
+   */
+
+  const handleYahooLogin = async () => {
+    if (!agreed || isSubmitting) return;
+
+    setIsSubmitting(true);
+
+    try {
+      const provider = new OAuthProvider("yahoo.com");
+
+      provider.setCustomParameters({
+        prompt: "login",
+      });
+
+      const userCredential = await signInWithPopup(auth, provider);
+
+      await finishSocialLogin(userCredential);
+    } catch (error: any) {
+      Sentry.captureException(error, {
+        extra: { flow: "yahooLogin" },
+      });
+
+      alert("Yahoo login failed: " + error.message);
     } finally {
       setIsSubmitting(false);
     }
@@ -241,12 +355,6 @@ export default function Login() {
           isolation: isolate;
         }
 
-        /* --------------------------------------------------
-           CORNER CIRCLES — bold solid shapes sitting behind
-           everything else (the blurred orbs/grid/glass card
-           all paint on top of / over this layer).
-        -------------------------------------------------- */
-
         .corner-shapes {
           position: absolute;
           inset: 0;
@@ -283,13 +391,13 @@ export default function Login() {
           box-shadow: 0 12px 30px rgba(15, 23, 42, 0.18);
         }
 
-        /* top-right cluster: one mid bubble, one tiny dot */
         .corner-circle--tr .corner-bubble.mid {
           width: 130px;
           height: 130px;
           bottom: 60px;
           left: 40px;
         }
+
         .corner-circle--tr .corner-bubble.tiny {
           width: 26px;
           height: 26px;
@@ -297,7 +405,6 @@ export default function Login() {
           left: 185px;
         }
 
-        /* bottom-left cluster: one ringed bubble, one tiny dot */
         .corner-circle--bl .corner-bubble.mid {
           width: 150px;
           height: 150px;
@@ -305,6 +412,7 @@ export default function Login() {
           right: 90px;
           border: 1.5px solid rgba(15, 23, 42, 0.14);
         }
+
         .corner-circle--bl .corner-bubble.tiny {
           width: 34px;
           height: 34px;
@@ -319,21 +427,34 @@ export default function Login() {
             top: -180px;
             right: -180px;
           }
+
           .corner-circle--bl {
             width: 460px;
             height: 460px;
             bottom: -200px;
             left: -200px;
           }
-          .corner-circle--tr .corner-bubble.mid { width: 86px; height: 86px; }
-          .corner-circle--tr .corner-bubble.tiny { width: 18px; height: 18px; }
-          .corner-circle--bl .corner-bubble.mid { width: 98px; height: 98px; }
-          .corner-circle--bl .corner-bubble.tiny { width: 22px; height: 22px; }
-        }
 
-        /* --------------------------------------------------
-           BACKGROUND
-        -------------------------------------------------- */
+          .corner-circle--tr .corner-bubble.mid {
+            width: 86px;
+            height: 86px;
+          }
+
+          .corner-circle--tr .corner-bubble.tiny {
+            width: 18px;
+            height: 18px;
+          }
+
+          .corner-circle--bl .corner-bubble.mid {
+            width: 98px;
+            height: 98px;
+          }
+
+          .corner-circle--bl .corner-bubble.tiny {
+            width: 22px;
+            height: 22px;
+          }
+        }
 
         .malvin-background {
           position: absolute;
@@ -369,7 +490,6 @@ export default function Login() {
         .orb-one {
           width: 430px;
           height: 430px;
-
           top: -120px;
           left: -100px;
 
@@ -386,7 +506,6 @@ export default function Login() {
         .orb-two {
           width: 520px;
           height: 520px;
-
           right: -170px;
           top: 20%;
 
@@ -403,7 +522,6 @@ export default function Login() {
         .orb-three {
           width: 420px;
           height: 420px;
-
           bottom: -180px;
           left: 35%;
 
@@ -420,7 +538,6 @@ export default function Login() {
         .orb-four {
           width: 240px;
           height: 240px;
-
           top: 35%;
           left: 42%;
 
@@ -479,10 +596,6 @@ export default function Login() {
           }
         }
 
-        /* --------------------------------------------------
-           SUBTLE GRID
-        -------------------------------------------------- */
-
         .background-grid {
           position: absolute;
           inset: 0;
@@ -509,10 +622,6 @@ export default function Login() {
               transparent 75%
             );
         }
-
-        /* --------------------------------------------------
-           FLOATING PARTICLES
-        -------------------------------------------------- */
 
         .particle {
           position: absolute;
@@ -591,10 +700,6 @@ export default function Login() {
           }
         }
 
-        /* --------------------------------------------------
-           TOP BRAND
-        -------------------------------------------------- */
-
         .top-brand {
           position: absolute;
           top: 28px;
@@ -630,10 +735,6 @@ export default function Login() {
             0 0 18px rgba(46, 132, 255, 0.3);
         }
 
-        /* --------------------------------------------------
-           LOGIN CONTAINER
-        -------------------------------------------------- */
-
         .login-wrapper {
           position: relative;
 
@@ -657,10 +758,6 @@ export default function Login() {
             transform: translateY(0) scale(1);
           }
         }
-
-        /* --------------------------------------------------
-           GLASS CARD
-        -------------------------------------------------- */
 
         .login-card {
           position: relative;
@@ -735,10 +832,6 @@ export default function Login() {
 
           pointer-events: none;
         }
-
-        /* --------------------------------------------------
-           MALVIN LOGO
-        -------------------------------------------------- */
 
         .logo-area {
           position: relative;
@@ -855,10 +948,6 @@ export default function Login() {
           text-align: center;
         }
 
-        /* --------------------------------------------------
-           FORM
-        -------------------------------------------------- */
-
         .auth-form {
           position: relative;
 
@@ -950,10 +1039,6 @@ export default function Login() {
         .auth-input:focus + .input-icon {
           color: #3988ed;
         }
-
-        /* --------------------------------------------------
-           OPTIONS
-        -------------------------------------------------- */
 
         .options-row {
           display: flex;
@@ -1051,10 +1136,6 @@ export default function Login() {
           color: #176fd1;
         }
 
-        /* --------------------------------------------------
-           TERMS
-        -------------------------------------------------- */
-
         .terms-row {
           display: flex;
           align-items: flex-start;
@@ -1090,10 +1171,6 @@ export default function Login() {
         .terms-link:hover {
           color: #145fb5;
         }
-
-        /* --------------------------------------------------
-           PRIMARY BUTTON
-        -------------------------------------------------- */
 
         .primary-button {
           position: relative;
@@ -1181,10 +1258,6 @@ export default function Login() {
           box-shadow: none;
         }
 
-        /* --------------------------------------------------
-           DIVIDER
-        -------------------------------------------------- */
-
         .divider {
           display: flex;
 
@@ -1217,15 +1290,29 @@ export default function Login() {
             );
         }
 
-        /* --------------------------------------------------
-           GOOGLE BUTTON
-        -------------------------------------------------- */
+        /*
+         * ---------------------------------------------------------
+         * SOCIAL LOGIN GRID
+         * ---------------------------------------------------------
+         */
 
-        .google-button {
+        .social-grid {
+          position: relative;
+
+          display: grid;
+
+          grid-template-columns: repeat(4, 1fr);
+
+          gap: 10px;
+
+          z-index: 2;
+        }
+
+        .social-button {
           width: 100%;
-          height: 54px;
+          height: 52px;
 
-          border-radius: 17px;
+          border-radius: 16px;
 
           border: 1px solid rgba(148,163,184,0.22);
 
@@ -1236,14 +1323,12 @@ export default function Login() {
 
           font-family: inherit;
 
-          font-size: 14px;
+          font-size: 13px;
           font-weight: 600;
 
           display: flex;
           align-items: center;
           justify-content: center;
-
-          gap: 11px;
 
           cursor: pointer;
 
@@ -1261,7 +1346,7 @@ export default function Login() {
             box-shadow 0.2s ease;
         }
 
-        .google-button:hover:not(:disabled) {
+        .social-button:hover:not(:disabled) {
           transform: translateY(-1px);
 
           background: rgba(255,255,255,0.78);
@@ -1272,24 +1357,76 @@ export default function Login() {
             0 8px 22px rgba(30,64,100,0.07);
         }
 
-        .google-button:active:not(:disabled) {
-          transform: scale(0.985);
+        .social-button:active:not(:disabled) {
+          transform: scale(0.96);
         }
 
-        .google-button:disabled {
+        .social-button:disabled {
           cursor: not-allowed;
-
           opacity: 0.42;
         }
 
-        .google-icon {
-          width: 18px;
-          height: 18px;
+        .social-icon {
+          width: 20px;
+          height: 20px;
+
+          display: block;
         }
 
-        /* --------------------------------------------------
-           SWITCH AUTH
-        -------------------------------------------------- */
+        /*
+         * Google
+         */
+
+        .google-icon {
+          width: 20px;
+          height: 20px;
+        }
+
+        /*
+         * Apple
+         */
+
+        .apple-icon {
+          width: 21px;
+          height: 21px;
+
+          fill: #111827;
+        }
+
+        /*
+         * Facebook
+         */
+
+        .facebook-icon {
+          width: 21px;
+          height: 21px;
+
+          border-radius: 50%;
+        }
+
+        /*
+         * Yahoo
+         */
+
+        .yahoo-icon {
+          width: 22px;
+          height: 22px;
+
+          display: flex;
+          align-items: center;
+          justify-content: center;
+
+          border-radius: 50%;
+
+          background: #720e9e;
+
+          color: white;
+
+          font-size: 13px;
+          font-weight: 800;
+
+          letter-spacing: -0.06em;
+        }
 
         .switch-auth {
           margin: 20px 0 0;
@@ -1324,10 +1461,6 @@ export default function Login() {
           color: #145fb5;
         }
 
-        /* --------------------------------------------------
-           IMPRESSUM
-        -------------------------------------------------- */
-
         .impressum {
           margin: 18px 0 0;
 
@@ -1347,10 +1480,6 @@ export default function Login() {
         .impressum span:hover {
           color: rgba(30,41,59,0.7);
         }
-
-        /* --------------------------------------------------
-           FOOTER
-        -------------------------------------------------- */
 
         .bottom-footer {
           position: absolute;
@@ -1372,10 +1501,6 @@ export default function Login() {
 
           pointer-events: none;
         }
-
-        /* --------------------------------------------------
-           MOBILE
-        -------------------------------------------------- */
 
         @media (max-width: 600px) {
           .top-brand {
@@ -1424,13 +1549,45 @@ export default function Login() {
             height: 54px;
           }
 
-          .primary-button,
-          .google-button {
+          .primary-button {
             height: 54px;
+          }
+
+          .social-grid {
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+          }
+
+          .social-button {
+            height: 52px;
+            border-radius: 15px;
           }
 
           .bottom-footer {
             display: none;
+          }
+        }
+
+        @media (max-width: 360px) {
+          .social-grid {
+            gap: 6px;
+          }
+
+          .social-button {
+            height: 50px;
+          }
+
+          .social-icon,
+          .google-icon,
+          .apple-icon {
+            width: 18px;
+            height: 18px;
+          }
+
+          .yahoo-icon {
+            width: 19px;
+            height: 19px;
+            font-size: 11px;
           }
         }
 
@@ -1446,7 +1603,7 @@ export default function Login() {
       `}</style>
 
       {/* --------------------------------------------------
-          CORNER CIRCLES (behind the blur layer)
+          CORNER CIRCLES
       -------------------------------------------------- */}
 
       <div className="corner-shapes">
@@ -1454,6 +1611,7 @@ export default function Login() {
           <div className="corner-bubble mid" />
           <div className="corner-bubble tiny" />
         </div>
+
         <div className="corner-circle corner-circle--bl">
           <div className="corner-bubble mid" />
           <div className="corner-bubble tiny" />
@@ -1706,22 +1864,91 @@ export default function Login() {
             <span className="divider-line" />
           </div>
 
-          {/* GOOGLE */}
+          {/* SOCIAL LOGIN */}
 
-          <button
-            type="button"
-            className="google-button"
-            disabled={!agreed || isSubmitting}
-            onClick={handleGoogleLogin}
-          >
-            <img
-              className="google-icon"
-              src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
-              alt="Google"
-            />
+          <div className="social-grid">
 
-            Continue with Google
-          </button>
+            {/* GOOGLE */}
+
+            <button
+              type="button"
+              className="social-button"
+              disabled={!agreed || isSubmitting}
+              onClick={handleGoogleLogin}
+              aria-label="Continue with Google"
+              title="Continue with Google"
+            >
+              <img
+                className="google-icon"
+                src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+                alt="Google"
+              />
+            </button>
+
+            {/* APPLE */}
+
+            <button
+              type="button"
+              className="social-button"
+              disabled={!agreed || isSubmitting}
+              onClick={handleAppleLogin}
+              aria-label="Continue with Apple"
+              title="Continue with Apple"
+            >
+              <svg
+                className="apple-icon"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path d="M17.05 12.9c-.02-2.05 1.67-3.04 1.75-3.09-.96-1.4-2.45-1.59-2.97-1.61-1.26-.13-2.48.75-3.12.75-.65 0-1.64-.74-2.7-.72-1.38.02-2.66.8-3.37 2.03-1.45 2.5-.37 6.18 1.02 8.2.69.99 1.5 2.1 2.58 2.06 1.04-.04 1.43-.66 2.69-.66 1.25 0 1.61.66 2.7.64 1.12-.02 1.83-1.01 2.5-2.01.79-1.14 1.12-2.24 1.14-2.3-.03-.01-2.19-.84-2.22-3.29ZM15 6.83c.57-.69.96-1.65.85-2.61-.82.03-1.82.55-2.41 1.23-.53.61-.99 1.59-.86 2.52.91.07 1.84-.46 2.42-1.14Z" />
+              </svg>
+            </button>
+
+            {/* FACEBOOK */}
+
+            <button
+              type="button"
+              className="social-button"
+              disabled={!agreed || isSubmitting}
+              onClick={handleFacebookLogin}
+              aria-label="Continue with Facebook"
+              title="Continue with Facebook"
+            >
+              <svg
+                className="facebook-icon"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="12"
+                  fill="#1877F2"
+                />
+
+                <path
+                  fill="#fff"
+                  d="M13.6 20v-7h2.3l.35-2.7H13.6V8.6c0-.78.22-1.31 1.36-1.31h1.45V4.88c-.25-.03-1.1-.1-2.08-.1-2.06 0-3.47 1.26-3.47 3.58v1.95H8.53V13h2.33v7h2.74Z"
+                />
+              </svg>
+            </button>
+
+            {/* YAHOO */}
+
+            <button
+              type="button"
+              className="social-button"
+              disabled={!agreed || isSubmitting}
+              onClick={handleYahooLogin}
+              aria-label="Continue with Yahoo"
+              title="Continue with Yahoo"
+            >
+              <span className="yahoo-icon">
+                y!
+              </span>
+            </button>
+
+          </div>
 
           {/* SWITCH */}
 
@@ -1749,6 +1976,7 @@ export default function Login() {
               Impressum
             </span>
           </p>
+
         </section>
       </main>
 
