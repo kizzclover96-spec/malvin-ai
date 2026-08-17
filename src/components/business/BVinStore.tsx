@@ -39,6 +39,7 @@ import QRCode from "qrcode";
 import { firestore as db, auth } from "../../firebase";
 import { applyStorefrontIdentity, resolveGuestUid } from "../../services/storefrontAuth";
 import { ToolState, isCustomerVisible } from "../../config/bvinTools";
+import { formatPrice } from "../../config/currency";
 import { OfferSticker, SpecialOfferData } from "./OfferSticker";
 import { useAccountStanding } from "../../hooks/useAccountStanding";
 import { useLanguage } from "../../contexts/LanguageContext";
@@ -87,6 +88,7 @@ interface BVinProfile {
   enabledTools: ToolState;
   colors: BVinColors;
   specialOffer?: SpecialOfferData;
+  currency?: string;
 }
 
 interface Product {
@@ -95,6 +97,11 @@ interface Product {
   description?: string;
   price: number;
   imageUrl?: string;
+  duration?: string;
+  discount?: number;
+  category?: string;
+  stock?: number;
+  variants?: string[];
 }
 
 interface CartItem {
@@ -134,6 +141,7 @@ const BVinStore: React.FC = () => {
 
   const [products, setProducts] = useState<Product[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
   // "That's all" flow: instead of paying online, the customer shows this QR
   // to a worker, who scans it and keys the order in themselves.
@@ -185,6 +193,7 @@ const BVinStore: React.FC = () => {
         enabledTools: data.enabledTools || {},
         colors: { ...DEFAULT_COLORS, ...(p.colors || {}) },
         specialOffer: p.specialOffer,
+        currency: p.currency || "EUR",
       });
     });
     return () => unsub();
@@ -837,16 +846,24 @@ const BVinStore: React.FC = () => {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>
               {products.length === 0 && <p style={{ fontSize: 13, opacity: 0.6 }}>Nothing listed yet.</p>}
               {products.map((p) => (
-                <div key={p.id} style={{ borderRadius: 16, overflow: "hidden", background: "rgba(0,0,0,0.03)", border: "1px solid rgba(0,0,0,0.06)" }}>
-                  {p.imageUrl && <img src={p.imageUrl} alt={p.name} style={{ width: "100%", height: 90, objectFit: "cover" }} />}
+                <div
+                  key={p.id}
+                  onClick={() => setSelectedProduct(p)}
+                  style={{ borderRadius: 16, overflow: "hidden", background: "rgba(0,0,0,0.03)", border: "1px solid rgba(0,0,0,0.06)", cursor: "pointer" }}
+                >
+                  {p.imageUrl && (
+                    <div style={{ width: "100%", height: 90, background: "rgba(0,0,0,0.04)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <img src={p.imageUrl} alt={p.name} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                    </div>
+                  )}
                   <div style={{ padding: 10 }}>
                     <div style={{ fontSize: 13, fontWeight: 700 }}>{p.name}</div>
-                    <div style={{ fontSize: 12, opacity: 0.6, margin: "2px 0 8px" }}>€{p.price?.toFixed(2)}</div>
+                    <div style={{ fontSize: 12, opacity: 0.6, margin: "2px 0 8px" }}>{formatPrice(p.price, profile.currency)}</div>
                     {tools.orders && (
                       <button
                         className="bvin-store-btn"
                         style={{ background: theme.accent, color: "#fff", fontSize: 11.5, padding: "6px 10px", width: "100%" }}
-                        onClick={() => addToCart(p)}
+                        onClick={(e) => { e.stopPropagation(); addToCart(p); }}
                       >
                         Add
                       </button>
@@ -944,7 +961,7 @@ const BVinStore: React.FC = () => {
             onClick={() => setCartOpen(true)}
           >
             <span>{cart.reduce((n, i) => n + i.quantity, 0)} item(s)</span>
-            <span>€{cartTotal.toFixed(2)} · View cart</span>
+            <span>{formatPrice(cartTotal, profile.currency)} · View cart</span>
           </button>
         </div>
       )}
@@ -980,7 +997,7 @@ const BVinStore: React.FC = () => {
               <div key={i.product.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                 <div>
                   <div style={{ fontSize: 13.5, fontWeight: 600 }}>{i.product.name}</div>
-                  <div style={{ fontSize: 12, opacity: 0.6 }}>€{i.product.price.toFixed(2)}</div>
+                  <div style={{ fontSize: 12, opacity: 0.6 }}>{formatPrice(i.product.price, profile.currency)}</div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <button onClick={() => removeFromCart(i.product.id)} style={qtyBtnStyle}><Minus size={12} /></button>
@@ -991,7 +1008,7 @@ const BVinStore: React.FC = () => {
             ))}
             <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 800, fontSize: 15, margin: "14px 0" }}>
               <span>Total</span>
-              <span>€{cartTotal.toFixed(2)}</span>
+              <span>{formatPrice(cartTotal, profile.currency)}</span>
             </div>
             <button
               className="bvin-store-btn"
@@ -1027,6 +1044,19 @@ const BVinStore: React.FC = () => {
               </p>
             </div>
           </SimplePopup>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {selectedProduct && (
+          <ProductDetailModal
+            product={selectedProduct}
+            accent={theme.accent}
+            currency={profile.currency}
+            canOrder={tools.orders}
+            onAdd={() => { addToCart(selectedProduct); setSelectedProduct(null); }}
+            onClose={() => setSelectedProduct(null)}
+          />
         )}
       </AnimatePresence>
 
@@ -1073,6 +1103,73 @@ const pillIconBtnStyle = (accent: string): React.CSSProperties => ({
   width: 30, height: 30, borderRadius: "50%", border: "none", background: "transparent",
   display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: accent,
 });
+
+const detailChipStyle: React.CSSProperties = { fontSize: 11, fontWeight: 700, padding: "4px 10px", borderRadius: 20, background: "rgba(0,0,0,0.05)", color: "rgba(29,29,31,0.65)" };
+
+const ProductDetailModal: React.FC<{
+  product: Product;
+  accent: string;
+  currency?: string;
+  canOrder: boolean;
+  onAdd: () => void;
+  onClose: () => void;
+}> = ({ product, accent, currency, canOrder, onAdd, onClose }) => {
+  const outOfStock = product.stock !== undefined && product.stock <= 0;
+  const hasChips = !!(product.category || product.duration || product.discount || (product.variants && product.variants.length > 0) || product.stock !== undefined);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      onClick={onClose}
+      style={{ position: "fixed", inset: 0, zIndex: 210, background: "rgba(20,20,22,0.5)", backdropFilter: "blur(10px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.92, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.94 }}
+        onClick={(e) => e.stopPropagation()}
+        style={{ width: "100%", maxWidth: 360, maxHeight: "86vh", overflowY: "auto", background: "#fff", borderRadius: 26, boxShadow: "0 30px 80px rgba(0,0,0,0.25)", position: "relative" }}
+      >
+        <button onClick={onClose} style={{ position: "absolute", top: 14, right: 14, zIndex: 2, background: "rgba(255,255,255,0.85)", border: "none", borderRadius: "50%", width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }}>
+          <X size={14} />
+        </button>
+
+        {product.imageUrl && (
+          <div style={{ width: "100%", height: 220, background: "#FDF8ED", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", borderRadius: "26px 26px 0 0", overflow: "hidden" }}>
+            <img src={product.imageUrl} alt={product.name} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+            {/* The little branded mark — same identity every Malvin QR code carries, here just as a corner badge rather than an actual scannable code. */}
+            <div style={{ position: "absolute", bottom: 10, right: 10, width: 26, height: 26, borderRadius: "50%", background: "#0B1220", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 6px rgba(0,0,0,0.25)" }}>
+              <img src="/logo.png" alt="" style={{ width: 16, height: 16, objectFit: "contain" }} />
+            </div>
+          </div>
+        )}
+
+        <div style={{ padding: 20 }}>
+          <h3 style={{ margin: "0 0 4px", fontSize: 18, fontWeight: 800, color: "#1d1d1f" }}>{product.name}</h3>
+          <div style={{ fontSize: 18, fontWeight: 800, color: accent, margin: "0 0 12px" }}>{formatPrice(product.price, currency)}</div>
+
+          {product.description && (
+            <p style={{ fontSize: 13.5, lineHeight: 1.5, color: "rgba(29,29,31,0.7)", margin: "0 0 14px" }}>{product.description}</p>
+          )}
+
+          {hasChips && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
+              {product.category && <span style={detailChipStyle}>{product.category}</span>}
+              {product.duration && <span style={detailChipStyle}>{product.duration}</span>}
+              {!!product.discount && <span style={detailChipStyle}>-{product.discount}%</span>}
+              {product.stock !== undefined && <span style={detailChipStyle}>{outOfStock ? "Out of stock" : `${product.stock} in stock`}</span>}
+              {product.variants?.map((v) => <span key={v} style={detailChipStyle}>{v}</span>)}
+            </div>
+          )}
+
+          {canOrder && !outOfStock && (
+            <button className="bvin-store-btn" style={{ background: accent, color: "#fff", padding: "12px 16px", width: "100%", fontSize: 14, fontWeight: 700 }} onClick={onAdd}>
+              Add to order
+            </button>
+          )}
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+};
 
 const SimplePopup: React.FC<{ title: string; accent: string; onClose: () => void; children: React.ReactNode }> = ({ title, accent, onClose, children }) => (
   <motion.div

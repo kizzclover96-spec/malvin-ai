@@ -59,6 +59,7 @@ import { createBusinessStripeAccount, createStripeOnboardingLink, checkStripeAcc
 import { storeOrigin, PUBLIC_ORIGIN } from "../../services/vinLink";
 import { useAccountStanding } from "../../hooks/useAccountStanding";
 import { useLanguage } from "../../contexts/LanguageContext";
+import { CURRENCIES, DEFAULT_CURRENCY, formatPrice } from "../../config/currency";
 import { TeamHub } from "../team/teamHub";
 import Chats from "./Chats";
 import VinBackTagCreate from "../vinback/VinBackTagCreate";
@@ -127,6 +128,7 @@ interface BVinProfile {
   workerAccess?: WorkerAccess;
   systemInventoryEnabled?: boolean;
   specialOffer?: SpecialOfferData;
+  currency?: string;
 }
 
 // The unified per-business document at business/{businessId}. Exactly two
@@ -244,6 +246,7 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
   const [workerPermissionsOpen, setWorkerPermissionsOpen] = useState(false);
   const [connectSystemOpen, setConnectSystemOpen] = useState(false);
   const [specialOffer, setSpecialOffer] = useState<SpecialOfferData | null>(null);
+  const [currency, setCurrency] = useState(DEFAULT_CURRENCY);
   const [offerModalOpen, setOfferModalOpen] = useState(false);
 
   const { isPremium, isVerified } = useAccountStanding(businessId);
@@ -364,6 +367,7 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
       if (p.workerAccess) setWorkerAccess((prev) => ({ ...prev, ...p.workerAccess }));
       setSystemInventoryEnabled(!!p.systemInventoryEnabled);
       if (p.specialOffer) setSpecialOffer(p.specialOffer);
+      if (p.currency) setCurrency(p.currency);
       // Strictly === false, not just falsy — an existing business that
       // predates this feature has no hasSeenTour field at all
       // (undefined), and must never trigger the tour. Only a business
@@ -404,6 +408,7 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
       workerAccess,
       systemInventoryEnabled,
       ...(specialOffer ? { specialOffer } : {}),
+      currency,
     };
 
     // Compare structural data without `updatedAt` to check if genuine changes occurred
@@ -423,14 +428,20 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
         updatedAt: Date.now(),
       };
 
-      setDoc(doc(firestore, "business", businessId), payload, { merge: true }).catch(() => {});
+      setDoc(doc(firestore, "business", businessId), payload, { merge: true }).catch((err) => {
+        // Previously swallowed silently — a rejected write (e.g. a Firestore
+        // rules denial) left the toggle looking "on" in the dashboard's
+        // local state forever, with no sign the change never reached
+        // Firestore (and therefore never reached the customer-facing store).
+        console.error("Failed to save B-Vin profile:", err);
+      });
     }, 500);
 
     return () => clearTimeout(t);
   }, [
     businessId, name, logoUrlState, bio, address, phone, openingTime, closingTime, darkMode, clicks, tools,
     pinnedTools, colors, customerNoticeText, stripeConnected, stripeAccountId, catalogueConfig, offeringsConfig,
-    qrScans, noticeScans, hasSeenTour, allowToGo, workerAccess, systemInventoryEnabled, specialOffer,
+    qrScans, noticeScans, hasSeenTour, allowToGo, workerAccess, systemInventoryEnabled, specialOffer, currency,
   ]);
 
   useEffect(() => {
@@ -872,7 +883,7 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
         </div>
       ) : activeTab === "allOrders" ? (
         <div style={{ position: "fixed", inset: 0, zIndex: 15, background: theme.pageBg, overflow: "auto", padding: "20px 18px 110px" }}>
-          <AllOrdersView businessId={businessId} theme={theme} accent={accent} />
+          <AllOrdersView businessId={businessId} theme={theme} accent={accent} currency={currency} />
         </div>
       ) : (
         <main style={{ padding: "8px 18px 110px" }}>
@@ -928,11 +939,11 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
                     accent={accent}
                     extra={
                       t.key === "receiveMoney" ? (
-                        <ReceiveMoneyCard theme={theme} accent={accent} connected={stripeConnected} payoutsEnabled={stripePayoutsEnabled} />
+                        <ReceiveMoneyCard theme={theme} accent={accent} connected={stripeConnected} payoutsEnabled={stripePayoutsEnabled} currency={currency} />
                       ) : t.key === "catalogue" ? (
-                        <CatalogueCard businessId={businessId} theme={theme} accent={accent} config={catalogueConfig} />
+                        <CatalogueCard businessId={businessId} theme={theme} accent={accent} config={catalogueConfig} currency={currency} />
                       ) : t.key === "prices" ? (
-                        <PricesCard businessId={businessId} theme={theme} accent={accent} />
+                        <PricesCard businessId={businessId} theme={theme} accent={accent} currency={currency} />
                       ) : t.key === "offerings" ? (
                         <OfferingsCard businessId={businessId} theme={theme} accent={accent} config={offeringsConfig} />
                       ) : t.key === "jobRequests" ? (
@@ -1096,7 +1107,7 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
             {settingsView === "profile" && (
               <>
                 <StorageWarningBanner state={storageState} accent={accent} />
-                <ProfileView accent={accent} darkMode={darkMode} setDarkMode={setDarkMode} isVerified={isVerified} isPremium={isPremium} businessId={businessId} name={name} setName={setName} bio={bio} setBio={setBio} address={address} setAddress={setAddress} phone={phone} setPhone={setPhone} openingTime={openingTime} setOpeningTime={setOpeningTime} closingTime={closingTime} setClosingTime={setClosingTime} logoUrl={logoUrlState} onLogoFile={handleLogoFile} onBack={() => setSettingsView("root")} onCustomize={() => setSettingsView("customize")} />
+                <ProfileView accent={accent} darkMode={darkMode} setDarkMode={setDarkMode} isVerified={isVerified} isPremium={isPremium} businessId={businessId} name={name} setName={setName} bio={bio} setBio={setBio} address={address} setAddress={setAddress} phone={phone} setPhone={setPhone} openingTime={openingTime} setOpeningTime={setOpeningTime} closingTime={closingTime} setClosingTime={setClosingTime} currency={currency} setCurrency={setCurrency} logoUrl={logoUrlState} onLogoFile={handleLogoFile} onBack={() => setSettingsView("root")} onCustomize={() => setSettingsView("customize")} />
               </>
             )}
             {settingsView === "tools" && (
@@ -1426,9 +1437,9 @@ const CustomerNoticeCard: React.FC<{
   );
 };
 
-const ReceiveMoneyCard: React.FC<{ theme: any; accent: string; connected: boolean; payoutsEnabled: boolean }> = ({ theme, accent, connected, payoutsEnabled }) => (
+const ReceiveMoneyCard: React.FC<{ theme: any; accent: string; connected: boolean; payoutsEnabled: boolean; currency: string }> = ({ theme, accent, connected, payoutsEnabled, currency }) => (
   <div>
-    <div style={{ fontSize: 22, fontWeight: 800 }}>€0.00</div>
+    <div style={{ fontSize: 22, fontWeight: 800 }}>{formatPrice(0, currency)}</div>
     <div style={{ fontSize: 11, color: connected ? accent : theme.subtext, marginTop: 2, fontWeight: 600 }}>{payoutsEnabled ? "Connected — payouts active" : connected ? "Verifying with Stripe…" : "Not connected yet"}</div>
   </div>
 );
@@ -1444,7 +1455,7 @@ const VinBackTagsCard: React.FC<{ theme: any; accent: string; tags: any[]; onCre
   </div>
 );
 
-const CatalogueCard: React.FC<{ businessId: string; theme: any; accent: string; config: CatalogueSetupResult | null }> = ({ businessId, theme, accent, config }) => {
+const CatalogueCard: React.FC<{ businessId: string; theme: any; accent: string; config: CatalogueSetupResult | null; currency: string }> = ({ businessId, theme, accent, config, currency }) => {
   const [products, setProducts] = useState<any[]>([]);
   const [formOpen, setFormOpen] = useState(false);
 
@@ -1463,10 +1474,14 @@ const CatalogueCard: React.FC<{ businessId: string; theme: any; accent: string; 
         {products.length === 0 && <span style={{ fontSize: 11.5, color: theme.subtext }}>Nothing listed yet.</span>}
         {products.slice(0, 8).map((p) => (
           <div key={p.id} style={{ flexShrink: 0, borderRadius: 12, background: `${accent}14`, fontSize: 11.5, overflow: "hidden", width: p.imageUrl ? 84 : "auto" }}>
-            {p.imageUrl && <img src={p.imageUrl} alt={p.name} style={{ width: "100%", height: 54, objectFit: "cover" }} />}
+            {p.imageUrl && (
+              <div style={{ width: "100%", height: 54, background: "rgba(0,0,0,0.06)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <img src={p.imageUrl} alt={p.name} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+              </div>
+            )}
             <div style={{ padding: "6px 10px" }}>
               {p.name && <div style={{ fontWeight: 700 }}>{p.name}</div>}
-              {p.price !== undefined && <span style={{ color: theme.subtext }}>€{Number(p.price).toFixed(2)}</span>}
+              {p.price !== undefined && <span style={{ color: theme.subtext }}>{formatPrice(Number(p.price), currency)}</span>}
             </div>
           </div>
         ))}
@@ -1477,7 +1492,7 @@ const CatalogueCard: React.FC<{ businessId: string; theme: any; accent: string; 
   );
 };
 
-const PricesCard: React.FC<{ businessId: string; theme: any; accent: string }> = ({ businessId, theme, accent }) => {
+const PricesCard: React.FC<{ businessId: string; theme: any; accent: string; currency: string }> = ({ businessId, theme, accent, currency }) => {
   const [items, setItems] = useState<any[]>([]);
   const [formOpen, setFormOpen] = useState(false);
   const [n, setN] = useState("");
@@ -1501,14 +1516,14 @@ const PricesCard: React.FC<{ businessId: string; theme: any; accent: string }> =
         {items.length === 0 && <span style={{ fontSize: 11.5, color: theme.subtext }}>No prices yet.</span>}
         {items.map((it) => (
           <div key={it.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5 }}>
-            <span>{it.name}</span><span style={{ fontWeight: 700 }}>€{Number(it.price).toFixed(2)}</span>
+            <span>{it.name}</span><span style={{ fontWeight: 700 }}>{formatPrice(Number(it.price), currency)}</span>
           </div>
         ))}
       </div>
       {formOpen ? (
         <div style={{ display: "flex", gap: 6 }}>
           <input placeholder="Name" value={n} onChange={(e) => setN(e.target.value)} style={miniInputStyle(theme)} />
-          <input placeholder="€" value={p} onChange={(e) => setP(e.target.value)} style={{ ...miniInputStyle(theme), width: 50 }} />
+          <input placeholder={CURRENCIES.find((c) => c.code === currency)?.symbol || currency} value={p} onChange={(e) => setP(e.target.value)} style={{ ...miniInputStyle(theme), width: 50 }} />
           <button onClick={add} style={smallBtnStyle(accent, true)}><Check size={12} /></button>
         </div>
       ) : (
@@ -1677,7 +1692,7 @@ const ReceiptsView: React.FC<{ businessId: string; theme: any; accent: string }>
    has sent in — whether typed by hand (Type Order) or scanned off a
    customer's "that's all" order QR (see src/utils/orderQr.ts + the
    worker's QR Scanner.tsx) — most recent first. */
-const AllOrdersView: React.FC<{ businessId: string; theme: any; accent: string }> = ({ businessId, theme, accent }) => {
+const AllOrdersView: React.FC<{ businessId: string; theme: any; accent: string; currency: string }> = ({ businessId, theme, accent, currency }) => {
   const [orders, setOrders] = useState<any[]>([]);
 
   useEffect(() => {
@@ -1710,7 +1725,7 @@ const AllOrdersView: React.FC<{ businessId: string; theme: any; accent: string }
                   order.items.map((item: any, idx: number) => (
                     <div key={idx} style={{ fontSize: 13, color: theme.text, display: "flex", justifyContent: "space-between", gap: 8 }}>
                       <span>{item.quantity}x {item.name}</span>
-                      {typeof item.price === "number" && <span style={{ color: theme.subtext }}>€{(item.price * item.quantity).toFixed(2)}</span>}
+                      {typeof item.price === "number" && <span style={{ color: theme.subtext }}>{formatPrice(item.price * item.quantity, currency)}</span>}
                     </div>
                   ))
                 ) : (
@@ -2057,6 +2072,8 @@ const ProfileView: React.FC<{
   setOpeningTime: (v: string) => void;
   closingTime: string;
   setClosingTime: (v: string) => void;
+  currency: string;
+  setCurrency: (v: string) => void;
   logoUrl: string;
   onLogoFile: (f: File) => void;
   onBack: () => void;
@@ -2080,6 +2097,8 @@ const ProfileView: React.FC<{
   setOpeningTime,
   closingTime,
   setClosingTime,
+  currency,
+  setCurrency,
   logoUrl,
   onLogoFile,
   onBack,
@@ -2093,6 +2112,7 @@ const ProfileView: React.FC<{
   const [draftPhone, setDraftPhone] = useState(phone);
   const [draftOpeningTime, setDraftOpeningTime] = useState(openingTime);
   const [draftClosingTime, setDraftClosingTime] = useState(closingTime);
+  const [draftCurrency, setDraftCurrency] = useState(currency);
 
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -2166,7 +2186,8 @@ const ProfileView: React.FC<{
     setDraftPhone(phone);
     setDraftOpeningTime(openingTime);
     setDraftClosingTime(closingTime);
-  }, [name, bio, address, phone, openingTime, closingTime]);
+    setDraftCurrency(currency);
+  }, [name, bio, address, phone, openingTime, closingTime, currency]);
 
   const hasChanges =
     draftName !== name ||
@@ -2174,7 +2195,8 @@ const ProfileView: React.FC<{
     draftAddress !== address ||
     draftPhone !== phone ||
     draftOpeningTime !== openingTime ||
-    draftClosingTime !== closingTime;
+    draftClosingTime !== closingTime ||
+    draftCurrency !== currency;
 
   const handleSave = () => {
     if (!hasChanges || saving) return;
@@ -2187,6 +2209,7 @@ const ProfileView: React.FC<{
     setPhone(draftPhone.trim());
     setOpeningTime(draftOpeningTime);
     setClosingTime(draftClosingTime);
+    setCurrency(draftCurrency);
 
     setSaved(true);
 
@@ -2342,6 +2365,27 @@ const ProfileView: React.FC<{
               style={profileInputStyle}
             />
           </div>
+        </div>
+
+        <div>
+          <label style={profileLabelStyle}>
+            <Wallet size={11} style={{ verticalAlign: -1 }} /> Currency
+          </label>
+          <select
+            value={draftCurrency}
+            onChange={(e) => {
+              setDraftCurrency(e.target.value);
+              setSaved(false);
+            }}
+            style={profileInputStyle}
+          >
+            {CURRENCIES.map((c) => (
+              <option key={c.code} value={c.code}>{c.label}</option>
+            ))}
+          </select>
+          <p style={{ fontSize: 11, color: "rgba(29,29,31,0.45)", margin: "4px 0 0" }}>
+            What customers see next to every price in your store, cart, and checkout.
+          </p>
         </div>
 
         <SettingsRow label="Dark mode" accent={accent}>
