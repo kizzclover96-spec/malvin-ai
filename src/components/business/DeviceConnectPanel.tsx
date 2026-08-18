@@ -10,6 +10,7 @@ import {
   claimDevicePairing, markDevicePairingConnected,
 } from "../../utils/devicePairing";
 import BrandedQrCode from "./BrandedQrCode";
+import PairingDebugPanel from "./PairingDebugPanel";
 import { Smartphone, Camera, ChevronLeft, Check, Trash2 } from "lucide-react";
 
 /* ============================================================================
@@ -88,24 +89,28 @@ const DeviceConnectPanel: React.FC<{ ownerUid: string; ownerEmail?: string | nul
   // Host listens for a guest scanning its QR.
   useEffect(() => {
     if (mode !== "host" || !hostToken) return;
-    const unsub = onValue(ref(rtdb, `devicePairing/${ownerUid}/${hostToken}`), (snap) => {
-      const val = snap.val();
-      if (val?.status === "scanned") {
-        setMode("connecting");
-        setTimeout(() => setMode("tip"), CONNECTING_MS);
-        setTimeout(() => setMode("success"), CONNECTING_MS + TIP_MS);
-        setTimeout(() => {
-          markDevicePairingConnected(ownerUid, hostToken).catch(() => {});
-          // Host owns this write (guest can't write into the host's own
-          // Firestore user doc) — this is what powers the disconnect list.
-          setDoc(doc(firestore, "users", ownerUid, "connectedDevices", hostToken), {
-            guestUid: val.guestUid || null,
-            guestLabel: val.guestLabel || "Connected device",
-            connectedAt: Date.now(),
-          }).catch(() => {});
-        }, CONNECTING_MS);
-      }
-    });
+    const unsub = onValue(
+      ref(rtdb, `devicePairing/${ownerUid}/${hostToken}`),
+      (snap) => {
+        const val = snap.val();
+        if (val?.status === "scanned") {
+          setMode("connecting");
+          setTimeout(() => setMode("tip"), CONNECTING_MS);
+          setTimeout(() => setMode("success"), CONNECTING_MS + TIP_MS);
+          setTimeout(() => {
+            markDevicePairingConnected(ownerUid, hostToken).catch((e) => setScanError(e?.message || "Couldn't mark session connected."));
+            // Host owns this write (guest can't write into the host's own
+            // Firestore user doc) — this is what powers the disconnect list.
+            setDoc(doc(firestore, "users", ownerUid, "connectedDevices", hostToken), {
+              guestUid: val.guestUid || null,
+              guestLabel: val.guestLabel || "Connected device",
+              connectedAt: Date.now(),
+            }).catch((e) => setScanError(e?.message || "Couldn't save the connected device."));
+          }, CONNECTING_MS);
+        }
+      },
+      (err) => setScanError(err?.message || "Lost connection to the pairing session.")
+    );
     return () => unsub();
   }, [mode, hostToken, ownerUid]);
 
@@ -119,8 +124,8 @@ const DeviceConnectPanel: React.FC<{ ownerUid: string; ownerEmail?: string | nul
       setMode("connecting");
       setTimeout(() => setMode("tip"), CONNECTING_MS);
       setTimeout(() => setMode("success"), CONNECTING_MS + TIP_MS);
-    } catch {
-      setScanError("Couldn't connect. Check your connection and try again.");
+    } catch (err: any) {
+      setScanError(err?.message || "Couldn't connect. Check your connection and try again.");
       guestClaimedRef.current = false;
     }
   };
@@ -331,6 +336,13 @@ const DeviceConnectPanel: React.FC<{ ownerUid: string; ownerEmail?: string | nul
           )}
         </div>
       )}
+
+      <PairingDebugPanel
+        role={mode === "guestChoice" || mode === "guestScanning" || mode === "guestRelay" ? "Secondary" : "Primary"}
+        paired={mode === "connecting" || mode === "tip" || mode === "success" || connectedDevices.length > 0}
+        lastEvent={`MODE_${mode.toUpperCase()}`}
+        error={scanError}
+      />
     </section>
   );
 };
