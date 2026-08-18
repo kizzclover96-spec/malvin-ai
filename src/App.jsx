@@ -1,23 +1,43 @@
 import React, { useState, useEffect, useRef } from "react";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, signOut } from "firebase/auth";
 import { httpsCallable } from "firebase/functions";
 import { auth, firestore as db, functions } from "./firebase";
-import { registerPushNotifications, clearPushToken, sendSignInNotification, resetSignInGreeting, notifyPendingWorkOnSignIn, resetPendingWorkReminder } from "./services/pushNotifications";
-import { 
-  collection, 
-  doc, 
+
+import {
+  registerPushNotifications,
+  sendSignInNotification,
+  resetSignInGreeting,
+  notifyPendingWorkOnSignIn,
+  resetPendingWorkReminder,
+} from "./services/pushNotifications";
+
+import {
+  collection,
+  doc,
   serverTimestamp,
-  runTransaction
+  runTransaction,
 } from "firebase/firestore";
 
-import Login from "./pages/auth/loginscreen"; 
-import { UserOption } from "./pages/navigation/UserOption"; 
-import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
+import { MalvinSplash } from "./pages/system/MalvinSplash";
+import Login from "./pages/auth/loginscreen";
+import { UserOption } from "./pages/navigation/UserOption";
+
+import {
+  Routes,
+  Route,
+  Navigate,
+  useNavigate,
+  useLocation,
+} from "react-router-dom";
+
+
+import AllAds from "./components/admin/AllAds";
 import AdsManager from "./components/admin/AdsManagment";
 import LandingPage from "./pages/system/LandingPage";
 import CookieBanner from "./components/addons/CookieBanner";
 import { InstallAppToast } from "./components/addons/InstallAppToast";
 import PaymentResultScreen from "./components/addons/PaymentResultScreen";
+
 import Terms from "./pages/system/Terms";
 import Privacy from "./pages/system/Privacy";
 import CookiePolicy from "./pages/system/CookiePolicy";
@@ -25,9 +45,9 @@ import CommunityGuidelines from "./pages/system/CommunityGuidelines";
 import AiTransparencyNotice from "./pages/system/AiTransparencyNotice";
 import About from "./pages/system/About";
 import FAQ from "./pages/system/FAQ";
-import AllAds from "./components/admin/AllAds";
 import RefundPolicy from "./pages/system/RefundPolicy";
 import Impressum from "./pages/system/Impressum";
+
 import MarketFront from "./components/business/MarketFront";
 import Dashboard from "./components/business/dashboard";
 import DeviceSwitch from "./pages/navigation/DeviceSwitch";
@@ -35,388 +55,842 @@ import MobileView from "./components/business/MobileView";
 import Category from "./pages/navigation/Category";
 import BVin from "./components/business/B-Vin";
 import BVinStore from "./components/business/BVinStore";
+
 import NoticeView from "./pages/system/NoticeView";
 import ScannerPairClaim from "./pages/system/ScannerPairClaim";
 import VinBackScan from "./components/vinback/VinBackScan";
-import { BVinDeepLinkGate, consumePendingDeepLink } from "./components/addons/AppOpenGate";
+
+import {
+  BVinDeepLinkGate,
+  consumePendingDeepLink,
+} from "./components/addons/AppOpenGate";
+
 import { FloatingTeamHub } from "./components/addons/FloatingTeamHub";
 import { VinBackLauncher } from "./components/vinback/VinBackLauncher";
-import { WorkerDashboard } from './components/team/workerDashboard';
-import { QrScannerView } from './components/addons/QR Scanner'; 
+import { WorkerDashboard } from "./components/team/workerDashboard";
+import { QrScannerView } from "./components/addons/QR Scanner";
 import { SystemInventory } from "./components/records/SystemInventory";
 import { MalvinAiPersonnelSystem } from "./components/admin/MalvinAiPersonnelSystem";
-import { Front } from './components/customer/Front';
+import { Front } from "./components/customer/Front";
+
 import TicketCheckout from "./pages/auth/Ticket";
 import Premium from "./components/addons/Premium";
 import StripeSuccessPage from "./components/addons/StripeSuccess";
+
 import { useSystemStatus } from "./hooks/useSystemStatus";
-import { AccessGate, RestrictedScreen } from "./components/system/RestrictedScreen";
-import { signOut } from "firebase/auth";
+import {
+  AccessGate,
+  RestrictedScreen,
+} from "./components/system/RestrictedScreen";
+
 import { useAdminRole } from "./hooks/useAdminRole";
 import AdminApplicationGate from "./components/admin/AdminApplicationGate";
 
+
 function App() {
+  /* ============================================================
+     CORE APP STATE
+  ============================================================ */
+
   const [user, setUser] = useState(null);
-  const navigate = useNavigate();
-  const location = useLocation(); 
+
   const [loading, setLoading] = useState(true);
+
+  /*
+    IMPORTANT:
+    Splash is now completely independent from Firebase loading.
+
+    This allows the animation to start immediately instead of waiting
+    for authentication/network requests.
+  */
+  const [showSplash, setShowSplash] = useState(true);
+
+  const [splashFinished, setSplashFinished] = useState(false);
+
   const [hasWokenUp, setHasWokenUp] = useState(false);
+
   const [showLogin, setShowLogin] = useState(false);
+
   const [dashboardToken, setDashboardToken] = useState("");
-  const [uiMode, setUiMode] = useState(localStorage.getItem("ui_mode") || "");
+
+  const [uiMode, setUiMode] = useState(
+    localStorage.getItem("ui_mode") || ""
+  );
+
   const [isWorker, setIsWorker] = useState(false);
+
   const [assignedManagerUid, setAssignedManagerUid] = useState("");
+
   const [flowStep, setFlowStep] = useState("options");
-  const [workerSubScreen, setWorkerSubScreen] = useState("dashboard");
-  // { status: 'success' | 'failed', message?: string } — drives the
-  // four-second confirmation screen after any customer payment.
+
+  const [workerSubScreen, setWorkerSubScreen] =
+    useState("dashboard");
+
   const [paymentResult, setPaymentResult] = useState(null);
-  // 🟢 "checking" until the signed claim resolves, then "premium" or "free".
-  // UserOption reads this to decide what (if anything) to show in its
-  // status pill — it never checks anything itself.
-  const [premiumStatus, setPremiumStatus] = useState("checking");
-  // Tracks the last signed-in uid purely so sign-out can clear that
-  // device's push token — by the time onAuthStateChanged fires with
-  // currentUser === null, the uid it belonged to is already gone.
+
+  const [premiumStatus, setPremiumStatus] =
+    useState("checking");
+
   const lastUidRef = useRef(null);
 
-  // 🔴 KILL SWITCH — live subscription, not a one-time read, so an admin
-  // flipping a switch takes effect on every already-open tab instantly.
-  const { status: systemStatus, loading: systemStatusLoading } = useSystemStatus();
-  // Live admin standing for whoever is signed in — covers the hard-coded
-  // Owner account as well as any additional admin that's been granted
-  // through the invite -> application -> approve workflow (see
-  // useAdminRole / AdsManagment's Admins panel). `adminRole.isAdmin` is
-  // true only once a non-owner admin's status is actually "active";
-  // "invited"/"pending_review"/"rejected" all render AdminApplicationGate
-  // further down instead of the normal app.
+  const navigate = useNavigate();
+  const location = useLocation();
+
+
+  /* ============================================================
+     SYSTEM STATUS
+  ============================================================ */
+
+  const {
+    status: systemStatus,
+    loading: systemStatusLoading,
+  } = useSystemStatus();
+
+
+  /* ============================================================
+     ADMIN ROLE
+  ============================================================ */
+
   const adminRole = useAdminRole(user?.email);
+
   const isAdminUser = adminRole.isAdmin;
 
-  // App-wide lock forces a real sign-out (not just a UI block) so a
-  // previously-open session can't keep working from cached state, and so a
-  // reload lands back on the (blocked) login screen instead of silently
-  // resuming. The admin account is exempt — otherwise there'd be no way to
-  // get back in to turn the switch back off.
-  useEffect(() => {
-    if (systemStatus.appLocked && user && !isAdminUser) {
-      signOut(auth).catch((err) => console.error("Kill-switch forced sign-out failed:", err));
-    }
-  }, [systemStatus.appLocked, user, isAdminUser]);
 
-  // 🟢 VINMOMENT DEEP LINK HANDLING
-  // When the native app is opened via a malvinai://food/{uid} or
-  // malvinai://salon/{uid} link (from a shared VinMoment card), Capacitor
-  // fires 'appUrlOpen' with the raw URL. We just translate that into a
-  // normal in-app route push. No-op on web (the plugin only fires natively).
+  /* ============================================================
+     SPLASH COMPLETION
+  ============================================================ */
+
+  /*
+    The splash animation itself controls when it is visually finished.
+
+    Firebase loading is handled separately.
+
+    The actual app is only revealed when BOTH are ready:
+
+      1. Firebase/auth is ready
+      2. Splash animation is finished
+  */
+
+  const handleSplashComplete = () => {
+    setSplashFinished(true);
+
+    /*
+      Small delay is intentionally avoided.
+
+      The splash CSS already performs its own fade-out.
+    */
+    setShowSplash(false);
+  };
+
+
+  /* ============================================================
+     APP KILL SWITCH
+  ============================================================ */
+
+  useEffect(() => {
+    if (
+      systemStatus.appLocked &&
+      user &&
+      !isAdminUser
+    ) {
+      signOut(auth).catch((err) => {
+        console.error(
+          "Kill-switch forced sign-out failed:",
+          err
+        );
+      });
+    }
+  }, [
+    systemStatus.appLocked,
+    user,
+    isAdminUser,
+  ]);
+
+
+  /* ============================================================
+     CAPACITOR DEEP LINKS
+  ============================================================ */
+
   useEffect(() => {
     let removeListener;
+
     (async () => {
       try {
-        const { Capacitor } = await import("@capacitor/core");
-        if (!Capacitor.isNativePlatform()) return;
+        const { Capacitor } =
+          await import("@capacitor/core");
 
-        const { App: CapacitorApp } = await import("@capacitor/app");
-        const handle = CapacitorApp.addListener("appUrlOpen", ({ url }) => {
-          try {
-            // url looks like "malvinai://food/abc123", "malvinai://salon/abc123",
-            // or "malvinai://hotel/abc123"
-            const parsed = new URL(url);
-            const uid = parsed.pathname.replace(/^\/+/, "") || parsed.host;
-            if (parsed.protocol === "malvinai:" || url.startsWith("malvinai://")) {
-              const kind = url.includes("/salon/") || url.includes("salon:")
-                ? "salon"
-                : url.includes("/hotel/") || url.includes("hotel:")
-                ? "hotel"
-                : url.includes("/mechanic/") || url.includes("mechanic:")
-                ? "mechanic"
-                : url.includes("/service/") || url.includes("service:")
-                ? "service"
-                : "food";
-              // Fall back to whatever segment actually follows the host, since
-              // some Android versions parse custom-scheme URLs inconsistently.
-              const segments = url.replace("malvinai://", "").split("/").filter(Boolean);
-              const routeUid = segments[1] || uid;
-              const routeKind =
-                segments[0] === "salon" ? "salon"
-                : segments[0] === "hotel" ? "hotel"
-                : segments[0] === "mechanic" ? "mechanic"
-                : segments[0] === "service" ? "service"
-                : "food";
-              navigate(`/${routeKind || kind}/${routeUid}`);
-            }
-          } catch (err) {
-            console.error("Failed to parse VinMoment deep link:", err);
-          }
-        });
-        removeListener = () => handle.remove();
-      } catch (err) {
-        // @capacitor/app not installed yet, or running on web — safe to ignore.
-        console.warn("Capacitor App plugin unavailable for deep links:", err);
-      }
-    })();
-    return () => { if (removeListener) removeListener(); };
-  }, [navigate]);
-
-  // 🟢 ATOMIC BALANCE PAYMENT CONTROLLER
-  // 🟢 ATOMIC BALANCE PAYMENT CONTROLLER
-  // 🟢 Update handleWalletPaymentExecution in App.tsx to check a merchantType flag
-  const handleWalletPaymentExecution = async (amount, targetBusinessUid, customerUid, merchantType = "salon") => {
-      
-    if (!customerUid) throw new Error("Customer not authenticated.");
-    if (amount <= 0) throw new Error("Invalid checkout balance specification.");
-
-    const userDocRef = doc(db, "users", customerUid);
-    
-    // 🟢 DYNAMIC ROUTING: Choose collection based on incoming storefront context
-    const collectionName = merchantType === "food" ? "restaurantprofile" : "salons";
-    const businessDocRef = doc(db, collectionName, targetBusinessUid);
-
-    try {
-      await runTransaction(db, async (transaction) => {
-        const userSnap = await transaction.get(userDocRef);
-        if (!userSnap.exists()) throw new Error("User file directory missing.");
-        
-        const currentBalance = userSnap.data().wallet?.balance || 0;
-        if (currentBalance < amount) {
-          throw new Error("Insufficient wallet balance.");
+        if (!Capacitor.isNativePlatform()) {
+          return;
         }
 
-        const businessSnap = await transaction.get(businessDocRef);
-        if (!businessSnap.exists()) throw new Error("Merchant registration not found.");
+        const { App: CapacitorApp } =
+          await import("@capacitor/app");
 
-        transaction.update(userDocRef, {
-          "wallet.balance": currentBalance - amount
-        });
+        const handle =
+          await CapacitorApp.addListener(
+            "appUrlOpen",
+            ({ url }) => {
+              try {
+                const parsed = new URL(url);
 
-        // Update the correct store field (Food profiles might use walletBalance or something similar)
-        const currentStoreBalance = businessSnap.data().walletBalance || businessSnap.data().wallet?.balance || 0;
-        transaction.update(businessDocRef, {
-          "walletBalance": currentStoreBalance + amount
-        });
+                const uid =
+                  parsed.pathname.replace(/^\/+/, "") ||
+                  parsed.host;
 
-        const userTxRef = doc(collection(db, "users", customerUid, "walletTransactions"));
-        transaction.set(userTxRef, {
-          storeName: businessSnap.data().brandName || businessSnap.data().salonName || "Malvin Storefront Platform",
-          amount: amount,
-          type: "spent",
-          timestamp: serverTimestamp()
-        });
+                if (
+                  parsed.protocol === "malvinai:" ||
+                  url.startsWith("malvinai://")
+                ) {
+                  const kind =
+                    url.includes("/salon/") ||
+                    url.includes("salon:")
+                      ? "salon"
+                      : url.includes("/hotel/") ||
+                        url.includes("hotel:")
+                      ? "hotel"
+                      : url.includes("/mechanic/") ||
+                        url.includes("mechanic:")
+                      ? "mechanic"
+                      : url.includes("/service/") ||
+                        url.includes("service:")
+                      ? "service"
+                      : "food";
+
+                  const segments = url
+                    .replace("malvinai://", "")
+                    .split("/")
+                    .filter(Boolean);
+
+                  const routeUid =
+                    segments[1] || uid;
+
+                  const routeKind =
+                    segments[0] === "salon"
+                      ? "salon"
+                      : segments[0] === "hotel"
+                      ? "hotel"
+                      : segments[0] === "mechanic"
+                      ? "mechanic"
+                      : segments[0] === "service"
+                      ? "service"
+                      : "food";
+
+                  navigate(
+                    `/${routeKind || kind}/${routeUid}`
+                  );
+                }
+              } catch (err) {
+                console.error(
+                  "Failed to parse VinMoment deep link:",
+                  err
+                );
+              }
+            }
+          );
+
+        removeListener = () => {
+          handle.remove();
+        };
+      } catch (err) {
+        console.warn(
+          "Capacitor App plugin unavailable for deep links:",
+          err
+        );
+      }
+    })();
+
+    return () => {
+      if (removeListener) {
+        removeListener();
+      }
+    };
+  }, [navigate]);
+
+
+  /* ============================================================
+     WALLET PAYMENT
+  ============================================================ */
+
+  const handleWalletPaymentExecution = async (
+    amount,
+    targetBusinessUid,
+    customerUid,
+    merchantType = "salon"
+  ) => {
+    if (!customerUid) {
+      throw new Error(
+        "Customer not authenticated."
+      );
+    }
+
+    if (amount <= 0) {
+      throw new Error(
+        "Invalid checkout balance specification."
+      );
+    }
+
+    const userDocRef = doc(
+      db,
+      "users",
+      customerUid
+    );
+
+    const collectionName =
+      merchantType === "food"
+        ? "restaurantprofile"
+        : "salons";
+
+    const businessDocRef = doc(
+      db,
+      collectionName,
+      targetBusinessUid
+    );
+
+    try {
+      await runTransaction(
+        db,
+        async (transaction) => {
+          const userSnap =
+            await transaction.get(userDocRef);
+
+          if (!userSnap.exists()) {
+            throw new Error(
+              "User file directory missing."
+            );
+          }
+
+          const currentBalance =
+            userSnap.data().wallet?.balance || 0;
+
+          if (currentBalance < amount) {
+            throw new Error(
+              "Insufficient wallet balance."
+            );
+          }
+
+          const businessSnap =
+            await transaction.get(
+              businessDocRef
+            );
+
+          if (!businessSnap.exists()) {
+            throw new Error(
+              "Merchant registration not found."
+            );
+          }
+
+          transaction.update(
+            userDocRef,
+            {
+              "wallet.balance":
+                currentBalance - amount,
+            }
+          );
+
+          const currentStoreBalance =
+            businessSnap.data().walletBalance ||
+            businessSnap.data().wallet?.balance ||
+            0;
+
+          transaction.update(
+            businessDocRef,
+            {
+              walletBalance:
+                currentStoreBalance + amount,
+            }
+          );
+
+          const userTxRef = doc(
+            collection(
+              db,
+              "users",
+              customerUid,
+              "walletTransactions"
+            )
+          );
+
+          transaction.set(
+            userTxRef,
+            {
+              storeName:
+                businessSnap.data().brandName ||
+                businessSnap.data().salonName ||
+                "Malvin Storefront Platform",
+
+              amount,
+
+              type: "spent",
+
+              timestamp:
+                serverTimestamp(),
+            }
+          );
+        }
+      );
+
+      console.log(
+        `Internal transfer finalized cleanly for ${collectionName}.`
+      );
+
+      setPaymentResult({
+        status: "success",
       });
-      console.log(`Internal transfer finalized cleanly for ${collectionName}.`);
-      setPaymentResult({ status: "success" });
     } catch (error) {
-      console.error("Payment settlement error trace:", error);
-      // Surface the real reason where it's useful ("Insufficient wallet
-      // balance."), since unlike a Stripe failure the customer can often act
-      // on it directly.
-      setPaymentResult({ status: "failed", message: error?.message || undefined });
-      // Still rethrow — callers (salonStore, Store, Front) have their own
-      // recovery to run, and swallowing it here would leave their submit
-      // buttons stuck mid-flight.
+      console.error(
+        "Payment settlement error trace:",
+        error
+      );
+
+      setPaymentResult({
+        status: "failed",
+        message:
+          error?.message || undefined,
+      });
+
       throw error;
     }
   };
 
-  const resetMode = () => {
-    localStorage.removeItem("ui_mode");
-    setUiMode("");
-  };
+
+  /* ============================================================
+     SCAN ID REDIRECT
+  ============================================================ */
 
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const scanId = urlParams.get('scanId');
-    if (scanId && location.pathname === '/') {
-      navigate(`/verify?scanId=${scanId}`, { replace: true });
+    const urlParams =
+      new URLSearchParams(
+        window.location.search
+      );
+
+    const scanId =
+      urlParams.get("scanId");
+
+    if (
+      scanId &&
+      location.pathname === "/"
+    ) {
+      navigate(
+        `/verify?scanId=${scanId}`,
+        {
+          replace: true,
+        }
+      );
     }
-  }, [location, navigate]);
+  }, [
+    location,
+    navigate,
+  ]);
 
-  // A payment that never reached Stripe at all: the StoreFront shell failed
-  // to create the checkout session and posted the reason back down into the
-  // store iframe. There's no redirect in this case, so the return handler
-  // below would never fire and the customer would otherwise get nothing.
+
+  /* ============================================================
+     DIRECT PAYMENT FAILURE
+  ============================================================ */
+
   useEffect(() => {
-    const handleShellMessage = (event) => {
-      if (event.data?.type !== "DIRECT_PAYMENT_FAILURE") return;
-      setPaymentResult({ status: "failed", message: event.data.error || undefined });
+    const handleShellMessage = (
+      event
+    ) => {
+      if (
+        event.data?.type !==
+        "DIRECT_PAYMENT_FAILURE"
+      ) {
+        return;
+      }
+
+      setPaymentResult({
+        status: "failed",
+        message:
+          event.data.error ||
+          undefined,
+      });
     };
-    window.addEventListener("message", handleShellMessage);
-    return () => window.removeEventListener("message", handleShellMessage);
+
+    window.addEventListener(
+      "message",
+      handleShellMessage
+    );
+
+    return () => {
+      window.removeEventListener(
+        "message",
+        handleShellMessage
+      );
+    };
   }, []);
 
-  // 🟢 STRIPE RETURN HANDLER
-  // Stripe sends the customer back to /?checkout=success|cancel (see
-  // success_url / cancel_url in malvinbackend). Land them on the Customer
-  // Hub, strip the query param, and raise the confirmation screen.
-  //
-  // This runs in an effect rather than in the render body, where it used to
-  // live: setFlowStep + navigate during render are side effects, and the
-  // bare `return` that followed them handed React an undefined render
-  // result. It also has to be an effect now because it sets the payment
-  // result state that PaymentResultScreen reads.
-  useEffect(() => {
-    const checkoutStatus = new URLSearchParams(location.search).get("checkout");
-    if (checkoutStatus !== "success" && checkoutStatus !== "cancel") return;
 
-    setFlowStep("front"); // straight to Customer Hub
+  /* ============================================================
+     STRIPE RETURN
+  ============================================================ */
+
+  useEffect(() => {
+    const checkoutStatus =
+      new URLSearchParams(
+        location.search
+      ).get("checkout");
+
+    if (
+      checkoutStatus !== "success" &&
+      checkoutStatus !== "cancel"
+    ) {
+      return;
+    }
+
+    setFlowStep("front");
+
     setPaymentResult(
       checkoutStatus === "success"
-        ? { status: "success" }
-        : // Stripe's cancel_url means the customer backed out at the payment
-          // sheet, not that a charge was attempted and rejected — so say that
-          // rather than claiming a failure they didn't cause.
-          { status: "failed", message: "Payment was cancelled. Nothing was charged." }
+        ? {
+            status: "success",
+          }
+        : {
+            status: "failed",
+            message:
+              "Payment was cancelled. Nothing was charged.",
+          }
     );
-    navigate(location.pathname, { replace: true, state: {} }); // clean the URL
-  }, [location.search, location.pathname, navigate]);
 
-  
+    navigate(
+      location.pathname,
+      {
+        replace: true,
+        state: {},
+      }
+    );
+  }, [
+    location.search,
+    location.pathname,
+    navigate,
+  ]);
+
+
+  /* ============================================================
+     FIREBASE AUTHENTICATION
+     
+     IMPORTANT PERFORMANCE CHANGE:
+     
+     Firebase initialization is now completely independent
+     from the splash animation.
+
+     Also:
+     - No forced token refresh before claimTeamInvite
+     - Push notifications don't block startup
+     - Pending-work notification doesn't block startup
+  ============================================================ */
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      if (!currentUser) {
-        if (lastUidRef.current) {
-          // clearPushToken() is NOT called here on purpose — by the time
-          // onAuthStateChanged fires with currentUser === null, Firebase
-          // has already fully torn down the session, so request.auth is
-          // null and Firestore's customers/{uid} write rule (rightly)
-          // denies it every single time. It has to run BEFORE signOut(),
-          // which is why every signOut(auth) call site now calls it
-          // first — see e.g. Front.tsx's handleSignOut.
-          // Signing out re-arms both, so the next sign-in on this device gets
-          // them even without restarting the app.
-          resetSignInGreeting(lastUidRef.current);
-          resetPendingWorkReminder(lastUidRef.current);
-          lastUidRef.current = null;
-        }
-        setUser(null);
-        setHasWokenUp(false);
-        setShowLogin(false);
-        setDashboardToken("");
-        setPremiumStatus("checking");
-        setIsWorker(false);
-        setAssignedManagerUid("");
-        localStorage.removeItem("ui_mode");
-        setUiMode("");
-        setLoading(false);
-      } else {
-        setHasWokenUp(false);
+    const unsubscribe =
+      onAuthStateChanged(
+        auth,
+        async (currentUser) => {
 
-        // One per sign-in, ahead of the role branching below so every kind of
-        // account gets it. Both self-guard against repeat fires.
-        sendSignInNotification(currentUser.uid, currentUser.displayName);
-        // Merchants also get their outstanding orders/appointments/chats now,
-        // rather than waiting up to an hour for the scheduled reminder.
-        notifyPendingWorkOnSignIn(currentUser.uid);
+          /* --------------------------------------------
+             SIGNED OUT
+          -------------------------------------------- */
 
-        if (currentUser.email === 'kizzclover96@gmail.com') {
-          lastUidRef.current = currentUser.uid;
-          registerPushNotifications(currentUser.uid);
-          setUser(currentUser);
-          setLoading(false);
-          return;
-        }
+          if (!currentUser) {
+            if (lastUidRef.current) {
+              resetSignInGreeting(
+                lastUidRef.current
+              );
 
-        try {
-          await currentUser.getIdToken(true); 
-          
-          // 🟢 SAFELY GUARD BOTH EMAIL VARIABLES AGAINST NULL VALUES
-          const targetEmail = currentUser.email?.trim() || "";
-          const targetEmailLower = currentUser.email?.toLowerCase().trim() || "";
-          
-          // Only run the check if a valid email address exists.
-          //
-          // 🛠️ FIX: this used to do the collectionGroup query + updateDoc
-          // right here on the client. That correctly set workerUid/uid on
-          // the invite doc, but the doc's ID stays the random memberId
-          // teamHub.tsx generated at invite time — it never becomes the
-          // worker's own uid. Firestore's isTeamMember() rule checks
-          // membership by exists()-at-a-path-keyed-by-the-caller's-uid, so
-          // that update alone could never satisfy it: every claimed
-          // worker still got permission-denied on every team-gated write
-          // (manualOrders, teamHub, jobRequests, businesses/{uid}).
-          //
-          // The lookup+claim now happens server-side in claimTeamInvite
-          // (malvinbackend/src/index.ts), which does the same thing this
-          // block used to, but also mirrors the result into a `teamOf`
-          // custom claim — the same tamper-proof-token pattern already
-          // used for `premium` below and the admin `cap` map. Rules read
-          // that claim instead of trying to reconcile mismatched document
-          // IDs. Forcing a fresh token straight after is what makes the
-          // new claim visible to Firestore for the rest of this session.
-          if (targetEmail) {
-            try {
-              const claimTeamInvite = httpsCallable(functions, "claimTeamInvite");
-              const result = await claimTeamInvite();
-              const claimData = result?.data || {};
+              resetPendingWorkReminder(
+                lastUidRef.current
+              );
 
-              if (claimData.isWorker && claimData.managerUid) {
-                setAssignedManagerUid(claimData.managerUid);
-                setIsWorker(true);
-                await currentUser.getIdToken(true);
-              } else {
+              lastUidRef.current = null;
+            }
+
+            setUser(null);
+            setHasWokenUp(false);
+            setShowLogin(false);
+            setDashboardToken("");
+            setPremiumStatus("checking");
+            setIsWorker(false);
+            setAssignedManagerUid("");
+
+            localStorage.removeItem(
+              "ui_mode"
+            );
+
+            setUiMode("");
+
+            setLoading(false);
+
+            return;
+          }
+
+
+          /* --------------------------------------------
+             USER AUTHENTICATED
+          -------------------------------------------- */
+
+          setHasWokenUp(false);
+
+
+          /*
+            IMPORTANT:
+
+            These operations are intentionally NOT awaited.
+
+            They should happen in the background and never
+            delay the visual application startup.
+          */
+
+          void sendSignInNotification(
+            currentUser.uid,
+            currentUser.displayName
+          ).catch((error) => {
+            console.error(
+              "Sign-in notification failed:",
+              error
+            );
+          });
+
+
+          void notifyPendingWorkOnSignIn(
+            currentUser.uid
+          ).catch((error) => {
+            console.error(
+              "Pending work notification failed:",
+              error
+            );
+          });
+
+
+          /* --------------------------------------------
+             OWNER ACCOUNT
+          -------------------------------------------- */
+
+          if (
+            currentUser.email ===
+            "kizzclover96@gmail.com"
+          ) {
+            lastUidRef.current =
+              currentUser.uid;
+
+            /*
+              Don't block startup waiting for
+              push registration.
+            */
+            void registerPushNotifications(
+              currentUser.uid
+            ).catch((error) => {
+              console.error(
+                "Push registration failed:",
+                error
+              );
+            });
+
+            setUser(currentUser);
+
+            setLoading(false);
+
+            return;
+          }
+
+
+          /* --------------------------------------------
+             NORMAL ACCOUNT
+          -------------------------------------------- */
+
+          try {
+            const targetEmail =
+              currentUser.email
+                ?.trim() || "";
+
+            /*
+              Team invite claim.
+
+              We intentionally DO NOT call:
+
+                await currentUser.getIdToken(true)
+
+              before this.
+
+              That forced network request was unnecessarily
+              delaying startup.
+            */
+
+            if (targetEmail) {
+              try {
+                const claimTeamInvite =
+                  httpsCallable(
+                    functions,
+                    "claimTeamInvite"
+                  );
+
+                const result =
+                  await claimTeamInvite();
+
+                const claimData =
+                  result?.data || {};
+
+                if (
+                  claimData.isWorker &&
+                  claimData.managerUid
+                ) {
+                  setAssignedManagerUid(
+                    claimData.managerUid
+                  );
+
+                  setIsWorker(true);
+
+                  /*
+                    Only refresh the token AFTER the
+                    server actually changed custom claims.
+                  */
+                  await currentUser.getIdToken(
+                    true
+                  );
+                } else {
+                  setIsWorker(false);
+                  setAssignedManagerUid("");
+                }
+              } catch (claimError) {
+                console.error(
+                  "Team invite claim check failed:",
+                  claimError
+                );
+
                 setIsWorker(false);
                 setAssignedManagerUid("");
               }
-            } catch (claimError) {
-              console.error("Team invite claim check failed:", claimError);
+            } else {
               setIsWorker(false);
               setAssignedManagerUid("");
             }
-          } else {
-            // Fallback if the user logged in without an email address
-            setIsWorker(false);
-            setAssignedManagerUid("");
+
+            lastUidRef.current =
+              currentUser.uid;
+
+
+            /*
+              Push registration happens in the
+              background.
+            */
+            void registerPushNotifications(
+              currentUser.uid
+            ).catch((error) => {
+              console.error(
+                "Push registration failed:",
+                error
+              );
+            });
+
+
+            setUser(currentUser);
+
+            /*
+              Firebase loading is now complete.
+
+              The splash does NOT disappear yet.
+
+              The splash controls its own animation timing.
+            */
+            setLoading(false);
+
+          } catch (error) {
+            console.error(
+              "Error executing operational worker check:",
+              error
+            );
+
+            lastUidRef.current =
+              currentUser.uid;
+
+            void registerPushNotifications(
+              currentUser.uid
+            ).catch((pushError) => {
+              console.error(
+                "Push registration failed:",
+                pushError
+              );
+            });
+
+            setUser(currentUser);
+
+            setLoading(false);
           }
-          
-          lastUidRef.current = currentUser.uid;
-          registerPushNotifications(currentUser.uid);
-          setUser(currentUser);
-          setLoading(false);
-        } catch (error) {
-          console.error("Error executing operational worker check:", error);
-          lastUidRef.current = currentUser.uid;
-          registerPushNotifications(currentUser.uid);
-          setUser(currentUser);
-          setLoading(false);
         }
-      }
-    });
+      );
 
     return () => unsubscribe();
   }, []);
 
-  // 🟢 PREMIUM STATUS — lives here, not in any one screen, so it runs once
-  // per login no matter which flowStep the user lands on. Reads the signed
-  // custom claim off the ID token (tamper-proof — the client can't alter
-  // it), and falls back to the syncPremiumClaims Cloud Function once if the
-  // claim isn't there yet (covers the brief gap right after a webhook
-  // fires, or a legacy account that predates this system). Never blocks
-  // the UI: UserOption mounts immediately regardless of how long this
-  // takes, it just updates the status pill whenever this resolves.
+
+  /* ============================================================
+     PREMIUM STATUS
+     
+     Runs AFTER user is available.
+     
+     IMPORTANT:
+     No forced token refresh here.
+  ============================================================ */
+
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      return;
+    }
 
     let cancelled = false;
 
     (async () => {
       try {
-        let tokenResult = await user.getIdTokenResult(true);
-        let isPremium = tokenResult.claims.premium === true;
+        /*
+          Don't force a network refresh here.
 
+          The token cache is sufficient for the normal case.
+        */
+        let tokenResult =
+          await user.getIdTokenResult();
+
+        let isPremium =
+          tokenResult.claims.premium === true;
+
+
+        /*
+          Only fall back to the Cloud Function if
+          the claim isn't already present.
+        */
         if (!isPremium) {
-          const syncPremiumClaims = httpsCallable(functions, "syncPremiumClaims");
-          const result = await syncPremiumClaims();
-          isPremium = result?.data?.premium === true;
+          const syncPremiumClaims =
+            httpsCallable(
+              functions,
+              "syncPremiumClaims"
+            );
+
+          const result =
+            await syncPremiumClaims();
+
+          isPremium =
+            result?.data?.premium === true;
         }
+
 
         if (!cancelled) {
-          setPremiumStatus(isPremium ? "premium" : "free");
-          setDashboardToken(isPremium ? "MVN_PRM_VALID_2026_A9X7" : "");
+          setPremiumStatus(
+            isPremium
+              ? "premium"
+              : "free"
+          );
+
+          setDashboardToken(
+            isPremium
+              ? "MVN_PRM_VALID_2026_A9X7"
+              : ""
+          );
         }
+
       } catch (error) {
-        console.error("Premium status check failed:", error);
-        if (!cancelled) setPremiumStatus("free");
+        console.error(
+          "Premium status check failed:",
+          error
+        );
+
+        if (!cancelled) {
+          setPremiumStatus("free");
+        }
       }
     })();
 
@@ -425,59 +899,134 @@ function App() {
     };
   }, [user]);
 
-  // Resume whatever business page the person scanned before they'd logged
-  // in — AppOpenGate stashes it in localStorage the moment it shows the
-  // login-required popup (see consumePendingDeepLink there). Runs once
-  // right after login succeeds, and takes priority over the normal
-  // flowStep default below since navigating away from "/" makes that
-  // effect a no-op anyway.
+
+  /* ============================================================
+     RESUME PENDING DEEP LINK
+  ============================================================ */
+
   useEffect(() => {
-    if (!user || isWorker) return;
-    const pendingPath = consumePendingDeepLink();
+    if (!user || isWorker) {
+      return;
+    }
+
+    const pendingPath =
+      consumePendingDeepLink();
+
     if (pendingPath) {
-      // skipGate: this navigation IS the resumption of a scan the person
-      // already went through the login-prompt/install-toast flow for —
-      // showing AppOpenGate's popups a second time right after they just
-      // finished logging in would be a jarring, pointless repeat.
-      navigate(pendingPath, { replace: true, state: { skipGate: true } });
+      navigate(
+        pendingPath,
+        {
+          replace: true,
+          state: {
+            skipGate: true,
+          },
+        }
+      );
     }
-  }, [user, isWorker, navigate]);
+  }, [
+    user,
+    isWorker,
+    navigate,
+  ]);
+
+
+  /* ============================================================
+     FLOW STEP
+  ============================================================ */
 
   useEffect(() => {
-    if (!user || isWorker) return;
-
-    // 🟢 Check if we were redirected with a specific flow step state (e.g. from Ticket.tsx)
-    if (location.state?.flowStep) {
-      setFlowStep(location.state.flowStep);
-    } else {
-      setFlowStep("options"); // Keeps your default startup screen
+    if (!user || isWorker) {
+      return;
     }
-  }, [user, isWorker, location.state]);
+
+    if (location.state?.flowStep) {
+      setFlowStep(
+        location.state.flowStep
+      );
+    } else {
+      setFlowStep("options");
+    }
+  }, [
+    user,
+    isWorker,
+    location.state,
+  ]);
+
+
+  /* ============================================================
+     CRITICAL STARTUP SCREEN
+     
+     THIS IS THE IMPORTANT FIX.
+     
+     Splash is rendered BEFORE loading finishes.
+
+     Firebase can continue working in the background while
+     the animation plays.
+  ============================================================ */
+
+  if (!splashFinished) {
+    return (
+      <MalvinSplash
+        onComplete={handleSplashComplete}
+      />
+    );
+  }
+
+
+  /* ============================================================
+     AUTH LOADING FALLBACK
+  ============================================================ */
 
   if (loading) {
-    return <div style={{ backgroundColor: '#000', height: '100vh' }} />;
+    return (
+      <div
+        style={{
+          backgroundColor: "#fdfbf7",
+          height: "100vh",
+          width: "100%",
+        }}
+      />
+    );
   }
 
-  const isAdmin = adminRole.isAdmin;
-  // A signed-in user whose email has an admin record that isn't active yet
-  // (invited/pending_review/rejected/revoked) — they get the invitation /
-  // application / status screen instead of the normal app or the console.
-  const isPendingAdmin = !isAdmin && !!adminRole.record && adminRole.status !== "none";
 
-  // App-wide kill switch. Only gates content for an already-signed-in,
-  // non-admin user — the Login/Landing screen below always stays reachable
-  // (including for the admin, who needs to be able to sign in and turn
-  // this back off). A non-admin who is signed in gets this restricted
-  // screen instantly and is force-signed-out a moment later by the effect
-  // above; this check covers that brief window and any case where the
-  // sign-out itself is slow (e.g. flaky connection).
-  if (user && !isAdmin && systemStatus.appLocked) {
-    return <RestrictedScreen message={systemStatus.message} />;
+  /* ============================================================
+     ADMIN
+  ============================================================ */
+
+  const isAdmin =
+    adminRole.isAdmin;
+
+  const isPendingAdmin =
+    !isAdmin &&
+    !!adminRole.record &&
+    adminRole.status !== "none";
+
+
+  /* ============================================================
+     KILL SWITCH
+  ============================================================ */
+
+  if (
+    user &&
+    !isAdmin &&
+    systemStatus.appLocked
+  ) {
+    return (
+      <RestrictedScreen
+        message={systemStatus.message}
+      />
+    );
   }
 
-  const isStorefrontPath = 
-    location.pathname.startsWith("/food/") || 
-    location.pathname.startsWith("/salon/") || 
+
+  /* ============================================================
+     STOREFRONT PATH
+  ============================================================ */
+
+  const isStorefrontPath =
+    location.pathname.startsWith("/food/") ||
+    location.pathname.startsWith("/salon/") ||
     location.pathname.startsWith("/hotel/") ||
     location.pathname.startsWith("/mechanic/") ||
     location.pathname.startsWith("/service/") ||
@@ -485,141 +1034,473 @@ function App() {
     location.pathname.startsWith("/vinback/") ||
     location.pathname.startsWith("/chat/");
 
-  const handleCategorySelect = (type) => {
-    if (type === "fashion") { setFlowStep("device"); return; }
-    if (type === "records") { setFlowStep("recordsDashboard"); return; }
-    if (type === "premium") { setFlowStep("premiumView"); return; }
-  };
+
+  /* ============================================================
+     CATEGORY
+  ============================================================ */
+
+  const handleCategorySelect =
+    (type) => {
+      if (type === "fashion") {
+        setFlowStep("device");
+        return;
+      }
+
+      if (type === "records") {
+        setFlowStep(
+          "recordsDashboard"
+        );
+        return;
+      }
+
+      if (type === "premium") {
+        setFlowStep("premiumView");
+        return;
+      }
+    };
+
+
+  /* ============================================================
+     MAIN APPLICATION
+  ============================================================ */
 
   return (
     <>
-      <div className="App" style={{ minHeight: '100vh' }}>
+      <div
+        className="App"
+        style={{
+          minHeight: "100vh",
+        }}
+      >
         <Routes>
-          <Route path="/chat/:brandId" element={<MarketFront />} />
-          
-          <Route path="/vinback/:tagId" element={<VinBackScan />} />
-          <Route path="/pair-scanner/:businessId/:sessionId" element={<ScannerPairClaim />} />
-          <Route path="/store/:uid" element={<AccessGate locked={systemStatus.storesLocked} message={systemStatus.message}><BVinDeepLinkGate /><BVinStore /></AccessGate>} />
-          <Route path="/notice/:businessId" element={<NoticeView />} />
-          
-          <Route path="/terms" element={<Terms />} />
-          <Route path="/cookiePolicy" element={<CookiePolicy />} />
-          <Route path="/communityGuidelines" element={<CommunityGuidelines />} />
-          <Route path="/aiTransparencyNotice" element={<AiTransparencyNotice />} />
-          <Route path="/privacy" element={<Privacy />} />
-          <Route path="/refund-policy" element={<RefundPolicy />} />
-          <Route path="/impressum" element={<Impressum />} />
-          <Route path="/allads" element={<AllAds />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/faq" element={<FAQ />} />
-          <Route path="/verify" element={<MalvinAiPersonnelSystem userEmail={user?.email || ""} currentUserId={user?.uid || ""} />} />
-          <Route path="/ticket-checkout" element={<TicketCheckout onExecuteWalletPayment={handleWalletPaymentExecution} />} />
-          <Route path="/stripe-success" element={<StripeSuccessPage />} />
-          
-          <Route path="/customerchat" element={<MarketFront />} />
+
+          {/* ------------------------------------------
+              STOREFRONTS
+          ------------------------------------------ */}
+
+          <Route
+            path="/chat/:brandId"
+            element={<MarketFront />}
+          />
+
+          <Route
+            path="/vinback/:tagId"
+            element={<VinBackScan />}
+          />
+
+          <Route
+            path="/pair-scanner/:businessId/:sessionId"
+            element={<ScannerPairClaim />}
+          />
+
+          <Route
+            path="/store/:uid"
+            element={
+              <AccessGate
+                locked={
+                  systemStatus.storesLocked
+                }
+                message={
+                  systemStatus.message
+                }
+              >
+                <BVinDeepLinkGate />
+                <BVinStore />
+              </AccessGate>
+            }
+          />
+
+          <Route
+            path="/notice/:businessId"
+            element={<NoticeView />}
+          />
+
+
+          {/* ------------------------------------------
+              SYSTEM PAGES
+          ------------------------------------------ */}
+
+          <Route
+            path="/terms"
+            element={<Terms />}
+          />
+
+          <Route
+            path="/cookiePolicy"
+            element={<CookiePolicy />}
+          />
+
+          <Route
+            path="/communityGuidelines"
+            element={<CommunityGuidelines />}
+          />
+
+          <Route
+            path="/aiTransparencyNotice"
+            element={<AiTransparencyNotice />}
+          />
+
+          <Route
+            path="/privacy"
+            element={<Privacy />}
+          />
+
+          <Route
+            path="/refund-policy"
+            element={<RefundPolicy />}
+          />
+
+          <Route
+            path="/impressum"
+            element={<Impressum />}
+          />
+
+          <Route
+            path="/allads"
+            element={<AllAds />}
+          />
+
+          <Route
+            path="/about"
+            element={<About />}
+          />
+
+          <Route
+            path="/faq"
+            element={<FAQ />}
+          />
+
+
+          {/* ------------------------------------------
+              VERIFICATION
+          ------------------------------------------ */}
+
+          <Route
+            path="/verify"
+            element={
+              <MalvinAiPersonnelSystem
+                userEmail={
+                  user?.email || ""
+                }
+                currentUserId={
+                  user?.uid || ""
+                }
+              />
+            }
+          />
+
+
+          {/* ------------------------------------------
+              PAYMENTS
+          ------------------------------------------ */}
+
+          <Route
+            path="/ticket-checkout"
+            element={
+              <TicketCheckout
+                onExecuteWalletPayment={
+                  handleWalletPaymentExecution
+                }
+              />
+            }
+          />
+
+          <Route
+            path="/stripe-success"
+            element={<StripeSuccessPage />}
+          />
+
+          <Route
+            path="/customerchat"
+            element={<MarketFront />}
+          />
+
+
+          {/* ------------------------------------------
+              MAIN ROUTE
+          ------------------------------------------ */}
 
           <Route
             path="/"
             element={
               !user ? (
+
                 !showLogin ? (
-                  <LandingPage onLoginClick={() => setShowLogin(true)} />
+                  <LandingPage
+                    onLoginClick={() =>
+                      setShowLogin(true)
+                    }
+                  />
                 ) : (
                   <Login />
                 )
+
               ) : isPendingAdmin ? (
-                <AdminApplicationGate record={adminRole.record} />
+
+                <AdminApplicationGate
+                  record={
+                    adminRole.record
+                  }
+                />
+
               ) : isAdmin ? (
+
                 <AdsManager />
-              ) : systemStatus.businessLocked && (isWorker || (flowStep !== "options" && flowStep !== "front")) ? (
-                <RestrictedScreen message={systemStatus.message} />
+
+              ) : systemStatus.businessLocked &&
+                (
+                  isWorker ||
+                  (
+                    flowStep !== "options" &&
+                    flowStep !== "front"
+                  )
+                ) ? (
+
+                <RestrictedScreen
+                  message={
+                    systemStatus.message
+                  }
+                />
+
               ) : isWorker ? (
+
                 workerSubScreen === "qr" ? (
-                  <QrScannerView 
-                    businessUid={assignedManagerUid}
-                    onScanSuccess={(decodedText) => {
-                      console.log("Scanned QR Text:", decodedText);
-                      setWorkerSubScreen("dashboard");
+
+                  <QrScannerView
+                    businessUid={
+                      assignedManagerUid
+                    }
+
+                    onScanSuccess={(
+                      decodedText
+                    ) => {
+                      console.log(
+                        "Scanned QR Text:",
+                        decodedText
+                      );
+
+                      setWorkerSubScreen(
+                        "dashboard"
+                      );
                     }}
-                    onBack={() => setWorkerSubScreen("dashboard")}
+
+                    onBack={() =>
+                      setWorkerSubScreen(
+                        "dashboard"
+                      )
+                    }
                   />
+
                 ) : (
-                  <WorkerDashboard 
-                    businessUid={assignedManagerUid} 
-                    onNavigate={(screen) => {
-                      if (screen === 'qr') {
-                        setWorkerSubScreen("qr");
+
+                  <WorkerDashboard
+                    businessUid={
+                      assignedManagerUid
+                    }
+
+                    onNavigate={(
+                      screen
+                    ) => {
+                      if (
+                        screen === "qr"
+                      ) {
+                        setWorkerSubScreen(
+                          "qr"
+                        );
                       }
-                    }} 
+                    }}
                   />
+
                 )
+
               ) : flowStep === "options" ? (
-                <UserOption 
-                  onSelectCustomer={() => setFlowStep("front")} 
-                  onSelectWorker={() => setFlowStep("BVin")} 
-                  premiumStatus={premiumStatus}
+
+                <UserOption
+                  onSelectCustomer={() =>
+                    setFlowStep("front")
+                  }
+
+                  onSelectWorker={() =>
+                    setFlowStep("BVin")
+                  }
+
+                  premiumStatus={
+                    premiumStatus
+                  }
                 />
+
               ) : flowStep === "front" ? (
-                <AccessGate locked={systemStatus.customerHubLocked} message={systemStatus.message}>
-                  <Front onExecuteWalletPayment={handleWalletPaymentExecution} />
+
+                <AccessGate
+                  locked={
+                    systemStatus.customerHubLocked
+                  }
+                  message={
+                    systemStatus.message
+                  }
+                >
+                  <Front
+                    onExecuteWalletPayment={
+                      handleWalletPaymentExecution
+                    }
+                  />
                 </AccessGate>
+
               ) : flowStep === "BVin" ? (
+
                 <BVin
-                  businessId={user?.uid}
-                  businessName={user?.displayName || "My Business"}
-                  logoUrl={user?.photoURL}
+                  businessId={
+                    user?.uid
+                  }
+
+                  businessName={
+                    user?.displayName ||
+                    "My Business"
+                  }
+
+                  logoUrl={
+                    user?.photoURL
+                  }
                 />
+
               ) : flowStep === "category" ? (
-                // Legacy category picker — no longer reachable from "I'm a
-                // business" (that now opens BVin directly above), kept only
-                // so nothing breaks if something else still points here.
-                <Category onSelect={handleCategorySelect} />
-              ) : flowStep === "recordsDashboard" ? (
-                <SystemInventory userEmail={user?.email} currentUserId={user?.uid} />
+
+                <Category
+                  onSelect={
+                    handleCategorySelect
+                  }
+                />
+
+              ) : flowStep ===
+                "recordsDashboard" ? (
+
+                <SystemInventory
+                  userEmail={
+                    user?.email
+                  }
+                  currentUserId={
+                    user?.uid
+                  }
+                />
+
               ) : flowStep === "device" ? (
+
                 <DeviceSwitch
                   onSelect={(mode) => {
                     setUiMode(mode);
                     setFlowStep("done");
                   }}
                 />
-              ) : flowStep === "premiumView" ? (
-                <Premium onBack={() => setFlowStep("options")} />
+
+              ) : flowStep ===
+                "premiumView" ? (
+
+                <Premium
+                  onBack={() =>
+                    setFlowStep(
+                      "options"
+                    )
+                  }
+                />
+
               ) : uiMode === "mobile" ? (
-                <MobileView brandId={user.uid} />
+
+                <MobileView
+                  brandId={
+                    user.uid
+                  }
+                />
+
               ) : (
-                <Dashboard userEmail={user.email} validationToken={dashboardToken} />
+
+                <Dashboard
+                  userEmail={
+                    user.email
+                  }
+                  validationToken={
+                    dashboardToken
+                  }
+                />
               )
             }
           />
 
-          <Route path="*" element={<Navigate to="/" />} />
+
+          {/* ------------------------------------------
+              FALLBACK
+          ------------------------------------------ */}
+
+          <Route
+            path="*"
+            element={
+              <Navigate
+                to="/"
+              />
+            }
+          />
+
         </Routes>
       </div>
 
-      {user && !isAdmin && !isStorefrontPath && flowStep !== "BVin" &&
-        (isWorker || (flowStep !== "front" && flowStep !== "options")) && (
-        <FloatingTeamHub managerUid={isWorker ? assignedManagerUid : user.uid} />
-      )}
 
-      {/* VinBack tag creation/management — same "currently on a business
-          dashboard" gate as FloatingTeamHub above, so every pre-B-Vin
-          business type (salon/hotel/mechanic/service/food) still gets it.
-          Excluded from the BVin flow itself: its VinBack Tags bento card
-          opens the same VinBackTagCreate/VinBackTagList modals directly,
-          so this floating circle would just be a redundant duplicate. */}
-      {user && !isAdmin && !isStorefrontPath && flowStep !== "BVin" &&
-        (isWorker || (flowStep !== "front" && flowStep !== "options")) && (
-        <VinBackLauncher />
-      )}
+      {/* ========================================================
+          FLOATING TEAM HUB
+      ======================================================== */}
+
+      {user &&
+        !isAdmin &&
+        !isStorefrontPath &&
+        flowStep !== "BVin" &&
+        (
+          isWorker ||
+          (
+            flowStep !== "front" &&
+            flowStep !== "options"
+          )
+        ) && (
+          <FloatingTeamHub
+            managerUid={
+              isWorker
+                ? assignedManagerUid
+                : user.uid
+            }
+          />
+        )}
+
+
+      {/* ========================================================
+          VINBACK LAUNCHER
+      ======================================================== */}
+
+      {user &&
+        !isAdmin &&
+        !isStorefrontPath &&
+        flowStep !== "BVin" &&
+        (
+          isWorker ||
+          (
+            flowStep !== "front" &&
+            flowStep !== "options"
+          )
+        ) && (
+          <VinBackLauncher />
+        )}
+
+
+      {/* ========================================================
+          GLOBAL UI
+      ======================================================== */}
 
       <CookieBanner />
+
       <InstallAppToast />
 
-      {/* Four-second payment confirmation. Mounted last so it layers over
-          every flow, and outside <Routes> so a redirect on return from
-          Stripe can't unmount it mid-countdown. */}
-      <PaymentResultScreen result={paymentResult} onDismiss={() => setPaymentResult(null)} />
+      <PaymentResultScreen
+        result={paymentResult}
+        onDismiss={() =>
+          setPaymentResult(null)
+        }
+      />
     </>
   );
 }
