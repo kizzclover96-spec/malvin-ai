@@ -131,7 +131,7 @@ interface FormResponse { id: string; answers: Record<string, string>; }
 const FormResponses: React.FC<{ businessId: string; form: FormDef; onBack: () => void }> = ({ businessId, form, onBack }) => {
   const [responses, setResponses] = useState<FormResponse[]>([]);
   React.useEffect(() => {
-    const q = query(collection(db, "businesses", businessId, "bizForms", form.id, "responses"), orderBy("createdAt", "desc"));
+    const q = query(collection(db, "business", businessId, "bizForms", form.id, "responses"), orderBy("createdAt", "desc"));
     return onSnapshot(q, (snap) => setResponses(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }))));
   }, [businessId, form.id]);
 
@@ -204,8 +204,23 @@ const FormsView: React.FC<{ businessId: string; onBack: () => void }> = ({ busin
 
 /* ------------------------------- Sheets ------------------------------- */
 
+// Firestore rejects arrays-of-arrays ("nested arrays are not supported"),
+// so the grid is serialized to a JSON string for storage and parsed back
+// into string[][] wherever it's actually used as a grid.
+interface SheetDoc { id: string; title: string; gridJson?: string; }
 interface Sheet { id: string; title: string; grid: string[][]; }
+
 const emptyGrid = (rows = 6, cols = 4): string[][] => Array.from({ length: rows }, () => Array.from({ length: cols }, () => ""));
+
+function parseGrid(gridJson?: string): string[][] {
+  if (!gridJson) return emptyGrid();
+  try {
+    const parsed = JSON.parse(gridJson);
+    return Array.isArray(parsed) && parsed.length ? parsed : emptyGrid();
+  } catch {
+    return emptyGrid();
+  }
+}
 
 const SheetEditor: React.FC<{ sheet: Sheet; onBack: () => void; onSave: (grid: string[][]) => void }> = ({ sheet, onBack, onSave }) => {
   const [grid, setGrid] = useState<string[][]>(sheet.grid?.length ? sheet.grid : emptyGrid());
@@ -244,7 +259,8 @@ const SheetEditor: React.FC<{ sheet: Sheet; onBack: () => void; onSave: (grid: s
 };
 
 const SheetsView: React.FC<{ businessId: string; onBack: () => void }> = ({ businessId, onBack }) => {
-  const { items, add, update, remove } = useBizCollection<Sheet>(businessId, "bizSheets");
+  const { items: rawItems, add, update, remove } = useBizCollection<SheetDoc>(businessId, "bizSheets");
+  const items: Sheet[] = rawItems.map((s) => ({ id: s.id, title: s.title, grid: parseGrid(s.gridJson) }));
   const [formOpen, setFormOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [openSheet, setOpenSheet] = useState<Sheet | null>(null);
@@ -252,13 +268,13 @@ const SheetsView: React.FC<{ businessId: string; onBack: () => void }> = ({ busi
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
-    await add({ title, grid: emptyGrid() });
+    await add({ title, gridJson: JSON.stringify(emptyGrid()) });
     setTitle(""); setFormOpen(false);
   };
 
   if (openSheet) {
     const live = items.find((s) => s.id === openSheet.id) || openSheet;
-    return <SheetEditor sheet={live} onBack={() => setOpenSheet(null)} onSave={(grid) => { update(live.id, { grid }); setOpenSheet(null); }} />;
+    return <SheetEditor sheet={live} onBack={() => setOpenSheet(null)} onSave={(grid) => { update(live.id, { gridJson: JSON.stringify(grid) }); setOpenSheet(null); }} />;
   }
 
   return (

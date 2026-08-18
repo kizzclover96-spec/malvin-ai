@@ -24,7 +24,7 @@ const RecordsView: React.FC<{ businessId: string; onBack: () => void }> = ({ bus
   const [draft, setDraft] = useState<Record<string, string>>({});
 
   React.useEffect(() => {
-    const ref = doc(db, "businesses", businessId, "bizRecordsConfig", "fields");
+    const ref = doc(db, "business", businessId, "bizRecordsConfig", "fields");
     return onSnapshot(ref, (snap) => setFields(snap.data()?.fields || []));
   }, [businessId]);
 
@@ -32,7 +32,7 @@ const RecordsView: React.FC<{ businessId: string; onBack: () => void }> = ({ bus
     e.preventDefault();
     const list = fieldsDraft.split(",").map((f) => f.trim()).filter(Boolean);
     if (!list.length) return;
-    await setDoc(doc(db, "businesses", businessId, "bizRecordsConfig", "fields"), { fields: list });
+    await setDoc(doc(db, "business", businessId, "bizRecordsConfig", "fields"), { fields: list });
     setFieldsDraft("");
   };
 
@@ -83,7 +83,7 @@ const RecordsView: React.FC<{ businessId: string; onBack: () => void }> = ({ bus
           </BizRow>
         ))}
       </div>
-      <button onClick={() => setDoc(doc(db, "businesses", businessId, "bizRecordsConfig", "fields"), { fields: [] })} style={{ marginTop: 20, background: "none", border: "none", color: "#B0B9C6", fontSize: 11, cursor: "pointer" }}>Reset field setup</button>
+      <button onClick={() => setDoc(doc(db, "business", businessId, "bizRecordsConfig", "fields"), { fields: [] })} style={{ marginTop: 20, background: "none", border: "none", color: "#B0B9C6", fontSize: 11, cursor: "pointer" }}>Reset field setup</button>
     </div>
   );
 };

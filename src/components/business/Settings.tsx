@@ -3,7 +3,7 @@ import { auth, db } from '../../firebase';
 import { ref, set } from 'firebase/database';
 import Premium from '../addons/Premium';
 import { TranslateControl } from '../addons/TranslateControl';
-import ConnectAccountPanel from './ConnectAccountPanel';
+import DeviceConnectPanel from './DeviceConnectPanel';
 import WorkerPermissionsPanel from './WorkerPermissionsPanel';
 
 const premiumGold = "#FFD700";
@@ -467,7 +467,7 @@ const Settings = ({ onBack, onSave, userBrand, setUserBrand, onUpdate, auth, vie
                             )}   
 
                             {activeTab === 'Connect Account' && (
-                                <ConnectAccountPanel
+                                <DeviceConnectPanel
                                     ownerUid={auth?.currentUser?.uid}
                                     ownerEmail={auth?.currentUser?.email}
                                 />

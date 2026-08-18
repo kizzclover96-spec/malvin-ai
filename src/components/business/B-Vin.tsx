@@ -48,6 +48,9 @@ import {
   Pin,
   Search,
   Sparkles,
+  Smartphone,
+  ChevronLeft,
+  ShieldCheck,
 } from "lucide-react";
 import BrandedQrCode from "./BrandedQrCode";
 import { doc, onSnapshot, setDoc, collection, query, where, addDoc, serverTimestamp } from "firebase/firestore";
@@ -88,6 +91,9 @@ import ExpensesBentoCard from "./tools/ExpensesBentoCard";
 import PollsBentoCard from "./tools/PollsBentoCard";
 import AnalyticsFullscreen from "./tools/AnalyticsFullscreen";
 import FloatingAIAssistant from "../addons/FloatingAIAssistant";
+import DeviceMirrorButton from "./DeviceMirrorButton";
+import DeviceConnectPanel from "./DeviceConnectPanel";
+import WorkerPermissionsPanel from "./WorkerPermissionsPanel";
 import styles from "./BVin.module.css";
 
 /* ============================================================================
@@ -271,7 +277,7 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
   >(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
-  const [settingsView, setSettingsView] = useState<"root" | "profile" | "tools" | "customize">("root");
+  const [settingsView, setSettingsView] = useState<"root" | "profile" | "tools" | "customize" | "connectAccount" | "workerPermissions">("root");
   const [langOpen, setLangOpen] = useState(false);
   const [langSearch, setLangSearch] = useState("");
   const [qrModalOpen, setQrModalOpen] = useState(false);
@@ -714,10 +720,11 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
 
   return (
     <div
-      style={{ minHeight: "100vh", width: "100%", background: theme.pageBg, color: theme.text, fontFamily: `${colors.font}, sans-serif`, position: "relative", overflowX: "hidden", transition: "background 0.5s ease, color 0.5s ease" }}
+      style={{ minHeight: "100dvh", width: "100%", background: theme.pageBg, color: theme.text, fontFamily: `${colors.font}, sans-serif`, position: "relative", overflowX: "hidden", transition: "background 0.5s ease, color 0.5s ease" }}
       onClickCapture={registerClick}
     >
       <GlobalStyle />
+      <DeviceMirrorButton ownerUid={businessId} accent={accent} activeTab={activeTab} />
 
       {hasSeenTour === false && showHeader && (
         <TourGuide
@@ -1032,7 +1039,7 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
           )}
 
           {activeTab === "chat" && tools.chat && (
-            <div style={{ height: "calc(100vh - 130px)", borderRadius: 20, overflow: "hidden", border: `1px solid ${theme.cardBorder}` }}>
+            <div style={{ height: "calc(100dvh - 130px)", borderRadius: 20, overflow: "hidden", border: `1px solid ${theme.cardBorder}` }}>
               <Chats brandId={businessId} userBrand={{ id: businessId, name }} />
             </div>
           )}
@@ -1041,7 +1048,7 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
 
       {/* ============================ BOTTOM TABS ============================ */}
       {!fullscreenTool && (
-        <nav ref={tourNavRef} style={{ position: "fixed", bottom: 18, left: "50%", transform: "translateX(-50%)", display: "flex", gap: 4, background: "rgba(255,255,255,0.85)", border: `1px solid ${theme.cardBorder}`, backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)", borderRadius: 999, padding: 5, zIndex: 40, boxShadow: "0 10px 34px rgba(0,0,0,0.12)" }}>
+        <nav ref={tourNavRef} style={{ position: "fixed", bottom: "calc(18px + env(safe-area-inset-bottom, 0px))", left: "50%", transform: "translateX(-50%)", display: "flex", gap: 4, background: "rgba(255,255,255,0.85)", border: `1px solid ${theme.cardBorder}`, backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)", borderRadius: 999, padding: 5, zIndex: 40, boxShadow: "0 10px 34px rgba(0,0,0,0.12)", maxWidth: "calc(100vw - 24px)", overflowX: "auto" }}>
           <TabButton active={activeTab === "dashboard"} label="Dashboard" accent={accent} onClick={() => setActiveTab("dashboard")} />
           {tools.chat && <TabButton active={activeTab === "chat"} label="Chat" accent={accent} onClick={() => setActiveTab("chat")} />}
           {tools.receiveMoney && stripeConnected && <TabButton active={activeTab === "receipts"} label="Receipts" accent={accent} onClick={() => setActiveTab("receipts")} />}
@@ -1153,13 +1160,15 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
       {/* ============================ SETTINGS MODAL ============================ */}
       <AnimatePresence>
         {settingsOpen && (
-          <GlassOverlay onClose={() => setSettingsOpen(false)} wide={settingsView !== "root"} extraWide={settingsView === "tools"}>
+          <GlassOverlay onClose={() => setSettingsOpen(false)} wide={settingsView !== "root"} extraWide={settingsView === "tools" || settingsView === "workerPermissions"}>
             {settingsView === "root" && (
               <div>
                 <h3 style={{ margin: "0 0 18px", fontSize: 17, fontWeight: 800 }}>Settings</h3>
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   <SettingsRootButton icon={User} label="Profile" accent={accent} onClick={() => setSettingsView("profile")} />
                   <SettingsRootButton icon={Wrench} label="Enable Tools" accent={accent} onClick={() => setSettingsView("tools")} />
+                  <SettingsRootButton icon={Smartphone} label="Connect Account" accent={accent} onClick={() => setSettingsView("connectAccount")} />
+                  <SettingsRootButton icon={ShieldCheck} label="Worker Permissions" accent={accent} onClick={() => setSettingsView("workerPermissions")} />
                   <SettingsRootButton icon={LogOut} label="Log out" accent="#c23a3a" onClick={() => setLogoutConfirmOpen(true)} />
                 </div>
               </div>
@@ -1175,6 +1184,22 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
             )}
             {settingsView === "customize" && (
               <CustomizeView colors={colors} setColors={setColors} name={name} storeQrValue={storeQrValue} onBack={() => setSettingsView("profile")} />
+            )}
+            {settingsView === "connectAccount" && (
+              <>
+                <button onClick={() => setSettingsView("root")} style={{ display: "flex", alignItems: "center", gap: 4, background: "none", border: "none", color: accent, cursor: "pointer", fontSize: 13, marginBottom: 6, padding: 0 }}>
+                  <ChevronLeft size={14} /> Settings
+                </button>
+                <DeviceConnectPanel ownerUid={businessId} ownerEmail={auth.currentUser?.email} />
+              </>
+            )}
+            {settingsView === "workerPermissions" && (
+              <>
+                <button onClick={() => setSettingsView("root")} style={{ display: "flex", alignItems: "center", gap: 4, background: "none", border: "none", color: accent, cursor: "pointer", fontSize: 13, marginBottom: 6, padding: 0 }}>
+                  <ChevronLeft size={14} /> Settings
+                </button>
+                <WorkerPermissionsPanel ownerUid={businessId} />
+              </>
             )}
           </GlassOverlay>
         )}

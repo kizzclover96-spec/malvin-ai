@@ -20,7 +20,7 @@ export function useBizCollection<T extends { id: string }>(businessId: string, c
 
   useEffect(() => {
     if (!businessId) return;
-    const q = query(collection(db, "businesses", businessId, collectionName), orderBy("createdAt", order));
+    const q = query(collection(db, "business", businessId, collectionName), orderBy("createdAt", order));
     const unsub = onSnapshot(
       q,
       (snap) => {
@@ -35,7 +35,7 @@ export function useBizCollection<T extends { id: string }>(businessId: string, c
   }, [businessId, collectionName, order]);
 
   const add = async (data: Record<string, any>) => {
-    await addDoc(collection(db, "businesses", businessId, collectionName), {
+    await addDoc(collection(db, "business", businessId, collectionName), {
       ...data,
       createdBy: auth.currentUser?.uid || null,
       createdAt: serverTimestamp(),
@@ -43,11 +43,11 @@ export function useBizCollection<T extends { id: string }>(businessId: string, c
   };
 
   const update = async (id: string, data: Record<string, any>) => {
-    await updateDoc(doc(db, "businesses", businessId, collectionName, id), data);
+    await updateDoc(doc(db, "business", businessId, collectionName, id), data);
   };
 
   const remove = async (id: string) => {
-    await deleteDoc(doc(db, "businesses", businessId, collectionName, id));
+    await deleteDoc(doc(db, "business", businessId, collectionName, id));
   };
 
   return { items, loaded, add, update, remove };

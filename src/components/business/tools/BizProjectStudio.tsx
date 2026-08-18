@@ -361,11 +361,11 @@ const NotesPanel: React.FC<{ businessId: string; connectedApps: { name: string; 
   const [sendMenuOpen, setSendMenuOpen] = useState(false);
 
   useEffect(() => {
-    const ref = doc(db, "businesses", businessId, "bizPresentationConfig", "notes");
+    const ref = doc(db, "business", businessId, "bizPresentationConfig", "notes");
     return onSnapshot(ref, (snap) => setText(snap.data()?.text || ""));
   }, [businessId]);
 
-  const save = async () => { await setDoc(doc(db, "businesses", businessId, "bizPresentationConfig", "notes"), { text, updatedAt: Date.now() }); setSaved(true); setTimeout(() => setSaved(false), 1500); };
+  const save = async () => { await setDoc(doc(db, "business", businessId, "bizPresentationConfig", "notes"), { text, updatedAt: Date.now() }); setSaved(true); setTimeout(() => setSaved(false), 1500); };
   const exportTxt = () => { const blob = new Blob([text], { type: "text/plain" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = "notes.txt"; a.click(); URL.revokeObjectURL(url); };
   const exportPdf = () => { const pdf = new jsPDF({ unit: "pt", format: "a4" }); pdf.setFontSize(12); pdf.text(pdf.splitTextToSize(text || "(empty note)", 480), 56, 70); pdf.save("notes.pdf"); };
   const sendToApp = (app: { name: string; url: string }) => { navigator.clipboard?.writeText(text).catch(() => {}); window.open(app.url, "_blank", "noopener,noreferrer"); setSendMenuOpen(false); };

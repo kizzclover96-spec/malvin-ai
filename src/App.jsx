@@ -58,6 +58,8 @@ import BVinStore from "./components/business/BVinStore";
 
 import NoticeView from "./pages/system/NoticeView";
 import ScannerPairClaim from "./pages/system/ScannerPairClaim";
+import DevicePairClaim from "./pages/system/DevicePairClaim";
+import PairRelayScan from "./pages/system/PairRelayScan";
 import VinBackScan from "./components/vinback/VinBackScan";
 
 import {
@@ -1094,6 +1096,16 @@ function App() {
           <Route
             path="/pair-scanner/:businessId/:sessionId"
             element={<ScannerPairClaim />}
+          />
+
+          <Route
+            path="/pair-device/:hostUid/:token"
+            element={<DevicePairClaim />}
+          />
+
+          <Route
+            path="/pair-relay/:relayId"
+            element={<PairRelayScan />}
           />
 
           <Route

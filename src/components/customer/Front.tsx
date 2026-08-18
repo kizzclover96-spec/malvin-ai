@@ -88,7 +88,7 @@ export const Front: React.FC = () => {
   const overFreeLimit = slotsUsed >= FREE_LIMIT && !billing.payAsYouGo && !billing.monthlyPlan;
 
   return (
-    <div style={{ minHeight: "100vh", background: "#ffffff", position: "relative", overflowX: "hidden", fontFamily: "Inter, sans-serif", color: "#0f172a" }}>
+    <div style={{ minHeight: "100dvh", background: "#ffffff", position: "relative", overflowX: "hidden", fontFamily: "Inter, sans-serif", color: "#0f172a" }}>
       <style>{`
         * { box-sizing: border-box; }
         @keyframes frontDrift { 0%,100%{ transform: translate(0,0) scale(1); } 50%{ transform: translate(3%,4%) scale(1.08); } }
@@ -99,7 +99,7 @@ export const Front: React.FC = () => {
           border: 1px solid rgba(255,255,255,0.85); box-shadow: 0 10px 26px rgba(15,23,42,0.08);
         }
         .front-icon-btn {
-          width: 34px; height: 34px; border-radius: 50%; border: none; background: transparent;
+          width: 40px; height: 40px; border-radius: 50%; border: none; background: transparent;
           display: flex; align-items: center; justify-content: center; cursor: pointer; color: #0f172a; position: relative;
         }
         .front-icon-btn:hover { background: rgba(15,23,42,0.05); }
@@ -107,9 +107,13 @@ export const Front: React.FC = () => {
           width: 100%; display: flex; align-items: center; gap: 14px; padding: 18px; border-radius: 20px;
           border: 1px solid rgba(15,23,42,0.08); background: #fff; cursor: pointer; text-align: left;
           transition: transform 0.18s ease, box-shadow 0.2s ease;
+          min-height: 44px;
         }
         .front-main-btn:hover { transform: translateY(-2px); box-shadow: 0 16px 34px rgba(15,23,42,0.1); }
         .front-main-btn:active { transform: scale(0.98); }
+        @media (max-width: 420px) {
+          .front-topbar-spacer { display: none; }
+        }
       `}</style>
 
       {/* Ambient background */}
@@ -121,10 +125,10 @@ export const Front: React.FC = () => {
       <div style={{ position: "relative", zIndex: 1, padding: "24px 20px" }}>
         {/* Top bar */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 60, flexWrap: "wrap" }}>
-          <div style={{ width: 90 }} />
-          <div className="front-glass-pill">
-            <Mail size={14} color={ACCENT} />
-            <span style={{ fontSize: 12.5, fontWeight: 600, color: "#0f172a" }}>{user?.email || "Signed in"}</span>
+          <div style={{ width: 90, flexShrink: 0 }} className="front-topbar-spacer" />
+          <div className="front-glass-pill" style={{ minWidth: 0, maxWidth: "60vw" }}>
+            <Mail size={14} color={ACCENT} style={{ flexShrink: 0 }} />
+            <span style={{ fontSize: 12.5, fontWeight: 600, color: "#0f172a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>{user?.email || "Signed in"}</span>
           </div>
           <div className="front-glass-pill" style={{ position: "relative", padding: "6px 8px" }}>
             {user?.uid && <NotificationBell userId={user.uid} />}
