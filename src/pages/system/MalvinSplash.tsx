@@ -3,10 +3,13 @@ import "./MalvinSplash.css";
 
 interface MalvinSplashProps {
   onComplete?: () => void;
+  /** First name / display name of the logged-in user, for the welcome line. */
+  greetingName?: string | null;
 }
 
 export function MalvinSplash({
   onComplete,
+  greetingName,
 }: MalvinSplashProps) {
   const [phase, setPhase] = useState<
     "boot" | "animate" | "hold" | "exit"
@@ -43,6 +46,17 @@ export function MalvinSplash({
         phase === "exit" ? "splash-exit" : ""
       }`}
     >
+      {/* AMBIENT BACKGROUND — soft drifting auras + a few floating particles */}
+      <div className="splash-ambient" aria-hidden="true">
+        <div className="splash-aura splash-aura-a" />
+        <div className="splash-aura splash-aura-b" />
+        <div className="splash-particles">
+          {Array.from({ length: 10 }).map((_, i) => (
+            <span key={i} className={`splash-particle splash-particle-${i}`} />
+          ))}
+        </div>
+      </div>
+
       <div className="splash-lockup">
 
         {/* LOGO ROW */}
@@ -57,6 +71,7 @@ export function MalvinSplash({
           {/* STAR */}
           <div className="splash-star">
             <div className="splash-star-glow" />
+            <div className="splash-star-ring" />
 
             <svg
               viewBox="0 0 24 24"
@@ -117,7 +132,7 @@ export function MalvinSplash({
             phase === "hold" ? "hold" : ""
           }`}
         >
-          keeping your everything connected
+          {greetingName ? `welcome back, ${greetingName}` : "keeping your everything connected"}
         </div>
 
       </div>

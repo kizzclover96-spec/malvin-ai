@@ -4,6 +4,7 @@ import { Smartphone, Link2, Globe, Plug, X, Check, ChevronRight, Monitor, Refres
 import { doc, deleteDoc, onSnapshot, collection, addDoc } from "firebase/firestore";
 import { firestore } from "../../firebase";
 import { addWebsiteConnection } from "../../services/bvinConnections";
+import ConnectAppDirectory from "./ConnectAppDirectory";
 import styles from "./BVin.module.css";
 
 /* ============================================================================
@@ -22,16 +23,16 @@ import styles from "./BVin.module.css";
 
 export interface BVinConnection {
   id: string;
-  type: "website" | "service";
+  type: "website" | "service" | "app";
   name: string;
   url: string;
   domain?: string;
   iconUrl?: string | null;
+  color?: string;
   addedAt?: number;
 }
 
 type FormStep = "closed" | "menu" | "addWebsite" | "addService" | "scanning" | "success" | "error";
-
 /* -------------------------------- The pill -------------------------------- */
 
 export const AppsConnectionsPill: React.FC<{ businessId: string; accent: string; onConnectSystem?: () => void; isPremium?: boolean; onRequirePremium?: () => void }> = ({ businessId, accent, onConnectSystem, isPremium = true, onRequirePremium }) => {
@@ -42,6 +43,7 @@ export const AppsConnectionsPill: React.FC<{ businessId: string; accent: string;
   const [serviceUrl, setServiceUrl] = useState("");
   const [connectError, setConnectError] = useState<string | null>(null);
   const [successName, setSuccessName] = useState<string>("");
+  const [connectAppOpen, setConnectAppOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -142,15 +144,17 @@ export const AppsConnectionsPill: React.FC<{ businessId: string; accent: string;
             }}
           >
             <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 10 }}>What would you like to add?</div>
+            <MenuRow icon={Smartphone} label="Connect App" sub="Free — link WhatsApp, Gmail, Slack & more" accent={accent} onClick={() => { setMenuOpen(false); setConnectAppOpen(true); }} />
             <MenuRow icon={Globe} label="Add Website" sub="Launch any website from Malvin" accent={accent} onClick={() => openForm("addWebsite")} locked={!isPremium} />
             <MenuRow icon={Plug} label="Add Service" sub="Connect an external service" accent={accent} onClick={() => openForm("addService")} locked={!isPremium} />
             {onConnectSystem && (
               <MenuRow icon={Server} label="Connect System" sub="Link your catalogue & stock" accent={accent} onClick={() => { setMenuOpen(false); onConnectSystem(); }} />
             )}
-            <MenuRow icon={Smartphone} label="Add App" sub="Connect a desktop app" accent={accent} disabled comingSoon />
           </motion.div>
         )}
       </AnimatePresence>
+
+      <ConnectAppDirectory open={connectAppOpen} onClose={() => setConnectAppOpen(false)} businessId={businessId} accent={accent} />
 
       {/* Centered glass modal — every step (form, scanning, success, error) lives here for one continuous animated sequence */}
       <AnimatePresence>
@@ -421,6 +425,10 @@ const ConnectionIcon: React.FC<{ connection: BVinConnection; accent: string; bus
             onError={() => setImgFailed(true)}
             style={{ width: size - iconInset, height: size - iconInset, objectFit: "contain", borderRadius: Math.max(6, (size - iconInset) * 0.18) }}
           />
+        ) : connection.type === "app" ? (
+          <div style={{ width: "100%", height: "100%", borderRadius: "inherit", background: connection.color || accent, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <span style={{ fontSize: Math.round(size * 0.32), fontWeight: 800, color: "#fff" }}>{initials}</span>
+          </div>
         ) : connection.type === "service" ? (
           <Plug size={Math.round(size * 0.4)} color={accent} />
         ) : (

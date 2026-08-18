@@ -60,9 +60,10 @@ interface Alert {
 
 interface TeamHubProps {
   managerUid: string;
+  onClose?: () => void;
 }
 
-export const TeamHub: React.FC<TeamHubProps> = ({ managerUid }) => {
+export const TeamHub: React.FC<TeamHubProps> = ({ managerUid, onClose }) => {
   const [activeTab, setActiveTab] = useState<'chat' | 'tasks' | 'alerts' | 'team'>('chat');
   const [userRole, setUserRole] = useState<UserRole>('Manager');
   const [members, setMembers] = useState<Member[]>([]);
@@ -305,36 +306,59 @@ export const TeamHub: React.FC<TeamHubProps> = ({ managerUid }) => {
     }
   };
 
+  const onlineCount = members.filter(m => m.isOnline).length;
+
   return (
     <div style={styles.nativeFrame}>
+      <style>{teamHubAnimStyles}</style>
       <header style={styles.chatHeader}>
-        <div>
-          <h1 style={styles.headerTitle}>Team Hub</h1>
-          <p style={styles.headerUidLabel}>uid: {shortUid} ({userRole})</p>
+        <div style={styles.headerIdentityRow}>
+          {onClose && (
+            <button onClick={onClose} style={{ ...styles.headerActionBtn, padding: '8px 4px 8px 0' }} title="Close">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#334155" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+            </button>
+          )}
+          <div style={styles.groupAvatarCircle}>👥</div>
+          <div>
+            <h1 style={styles.headerTitle}>Team Hub</h1>
+            <p style={styles.headerUidLabel}>
+              {onlineCount > 0 ? `${onlineCount} online` : `${members.length} member${members.length === 1 ? '' : 's'}`} · {userRole}
+            </p>
+          </div>
         </div>
-        <button style={styles.headerActionBtn}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#000000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="1"></circle>
-            <circle cx="12" cy="5" r="1"></circle>
-            <circle cx="12" cy="19" r="1"></circle>
-          </svg>
-        </button>
+        <div style={{ display: 'flex', gap: '4px' }}>
+          <button style={styles.headerActionBtn} title="Search">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#334155" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          </button>
+          <button style={styles.headerActionBtn}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#334155" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="1"></circle>
+              <circle cx="12" cy="5" r="1"></circle>
+              <circle cx="12" cy="19" r="1"></circle>
+            </svg>
+          </button>
+        </div>
       </header>
 
       <main style={styles.viewportArea}>
+        <div style={styles.wallpaperLayer} />
         {activeTab === 'chat' && (
-          <div style={styles.chatContainer}>
+          <div style={styles.chatContainer} className="th-fade">
             <div style={styles.threadScroll}>
-              {messages.map((msg) => (
+              {messages.map((msg, i) => {
+                const mine = msg.senderUid === currentUserId;
+                return (
                 <div 
                   key={msg.id} 
+                  className="th-msg-in"
                   style={{
                     ...styles.messageRow,
-                    justifyContent: msg.senderUid === currentUserId ? 'flex-end' : 'flex-start'
+                    justifyContent: mine ? 'flex-end' : 'flex-start',
+                    animationDelay: `${Math.min(i, 6) * 15}ms`,
                   }}
                 >
-                  <div style={{ maxWidth: '85%' }}>
-                    {msg.senderUid !== currentUserId && (
+                  <div style={{ maxWidth: '78%' }}>
+                    {!mine && (
                       <span style={styles.senderSubtext}>
                         {msg.senderName} {msg.senderEmail ? `(${msg.senderEmail})` : ''}
                       </span>
@@ -347,25 +371,32 @@ export const TeamHub: React.FC<TeamHubProps> = ({ managerUid }) => {
                     <div 
                       style={{
                         ...styles.chatBubble,
-                        backgroundColor: msg.senderUid === currentUserId ? '#0066FF' : '#F2F2F7',
-                        color: msg.senderUid === currentUserId ? '#FFFFFF' : '#000000',
-                        borderRadius: msg.senderUid === currentUserId ? '18px 18px 4px 18px' : '18px 18px 18px 4px'
+                        backgroundColor: mine ? '#2563EB' : '#FFFFFF',
+                        color: mine ? '#FFFFFF' : '#0F172A',
+                        border: mine ? 'none' : '1px solid #E7ECF3',
+                        borderRadius: '16px'
                       }}
                     >
                       <p style={styles.bubbleMessageText}>{msg.text}</p>
                       <div style={styles.bubbleActionLinks}>
-                        <button style={{...styles.inlineLink, color: msg.senderUid === currentUserId ? 'rgba(255,255,255,0.7)' : '#8E8E93'}} onClick={() => setReplyTarget(msg)}>Reply</button>
-                        {msg.senderUid === currentUserId && (
-                          <button style={{...styles.inlineLink, color: msg.senderUid === currentUserId ? 'rgba(255,255,255,0.7)' : '#8E8E93'}} onClick={() => executeDeleteMessage(msg.id)}>Delete</button>
+                        <button style={{...styles.inlineLink, color: mine ? 'rgba(255,255,255,0.75)' : '#94A3B8'}} onClick={() => setReplyTarget(msg)}>Reply</button>
+                        {mine && (
+                          <button style={{...styles.inlineLink, color: 'rgba(255,255,255,0.75)'}} onClick={() => executeDeleteMessage(msg.id)}>Delete</button>
                         )}
-                        <span style={{...styles.msgTimeLabel, color: msg.senderUid === currentUserId ? 'rgba(255,255,255,0.6)' : '#AEAEB2'}}>
-                          {msg.isRead ? 'Read' : 'Delivered'}
-                        </span>
+                        {mine && (
+                          <span style={styles.msgTimeLabel}>
+                            {msg.isRead ? (
+                              <svg width="14" height="10" viewBox="0 0 16 11" fill="none"><path d="M11.071.653a.457.457 0 0 0-.304-.102.493.493 0 0 0-.381.178l-6.19 7.636-2.405-2.272a.463.463 0 0 0-.336-.146.47.47 0 0 0-.343.146l-.408.42a.499.499 0 0 0-.144.36c0 .138.048.256.144.353l2.996 2.833c.164.156.375.234.567.234a.678.678 0 0 0 .327-.083.775.775 0 0 0 .284-.227l6.694-8.266a.5.5 0 0 0 .107-.312.5.5 0 0 0-.152-.353z" fill="#93C5FD"/></svg>
+                            ) : (
+                              <svg width="10" height="10" viewBox="0 0 16 11" fill="none"><path d="M11.071.653a.457.457 0 0 0-.304-.102.493.493 0 0 0-.381.178l-6.19 7.636-2.405-2.272a.463.463 0 0 0-.336-.146.47.47 0 0 0-.343.146l-.408.42a.499.499 0 0 0-.144.36c0 .138.048.256.144.353l2.996 2.833c.164.156.375.234.567.234a.678.678 0 0 0 .327-.083.775.775 0 0 0 .284-.227l6.694-8.266a.5.5 0 0 0 .107-.312.5.5 0 0 0-.152-.353z" fill="rgba(255,255,255,0.6)"/></svg>
+                            )}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
                 </div>
-              ))}
+              );})}
               <div ref={threadEndRef} />
             </div>
 
@@ -401,8 +432,8 @@ export const TeamHub: React.FC<TeamHubProps> = ({ managerUid }) => {
                   disabled={!managerUid}
                   style={styles.cleanNativeInput}
                 />
-                <button type="submit" style={styles.inputActionButton}>
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0066FF" strokeWidth="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                <button type="submit" className="th-send-btn" style={styles.sendCircleBtn} disabled={!inputText.trim()}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2.4"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
                 </button>
               </div>
             </form>
@@ -410,7 +441,7 @@ export const TeamHub: React.FC<TeamHubProps> = ({ managerUid }) => {
         )}
 
         {activeTab === 'tasks' && (
-          <div style={styles.tabContentFrame}>
+          <div style={styles.tabContentFrame} className="th-fade">
             {isManager && (
               <form onSubmit={executeCreateTask} style={styles.managementControlCard}>
                 <input type="text" placeholder="Task Assignment Title" value={taskTitle} onChange={e => setTaskTitle(e.target.value)} style={styles.nativeField} required />
@@ -444,7 +475,7 @@ export const TeamHub: React.FC<TeamHubProps> = ({ managerUid }) => {
                   </div>
                   <button 
                     onClick={() => toggleTaskStatus(task.id, task.status)}
-                    style={{...styles.cardActionToggleButton, backgroundColor: task.status === 'Completed' ? '#34C759' : '#0066FF'}}
+                    style={{...styles.cardActionToggleButton, backgroundColor: task.status === 'Completed' ? '#34C759' : '#2563EB'}}
                   >
                     {task.status === 'Completed' ? 'Done' : 'Pending'}
                   </button>
@@ -455,7 +486,7 @@ export const TeamHub: React.FC<TeamHubProps> = ({ managerUid }) => {
         )}
 
         {activeTab === 'alerts' && (
-          <div style={styles.tabContentFrame}>
+          <div style={styles.tabContentFrame} className="th-fade">
             {isManager && (
               <form onSubmit={executePostAlert} style={styles.managementControlCard}>
                 <input type="text" placeholder="Publish updates to workspace..." value={alertText} onChange={e => setAlertText(e.target.value)} style={styles.nativeField} required />
@@ -471,7 +502,7 @@ export const TeamHub: React.FC<TeamHubProps> = ({ managerUid }) => {
               {alerts.map(alert => (
                 <div key={alert.id} style={{
                   ...styles.alertBroadcastCard,
-                  borderLeft: alert.isPinned ? '3px solid #FF3B30' : '3px solid #0066FF'
+                  borderLeft: alert.isPinned ? '3px solid #FF3B30' : '3px solid #2563EB'
                 }}>
                   <p style={styles.alertBroadcastBodyText}>{alert.content}</p>
                 </div>
@@ -481,7 +512,7 @@ export const TeamHub: React.FC<TeamHubProps> = ({ managerUid }) => {
         )}
 
         {activeTab === 'team' && (
-          <div style={styles.tabContentFrame}>
+          <div style={styles.tabContentFrame} className="th-fade">
             <div style={styles.rosterActionRowLayout}>
               <h3 style={styles.rosterSectionTitle}>Active Workspace Staff</h3>
               {isManager && (
@@ -542,61 +573,66 @@ export const TeamHub: React.FC<TeamHubProps> = ({ managerUid }) => {
         </div>
       )}
 
-      <nav style={styles.glassNavigationPillContainer}>
-        <button onClick={() => setActiveTab('chat')} style={styles.navActionButtonItem}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={activeTab === 'chat' ? '#0066FF' : '#8E8E93'} strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-          {activeTab === 'chat' && <span style={styles.activePillIndicatorDot} />}
-        </button>
-        <button onClick={() => setActiveTab('tasks')} style={styles.navActionButtonItem}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={activeTab === 'tasks' ? '#0066FF' : '#8E8E93'} strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-          {activeTab === 'tasks' && <span style={styles.activePillIndicatorDot} />}
-        </button>
-        <button onClick={() => setActiveTab('alerts')} style={styles.navActionButtonItem}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={activeTab === 'alerts' ? '#0066FF' : '#8E8E93'} strokeWidth="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
-          {activeTab === 'alerts' && <span style={styles.activePillIndicatorDot} />}
-        </button>
-        <button onClick={() => setActiveTab('team')} style={styles.navActionButtonItem}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={activeTab === 'team' ? '#0066FF' : '#8E8E93'} strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-          {activeTab === 'team' && <span style={styles.activePillIndicatorDot} />}
-        </button>
+      <nav style={styles.bottomTabBar}>
+        {([
+          { id: 'chat', label: 'Chat', icon: (c: string) => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg> },
+          { id: 'tasks', label: 'Tasks', icon: (c: string) => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> },
+          { id: 'alerts', label: 'Alerts', icon: (c: string) => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg> },
+          { id: 'team', label: 'Team', icon: (c: string) => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg> },
+        ] as const).map(tab => {
+          const active = activeTab === tab.id;
+          return (
+            <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} style={styles.bottomTabItem} className="th-tab-btn">
+              <div style={{ transform: active ? 'translateY(-2px) scale(1.08)' : 'none', transition: 'transform 0.2s ease' }}>
+                {tab.icon(active ? '#2563EB' : '#8E8E93')}
+              </div>
+              <span style={{ fontSize: '10px', fontWeight: active ? 700 : 500, color: active ? '#2563EB' : '#8E8E93', marginTop: '2px' }}>{tab.label}</span>
+              {active && <span style={styles.bottomTabActiveBar} />}
+            </button>
+          );
+        })}
       </nav>
     </div>
   );
 };
 
 const styles: { [key: string]: React.CSSProperties } = {
-  // Expanded width configuration added here
-  nativeFrame: { display: 'flex', flexDirection: 'column', height: '100vh', width: '100%', maxWidth: '600px', margin: '0 auto', borderLeft: '1px solid #F2F2F7', borderRight: '1px solid #F2F2F7', backgroundColor: '#FFFFFF', color: '#000000', fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif', overflow: 'hidden' },
-  chatHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 20px', borderBottom: '1px solid #F2F2F7', backgroundColor: '#FFFFFF' },
-  headerTitle: { fontSize: '18px', fontWeight: '700', letterSpacing: '-0.4px', margin: 0 },
-  headerUidLabel: { fontSize: '11px', color: '#8E8E93', margin: '2px 0 0 0' },
-  headerActionBtn: { background: 'none', border: 'none', cursor: 'pointer', padding: '4px' },
+  // Full-viewport WhatsApp-style shell — no more centered card with side borders.
+  nativeFrame: { display: 'flex', flexDirection: 'column', height: '100dvh', width: '100vw', margin: 0, backgroundColor: '#0B141A', color: '#000000', fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif', overflow: 'hidden', position: 'fixed', inset: 0, zIndex: 500 },
+  chatHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', background: '#FFFFFF', borderBottom: '1px solid #E7ECF3', flexShrink: 0, zIndex: 2 },
+  headerIdentityRow: { display: 'flex', alignItems: 'center', gap: '12px' },
+  groupAvatarCircle: { width: '38px', height: '38px', borderRadius: '50%', background: '#EFF4FF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', flexShrink: 0 },
+  headerTitle: { fontSize: '17px', fontWeight: '700', letterSpacing: '-0.2px', margin: 0, color: '#0F172A' },
+  headerUidLabel: { fontSize: '11.5px', color: '#64748B', margin: '1px 0 0 0' },
+  headerActionBtn: { background: 'none', border: 'none', cursor: 'pointer', padding: '8px' },
   viewportArea: { flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative' },
-  chatContainer: { display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'space-between' },
-  threadScroll: { flex: 1, overflowY: 'auto', padding: '16px 16px 12px 16px', display: 'flex', flexDirection: 'column', gap: '12px' },
+  wallpaperLayer: { position: 'absolute', inset: 0, backgroundColor: '#F5F8FD', zIndex: 0 },
+  chatContainer: { display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'space-between', position: 'relative', zIndex: 1 },
+  threadScroll: { flex: 1, overflowY: 'auto', padding: '16px 16px 12px 16px', display: 'flex', flexDirection: 'column', gap: '10px' },
   messageRow: { display: 'flex', width: '100%' },
   senderSubtext: { fontSize: '11px', fontWeight: '600', color: '#8E8E93', marginBottom: '2px', display: 'block', paddingLeft: '4px' },
-  replyBubbleContext: { backgroundColor: '#E5E5EA', padding: '6px 10px', borderRadius: '8px', marginBottom: '-6px', borderLeft: '2px solid #0066FF', opacity: 0.8 },
+  replyBubbleContext: { backgroundColor: '#E5E5EA', padding: '6px 10px', borderRadius: '8px', marginBottom: '-6px', borderLeft: '2px solid #2563EB', opacity: 0.8 },
   replyContextBody: { margin: 0, fontSize: '12px', color: '#000000', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
-  chatBubble: { padding: '10px 14px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' },
-  bubbleMessageText: { margin: 0, fontSize: '14px', lineHeight: '1.4', wordBreak: 'break-word' },
+  chatBubble: { padding: '8px 12px 6px 12px', boxShadow: '0 1px 1px rgba(0,0,0,0.13)' },
+  bubbleMessageText: { margin: 0, fontSize: '14.5px', lineHeight: '1.4', wordBreak: 'break-word' },
   bubbleActionLinks: { display: 'flex', gap: '8px', marginTop: '4px', justifyContent: 'flex-end', alignItems: 'center' },
   inlineLink: { background: 'none', border: 'none', fontSize: '10px', cursor: 'pointer', padding: 0 },
-  msgTimeLabel: { fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.3px' },
-  inputTrayForm: { borderTop: '1px solid #F2F2F7', padding: '12px 16px 80px 16px', backgroundColor: '#FFFFFF', position: 'relative', zIndex: 5 },
-  replyTargetContextLine: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#F2F2F7', padding: '6px 12px', borderRadius: '8px', marginBottom: '8px' },
+  msgTimeLabel: { fontSize: '9px', display: 'flex', alignItems: 'center' },
+  inputTrayForm: { padding: '10px 12px', backgroundColor: '#FFFFFF', borderTop: '1px solid #E7ECF3', position: 'relative', zIndex: 5, flexShrink: 0, paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 10px)' },
+  replyTargetContextLine: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#FFFFFF', padding: '6px 12px', borderRadius: '8px', marginBottom: '8px' },
   replyTargetContextText: { fontSize: '12px', color: '#8E8E93' },
   abortReplyBtn: { background: 'none', border: 'none', cursor: 'pointer', padding: '2px' },
   mentionsPopupContainer: { position: 'absolute', bottom: '100%', left: '16px', right: '16px', backgroundColor: '#FFFFFF', border: '1px solid #E5E5EA', borderRadius: '12px', boxShadow: '0 -4px 16px rgba(0,0,0,0.08)', maxHeight: '140px', overflowY: 'auto', zIndex: 10 },
   mentionRowItem: { padding: '10px 14px', borderBottom: '1px solid #F2F2F7', cursor: 'pointer', fontSize: '13px', color: '#000000' },
-  inputFieldStructuralRow: { display: 'flex', alignItems: 'center', gap: '10px' },
+  inputFieldStructuralRow: { display: 'flex', alignItems: 'center', gap: '8px' },
   inputActionButton: { background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  cleanNativeInput: { flex: 1, backgroundColor: '#F2F2F7', border: 'none', borderRadius: '20px', padding: '10px 16px', fontSize: '14px', outline: 'none', color: '#000000' },
-  tabContentFrame: { display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: '#FFFFFF', padding: '16px 16px 80px 16px' },
+  cleanNativeInput: { flex: 1, backgroundColor: '#FFFFFF', border: 'none', borderRadius: '22px', padding: '11px 16px', fontSize: '14px', outline: 'none', color: '#000000', boxShadow: '0 1px 2px rgba(0,0,0,0.08)' },
+  sendCircleBtn: { width: '42px', height: '42px', borderRadius: '50%', background: '#2563EB', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, boxShadow: '0 2px 6px rgba(37,99,235,0.35)' },
+  tabContentFrame: { display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: '#F7F8FA', padding: '16px 16px 90px 16px', overflowY: 'auto', boxSizing: 'border-box' },
   managementControlCard: { display: 'flex', flexDirection: 'column', gap: '8px', backgroundColor: '#F2F2F7', padding: '12px', borderRadius: '12px', marginBottom: '14px' },
   nativeField: { width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #E5E5EA', backgroundColor: '#FFFFFF', fontSize: '13px', boxSizing: 'border-box', outline: 'none', color: '#000000' },
   nativeFieldDoubleRow: { display: 'flex', gap: '8px' },
-  primeActionSubmitBtn: { backgroundColor: '#0066FF', color: '#FFFFFF', border: 'none', padding: '10px', borderRadius: '8px', fontWeight: '600', fontSize: '13px', cursor: 'pointer' },
+  primeActionSubmitBtn: { backgroundColor: '#2563EB', color: '#FFFFFF', border: 'none', padding: '10px', borderRadius: '8px', fontWeight: '600', fontSize: '13px', cursor: 'pointer' },
   checkboxWrapperLabel: { display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#3A3A3C', cursor: 'pointer' },
   tabPanelScrollable: { flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px' },
   itemContainerRow: { backgroundColor: '#FFFFFF', border: '1px solid #F2F2F7', borderRadius: '12px', padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' },
@@ -610,20 +646,51 @@ const styles: { [key: string]: React.CSSProperties } = {
   alertBroadcastBodyText: { margin: 0, fontSize: '13px', color: '#000000', lineHeight: '1.4' },
   rosterActionRowLayout: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' },
   rosterSectionTitle: { fontSize: '15px', fontWeight: '700', color: '#000000', margin: 0 },
-  addMemberTriggerBtn: { backgroundColor: '#FFFFFF', border: '1px solid #0066FF', color: '#0066FF', padding: '6px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' },
+  addMemberTriggerBtn: { backgroundColor: '#FFFFFF', border: '1px solid #2563EB', color: '#2563EB', padding: '6px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' },
   removeMemberBtn: { backgroundColor: '#FFFFFF', border: '1px solid #FF3B30', color: '#FF3B30', padding: '4px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: '600', cursor: 'pointer', marginLeft: '10px' },
   memberCardLayoutRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 4px', borderBottom: '1px solid #F2F2F7' },
   memberCardEmailTitle: { margin: 0, fontSize: '14px', fontWeight: '500', color: '#000000' },
   memberCardMetaSubtext: { fontSize: '11px', color: '#8E8E93', marginTop: '2px', display: 'block' },
   statusBlockInline: { display: 'flex', alignItems: 'center' },
   statusStatusDotIndicator: { width: '8px', height: '8px', borderRadius: '50%' },
-  modalBackdropMask: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.3)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '20px' },
-  modalContentWrapper: { backgroundColor: '#FFFFFF', borderRadius: '16px', width: '100%', maxWidth: '340px', padding: '16px', boxShadow: '0 4px 24px rgba(0,0,0,0.15)' },
+  modalBackdropMask: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '20px', backdropFilter: 'blur(3px)' },
+  modalContentWrapper: { backgroundColor: '#FFFFFF', borderRadius: '18px', width: '100%', maxWidth: '340px', padding: '18px', boxShadow: '0 12px 40px rgba(0,0,0,0.25)' },
   modalHeaderRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #F2F2F7', paddingBottom: '8px' },
   modalTitleText: { margin: 0, fontSize: '16px', fontWeight: '600' },
   closeTriggerBtn: { background: 'none', border: 'none', cursor: 'pointer', padding: '4px' },
   modalFormBody: { display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '12px' },
-  glassNavigationPillContainer: { position: 'fixed', top: '16px', right: '16px', display: 'flex', gap: '24px', backgroundColor: 'rgba(255, 255, 255, 0.8)', backdropFilter: 'blur(10px)', padding: '12px 24px', borderRadius: '30px', boxShadow: '0 8px 32px rgba(0,0,0,0.08)', border: '1px solid rgba(255,255,255,0.4)', zIndex: 999 },
-  navActionButtonItem: { background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' },
-  activePillIndicatorDot: { position: 'absolute', bottom: '-4px', width: '4px', height: '4px', backgroundColor: '#0066FF', borderRadius: '50%' }
+  bottomTabBar: {
+    position: 'fixed', bottom: 0, left: 0, right: 0, display: 'flex', justifyContent: 'space-around',
+    alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.96)', backdropFilter: 'blur(16px)',
+    borderTop: '1px solid rgba(0,0,0,0.06)', padding: '8px 4px calc(env(safe-area-inset-bottom, 0px) + 6px) 4px',
+    zIndex: 999, boxShadow: '0 -4px 16px rgba(0,0,0,0.05)',
+  },
+  bottomTabItem: { background: 'none', border: 'none', cursor: 'pointer', padding: '4px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', flex: 1 },
+  bottomTabActiveBar: { position: 'absolute', top: '-8px', width: '28px', height: '3px', borderRadius: '3px', backgroundColor: '#2563EB' },
 };
+
+// --- WhatsApp-style motion layer: message pop-in, tab fade, tap feedback ---
+const teamHubAnimStyles = `
+  @keyframes thMsgIn {
+    from { opacity: 0; transform: translateY(8px) scale(0.98); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .th-msg-in { animation: thMsgIn 0.22s cubic-bezier(0.2, 0.7, 0.3, 1) both; }
+
+  @keyframes thFadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .th-fade { animation: thFadeIn 0.2s ease-out both; }
+
+  .th-send-btn { transition: transform 0.12s ease, opacity 0.12s ease; }
+  .th-send-btn:active { transform: scale(0.88); }
+  .th-send-btn:disabled { opacity: 0.5; }
+
+  .th-tab-btn { transition: transform 0.12s ease; }
+  .th-tab-btn:active { transform: scale(0.92); }
+
+  @media (max-width: 480px) {
+    .th-msg-in { animation-duration: 0.16s; }
+  }
+`;

@@ -44,6 +44,91 @@
 
 
 /* ============================================================
+   AMBIENT BACKGROUND — drifting auras + floating particles
+============================================================ */
+
+.splash-ambient {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.splash-aura {
+  position: absolute;
+  width: 480px;
+  height: 480px;
+  border-radius: 50%;
+  filter: blur(90px);
+  opacity: 0.35;
+  animation: auraDrift 9s ease-in-out infinite;
+}
+
+.splash-aura-a {
+  top: -140px;
+  left: -120px;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.5), transparent 70%);
+  animation-duration: 10s;
+}
+
+.splash-aura-b {
+  bottom: -160px;
+  right: -140px;
+  background: radial-gradient(circle, rgba(139, 143, 248, 0.45), transparent 70%);
+  animation-duration: 12s;
+  animation-delay: -3s;
+}
+
+@keyframes auraDrift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(30px, -20px) scale(1.08); }
+}
+
+.splash-particles {
+  position: absolute;
+  inset: 0;
+}
+
+.splash-particle {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: rgba(99, 102, 241, 0.4);
+  opacity: 0;
+  animation: particleFloat 4.5s ease-in-out infinite;
+}
+
+/* Deterministic scattered positions + staggered timing per particle */
+.splash-particle-0 { top: 20%; left: 15%; animation-delay: 0.1s; }
+.splash-particle-1 { top: 65%; left: 10%; animation-delay: 0.6s; }
+.splash-particle-2 { top: 30%; left: 85%; animation-delay: 1.1s; }
+.splash-particle-3 { top: 75%; left: 88%; animation-delay: 0.3s; }
+.splash-particle-4 { top: 12%; left: 55%; animation-delay: 0.9s; }
+.splash-particle-5 { top: 85%; left: 45%; animation-delay: 1.4s; }
+.splash-particle-6 { top: 45%; left: 6%; animation-delay: 1.7s; }
+.splash-particle-7 { top: 55%; left: 92%; animation-delay: 0.4s; }
+.splash-particle-8 { top: 8%; left: 30%; animation-delay: 2s; }
+.splash-particle-9 { top: 90%; left: 70%; animation-delay: 1.2s; }
+
+@keyframes particleFloat {
+  0% { opacity: 0; transform: translateY(10px) scale(0.6); }
+  35% { opacity: 0.8; }
+  70% { opacity: 0.5; }
+  100% { opacity: 0; transform: translateY(-22px) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .splash-aura,
+  .splash-particle {
+    animation: none !important;
+    opacity: 0.15 !important;
+  }
+}
+
+
+/* ============================================================
    COMPLETE LOCKUP
 
                  ★ MALVIN
@@ -52,6 +137,7 @@
 
 .splash-lockup {
   position: relative;
+  z-index: 1;
 
   display: flex;
   flex-direction: column;
@@ -177,6 +263,29 @@
   transform: scale(0.7);
 
   pointer-events: none;
+}
+
+
+/* ============================================================
+   STAR RING — a soft pulse that ripples outward once the logo settles
+============================================================ */
+
+.splash-star-ring {
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 1px solid rgba(99, 102, 241, 0.4);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.splash-logo.hold .splash-star-ring {
+  animation: starRingPulse 1.8s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+@keyframes starRingPulse {
+  0% { opacity: 0.55; transform: scale(0.9); }
+  100% { opacity: 0; transform: scale(2.1); }
 }
 
 

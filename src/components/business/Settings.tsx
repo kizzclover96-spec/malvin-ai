@@ -3,6 +3,8 @@ import { auth, db } from '../../firebase';
 import { ref, set } from 'firebase/database';
 import Premium from '../addons/Premium';
 import { TranslateControl } from '../addons/TranslateControl';
+import ConnectAccountPanel from './ConnectAccountPanel';
+import WorkerPermissionsPanel from './WorkerPermissionsPanel';
 
 const premiumGold = "#FFD700";
 const glassStyle: React.CSSProperties = {
@@ -88,12 +90,17 @@ const AuraBackground = () => {
   );
 };
 
-const Settings = ({ onBack, onSave, userBrand, setUserBrand, onUpdate, auth }: any) => {
+const Settings = ({ onBack, onSave, userBrand, setUserBrand, onUpdate, auth, viewerRole }: any) => {
     const [tempName, setTempName] = useState(userBrand?.name || '');
     const [tempBrand, setTempBrand] = useState(userBrand);
     const [name, setName] = useState('');
     const [activeTab, setActiveTab] = useState('Business');
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Owner/Manager gate — Settings is opened without a role context in most call
+    // sites (i.e. the account owner viewing their own settings), so default to
+    // treating the viewer as the owner unless explicitly told otherwise.
+    const isOwnerOrManager = viewerRole ? viewerRole === 'Manager' : true;
 
     const handleSaveSettings = (newName: string) => {
         setUserBrand({ name: newName, id: newName.toLowerCase().replace(/\s+/g, '-') });
@@ -132,6 +139,8 @@ const Settings = ({ onBack, onSave, userBrand, setUserBrand, onUpdate, auth }: a
         { id: 'Business', icon: '💼' },
         { id: 'Notifications', icon: '🔔' },
         { id: 'Team', icon: '👥' },
+        { id: 'Connect Account', icon: '🔗' },
+        ...(isOwnerOrManager ? [{ id: 'Worker Permissions', icon: '🔐' }] : []),
         { id: 'About us' },
     ];
 
@@ -139,10 +148,7 @@ const Settings = ({ onBack, onSave, userBrand, setUserBrand, onUpdate, auth }: a
         <>
             <style>{responsiveStyles}</style>
             {activeTab === 'Premium' ? (
-                <Premium onBack={() => setActiveTab('Account')}
-                    userBrand={userBrand}
-                    brandName={userBrand.name}
-                />
+                <Premium onBack={() => setActiveTab('Account')} />
             ) : (
                 <div className="settings-wrapper" style={{
                     width: '100vw',
@@ -459,6 +465,17 @@ const Settings = ({ onBack, onSave, userBrand, setUserBrand, onUpdate, auth }: a
                                     </div>
                                 </section>
                             )}   
+
+                            {activeTab === 'Connect Account' && (
+                                <ConnectAccountPanel
+                                    ownerUid={auth?.currentUser?.uid}
+                                    ownerEmail={auth?.currentUser?.email}
+                                />
+                            )}
+
+                            {activeTab === 'Worker Permissions' && isOwnerOrManager && (
+                                <WorkerPermissionsPanel ownerUid={auth?.currentUser?.uid} />
+                            )}
 
                             {activeTab === 'About us' && (
                                 <section>

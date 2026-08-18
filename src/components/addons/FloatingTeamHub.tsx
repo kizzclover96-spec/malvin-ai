@@ -141,28 +141,17 @@ export const FloatingTeamHub: React.FC<FloatingTeamHubProps> = ({ managerUid }) 
         )}
       </button>
 
-      {/* Embedded Full Screen Modal Overlay */}
+      {/* Embedded Full Screen Team Hub — TeamHub renders its own fixed, full-viewport frame */}
       {isOpen && (
-        <div 
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            width: "100vw",
-            height: "100vh",
-            backgroundColor: "rgba(0, 0, 0, 0.4)",
-            backdropFilter: "blur(8px)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 9998,
-          }}
-          onClick={() => setIsOpen(false)}
-        >
-          <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: "480px", padding: "16px" }}>
-            <TeamHub managerUid={managerUid}/>
+        <>
+          <style>{`
+            @keyframes fthSlideUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+            .fth-mount { animation: fthSlideUp 0.24s cubic-bezier(0.2,0.7,0.3,1) both; }
+          `}</style>
+          <div className="fth-mount" style={{ position: "fixed", inset: 0, zIndex: 9998 }}>
+            <TeamHub managerUid={managerUid} onClose={() => setIsOpen(false)} />
           </div>
-        </div>
+        </>
       )}
     </>
   );

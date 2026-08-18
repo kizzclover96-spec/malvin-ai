@@ -80,6 +80,14 @@ import StorageWarningBanner from "../addons/StorageWarningBanner";
 import { cancelPremiumSubscription, downloadMyData, deleteMyData } from "../../services/bvinConnections";
 import { ToolKey, ToolDef, ToolState, TOOLS, DEFAULT_TOOLS, CATEGORY_ORDER, CATEGORY_TINTS } from "../../config/bvinTools";
 import { BUSINESS_TYPES, BUSINESS_TYPE_TOOLS } from "../../config/businessToolRecommendations";
+import BizWorkspace from "./tools/BizWorkspace";
+import BizProjectStudio from "./tools/BizProjectStudio";
+import BizRecordsReports from "./tools/BizRecordsReports";
+import BizInvoices from "./tools/BizInvoices";
+import ExpensesBentoCard from "./tools/ExpensesBentoCard";
+import PollsBentoCard from "./tools/PollsBentoCard";
+import AnalyticsFullscreen from "./tools/AnalyticsFullscreen";
+import FloatingAIAssistant from "../addons/FloatingAIAssistant";
 import styles from "./BVin.module.css";
 
 /* ============================================================================
@@ -222,6 +230,8 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
   const [darkMode, setDarkMode] = useState(false);
   const [clicks, setClicks] = useState(0);
   const [qrScans, setQrScans] = useState(0);
+  const [connectedAppsList, setConnectedAppsList] = useState<{ name: string; url: string }[]>([]);
+  const [teamMemberCount, setTeamMemberCount] = useState(0);
   const [noticeScans, setNoticeScans] = useState(0);
   const [tools, setTools] = useState<ToolState>(DEFAULT_TOOLS);
   const [pinnedTools, setPinnedTools] = useState<Partial<Record<ToolKey, number>>>({});
@@ -254,7 +264,11 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
   const { language, languages, isTranslating, setLanguage } = useLanguage();
 
   const [activeTab, setActiveTab] = useState<"dashboard" | "team" | "chat" | "receipts" | "allOrders">("dashboard");
-  const [fullscreenTool, setFullscreenTool] = useState<"productStore" | "environment" | "premium" | null>(null);
+  const [fullscreenTool, setFullscreenTool] = useState<
+    "productStore" | "environment" | "premium" |
+    "bizWorkspace" | "bizInvoices" |
+    "bizProjects" | "bizRecords" | "analytics" | null
+  >(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   const [settingsView, setSettingsView] = useState<"root" | "profile" | "tools" | "customize">("root");
@@ -377,6 +391,25 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
       setAllowToGo(!!p.allowToGo);
 
       hydrated.current = true;
+    });
+    return () => unsub();
+  }, [businessId]);
+
+  // Mirrors the same collection ConnectionsStrip reads, so tools like
+  // Presentation's Notes panel can offer "send to app" without a second
+  // round of Firestore wiring.
+  useEffect(() => {
+    if (!businessId) return;
+    const unsub = onSnapshot(collection(firestore, "business", businessId, "connections"), (snap) => {
+      setConnectedAppsList(snap.docs.map((d) => ({ name: (d.data() as any).name, url: (d.data() as any).url })));
+    });
+    return () => unsub();
+  }, [businessId]);
+
+  useEffect(() => {
+    if (!businessId) return;
+    const unsub = onSnapshot(collection(firestore, "managerMembers", businessId, "members"), (snap) => {
+      setTeamMemberCount(snap.size);
     });
     return () => unsub();
   }, [businessId]);
@@ -820,7 +853,7 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
             </motion.div>
           </div>
 
-          <div ref={tourAppsRef}><AppsConnectionsPill businessId={businessId} accent={accent} onConnectSystem={() => setConnectSystemOpen(true)} isPremium={isPremium} onRequirePremium={() => setFullscreenTool("premium")} /></div>
+          <div ref={tourAppsRef}><AppsConnectionsPill businessId={businessId} accent={accent} onConnectSystem={() => setConnectSystemOpen(true)} isPremium={true} onRequirePremium={() => setFullscreenTool("premium")} /></div>
 
           <div className={styles.rightGroup} style={{ justifyContent: "flex-end", flex: "1 1 0" }}>
             <div className={styles.clickChip} title="Total clicks" ref={tourClicksRef}>
@@ -872,6 +905,21 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
           {fullscreenTool === "productStore" && <SystemInventory />}
           {fullscreenTool === "environment" && <SaaSEnvironmentVault userEmail={auth.currentUser?.email || ""} />}
           {fullscreenTool === "premium" && <Premium onBack={() => setFullscreenTool(null)} />}
+          {fullscreenTool === "bizWorkspace" && <BizWorkspace businessId={businessId} onClose={() => setFullscreenTool(null)} />}
+          {fullscreenTool === "bizInvoices" && <BizInvoices businessId={businessId} onClose={() => setFullscreenTool(null)} currency={currency} businessName={name} />}
+          {fullscreenTool === "bizProjects" && <BizProjectStudio businessId={businessId} onClose={() => setFullscreenTool(null)} connectedApps={connectedAppsList} />}
+          {fullscreenTool === "bizRecords" && <BizRecordsReports businessId={businessId} onClose={() => setFullscreenTool(null)} currency={currency} />}
+          {fullscreenTool === "analytics" && (
+            <AnalyticsFullscreen
+              onClose={() => setFullscreenTool(null)}
+              businessId={businessId}
+              qrScans={qrScans}
+              noticeScans={noticeScans}
+              storageState={storageState}
+              isPremium={isPremium}
+              memberCount={teamMemberCount}
+            />
+          )}
         </div>
       ) : activeTab === "team" ? (
         <div style={{ position: "fixed", inset: 0, zIndex: 15, background: theme.pageBg }}>
@@ -962,6 +1010,12 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
                         <FullscreenLaunchCard accent={accent} onOpen={() => setFullscreenTool(t.key as "productStore" | "environment")} />
                       ) : t.key === "specialOffers" ? (
                         <SpecialOfferBentoCard theme={theme} accent={accent} data={specialOffer} onOpen={() => setOfferModalOpen(true)} />
+                      ) : t.key === "bizExpenses" ? (
+                        <ExpensesBentoCard businessId={businessId} theme={theme} accent={accent} currency={currency} />
+                      ) : t.key === "bizPolls" ? (
+                        <PollsBentoCard businessId={businessId} theme={theme} accent={accent} />
+                      ) : t.fullscreen ? (
+                        <FullscreenLaunchCard accent={accent} onOpen={() => setFullscreenTool(t.key as any)} />
                       ) : undefined
                     }
                   />
@@ -992,6 +1046,12 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
           {tools.chat && <TabButton active={activeTab === "chat"} label="Chat" accent={accent} onClick={() => setActiveTab("chat")} />}
           {tools.receiveMoney && stripeConnected && <TabButton active={activeTab === "receipts"} label="Receipts" accent={accent} onClick={() => setActiveTab("receipts")} />}
           <TabButton active={activeTab === "allOrders"} label="Orders" accent={accent} onClick={() => setActiveTab("allOrders")} />
+          <TabButton
+            active={false}
+            label="Analytics"
+            accent={accent}
+            onClick={() => (isPremium ? setFullscreenTool("analytics") : setFullscreenTool("premium"))}
+          />
           <TabButton active={activeTab === "team"} label="Team" accent={accent} onClick={() => setActiveTab("team")} />
         </nav>
       )}
@@ -1093,7 +1153,7 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
       {/* ============================ SETTINGS MODAL ============================ */}
       <AnimatePresence>
         {settingsOpen && (
-          <GlassOverlay onClose={() => setSettingsOpen(false)} wide={settingsView !== "root"}>
+          <GlassOverlay onClose={() => setSettingsOpen(false)} wide={settingsView !== "root"} extraWide={settingsView === "tools"}>
             {settingsView === "root" && (
               <div>
                 <h3 style={{ margin: "0 0 18px", fontSize: 17, fontWeight: 800 }}>Settings</h3>
@@ -1209,6 +1269,18 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
         initial={specialOffer}
         onClose={() => setOfferModalOpen(false)}
         onSave={(data) => { setSpecialOffer(data); setOfferModalOpen(false); }}
+      />
+
+      <FloatingAIAssistant
+        enabled={!!tools.bizAiAssistant}
+        accent={accent}
+        tools={tools}
+        toggleTool={toggleTool}
+        onOpenFullscreen={(key) => setFullscreenTool(key as any)}
+        storageState={storageState}
+        qrScans={qrScans}
+        noticeScans={noticeScans}
+        onSetActiveTab={(tab: string) => setActiveTab(tab as any)}
       />
     </div>
   );
@@ -1906,12 +1978,12 @@ const miniInputStyle = (theme: any): React.CSSProperties => ({ flex: 1, fontSize
 
 /* Every popup is now white glass with a soft dark shadow — no dark-glass
    variant anymore. `wide` gets extra room for the Profile form. */
-const GlassOverlay: React.FC<{ children: React.ReactNode; onClose: () => void; wide?: boolean }> = ({ children, onClose, wide }) => (
+const GlassOverlay: React.FC<{ children: React.ReactNode; onClose: () => void; wide?: boolean; extraWide?: boolean }> = ({ children, onClose, wide, extraWide }) => (
   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(20,20,22,0.32)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 20 }}>
     <motion.div
       initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.92, y: 12 }} transition={{ type: "spring", stiffness: 320, damping: 28 }}
       onClick={(e) => e.stopPropagation()}
-      style={{ background: "rgba(255,255,255,0.94)", backdropFilter: "blur(34px) saturate(180%)", WebkitBackdropFilter: "blur(34px) saturate(180%)", border: "1px solid rgba(255,255,255,0.8)", borderRadius: 28, padding: 26, width: "100%", maxWidth: wide ? 560 : 360, maxHeight: "84vh", overflowY: "auto", color: "#1d1d1f", boxShadow: "0 30px 80px rgba(0,0,0,0.20), inset 0 1px 0 rgba(255,255,255,0.9)", position: "relative" }}
+      style={{ background: "rgba(255,255,255,0.94)", backdropFilter: "blur(34px) saturate(180%)", WebkitBackdropFilter: "blur(34px) saturate(180%)", border: "1px solid rgba(255,255,255,0.8)", borderRadius: 28, padding: 26, width: "100%", maxWidth: extraWide ? 760 : wide ? 560 : 360, maxHeight: "84vh", overflowY: "auto", color: "#1d1d1f", boxShadow: "0 30px 80px rgba(0,0,0,0.20), inset 0 1px 0 rgba(255,255,255,0.9)", position: "relative" }}
     >
       <button onClick={onClose} style={{ position: "absolute", top: 16, right: 16, background: "linear-gradient(150deg, #ffffff, #eef0f3)", border: "none", borderRadius: "50%", width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#1d1d1f", boxShadow: "0 2px 6px rgba(0,0,0,0.12)" }}>
         <X size={14} />
@@ -2641,15 +2713,21 @@ const ToolsView: React.FC<{ accent: string; tools: ToolState; toggleTool: (key: 
           return (
             <div key={cat} style={{ marginBottom: 20 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                <span style={{ width: 7, height: 7, borderRadius: "50%", background: CATEGORY_TINTS[cat] }} />
-                <span style={{ fontSize: 11.5, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5, color: "rgba(29,29,31,0.55)" }}>{cat}</span>
+                <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#2563EB", boxShadow: "0 0 0 3px rgba(37,99,235,0.18)" }} />
+                <span style={{ fontSize: 12.5, fontWeight: 900, textTransform: "uppercase", letterSpacing: 0.6, color: "#1D4ED8" }}>{cat}</span>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
-                {catTools.map((t) => {
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 10 }}>
+                {catTools.map((t, ti) => {
                   const on = tools[t.key];
                   const locked = !!t.premiumOnly && !isPremium;
                   return (
-                    <div key={t.key} style={{ position: "relative" }}>
+                    <motion.div
+                      key={t.key}
+                      style={{ position: "relative" }}
+                      initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      transition={{ delay: Math.min(ti, 8) * 0.02, type: "spring", stiffness: 380, damping: 30 }}
+                    >
                       <button
                         onMouseDown={() => handleDown(t.key)}
                         onMouseUp={() => handleUp(t)}
@@ -2684,7 +2762,7 @@ const ToolsView: React.FC<{ accent: string; tools: ToolState; toggleTool: (key: 
                           </motion.div>
                         )}
                       </AnimatePresence>
-                    </div>
+                    </motion.div>
                   );
                 })}
               </div>

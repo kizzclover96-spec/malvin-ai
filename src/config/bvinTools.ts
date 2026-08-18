@@ -22,6 +22,12 @@ import {
   Star,
   Frown,
   Percent,
+  CalendarDays,
+  ReceiptText,
+  Vote,
+  FolderKanban,
+  Database,
+  Bot,
 } from "lucide-react";
 
 /* ============================================================================
@@ -66,10 +72,17 @@ export type ToolKey =
   | "complaints"
   | "productStore"
   | "environment"
-  | "specialOffers";
+  | "specialOffers"
+  | "bizWorkspace"
+  | "bizExpenses"
+  | "bizInvoices"
+  | "bizPolls"
+  | "bizProjects"
+  | "bizRecords"
+  | "bizAiAssistant";
 
 export type ToolShape = "square" | "rectangle";
-export type ToolCategory = "Customer Communication" | "Customer Information" | "In-Person Experience" | "Transactions & Bookings" | "Business Tools";
+export type ToolCategory = "Customer Communication" | "Customer Information" | "In-Person Experience" | "Transactions & Bookings" | "Business Tools" | "Business, Organization & Community";
 
 export interface ToolDef {
   key: ToolKey;
@@ -94,6 +107,7 @@ export const CATEGORY_ORDER: ToolCategory[] = [
   "In-Person Experience",
   "Transactions & Bookings",
   "Business Tools",
+  "Business, Organization & Community",
 ];
 
 export const CATEGORY_TINTS: Record<ToolCategory, string> = {
@@ -102,6 +116,7 @@ export const CATEGORY_TINTS: Record<ToolCategory, string> = {
   "In-Person Experience": "#F0975E",
   "Transactions & Bookings": "#3FBF8F",
   "Business Tools": "#8A8F98",
+  "Business, Organization & Community": "#2563EB",
 };
 
 export const TOOLS: ToolDef[] = [
@@ -128,10 +143,17 @@ export const TOOLS: ToolDef[] = [
   { key: "vinbackTags", label: "VinBack Tags", icon: Tag, description: "Bring past customers back.", category: "Transactions & Bookings", shape: "square", alwaysOn: true, fixedPlacement: "under-top-right", customerVisible: false },
   { key: "jobRequests", label: "Job Requests", icon: ListChecks, description: "Track requests from received to done.", category: "Transactions & Bookings", shape: "rectangle", customerVisible: false },
 
-  { key: "analytics", label: "Analytics", icon: BarChart3, description: "See how your business is doing.", category: "Business Tools", shape: "square", customerVisible: false, premiumOnly: true },
   { key: "teamChat", label: "Add Workers", icon: Users, description: "Invite staff and choose what they're allowed to do.", category: "Business Tools", shape: "square", noBento: true, customerVisible: false, premiumOnly: true },
   { key: "productStore", label: "System Inventory", icon: Package, description: "Full inventory: SKUs, stock, suppliers. Connect it once to let workers scan and check stock.", category: "Business Tools", shape: "square", fullscreen: true, customerVisible: false },
   { key: "environment", label: "Environment", icon: Layers, description: "Track reselling sources and margins.", category: "Business Tools", shape: "square", fullscreen: true, customerVisible: false },
+
+  { key: "bizWorkspace", label: "Workspace", icon: CalendarDays, description: "Schedule, forms, and sheets — your structured data in one place.", category: "Business, Organization & Community", shape: "square", fullscreen: true, customerVisible: false },
+  { key: "bizExpenses", label: "Expenses", icon: Receipt, description: "Record business expenses and attach receipts.", category: "Business, Organization & Community", shape: "square", customerVisible: false },
+  { key: "bizInvoices", label: "Invoices", icon: ReceiptText, description: "Create/manage invoices, download as PDF, and track their status.", category: "Business, Organization & Community", shape: "square", fullscreen: true, customerVisible: false },
+  { key: "bizPolls", label: "Polls", icon: Vote, description: "Vote on decisions, ideas or internal matters.", category: "Business, Organization & Community", shape: "square", customerVisible: false },
+  { key: "bizProjects", label: "Projects", icon: FolderKanban, description: "Projects, documents, and presentations — build it, then download or project it.", category: "Business, Organization & Community", shape: "square", fullscreen: true, customerVisible: false },
+  { key: "bizRecords", label: "Records", icon: Database, description: "Structured records, and the reports they turn into.", category: "Business, Organization & Community", shape: "square", fullscreen: true, customerVisible: false },
+  { key: "bizAiAssistant", label: "AI Assistant", icon: Bot, description: "Summarize, organize, draft and analyze administrative work. Appears as a chat bubble you can move anywhere.", category: "Business, Organization & Community", shape: "square", noBento: true, customerVisible: false },
 ];
 
 export type ToolState = Record<ToolKey, boolean>;
@@ -142,6 +164,9 @@ export const DEFAULT_TOOLS: ToolState = {
   openingStatus: false, receipts: false, teamChat: false, reviews: false, loyalty: false,
   jobRequests: false, requestStaff: false, tableAssistance: false, contactBusiness: false, productStore: false,
   environment: false, complaints: false, specialOffers: false,
+  bizWorkspace: false, bizExpenses: false,
+  bizInvoices: false, bizPolls: false, bizProjects: false, bizRecords: false,
+  bizAiAssistant: false,
 };
 
 /** Convenience lookup used by the customer store to gate rendering. */

@@ -954,27 +954,10 @@ function App() {
 
 
   /* ============================================================
-     CRITICAL STARTUP SCREEN
-     
-     THIS IS THE IMPORTANT FIX.
-     
-     Splash is rendered BEFORE loading finishes.
-
-     Firebase can continue working in the background while
-     the animation plays.
-  ============================================================ */
-
-  if (!splashFinished) {
-    return (
-      <MalvinSplash
-        onComplete={handleSplashComplete}
-      />
-    );
-  }
-
-
-  /* ============================================================
      AUTH LOADING FALLBACK
+     Resolve auth first — the splash is a logged-in welcome moment now,
+     not a startup loader, so we need to know whether there's a user
+     before deciding whether to show it at all.
   ============================================================ */
 
   if (loading) {
@@ -985,6 +968,26 @@ function App() {
           height: "100vh",
           width: "100%",
         }}
+      />
+    );
+  }
+
+  /* ============================================================
+     CRITICAL STARTUP SCREEN
+
+     Splash now only plays for an authenticated user — a logged-out
+     visitor goes straight to login/landing with no branded splash.
+  ============================================================ */
+
+  if (user && !splashFinished) {
+    return (
+      <MalvinSplash
+        onComplete={handleSplashComplete}
+        greetingName={
+          (user.displayName && user.displayName.split(" ")[0]) ||
+          (user.email && user.email.split("@")[0]) ||
+          null
+        }
       />
     );
   }
