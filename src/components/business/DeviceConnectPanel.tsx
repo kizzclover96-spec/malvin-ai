@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ref, onValue } from "firebase/database";
 import { collection, onSnapshot, doc, setDoc, deleteDoc } from "firebase/firestore";
-import { Html5Qrcode } from "html5-qrcode";
 import { db as rtdb, auth, firestore } from "../../firebase";
 import {
   createDevicePairingSession, revokeDevicePairingSession,
@@ -11,6 +10,7 @@ import {
 } from "../../utils/devicePairing";
 import BrandedQrCode from "./BrandedQrCode";
 import PairingDebugPanel from "./PairingDebugPanel";
+import { useQrScanner, scannerStatusMessage } from "../../hooks/useQrScanner";
 import { Smartphone, Camera, ChevronLeft, Check, Trash2 } from "lucide-react";
 
 /* ============================================================================
@@ -63,7 +63,6 @@ const DeviceConnectPanel: React.FC<{ ownerUid: string; ownerEmail?: string | nul
   const [relayId, setRelayId] = useState<string | null>(null);
   const [relayUrl, setRelayUrl] = useState<string | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
-  const scannerRef = useRef<Html5Qrcode | null>(null);
   const elementId = "device-connect-guest-scanner";
   const guestClaimedRef = useRef(false);
 
@@ -74,7 +73,6 @@ const DeviceConnectPanel: React.FC<{ ownerUid: string; ownerEmail?: string | nul
   const cleanupGuest = () => {
     if (relayId) revokePairRelaySession(relayId);
     setRelayId(null); setRelayUrl(null);
-    scannerRef.current?.stop().catch(() => {});
   };
 
   useEffect(() => () => { cleanupHost(); cleanupGuest(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -130,26 +128,21 @@ const DeviceConnectPanel: React.FC<{ ownerUid: string; ownerEmail?: string | nul
     }
   };
 
-  const startGuestScanning = async () => {
-    setMode("guestScanning");
+  // Camera lifecycle is fully owned by useQrScanner — same hook the rest of
+  // the app's scanners already use, and the one that correctly guards
+  // against calling stop() on an already-stopped instance (the exact bug
+  // that was crashing this screen before). `active` toggling with `mode`
+  // means the camera opens/closes itself as the guest steps through the
+  // flow — no manual Html5Qrcode instance to manage here at all.
+  const { status: scanStatus } = useQrScanner({
+    elementId,
+    active: mode === "guestScanning",
+    onDecode: finishGuestClaim,
+  });
+
+  const startGuestScanning = () => {
     setScanError(null);
-    setTimeout(async () => {
-      try {
-        const scanner = new Html5Qrcode(elementId);
-        scannerRef.current = scanner;
-        await scanner.start(
-          { facingMode: "environment" },
-          { fps: 10, qrbox: { width: 230, height: 230 } },
-          async (decodedText) => {
-            await scanner.stop().catch(() => {});
-            finishGuestClaim(decodedText);
-          },
-          () => {}
-        );
-      } catch (err: any) {
-        setScanError(err?.message || "Couldn't access the camera. Check camera permissions and try again.");
-      }
-    }, 50);
+    setMode("guestScanning");
   };
 
   const startGuestRelay = async () => {
@@ -251,6 +244,7 @@ const DeviceConnectPanel: React.FC<{ ownerUid: string; ownerEmail?: string | nul
           <Back onClick={reset} />
           <div id={elementId} style={{ width: "100%", aspectRatio: "1", borderRadius: 18, overflow: "hidden", background: "#000", marginBottom: 12 }} />
           {scanError && <p style={{ fontSize: 12, color: "#EF4444", marginBottom: 10 }}>{scanError}</p>}
+          {scannerStatusMessage(scanStatus) && <p style={{ fontSize: 12, color: "#EF4444", marginBottom: 10 }}>{scannerStatusMessage(scanStatus)}</p>}
           <p style={{ fontSize: 12, color: "#64748B", textAlign: "center" }}>Point at the other account's QR code…</p>
         </div>
       )}

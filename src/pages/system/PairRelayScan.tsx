@@ -1,11 +1,11 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { ref, onValue, remove, onDisconnect } from "firebase/database";
+import { ref, onValue, onDisconnect } from "firebase/database";
 import { db as rtdb, auth } from "../../firebase";
 import { signInAnonymously } from "firebase/auth";
-import { Html5Qrcode } from "html5-qrcode";
 import { Camera, CheckCircle2, XCircle } from "lucide-react";
 import { submitRelayScan } from "../../utils/devicePairing";
+import { useQrScanner, scannerStatusMessage } from "../../hooks/useQrScanner";
 
 /* ============================================================================
    PairRelayScan — opened when a phone scans the "use my phone as an
@@ -14,6 +14,11 @@ import { submitRelayScan } from "../../utils/devicePairing";
    decoded value is relayed back over RTDB so the original device can
    finish the connection exactly as if it had scanned it directly.
    Same disposable-session convention as ScannerPairClaim.tsx.
+
+   Camera lifecycle is owned by useQrScanner — the same hook the rest of
+   the app's scanners use, which correctly guards against calling
+   html5-qrcode's stop() on an already-stopped instance (the bug that
+   used to crash this exact flow when hand-rolled here directly).
 ============================================================================ */
 
 type Status = "checking" | "expired" | "ready" | "scanning" | "done";
@@ -22,7 +27,6 @@ const PairRelayScan: React.FC = () => {
   const { relayId } = useParams<{ relayId: string }>();
   const [status, setStatus] = useState<Status>("checking");
   const [error, setError] = useState<string | null>(null);
-  const scannerRef = useRef<Html5Qrcode | null>(null);
   const elementId = "pair-relay-scan-viewport";
   const relayPath = relayId ? `pairRelay/${relayId}` : null;
 
@@ -55,30 +59,28 @@ const PairRelayScan: React.FC = () => {
     return () => unsub();
   }, [relayPath]);
 
-  const startScanning = async () => {
-    if (!relayPath) return;
-    setError(null);
+  const onDecode = async (decodedText: string) => {
+    if (!relayId) return;
     try {
-      onDisconnect(ref(rtdb, relayPath)).remove();
-      const scanner = new Html5Qrcode(elementId);
-      scannerRef.current = scanner;
-      await scanner.start(
-        { facingMode: "environment" },
-        { fps: 10, qrbox: { width: 240, height: 240 } },
-        async (decodedText) => {
-          await scanner.stop().catch(() => {});
-          await submitRelayScan(relayId!, decodedText);
-          setStatus("done");
-        },
-        () => { /* per-frame decode misses — expected constantly, ignore */ }
-      );
-      setStatus("scanning");
+      await submitRelayScan(relayId, decodedText);
+      setStatus("done");
     } catch (err: any) {
-      setError(err?.message || "Couldn't access the camera. Check camera permissions and try again.");
+      setError(err?.message || "Couldn't relay the scan. Check your connection and try again.");
     }
   };
 
-  useEffect(() => () => { scannerRef.current?.stop().catch(() => {}); }, []);
+  const { status: scanStatus } = useQrScanner({
+    elementId,
+    active: status === "scanning",
+    onDecode,
+  });
+
+  const startScanning = () => {
+    if (!relayPath) return;
+    setError(null);
+    onDisconnect(ref(rtdb, relayPath)).remove();
+    setStatus("scanning");
+  };
 
   const shellStyle: React.CSSProperties = {
     minHeight: "100dvh", background: "linear-gradient(180deg,#F7F9FC,#EEF2F8)", color: "#0F172A",
@@ -131,6 +133,8 @@ const PairRelayScan: React.FC = () => {
     <div style={shellStyle}>
       <div style={{ width: "100%", maxWidth: 340 }}>
         <div id={elementId} style={{ width: "100%", borderRadius: 20, overflow: "hidden", border: "1px solid #DCE3ED", marginBottom: 14 }} />
+        {error && <p style={{ fontSize: 12, color: "#EF4444", marginBottom: 8 }}>{error}</p>}
+        {scannerStatusMessage(scanStatus) && <p style={{ fontSize: 12, color: "#EF4444", marginBottom: 8 }}>{scannerStatusMessage(scanStatus)}</p>}
         <p style={{ fontSize: 12, color: "#64748B" }}>Point at the other device's QR code…</p>
       </div>
     </div>
