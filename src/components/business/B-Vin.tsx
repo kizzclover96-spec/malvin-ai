@@ -94,6 +94,9 @@ import FloatingAIAssistant from "../addons/FloatingAIAssistant";
 import DeviceMirrorButton from "./DeviceMirrorButton";
 import DeviceConnectPanel from "./DeviceConnectPanel";
 import WorkerPermissionsPanel from "./WorkerPermissionsPanel";
+import DashboardAccessMembersPanel from "./DashboardAccessMembersPanel";
+import { useWorkerPermissions, LockedSection, type AccessAreaId } from "../../utils/workerPermissions";
+import { usePresenceHeartbeat, logActivity } from "../../utils/activityLog";
 import styles from "./BVin.module.css";
 
 /* ============================================================================
@@ -223,9 +226,26 @@ interface BVinProps {
   businessId: string;
   businessName?: string;
   logoUrl?: string;
+  /** When a worker with Dashboard Access opens the Manager Dashboard
+   *  instead of the Worker Dashboard — see App.jsx's isWorker/dashboardAccess
+   *  routing and Settings → Worker Permissions' "Dashboard Access" toggle.
+   *  Defaults to "owner" so every existing call site keeps working
+   *  unchanged. */
+  viewerRole?: "owner" | "worker";
+  workerUid?: string;
+  workerLabel?: string;
 }
 
-const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", logoUrl }) => {
+const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", logoUrl, viewerRole = "owner", workerUid, workerLabel }) => {
+  const isOwnerViewer = viewerRole !== "worker";
+  const { canAccess: canAccessArea, loaded: permsLoaded } = useWorkerPermissions(businessId, workerUid, isOwnerViewer);
+  usePresenceHeartbeat(businessId, isOwnerViewer ? businessId : (workerUid || ""), isOwnerViewer ? (businessName || "Owner") : (workerLabel || "Team member"));
+  const [lockedToast, setLockedToast] = useState<string | null>(null);
+  const showLockedToast = (label: string) => {
+    setLockedToast(`You don't have access to ${label}.`);
+    setTimeout(() => setLockedToast(null), 2600);
+  };
+
   const [name, setName] = useState(businessName);
   const [logoUrlState, setLogoUrlState] = useState(logoUrl || "");
   const [bio, setBio] = useState("");
@@ -277,7 +297,7 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
   >(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
-  const [settingsView, setSettingsView] = useState<"root" | "profile" | "tools" | "customize" | "connectAccount" | "workerPermissions">("root");
+  const [settingsView, setSettingsView] = useState<"root" | "profile" | "tools" | "customize" | "connectAccount" | "workerPermissions" | "dashboardAccessMembers">("root");
   const [langOpen, setLangOpen] = useState(false);
   const [langSearch, setLangSearch] = useState("");
   const [qrModalOpen, setQrModalOpen] = useState(false);
@@ -743,7 +763,7 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
             {isVerified && <BadgeCheck size={16} color="#007fff" style={{ flexShrink: 0 }} />}
           </div>
 
-          <div ref={tourStatusPillRef}>
+          <div ref={tourStatusPillRef} className={styles.statusPillWrap}>
             <BusinessStatusPill
               businessId={businessId}
               isPremium={isPremium}
@@ -860,7 +880,7 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
             </motion.div>
           </div>
 
-          <div ref={tourAppsRef}><AppsConnectionsPill businessId={businessId} accent={accent} onConnectSystem={() => setConnectSystemOpen(true)} isPremium={true} onRequirePremium={() => setFullscreenTool("premium")} /></div>
+          <div ref={tourAppsRef} className={styles.appsPillWrap}><AppsConnectionsPill businessId={businessId} accent={accent} onConnectSystem={() => setConnectSystemOpen(true)} isPremium={true} onRequirePremium={() => setFullscreenTool("premium")} /></div>
 
           <div className={styles.rightGroup} style={{ justifyContent: "flex-end", flex: "1 1 0" }}>
             <div className={styles.clickChip} title="Total clicks" ref={tourClicksRef}>
@@ -896,7 +916,7 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
               </AnimatePresence>
             </div>
 
-            <button className={styles.gearBtn} onClick={() => { setSettingsOpen(true); setSettingsView("root"); }} ref={tourGearRef}>
+            <button className={styles.gearBtn} onClick={() => { if (!canAccessArea("settings")) { showLockedToast("Settings"); return; } setSettingsOpen(true); setSettingsView("root"); }} ref={tourGearRef}>
               <GearIcon size={16} />
             </button>
           </div>
@@ -983,7 +1003,16 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
                 </div>
               )}
               <AnimatePresence>
-                {bentoToolDefs.filter((t) => t.key !== "customerNotice" && t.key !== "vinbackTags").map((t, idx) => (
+                {bentoToolDefs.filter((t) => t.key !== "customerNotice" && t.key !== "vinbackTags").map((t, idx) => {
+                  // Every tool now has its own grantable area (see
+                  // workerPermissions.ts — DASHBOARD_ACCESS_AREAS is
+                  // derived directly from the TOOLS catalog), so this is
+                  // just t.key itself rather than a hand-maintained
+                  // mapping table to a handful of broad buckets.
+                  const allowed = canAccessArea(t.key as AccessAreaId);
+
+                  return (
+                  <LockedSection key={t.key} allowed={allowed} label={`You don't have access to this feature.`}>
                   <BentoCard
                     key={t.key}
                     tool={t}
@@ -1026,7 +1055,9 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
                       ) : undefined
                     }
                   />
-                ))}
+                  </LockedSection>
+                  );
+                })}
               </AnimatePresence>
 
               {!tools.receiveMoney && bentoToolDefs.length > 0 && (
@@ -1051,17 +1082,38 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
         <nav ref={tourNavRef} style={{ position: "fixed", bottom: "calc(18px + env(safe-area-inset-bottom, 0px))", left: "50%", transform: "translateX(-50%)", display: "flex", gap: 4, background: "rgba(255,255,255,0.85)", border: `1px solid ${theme.cardBorder}`, backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)", borderRadius: 999, padding: 5, zIndex: 40, boxShadow: "0 10px 34px rgba(0,0,0,0.12)", maxWidth: "calc(100vw - 24px)", overflowX: "auto" }}>
           <TabButton active={activeTab === "dashboard"} label="Dashboard" accent={accent} onClick={() => setActiveTab("dashboard")} />
           {tools.chat && <TabButton active={activeTab === "chat"} label="Chat" accent={accent} onClick={() => setActiveTab("chat")} />}
-          {tools.receiveMoney && stripeConnected && <TabButton active={activeTab === "receipts"} label="Receipts" accent={accent} onClick={() => setActiveTab("receipts")} />}
-          <TabButton active={activeTab === "allOrders"} label="Orders" accent={accent} onClick={() => setActiveTab("allOrders")} />
+          {tools.receiveMoney && stripeConnected && (
+            canAccessArea("finances") ? (
+              <TabButton active={activeTab === "receipts"} label="Receipts" accent={accent} onClick={() => setActiveTab("receipts")} />
+            ) : (
+              <TabButton active={false} label="Receipts 🔒" accent={accent} onClick={() => showLockedToast("Receipts")} />
+            )
+          )}
+          {canAccessArea("orders") ? (
+            <TabButton active={activeTab === "allOrders"} label="Orders" accent={accent} onClick={() => setActiveTab("allOrders")} />
+          ) : (
+            <TabButton active={false} label="Orders 🔒" accent={accent} onClick={() => showLockedToast("Orders")} />
+          )}
           <TabButton
             active={false}
             label="Analytics"
             accent={accent}
-            onClick={() => (isPremium ? setFullscreenTool("analytics") : setFullscreenTool("premium"))}
+            onClick={() => (!canAccessArea("analytics") ? showLockedToast("Analytics") : isPremium ? setFullscreenTool("analytics") : setFullscreenTool("premium"))}
           />
-          <TabButton active={activeTab === "team"} label="Team" accent={accent} onClick={() => setActiveTab("team")} />
+          {canAccessArea("teamHub") ? (
+            <TabButton active={activeTab === "team"} label="Team" accent={accent} onClick={() => setActiveTab("team")} />
+          ) : (
+            <TabButton active={false} label="Team 🔒" accent={accent} onClick={() => showLockedToast("Team Hub")} />
+          )}
         </nav>
       )}
+
+      {lockedToast && (
+        <div style={{ position: "fixed", bottom: "calc(90px + env(safe-area-inset-bottom, 0px))", left: "50%", transform: "translateX(-50%)", background: "#0F172A", color: "#fff", padding: "10px 18px", borderRadius: 999, fontSize: 12.5, fontWeight: 700, zIndex: 999, boxShadow: "0 10px 30px rgba(0,0,0,0.25)", display: "flex", alignItems: "center", gap: 6 }}>
+          🔒 {lockedToast}
+        </div>
+      )}
+
 
       {/* ============================ QR MODAL ============================ */}
       <AnimatePresence>
@@ -1160,15 +1212,16 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
       {/* ============================ SETTINGS MODAL ============================ */}
       <AnimatePresence>
         {settingsOpen && (
-          <GlassOverlay onClose={() => setSettingsOpen(false)} wide={settingsView !== "root"} extraWide={settingsView === "tools" || settingsView === "workerPermissions"}>
+          <GlassOverlay onClose={() => setSettingsOpen(false)} wide={settingsView !== "root"} extraWide={settingsView === "tools" || settingsView === "workerPermissions" || settingsView === "dashboardAccessMembers"}>
             {settingsView === "root" && (
               <div>
                 <h3 style={{ margin: "0 0 18px", fontSize: 17, fontWeight: 800 }}>Settings</h3>
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   <SettingsRootButton icon={User} label="Profile" accent={accent} onClick={() => setSettingsView("profile")} />
-                  <SettingsRootButton icon={Wrench} label="Enable Tools" accent={accent} onClick={() => setSettingsView("tools")} />
-                  <SettingsRootButton icon={Smartphone} label="Connect Account" accent={accent} onClick={() => setSettingsView("connectAccount")} />
-                  <SettingsRootButton icon={ShieldCheck} label="Worker Permissions" accent={accent} onClick={() => setSettingsView("workerPermissions")} />
+                  {canAccessArea("tools") && <SettingsRootButton icon={Wrench} label="Enable Tools" accent={accent} onClick={() => setSettingsView("tools")} />}
+                  {isOwnerViewer && <SettingsRootButton icon={Smartphone} label="Connect Account" accent={accent} onClick={() => setSettingsView("connectAccount")} />}
+                  {isOwnerViewer && <SettingsRootButton icon={ShieldCheck} label="Worker Permissions" accent={accent} onClick={() => setSettingsView("workerPermissions")} />}
+                  {isOwnerViewer && <SettingsRootButton icon={Users} label="Dashboard Access Members" accent={accent} onClick={() => setSettingsView("dashboardAccessMembers")} />}
                   <SettingsRootButton icon={LogOut} label="Log out" accent="#c23a3a" onClick={() => setLogoutConfirmOpen(true)} />
                 </div>
               </div>
@@ -1200,6 +1253,9 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
                 </button>
                 <WorkerPermissionsPanel ownerUid={businessId} />
               </>
+            )}
+            {settingsView === "dashboardAccessMembers" && (
+              <DashboardAccessMembersPanel ownerUid={businessId} onBack={() => setSettingsView("root")} />
             )}
           </GlassOverlay>
         )}

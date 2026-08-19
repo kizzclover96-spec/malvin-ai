@@ -123,6 +123,12 @@ function App() {
 
   const [assignedManagerUid, setAssignedManagerUid] = useState("");
 
+  // 🆕 NEW — DASHBOARD ACCESS. Set from claimTeamInvite's response
+  // (malvinbackend/src/index.ts), which reads it server-side from RTDB's
+  // users/{managerUid}/workerPermissions/{uid}/dashboardAccess — same trust
+  // boundary as isWorker/assignedManagerUid above, not a client-only flag.
+  const [hasDashboardAccess, setHasDashboardAccess] = useState(false);
+
   const [flowStep, setFlowStep] = useState("options");
 
   const [workerSubScreen, setWorkerSubScreen] =
@@ -610,6 +616,7 @@ function App() {
             setPremiumStatus("checking");
             setIsWorker(false);
             setAssignedManagerUid("");
+            setHasDashboardAccess(false);
 
             localStorage.removeItem(
               "ui_mode"
@@ -738,6 +745,10 @@ function App() {
 
                   setIsWorker(true);
 
+                  setHasDashboardAccess(
+                    !!claimData.dashboardAccess
+                  );
+
                   /*
                     Only refresh the token AFTER the
                     server actually changed custom claims.
@@ -748,6 +759,7 @@ function App() {
                 } else {
                   setIsWorker(false);
                   setAssignedManagerUid("");
+                  setHasDashboardAccess(false);
                 }
               } catch (claimError) {
                 console.error(
@@ -757,10 +769,12 @@ function App() {
 
                 setIsWorker(false);
                 setAssignedManagerUid("");
+                setHasDashboardAccess(false);
               }
             } else {
               setIsWorker(false);
               setAssignedManagerUid("");
+              setHasDashboardAccess(false);
             }
 
             lastUidRef.current =
@@ -1274,6 +1288,25 @@ function App() {
                 <RestrictedScreen
                   message={
                     systemStatus.message
+                  }
+                />
+
+              ) : isWorker && hasDashboardAccess ? (
+
+                <BVin
+                  businessId={
+                    assignedManagerUid
+                  }
+
+                  viewerRole="worker"
+
+                  workerUid={
+                    user?.uid
+                  }
+
+                  workerLabel={
+                    user?.email ||
+                    "Team member"
                   }
                 />
 

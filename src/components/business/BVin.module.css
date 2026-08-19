@@ -11,6 +11,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  row-gap: 10px;
   gap: 10px;
   padding: 16px 18px;
   position: relative;
@@ -30,6 +32,17 @@
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
+}
+
+/* These two wrap the status pill and the connections/apps pill — no
+   styling on desktop, but on mobile (below) they're what gets pushed
+   onto their own row so the always-needed controls in .rightGroup
+   (clicks, language, settings gear) never get squeezed off past the
+   edge of the screen. */
+.statusPillWrap,
+.appsPillWrap {
+  display: flex;
+  min-width: 0;
 }
 
 /* -------------------------------- Avatar -------------------------------- */
@@ -278,6 +291,60 @@
 }
 .pillCircleBtn:active {
   transform: scale(0.93);
+}
+
+/* ============================================================================
+   MOBILE HEADER — the root cause of "the gear icon and language pill
+   sometimes don't show": .headerRow never wrapped, and the page root
+   clips overflow-x, so once the avatar+name+status pill+tools island+
+   connections pill added up to more than the screen width, everything
+   after them (language chip, settings gear) got pushed off-screen and
+   silently cut off instead of wrapping or scrolling into view.
+
+   Below this breakpoint the row is forced into a clean, predictable
+   two-line layout instead of relying on however much horizontal space
+   happens to be left:
+     Row 1: business identity  ⟷  clicks · language · settings gear
+     Row 2: status pill, tools island, connections — centered, wrapping
+            onto their own row(s) rather than ever being clipped.
+
+   Ordered BEFORE the narrower 480px block below so that block's more
+   specific overrides (smaller glassPill, tighter businessName) still
+   win at very small widths — later rules in the same cascade beat
+   earlier ones when both queries match.
+============================================================================ */
+@media (max-width: 640px) {
+  .headerRow {
+    padding: 12px 14px;
+  }
+  .leftGroup {
+    order: 1;
+    flex: 1 1 auto;
+  }
+  .rightGroup {
+    order: 2;
+    flex: 0 0 auto;
+  }
+  .statusPillWrap {
+    order: 3;
+    flex: 1 1 auto;
+  }
+  .pillOuter {
+    order: 4;
+    flex: 1 1 100%;
+    justify-content: center;
+  }
+  .appsPillWrap {
+    order: 5;
+    flex: 0 1 auto;
+    margin: 0 auto;
+  }
+  .glassPill {
+    width: min(280px, 78vw);
+  }
+  .businessName {
+    max-width: 38vw;
+  }
 }
 
 @media (max-width: 480px) {

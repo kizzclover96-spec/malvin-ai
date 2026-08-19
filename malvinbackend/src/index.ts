@@ -653,9 +653,42 @@ export const createBVinCheckoutSession = onCall(
     const stripe = getStripe();
 
     if (tools.receiveMoney) {
-      // Real order payment, straight to the business.
-      const orderAmount = Number(amount);
-      if (!orderAmount || orderAmount <= 0) throw new HttpsError("invalid-argument", "Missing order amount.");
+      // 🛠️ FIX — PAYMENT AMOUNT TAMPERING. This used to charge whatever
+      // `amount` the client passed to THIS call, while `orderId` sat
+      // there unused. That's exactly the gap Malvin's local-first spec
+      // calls out explicitly: "Do NOT trust prices or important order
+      // information stored locally... placing the actual order must
+      // contact the server... Validate: Product exists, correct price."
+      // A customer could open devtools and call this function directly
+      // with a legitimate orderId but a manipulated (lower) amount, and
+      // it would go straight to Stripe unchecked.
+      //
+      // The order doc at business/{businessId}/orders/{orderId} already
+      // has a server-stored `total` (written when the order was created,
+      // BEFORE checkout) — using THAT instead of the client's `amount`
+      // parameter means the number that gets charged is whatever's on
+      // record for this specific order, not whatever this particular
+      // call happens to claim.
+      //
+      // NOTE — this closes the "tamper with the checkout amount" gap,
+      // not the deeper "fabricate the order's total when it's first
+      // created" gap: order creation is still a direct client-side
+      // addDoc() with client-computed prices (see BVinStore.tsx), so
+      // the order.total this reads could itself have been crafted by a
+      // modified client. Fully closing that needs order creation itself
+      // to go through a callable that re-derives each line's price from
+      // business/{businessId}/products server-side — out of scope for
+      // this fix, flagged here so it isn't mistaken for already covered.
+      const orderSnap = await db.collection("business").doc(businessId).collection("orders").doc(orderId).get();
+      if (!orderSnap.exists) {
+        throw new HttpsError("not-found", "Order not found.");
+      }
+      const orderData = orderSnap.data() || {};
+      if (orderData.customerUid && orderData.customerUid !== customerUid) {
+        throw new HttpsError("permission-denied", "This order doesn't belong to you.");
+      }
+      const orderAmount = Number(orderData.total);
+      if (!orderAmount || orderAmount <= 0) throw new HttpsError("invalid-argument", "This order has no valid total.");
       const stripeAccountId = profile.stripeAccountId;
       const isMerchantReady = profile.charges_enabled || (stripeAccountId && process.env.SECURE_STRIPE_KEY?.startsWith("sk_test"));
       if (!stripeAccountId || !isMerchantReady) {
@@ -1900,18 +1933,38 @@ export const claimTeamInvite = onCall(async (request) => {
     });
   }
 
+  // 🆕 NEW — DASHBOARD ACCESS. Read from the same RTDB node
+  // WorkerPermissionsPanel.tsx writes to (users/{managerUid}/
+  // workerPermissions/{workerUid}) — dashboardAccess is a top-level
+  // sibling of the per-tool grant map, not one of the DASHBOARD_ACCESS_AREAS
+  // keys, since it answers a different question ("can this person open the
+  // Manager Dashboard at all") from tool permissions ("which tools once
+  // they're in it"). Mirrored into a custom claim the same way `teamOf` is,
+  // so Firestore/RTDB rules can enforce it server-side — the lock icon in
+  // the UI is only ever a presentation of this, never the actual boundary.
+  const rtdb = getRtdb();
+  const permSnap = await rtdb.ref(`users/${managerUid}/workerPermissions/${uid}/dashboardAccess`).get();
+  const dashboardAccess = permSnap.exists() && permSnap.val() === true;
+
   const { getAuth } = require("firebase-admin/auth");
   const authAdmin = getAuth();
   const userRecord = await authAdmin.getUser(uid);
   const existingClaims = userRecord.customClaims || {};
   const teamOf = { ...(existingClaims.teamOf || {}), [managerUid]: true };
+  const dashboardAccessOf = { ...(existingClaims.dashboardAccessOf || {}) };
+  if (dashboardAccess) {
+    dashboardAccessOf[managerUid] = true;
+  } else {
+    delete dashboardAccessOf[managerUid];
+  }
 
   await authAdmin.setCustomUserClaims(uid, {
     ...existingClaims,
     teamOf,
+    dashboardAccessOf,
   });
 
-  return { isWorker: true, managerUid };
+  return { isWorker: true, managerUid, dashboardAccess };
 });
 
 /*

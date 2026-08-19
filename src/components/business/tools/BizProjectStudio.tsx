@@ -6,7 +6,9 @@ import {
   BizToolShell, BizRow, BizEmptyState, BizFormCard, bizInputStyle, bizBtnStyle, bizBtnGhostStyle,
   bizToolTint, bizTextMuted, useBizCollection, BizActionGrid, BizActionButton,
 } from "./BizToolShared";
-import { FolderKanban, FileText, MonitorPlay, ChevronLeft, ChevronRight, Maximize2, X, Plus, Download, Trash2, Calculator, Paperclip, StickyNote, Send, GripVertical, Link2 } from "lucide-react";
+import { FolderKanban, FileText, MonitorPlay, ChevronLeft, Maximize2, Download, StickyNote, Send, GripVertical, Link2, Plus } from "lucide-react";
+import DocumentEditor from "./DocumentEditor";
+import PresentationCanvasEditor, { PresentMode, downloadDeckPdfStandalone, type Deck } from "./PresentationCanvasEditor";
 
 /* ============================================================================
    Projects = Presentation + Projects + Documents, merged.
@@ -132,20 +134,34 @@ const ProjectsView: React.FC<{ businessId: string; onBack: () => void }> = ({ bu
 
 /* ------------------------------- Documents ------------------------------- */
 
-interface Doc { id: string; title: string; note: string; url: string; folder: string; }
+interface Doc { id: string; title: string; url: string; folder: string; }
 
 const DocumentsView: React.FC<{ businessId: string; onBack: () => void }> = ({ businessId, onBack }) => {
   const { items, add, remove } = useBizCollection<Doc>(businessId, "bizDocuments");
   const [formOpen, setFormOpen] = useState(false);
   const [title, setTitle] = useState("");
-  const [note, setNote] = useState("");
   const [url, setUrl] = useState("");
   const [folder, setFolder] = useState("General");
   const [filter, setFilter] = useState("All");
+  const [openDocId, setOpenDocId] = useState<string | null>(null);
 
-  const submit = async (e: React.FormEvent) => { e.preventDefault(); if (!title.trim()) return; await add({ title, note, url, folder: folder || "General" }); setTitle(""); setNote(""); setUrl(""); setFormOpen(false); };
+  const submit = async (e: React.FormEvent) => { e.preventDefault(); if (!title.trim()) return; await add({ title, url, folder: folder || "General" }); setTitle(""); setUrl(""); setFormOpen(false); };
   const folders = ["All", ...Array.from(new Set(items.map((d) => d.folder || "General")))];
   const visible = filter === "All" ? items : items.filter((d) => (d.folder || "General") === filter);
+
+  const openDoc = items.find((d) => d.id === openDocId);
+  if (openDoc) {
+    return (
+      <DocumentEditor
+        businessId={businessId}
+        docId={openDoc.id}
+        title={openDoc.title}
+        folder={openDoc.folder}
+        url={openDoc.url}
+        onBack={() => setOpenDocId(null)}
+      />
+    );
+  }
 
   return (
     <div>
@@ -160,9 +176,8 @@ const DocumentsView: React.FC<{ businessId: string; onBack: () => void }> = ({ b
             <input placeholder="Document title" value={title} onChange={(e) => setTitle(e.target.value)} style={bizInputStyle} required />
             <div style={{ display: "flex", gap: 8 }}>
               <input placeholder="Folder (e.g. Contracts)" value={folder} onChange={(e) => setFolder(e.target.value)} style={bizInputStyle} />
-              <input placeholder="Link/URL (optional)" value={url} onChange={(e) => setUrl(e.target.value)} style={bizInputStyle} />
+              <input placeholder="Link (optional)" value={url} onChange={(e) => setUrl(e.target.value)} style={bizInputStyle} />
             </div>
-            <textarea placeholder="Notes" value={note} onChange={(e) => setNote(e.target.value)} style={{ ...bizInputStyle, height: 60, resize: "none", fontFamily: "inherit" }} />
             <button type="submit" style={bizBtnStyle}>Add Document</button>
           </BizFormCard>
         </form>
@@ -176,12 +191,12 @@ const DocumentsView: React.FC<{ businessId: string; onBack: () => void }> = ({ b
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {visible.map((d) => (
           <BizRow key={d.id} onDelete={() => remove(d.id)}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div onClick={() => setOpenDocId(d.id)} style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
               <FileText size={16} color={bizToolTint} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 700, fontSize: 13.5 }}>{d.title}</div>
-                {d.note && <div style={{ fontSize: 11.5, color: bizTextMuted }}>{d.note}</div>}
-                {d.url && <a href={d.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: bizToolTint, display: "flex", alignItems: "center", gap: 4, marginTop: 4 }}><Link2 size={11} /> Open link</a>}
+                <div style={{ fontSize: 11, fontStyle: "italic", color: bizTextMuted, marginTop: 1 }}>Tap to edit</div>
+                {d.url && <a href={d.url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} style={{ fontSize: 11, color: bizToolTint, display: "flex", alignItems: "center", gap: 4, marginTop: 4 }}><Link2 size={11} /> Open link</a>}
               </div>
             </div>
           </BizRow>
@@ -192,168 +207,6 @@ const DocumentsView: React.FC<{ businessId: string; onBack: () => void }> = ({ b
 };
 
 /* ------------------------------- Presentation / Decks ------------------------------- */
-
-interface SlideAttachment { name: string; dataUrl: string; caption: string; }
-interface Slide { id: string; heading: string; body: string; attachment?: SlideAttachment | null; }
-interface Deck { id: string; title: string; slides: Slide[]; }
-
-function downloadDeckPDF(deck: Deck) {
-  const pdf = new jsPDF({ unit: "pt", format: "a4", orientation: "landscape" });
-  const W = 842, H = 595;
-  (deck.slides || []).forEach((s, i) => {
-    if (i > 0) pdf.addPage();
-    pdf.setFontSize(28); pdf.setTextColor(15, 23, 42);
-    pdf.text(s.heading || `Slide ${i + 1}`, W / 2, 120, { align: "center" as any, maxWidth: W - 120 });
-    pdf.setFontSize(14); pdf.setTextColor(100, 116, 139);
-    pdf.text(s.body || "", W / 2, 170, { align: "center" as any, maxWidth: W - 160 });
-    if (s.attachment?.dataUrl?.startsWith("data:image")) {
-      try { pdf.addImage(s.attachment.dataUrl, "JPEG", W / 2 - 150, 210, 300, 200, undefined, "FAST"); } catch {}
-    }
-    pdf.setFontSize(9); pdf.setTextColor(160, 160, 165);
-    pdf.text(`${i + 1} / ${(deck.slides || []).length}`, W - 40, H - 24, { align: "right" as any });
-  });
-  pdf.save(`${deck.title || "deck"}.pdf`);
-}
-
-const PresentMode: React.FC<{ deck: Deck; onExit: () => void }> = ({ deck, onExit }) => {
-  const [idx, setIdx] = useState(0);
-  const slides = deck.slides || [];
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "ArrowRight") setIdx((i) => Math.min(i + 1, slides.length - 1));
-      if (e.key === "ArrowLeft") setIdx((i) => Math.max(i - 1, 0));
-      if (e.key === "Escape") onExit();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [slides.length, onExit]);
-  const s = slides[idx];
-  return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 300, background: "#0F172A", color: "#fff", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 60 }}>
-      <button onClick={onExit} style={{ position: "absolute", top: 20, right: 20, background: "rgba(255,255,255,0.12)", border: "none", borderRadius: "50%", width: 36, height: 36, color: "#fff", cursor: "pointer" }}><X size={16} /></button>
-      {s ? (
-        <div style={{ textAlign: "center", maxWidth: 800 }}>
-          <h1 style={{ fontSize: 42, fontWeight: 800, marginBottom: 24 }}>{s.heading}</h1>
-          <p style={{ fontSize: 20, opacity: 0.85, lineHeight: 1.6, whiteSpace: "pre-wrap", marginBottom: s.attachment ? 24 : 0 }}>{s.body}</p>
-          {s.attachment && (
-            <div>
-              {s.attachment.dataUrl.startsWith("data:image") ? <img src={s.attachment.dataUrl} alt={s.attachment.name} style={{ maxHeight: 320, maxWidth: "100%", borderRadius: 12 }} /> : <div style={{ padding: "14px 20px", background: "rgba(255,255,255,0.1)", borderRadius: 12, display: "inline-block" }}>📎 {s.attachment.name}</div>}
-              {s.attachment.caption && <p style={{ fontSize: 13, opacity: 0.7, marginTop: 10 }}>{s.attachment.caption}</p>}
-            </div>
-          )}
-        </div>
-      ) : <p style={{ opacity: 0.6 }}>No slides in this deck yet.</p>}
-      <div style={{ position: "absolute", bottom: 24, display: "flex", alignItems: "center", gap: 20 }}>
-        <button onClick={() => setIdx((i) => Math.max(i - 1, 0))} disabled={idx === 0} style={{ background: "none", border: "none", color: "#fff", cursor: "pointer", opacity: idx === 0 ? 0.3 : 1 }}><ChevronLeft size={26} /></button>
-        <span style={{ fontSize: 13, opacity: 0.7 }}>{slides.length ? idx + 1 : 0} / {slides.length}</span>
-        <button onClick={() => setIdx((i) => Math.min(i + 1, slides.length - 1))} disabled={idx >= slides.length - 1} style={{ background: "none", border: "none", color: "#fff", cursor: "pointer", opacity: idx >= slides.length - 1 ? 0.3 : 1 }}><ChevronRight size={26} /></button>
-      </div>
-    </div>
-  );
-};
-
-const CalculatorPad: React.FC<{ onInsert: (result: string) => void; onClose: () => void }> = ({ onInsert, onClose }) => {
-  const [expr, setExpr] = useState("");
-  const KEYS = ["7", "8", "9", "÷", "4", "5", "6", "×", "1", "2", "3", "−", "0", ".", "=", "+"];
-  const press = (k: string) => {
-    if (k === "=") {
-      try {
-        const safe = expr.replace(/×/g, "*").replace(/÷/g, "/").replace(/−/g, "-");
-        if (!/^[0-9+\-*/.() ]+$/.test(safe)) return;
-        // eslint-disable-next-line no-eval
-        setExpr(String(eval(safe)));
-      } catch { setExpr("Error"); }
-      return;
-    }
-    setExpr((e) => e + k);
-  };
-  return (
-    <div style={{ background: "#F7F9FC", border: `1px solid #DBE6FF`, borderRadius: 16, padding: 14, marginBottom: 14 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-        <span style={{ fontSize: 12, fontWeight: 700, color: bizToolTint }}>Calculator</span>
-        <button onClick={onClose} style={{ background: "none", border: "none", color: bizTextMuted, cursor: "pointer" }}><X size={14} /></button>
-      </div>
-      <input value={expr} onChange={(e) => setExpr(e.target.value)} style={{ ...bizInputStyle, marginBottom: 8, fontSize: 18, textAlign: "right" }} placeholder="0" />
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6, marginBottom: 8 }}>
-        {KEYS.map((k) => (
-          <button key={k} onClick={() => press(k)} style={{ padding: "10px 0", borderRadius: 8, border: "1px solid #DCE3ED", background: k === "=" ? bizToolTint : "#fff", color: k === "=" ? "#fff" : "#0F172A", fontWeight: 700, cursor: "pointer" }}>{k}</button>
-        ))}
-      </div>
-      <div style={{ display: "flex", gap: 6 }}>
-        <button onClick={() => setExpr("")} style={{ flex: 1, ...bizBtnGhostStyle }}>Clear</button>
-        <button onClick={() => { onInsert(expr); setExpr(""); }} style={{ flex: 1, ...bizBtnStyle }}>Insert into slide</button>
-      </div>
-    </div>
-  );
-};
-
-const DeckEditor: React.FC<{ deck: Deck; onBack: () => void; onSave: (slides: Slide[]) => void }> = ({ deck, onBack, onSave }) => {
-  const [slides, setSlides] = useState<Slide[]>(deck.slides || []);
-  const [presenting, setPresenting] = useState(false);
-  const [calcOpenFor, setCalcOpenFor] = useState<string | null>(null);
-  const [dragOverId, setDragOverId] = useState<string | null>(null);
-
-  const addSlide = () => setSlides((s) => [...s, { id: "s" + Date.now(), heading: `Slide ${s.length + 1}`, body: "" }]);
-  const updateSlide = (id: string, field: "heading" | "body", val: string) => setSlides((s) => s.map((sl) => (sl.id === id ? { ...sl, [field]: val } : sl)));
-  const removeSlide = (id: string) => setSlides((s) => s.filter((sl) => sl.id !== id));
-  const removeAttachment = (id: string) => setSlides((s) => s.map((sl) => (sl.id === id ? { ...sl, attachment: null } : sl)));
-  const updateCaption = (id: string, caption: string) => setSlides((s) => s.map((sl) => (sl.id === id && sl.attachment ? { ...sl, attachment: { ...sl.attachment, caption } } : sl)));
-  const insertResult = (id: string, result: string) => { if (!result || result === "Error") return; setSlides((s) => s.map((sl) => (sl.id === id ? { ...sl, body: sl.body ? `${sl.body}\n= ${result}` : `= ${result}` } : sl))); setCalcOpenFor(null); };
-  const handleFileDrop = (id: string) => (e: React.DragEvent) => {
-    e.preventDefault(); setDragOverId(null);
-    const file = e.dataTransfer.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => { const dataUrl = ev.target?.result as string; setSlides((s) => s.map((sl) => (sl.id === id ? { ...sl, attachment: { name: file.name, dataUrl, caption: "" } } : sl))); };
-    reader.readAsDataURL(file);
-  };
-
-  if (presenting) return <PresentMode deck={{ ...deck, slides }} onExit={() => setPresenting(false)} />;
-
-  return (
-    <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-        <button onClick={onBack} style={{ display: "flex", alignItems: "center", gap: 4, background: "none", border: "none", color: bizToolTint, cursor: "pointer", fontSize: 13, padding: 0 }}><ChevronLeft size={14} /> All decks</button>
-        <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={() => downloadDeckPDF({ ...deck, slides })} style={bizBtnGhostStyle}><Download size={13} /></button>
-          <button onClick={() => setPresenting(true)} style={{ ...bizBtnStyle, display: "flex", alignItems: "center", gap: 6 }}><Maximize2 size={13} /> Project</button>
-          <button onClick={() => onSave(slides)} style={bizBtnGhostStyle}>Save</button>
-        </div>
-      </div>
-      <h3 style={{ margin: "0 0 14px" }}>{deck.title}</h3>
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {slides.map((s, i) => (
-          <div key={s.id} onDragOver={(e) => { e.preventDefault(); setDragOverId(s.id); }} onDragLeave={() => setDragOverId(null)} onDrop={handleFileDrop(s.id)}
-            style={{ background: "#fff", border: dragOverId === s.id ? `1.5px dashed ${bizToolTint}` : "1px solid #E7ECF3", borderRadius: 14, padding: 14 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-              <span style={{ fontSize: 11, color: bizTextMuted }}>Slide {i + 1}</span>
-              <div style={{ display: "flex", gap: 12 }}>
-                <button onClick={() => setCalcOpenFor(calcOpenFor === s.id ? null : s.id)} title="Insert calculation" style={{ background: "none", border: "none", color: bizToolTint, cursor: "pointer", display: "flex", alignItems: "center", gap: 4, fontSize: 11 }}><Calculator size={12} /> Calc</button>
-                <button onClick={() => removeSlide(s.id)} style={{ background: "none", border: "none", color: bizTextMuted, cursor: "pointer", fontSize: 11 }}>Remove</button>
-              </div>
-            </div>
-            {calcOpenFor === s.id && <CalculatorPad onInsert={(r) => insertResult(s.id, r)} onClose={() => setCalcOpenFor(null)} />}
-            <input value={s.heading} onChange={(e) => updateSlide(s.id, "heading", e.target.value)} placeholder="Heading" style={{ ...bizInputStyle, fontWeight: 700, marginBottom: 8 }} />
-            <textarea value={s.body} onChange={(e) => updateSlide(s.id, "body", e.target.value)} placeholder="Body text" style={{ ...bizInputStyle, height: 70, resize: "none", fontFamily: "inherit" }} />
-            {s.attachment ? (
-              <div style={{ marginTop: 10, display: "flex", gap: 10, alignItems: "center", background: "#EFF4FF", border: `1px solid #DBE6FF`, borderRadius: 10, padding: 10 }}>
-                {s.attachment.dataUrl.startsWith("data:image") ? <img src={s.attachment.dataUrl} alt="" style={{ width: 46, height: 46, objectFit: "cover", borderRadius: 8 }} /> : <div style={{ width: 46, height: 46, borderRadius: 8, background: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}><Paperclip size={16} color={bizToolTint} /></div>}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 11.5, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.attachment.name}</div>
-                  <input value={s.attachment.caption} onChange={(e) => updateCaption(s.id, e.target.value)} placeholder="Add a caption..." style={{ ...bizInputStyle, padding: "6px 8px", fontSize: 11, marginTop: 4 }} />
-                </div>
-                <button onClick={() => removeAttachment(s.id)} style={{ background: "none", border: "none", color: bizTextMuted, cursor: "pointer" }}><Trash2 size={14} /></button>
-              </div>
-            ) : (
-              <div style={{ marginTop: 10, fontSize: 10.5, color: bizTextMuted, textAlign: "center", padding: "8px 0", border: "1px dashed #DCE3ED", borderRadius: 8 }}>Drag a file here to attach it to this slide</div>
-            )}
-          </div>
-        ))}
-      </div>
-      <button onClick={addSlide} style={{ marginTop: 12, ...bizBtnGhostStyle, display: "flex", alignItems: "center", gap: 6 }}><Plus size={14} /> Add Slide</button>
-    </div>
-  );
-};
 
 const NotesPanel: React.FC<{ businessId: string; connectedApps: { name: string; url: string }[] }> = ({ businessId, connectedApps }) => {
   const [text, setText] = useState("");
@@ -392,19 +245,19 @@ const NotesPanel: React.FC<{ businessId: string; connectedApps: { name: string; 
 };
 
 const DecksView: React.FC<{ businessId: string; onBack: () => void; connectedApps: { name: string; url: string }[] }> = ({ businessId, onBack, connectedApps }) => {
-  const { items, add, update, remove } = useBizCollection<Deck>(businessId, "bizPresentation");
+  const { items, add, remove } = useBizCollection<Deck>(businessId, "bizPresentation");
   const [formOpen, setFormOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
   const [showNotes, setShowNotes] = useState(false);
   const [presentingId, setPresentingId] = useState<string | null>(null);
 
-  const submit = async (e: React.FormEvent) => { e.preventDefault(); if (!title.trim()) return; await add({ title, slides: [{ id: "s1", heading: title, body: "" }] }); setTitle(""); setFormOpen(false); };
+  const submit = async (e: React.FormEvent) => { e.preventDefault(); if (!title.trim()) return; await add({ title, slides: [] }); setTitle(""); setFormOpen(false); };
   const openDeck = items.find((d) => d.id === openId);
   const presentingDeck = items.find((d) => d.id === presentingId);
 
   if (presentingDeck) return <PresentMode deck={presentingDeck} onExit={() => setPresentingId(null)} />;
-  if (openDeck) return <DeckEditor deck={openDeck} onBack={() => setOpenId(null)} onSave={(slides) => update(openDeck.id, { slides })} />;
+  if (openDeck) return <PresentationCanvasEditor businessId={businessId} deckId={openDeck.id} title={openDeck.title} onBack={() => setOpenId(null)} />;
 
   return (
     <div>
@@ -438,7 +291,7 @@ const DecksView: React.FC<{ businessId: string; onBack: () => void; connectedApp
                   making anyone open the editor just to export or cast a
                   deck they already finished. */}
               <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                <button onClick={() => downloadDeckPDF(d)} title="Download PDF" style={{ background: "#EFF4FF", border: "1px solid #DBE6FF", color: bizToolTint, borderRadius: 8, width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><Download size={14} /></button>
+                <button onClick={() => downloadDeckPdfStandalone(d)} title="Download PDF" style={{ background: "#EFF4FF", border: "1px solid #DBE6FF", color: bizToolTint, borderRadius: 8, width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><Download size={14} /></button>
                 <button onClick={() => setPresentingId(d.id)} title="Project" style={{ background: bizToolTint, border: "none", color: "#fff", borderRadius: 8, width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><Maximize2 size={14} /></button>
               </div>
             </div>
