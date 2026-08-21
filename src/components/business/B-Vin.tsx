@@ -1004,12 +1004,27 @@ const BVin: React.FC<BVinProps> = ({ businessId, businessName = "My Business", l
               )}
               <AnimatePresence>
                 {bentoToolDefs.filter((t) => t.key !== "customerNotice" && t.key !== "vinbackTags").map((t, idx) => {
-                  // Every tool now has its own grantable area (see
-                  // workerPermissions.ts — DASHBOARD_ACCESS_AREAS is
-                  // derived directly from the TOOLS catalog), so this is
-                  // just t.key itself rather than a hand-maintained
-                  // mapping table to a handful of broad buckets.
-                  const allowed = canAccessArea(t.key as AccessAreaId);
+                  // Maps a bento tool to the DASHBOARD_ACCESS_AREAS key that
+                  // governs it, for worker viewers. Tools with no obvious
+                  // mapping (customer-notice-adjacent, opening status, etc.)
+                  // are left ungated — locking every single tile individually
+                  // would need a permission area per feature, which the
+                  // spec's ten areas don't attempt to be.
+                  const areaForTool: Record<string, AccessAreaId> = {
+                    receiveMoney: "finances",
+                    bizInvoices: "invoices",
+                    bizExpenses: "invoices",
+                    productStore: "inventory",
+                    environment: "inventory",
+                    specialOffers: "marketing",
+                    bizWorkspace: "tools",
+                    bizProjects: "tools",
+                    bizRecords: "tools",
+                    bizPolls: "tools",
+                    bizAiAssistant: "tools",
+                  };
+                  const area = areaForTool[t.key];
+                  const allowed = !area || canAccessArea(area);
 
                   return (
                   <LockedSection key={t.key} allowed={allowed} label={`You don't have access to this feature.`}>

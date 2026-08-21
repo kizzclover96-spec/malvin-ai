@@ -1,35 +1,30 @@
-
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState } from 'react';
 import {
   motion,
   AnimatePresence,
-  useMotionValue,
-  useSpring,
-  useTransform,
-  useScroll,
 } from 'framer-motion';
 import {
-  MessageCircle,
-  ShoppingBag,
-  UserPlus,
-  Star,
-  CreditCard,
   ArrowRight,
-  Layers,
-  Radio,
-  Zap,
-  Activity,
   Sparkles,
+  Layers,
   Globe2,
-  Bell,
+  Zap,
+  Shield,
+  Cpu,
+  Users,
+  Building2,
+  ExternalLink,
 } from 'lucide-react';
-import Explore from './Explore';
-import About from './About';
 import { Link } from 'react-router-dom';
 
-interface LandingPageProps {
-  onLoginClick: () => void;
-}
+import Explore from './Explore';
+import About from './About';
+
+/* ============================================================================
+   TYPES
+============================================================================ */
+
+interface LandingPageProps {}
 
 /* ============================================================================
    DESIGN TOKENS
@@ -37,1092 +32,51 @@ interface LandingPageProps {
 
 const T = {
   paper: '#FFFFFF',
-  surface: '#F5F9FF',
+  surface: '#F5F8FC',
+  surfaceDark: '#07152F',
+
   ink: '#0B1220',
-  inkSoft: 'rgba(11,18,32,0.6)',
-  inkFaint: 'rgba(11,18,32,0.4)',
+  inkSoft: 'rgba(11,18,32,0.62)',
+  inkFaint: 'rgba(11,18,32,0.42)',
+
   blue: '#2F6FE0',
   blueDeep: '#071E4D',
   cyan: '#4FD1FF',
+
   line: 'rgba(11,18,32,0.08)',
+  lineDark: 'rgba(255,255,255,0.10)',
 };
 
 /* ============================================================================
-   QR
+   SCROLL REVEAL
 ============================================================================ */
 
-const QR_ROWS = 11;
-const QR_COLS = 11;
-
-const QR_PATTERN: number[][] = [
-  [1,1,1,1,1,1,1,0,1,1,1],
-  [1,0,0,0,0,0,1,0,0,1,0],
-  [1,0,1,1,1,0,1,0,1,0,1],
-  [1,0,1,1,1,0,1,0,1,1,0],
-  [1,0,1,1,1,0,1,0,0,0,1],
-  [1,0,0,0,0,0,1,0,1,1,0],
-  [1,1,1,1,1,1,1,0,0,1,1],
-  [0,0,0,1,0,0,0,0,1,0,0],
-  [1,1,0,0,1,1,0,1,0,1,1],
-  [0,0,1,1,0,1,1,0,1,0,0],
-  [1,0,1,0,1,0,0,1,1,0,1],
-];
-
-const ICON_CELLS: Record<
-  string,
-  { Icon: any; tint: string; label: string }
-> = {
-  '3,3': { Icon: MessageCircle, tint: '#2F6FE0', label: 'Chat' },
-  '4,10': { Icon: ShoppingBag, tint: '#4FD1FF', label: 'Orders' },
-  '8,1': { Icon: UserPlus, tint: '#2F6FE0', label: 'Staff' },
-  '9,3': { Icon: Star, tint: '#4FD1FF', label: 'Reviews' },
-  '10,7': { Icon: CreditCard, tint: '#2F6FE0', label: 'Payments' },
-};
-
-/* ============================================================================
-   MAGNETIC BUTTON
-============================================================================ */
-
-const MagneticButton: React.FC<{
-  onClick: () => void;
-  className: string;
-  style?: React.CSSProperties;
+const ScrollReveal: React.FC<{
   children: React.ReactNode;
-}> = ({ onClick, className, style, children }) => {
-  const ref = useRef<HTMLButtonElement>(null);
-
-  const x = useSpring(0, { stiffness: 200, damping: 14 });
-  const y = useSpring(0, { stiffness: 200, damping: 14 });
-
-  const handleMove = (e: React.MouseEvent<HTMLButtonElement>) => {
-    const rect = ref.current?.getBoundingClientRect();
-    if (!rect) return;
-
-    x.set((e.clientX - rect.left - rect.width / 2) * 0.35);
-    y.set((e.clientY - rect.top - rect.height / 2) * 0.35);
-  };
-
-  const handleLeave = () => {
-    x.set(0);
-    y.set(0);
-  };
-
-  return (
-    <motion.button
-      ref={ref}
-      onClick={onClick}
-      onMouseMove={handleMove}
-      onMouseLeave={handleLeave}
-      className={className}
-      style={{ ...style, x, y }}
-    >
-      {children}
-    </motion.button>
-  );
-};
-
-/* ============================================================================
-   WORD REVEAL
-============================================================================ */
-
-const WordReveal: React.FC<{
-  text: string;
   delay?: number;
-  style?: React.CSSProperties;
-}> = ({ text, delay = 0, style }) => {
-  const words = text.split(' ');
-
-  return (
-    <span style={style}>
-      {words.map((w, i) => (
-        <motion.span
-          key={i}
-          initial={{
-            opacity: 0,
-            y: 18,
-            filter: 'blur(6px)',
-          }}
-          animate={{
-            opacity: 1,
-            y: 0,
-            filter: 'blur(0px)',
-          }}
-          transition={{
-            delay: delay + i * 0.055,
-            duration: 0.5,
-            ease: 'easeOut',
-          }}
-          style={{
-            display: 'inline-block',
-            marginRight: '0.28em',
-          }}
-        >
-          {w}
-        </motion.span>
-      ))}
-    </span>
-  );
-};
-
-/* ============================================================================
-   NETWORK DATA
-============================================================================ */
-
-const NETWORK_NODES = [
-  {
-    Icon: MessageCircle,
-    label: 'Chat',
-    desc: 'Every message, one thread.',
-    tint: T.blue,
-    angle: -90,
-  },
-  {
-    Icon: ShoppingBag,
-    label: 'Orders',
-    desc: 'Catalogue and checkout.',
-    tint: T.cyan,
-    angle: -18,
-  },
-  {
-    Icon: UserPlus,
-    label: 'Staff',
-    desc: 'Requests reach your team.',
-    tint: T.blue,
-    angle: 54,
-  },
-  {
-    Icon: Star,
-    label: 'Reviews',
-    desc: 'Feedback after every visit.',
-    tint: T.cyan,
-    angle: 126,
-  },
-  {
-    Icon: CreditCard,
-    label: 'Payments',
-    desc: 'Pay where you scanned.',
-    tint: T.blue,
-    angle: 198,
-  },
-];
-
-const NET_SIZE = 680;
-const NET_CENTER = NET_SIZE / 2;
-const NET_RADIUS = 245;
-
-const nodePoint = (angleDeg: number) => {
-  const rad = (angleDeg * Math.PI) / 180;
-
-  return {
-    x: NET_CENTER + NET_RADIUS * Math.cos(rad),
-    y: NET_CENTER + NET_RADIUS * Math.sin(rad),
-  };
-};
-
-/* ============================================================================
-   FLOWING NETWORK PARTICLE
-============================================================================ */
-
-const NetworkParticle: React.FC<{
-  x1: number;
-  y1: number;
-  x2: number;
-  y2: number;
-  delay: number;
-  color: string;
-}> = ({ x1, y1, x2, y2, delay, color }) => {
-  return (
-    <motion.circle
-      r="3"
-      fill={color}
-      filter="url(#networkGlow)"
-      initial={{
-        cx: x1,
-        cy: y1,
-        opacity: 0,
-      }}
-      animate={{
-        cx: [x1, x2],
-        cy: [y1, y2],
-        opacity: [0, 1, 1, 0],
-      }}
-      transition={{
-        duration: 2.6,
-        delay,
-        repeat: Infinity,
-        ease: 'linear',
-      }}
-    />
-  );
-};
-
-/* ============================================================================
-   NETWORK LINE
-============================================================================ */
-
-const NetworkLine: React.FC<{
-  scrollYProgress: any;
-  x1: number;
-  y1: number;
-  x2: number;
-  y2: number;
-  range: [number, number];
-  color: string;
-  thin?: boolean;
-  particles?: boolean;
-  particleCount?: number;
-}> = ({
-  scrollYProgress,
-  x1,
-  y1,
-  x2,
-  y2,
-  range,
-  color,
-  thin,
-  particles = false,
-  particleCount = 2,
-}) => {
-  const pathLength = useTransform(
-    scrollYProgress,
-    range,
-    [0, 1]
-  );
-
-  const opacity = useTransform(
-    scrollYProgress,
-    [range[0], range[0] + 0.025],
-    [0, 1]
-  );
-
-  return (
-    <>
-      <motion.line
-        x1={x1}
-        y1={y1}
-        x2={x2}
-        y2={y2}
-        stroke={color}
-        strokeWidth={thin ? 0.8 : 1.5}
-        strokeLinecap="round"
-        strokeDasharray={thin ? undefined : '6 8'}
-        style={{
-          pathLength,
-          opacity,
-        }}
-      />
-
-      {particles &&
-        Array.from({ length: particleCount }).map((_, i) => (
-          <NetworkParticle
-            key={i}
-            x1={x1}
-            y1={y1}
-            x2={x2}
-            y2={y2}
-            delay={i * 1.15}
-            color={color}
-          />
-        ))}
-    </>
-  );
-};
-
-/* ============================================================================
-   NETWORK NODE
-============================================================================ */
-
-const NetworkNode: React.FC<{
-  scrollYProgress: any;
-  Icon: any;
-  label: string;
-  desc: string;
-  tint: string;
-  x: number;
-  y: number;
-  appearAt: number;
-}> = ({
-  scrollYProgress,
-  Icon,
-  label,
-  desc,
-  tint,
-  x,
-  y,
-  appearAt,
-}) => {
-  const scale = useTransform(
-    scrollYProgress,
-    [appearAt, appearAt + 0.055],
-    [0.35, 1]
-  );
-
-  const opacity = useTransform(
-    scrollYProgress,
-    [appearAt, appearAt + 0.055],
-    [0, 1]
-  );
-
-  const yMotion = useTransform(
-    scrollYProgress,
-    [appearAt, appearAt + 0.055],
-    [15, 0]
-  );
-
-  return (
-    <div
-      style={{
-        position: 'absolute',
-        left: x,
-        top: y,
-        transform: 'translate(-50%,-50%)',
-        width: 155,
-      }}
-    >
-      <motion.div
-        className="lp-decode-icon"
-        style={{
-          scale,
-          opacity,
-          y: yMotion,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: 8,
-        }}
-      >
-        <motion.div
-          animate={{
-            boxShadow: [
-              `0 0 0 0 ${tint}00`,
-              `0 0 0 9px ${tint}12`,
-              `0 0 0 0 ${tint}00`,
-            ],
-          }}
-          transition={{
-            duration: 2.8,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          }}
-          style={{
-            width: 58,
-            height: 58,
-            borderRadius: 17,
-            background: `${tint}13`,
-            border: `1px solid ${tint}90`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backdropFilter: 'blur(10px)',
-          }}
-        >
-          <Icon size={23} color={tint} />
-        </motion.div>
-
-        <span
-          className="lp-display"
-          style={{
-            color: '#fff',
-            fontWeight: 700,
-            fontSize: '0.92rem',
-          }}
-        >
-          {label}
-        </span>
-
-        <span
-          style={{
-            color: 'rgba(255,255,255,0.48)',
-            fontSize: '0.7rem',
-            textAlign: 'center',
-            lineHeight: 1.4,
-            maxWidth: 135,
-          }}
-        >
-          {desc}
-        </span>
-      </motion.div>
-    </div>
-  );
-};
-
-/* ============================================================================
-   NETWORK FLOATING LABEL
-============================================================================ */
-
-const NetworkBadge: React.FC<{
-  icon: any;
-  label: string;
-  x: string;
-  y: string;
-  delay: number;
-}> = ({ icon: Icon, label, x, y, delay }) => {
+}> = ({ children, delay = 0 }) => {
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.8 }}
-      animate={{
-        opacity: [0.3, 0.7, 0.3],
-        y: [-5, 5, -5],
+      initial={{
+        opacity: 0,
+        y: 28,
+      }}
+      whileInView={{
+        opacity: 1,
+        y: 0,
+      }}
+      viewport={{
+        once: true,
+        margin: '-70px',
       }}
       transition={{
-        duration: 4,
+        duration: 0.65,
         delay,
-        repeat: Infinity,
-        ease: 'easeInOut',
-      }}
-      style={{
-        position: 'absolute',
-        left: x,
-        top: y,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 7,
-        padding: '7px 10px',
-        borderRadius: 999,
-        background: 'rgba(255,255,255,0.035)',
-        border: '1px solid rgba(255,255,255,0.08)',
-        color: 'rgba(255,255,255,0.45)',
-        fontSize: '0.65rem',
-        letterSpacing: '0.6px',
-        backdropFilter: 'blur(8px)',
-        pointerEvents: 'none',
+        ease: 'easeOut',
       }}
     >
-      <Icon size={12} />
-      {label}
+      {children}
     </motion.div>
-  );
-};
-
-/* ============================================================================
-   DECODE / NETWORK SECTION
-============================================================================ */
-
-const DecodeSection: React.FC = () => {
-  const ref = useRef<HTMLDivElement>(null);
-
-  const {
-    scrollYProgress,
-  } = useScroll({
-    target: ref,
-    offset: ['start start', 'end end'],
-  });
-
-  const titleOpacity = useTransform(
-    scrollYProgress,
-    [0, 0.08],
-    [1, 0]
-  );
-
-  const sceneOpacity = useTransform(
-    scrollYProgress,
-    [0, 0.06],
-    [0.35, 1]
-  );
-
-  const sceneScale = useTransform(
-    scrollYProgress,
-    [0, 0.25, 0.8],
-    [0.82, 1, 1]
-  );
-
-  const captionOpacity = useTransform(
-    scrollYProgress,
-    [0.72, 0.86],
-    [0, 1]
-  );
-
-  const nodePoints = useMemo(
-    () => NETWORK_NODES.map(n => nodePoint(n.angle)),
-    []
-  );
-
-  return (
-    <section
-      ref={ref}
-      className="lp-network-section"
-      style={{
-        position: 'relative',
-        height: '155vh',
-        background: `
-          radial-gradient(
-            circle at 50% 45%,
-            rgba(47,111,224,0.20),
-            transparent 38%
-          ),
-          linear-gradient(
-            180deg,
-            #07152F 0%,
-            #06162F 48%,
-            #071E42 100%
-          )
-        `,
-        overflow: 'hidden',
-      }}
-    >
-      {/* Ambient grid */}
-
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          opacity: 0.34,
-          backgroundImage: `
-            linear-gradient(
-              rgba(255,255,255,0.035) 1px,
-              transparent 1px
-            ),
-            linear-gradient(
-              90deg,
-              rgba(255,255,255,0.035) 1px,
-              transparent 1px
-            )
-          `,
-          backgroundSize: '48px 48px',
-          maskImage:
-            'radial-gradient(ellipse 75% 70% at 50% 50%, black, transparent 95%)',
-        }}
-      />
-
-      {/* Tiny star/data field */}
-
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          backgroundImage:
-            'radial-gradient(rgba(79,209,255,0.35) 1px, transparent 1px)',
-          backgroundSize: '92px 92px',
-          opacity: 0.18,
-        }}
-      />
-
-      {/* Large atmospheric glow */}
-
-      <motion.div
-        animate={{
-          scale: [1, 1.12, 1],
-          opacity: [0.28, 0.42, 0.28],
-        }}
-        transition={{
-          duration: 8,
-          repeat: Infinity,
-          ease: 'easeInOut',
-        }}
-        style={{
-          position: 'absolute',
-          width: 700,
-          height: 700,
-          left: '50%',
-          top: '50%',
-          transform: 'translate(-50%,-50%)',
-          borderRadius: '50%',
-          background:
-            'radial-gradient(circle, rgba(47,111,224,0.35), transparent 68%)',
-          filter: 'blur(50px)',
-        }}
-      />
-
-      {/* Header */}
-
-      <motion.div
-        style={{
-          opacity: titleOpacity,
-          position: 'absolute',
-          top: '8%',
-          left: 0,
-          right: 0,
-          textAlign: 'center',
-          zIndex: 10,
-          padding: '0 24px',
-        }}
-      >
-        <span
-          className="lp-mono"
-          style={{
-            color: T.cyan,
-            fontSize: '0.68rem',
-            letterSpacing: '2.5px',
-          }}
-        >
-          SCROLL TO CONNECT
-        </span>
-
-        <h2
-          className="lp-display"
-          style={{
-            color: '#fff',
-            fontSize: 'clamp(1.8rem, 4vw, 3rem)',
-            fontWeight: 700,
-            marginTop: 10,
-            letterSpacing: '-1.5px',
-            marginBottom: 8,
-          }}
-        >
-          One code. A whole network.
-        </h2>
-
-        <p
-          style={{
-            color: 'rgba(255,255,255,0.42)',
-            fontSize: '0.85rem',
-            margin: 0,
-          }}
-        >
-          Every interaction becomes part of the same system.
-        </p>
-      </motion.div>
-
-      {/* Network scene */}
-
-      <div
-        className="lp-network-scene"
-        style={{
-          perspective: 1400,
-          width: NET_SIZE,
-          height: NET_SIZE,
-          position: 'absolute',
-          left: '50%',
-          top: '50%',
-          transform: 'translate(-50%, -50%)',
-        }}
-      >
-        <motion.div
-          style={{
-            opacity: sceneOpacity,
-            scale: sceneScale,
-            transformStyle: 'preserve-3d',
-            width: '100%',
-            height: '100%',
-            position: 'relative',
-          }}
-        >
-          <svg
-            width={NET_SIZE}
-            height={NET_SIZE}
-            viewBox={`0 0 ${NET_SIZE} ${NET_SIZE}`}
-            style={{
-              position: 'absolute',
-              inset: 0,
-              overflow: 'visible',
-            }}
-          >
-            <defs>
-              <filter
-                id="networkGlow"
-                x="-200%"
-                y="-200%"
-                width="400%"
-                height="400%"
-              >
-                <feGaussianBlur
-                  stdDeviation="3"
-                  result="blur"
-                />
-                <feMerge>
-                  <feMergeNode in="blur" />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
-              </filter>
-
-              <radialGradient id="hubGlow">
-                <stop
-                  offset="0%"
-                  stopColor="#4FD1FF"
-                  stopOpacity="0.8"
-                />
-                <stop
-                  offset="100%"
-                  stopColor="#4FD1FF"
-                  stopOpacity="0"
-                />
-              </radialGradient>
-            </defs>
-
-            {/* Main hub-to-node network */}
-
-            {NETWORK_NODES.map((n, i) => {
-              const p = nodePoints[i];
-
-              return (
-                <NetworkLine
-                  key={`spoke-${n.label}`}
-                  scrollYProgress={scrollYProgress}
-                  x1={NET_CENTER}
-                  y1={NET_CENTER}
-                  x2={p.x}
-                  y2={p.y}
-                  range={[0.04 + i * 0.075, 0.22 + i * 0.075]}
-                  color={n.tint}
-                  particles
-                  particleCount={2}
-                />
-              );
-            })}
-
-            {/* Outer network ring */}
-
-            {NETWORK_NODES.map((n, i) => {
-              const next =
-                NETWORK_NODES[(i + 1) % NETWORK_NODES.length];
-
-              const p1 = nodePoints[i];
-              const p2 =
-                nodePoints[(i + 1) % NETWORK_NODES.length];
-
-              return (
-                <NetworkLine
-                  key={`ring-${n.label}`}
-                  scrollYProgress={scrollYProgress}
-                  x1={p1.x}
-                  y1={p1.y}
-                  x2={p2.x}
-                  y2={p2.y}
-                  range={[0.28 + i * 0.055, 0.38 + i * 0.055]}
-                  color="rgba(79,209,255,0.30)"
-                  thin
-                  particles
-                  particleCount={1}
-                />
-              );
-            })}
-
-            {/* Cross connections — makes it feel like a real network */}
-
-            <NetworkLine
-              scrollYProgress={scrollYProgress}
-              x1={nodePoints[0].x}
-              y1={nodePoints[0].y}
-              x2={nodePoints[2].x}
-              y2={nodePoints[2].y}
-              range={[0.52, 0.65]}
-              color="rgba(255,255,255,0.12)"
-              thin
-              particles
-              particleCount={1}
-            />
-
-            <NetworkLine
-              scrollYProgress={scrollYProgress}
-              x1={nodePoints[1].x}
-              y1={nodePoints[1].y}
-              x2={nodePoints[3].x}
-              y2={nodePoints[3].y}
-              range={[0.57, 0.7]}
-              color="rgba(255,255,255,0.12)"
-              thin
-              particles
-              particleCount={1}
-            />
-
-            <NetworkLine
-              scrollYProgress={scrollYProgress}
-              x1={nodePoints[2].x}
-              y1={nodePoints[2].y}
-              x2={nodePoints[4].x}
-              y2={nodePoints[4].y}
-              range={[0.62, 0.75]}
-              color="rgba(255,255,255,0.12)"
-              thin
-              particles
-              particleCount={1}
-            />
-
-            {/* Hub glow */}
-
-            <circle
-              cx={NET_CENTER}
-              cy={NET_CENTER}
-              r="100"
-              fill="url(#hubGlow)"
-              opacity="0.22"
-            />
-          </svg>
-
-          {/* Floating system badges */}
-
-          <NetworkBadge
-            icon={Activity}
-            label="LIVE SYNC"
-            x="8%"
-            y="26%"
-            delay={0}
-          />
-
-          <NetworkBadge
-            icon={Globe2}
-            label="CONNECTED"
-            x="73%"
-            y="23%"
-            delay={1}
-          />
-
-          <NetworkBadge
-            icon={Bell}
-            label="REAL-TIME"
-            x="78%"
-            y="70%"
-            delay={2}
-          />
-
-          <NetworkBadge
-            icon={Sparkles}
-            label="MALVIN NETWORK"
-            x="8%"
-            y="72%"
-            delay={3}
-          />
-
-          {/* Central QR */}
-
-          <div
-            style={{
-              position: 'absolute',
-              left: NET_CENTER,
-              top: NET_CENTER,
-              transform: 'translate(-50%,-50%)',
-              width: 104,
-              height: 104,
-              zIndex: 5,
-            }}
-          >
-            <motion.div
-              animate={{
-                rotateY: [-12, 12, -12],
-              }}
-              transition={{
-                duration: 7,
-                repeat: Infinity,
-                ease: 'easeInOut',
-              }}
-              style={{
-                width: '100%',
-                height: '100%',
-                transformStyle: 'preserve-3d',
-              }}
-            >
-              {/* Outer energy rings */}
-
-              <motion.div
-                animate={{
-                  scale: [0.9, 1.25, 0.9],
-                  opacity: [0.4, 0, 0.4],
-                }}
-                transition={{
-                  duration: 2.8,
-                  repeat: Infinity,
-                  ease: 'easeOut',
-                }}
-                style={{
-                  position: 'absolute',
-                  inset: -30,
-                  borderRadius: '50%',
-                  border: `1px solid ${T.cyan}70`,
-                }}
-              />
-
-              <motion.div
-                animate={{
-                  scale: [0.9, 1.18, 0.9],
-                  opacity: [0.45, 0, 0.45],
-                }}
-                transition={{
-                  duration: 2.8,
-                  repeat: Infinity,
-                  delay: 1,
-                  ease: 'easeOut',
-                }}
-                style={{
-                  position: 'absolute',
-                  inset: -17,
-                  borderRadius: '50%',
-                  border: `1px solid ${T.blue}60`,
-                }}
-              />
-
-              {/* QR glow */}
-
-              <div
-                style={{
-                  position: 'absolute',
-                  inset: -40,
-                  background:
-                    'radial-gradient(circle, rgba(79,209,255,0.42), transparent 70%)',
-                  filter: 'blur(25px)',
-                }}
-              />
-
-              {/* QR */}
-
-              <div
-                style={{
-                  position: 'relative',
-                  width: '100%',
-                  height: '100%',
-                  borderRadius: 26,
-                  background:
-                    'linear-gradient(135deg, #2F6FE0, #4FD1FF)',
-                  boxShadow:
-                    '0 25px 70px rgba(47,111,224,0.55)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  border: '1px solid rgba(255,255,255,0.35)',
-                }}
-              >
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns:
-                      'repeat(4,1fr)',
-                    gap: 3,
-                    width: 48,
-                    height: 48,
-                  }}
-                >
-                  {[
-                    1,1,0,1,
-                    1,0,1,1,
-                    0,1,1,1,
-                    1,0,1,0,
-                  ].map((v, i) => (
-                    <div
-                      key={i}
-                      style={{
-                        background: v ? '#fff' : 'transparent',
-                        borderRadius: 1,
-                      }}
-                    />
-                  ))}
-                </div>
-              </div>
-            </motion.div>
-          </div>
-
-          {/* Feature nodes */}
-
-          {NETWORK_NODES.map((n, i) => {
-            const p = nodePoints[i];
-
-            return (
-              <NetworkNode
-                key={n.label}
-                {...n}
-                x={p.x}
-                y={p.y}
-                scrollYProgress={scrollYProgress}
-                appearAt={0.17 + i * 0.075}
-              />
-            );
-          })}
-        </motion.div>
-      </div>
-
-      {/* Bottom caption */}
-
-      <motion.div
-        style={{
-          opacity: captionOpacity,
-          position: 'absolute',
-          bottom: 45,
-          left: 0,
-          right: 0,
-          textAlign: 'center',
-          zIndex: 20,
-        }}
-      >
-        <div
-          className="lp-mono"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 8,
-            color: 'rgba(255,255,255,0.42)',
-            fontSize: '0.68rem',
-            letterSpacing: '1.8px',
-          }}
-        >
-          <span
-            style={{
-              width: 5,
-              height: 5,
-              borderRadius: '50%',
-              background: T.cyan,
-              boxShadow: `0 0 10px ${T.cyan}`,
-            }}
-          />
-          NETWORK ACTIVE
-        </div>
-      </motion.div>
-    </section>
-  );
-};
-
-/* ============================================================================
-   VIEWFINDER
-============================================================================ */
-
-const ViewfinderCorners: React.FC<{
-  color?: string;
-  size?: number;
-  inset?: number;
-}> = ({
-  color = T.blue,
-  size = 22,
-  inset = -10,
-}) => {
-  const corner = (
-    rotate: number,
-    top?: number,
-    bottom?: number,
-    left?: number,
-    right?: number
-  ) => (
-    <div
-      style={{
-        position: 'absolute',
-        top,
-        bottom,
-        left,
-        right,
-        width: size,
-        height: size,
-        transform: `rotate(${rotate}deg)`,
-      }}
-    >
-      <div
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          width: size,
-          height: 3,
-          background: color,
-          borderRadius: 2,
-        }}
-      />
-
-      <div
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          width: 3,
-          height: size,
-          background: color,
-          borderRadius: 2,
-        }}
-      />
-    </div>
-  );
-
-  return (
-    <>
-      {corner(0, inset, undefined, inset, undefined)}
-      {corner(90, inset, undefined, undefined, inset)}
-      {corner(-90, undefined, inset, inset, undefined)}
-      {corner(180, undefined, inset, undefined, inset)}
-    </>
   );
 };
 
@@ -1130,338 +84,290 @@ const ViewfinderCorners: React.FC<{
    LANDING PAGE
 ============================================================================ */
 
-const LandingPage: React.FC<LandingPageProps> = ({
-  onLoginClick,
-}) => {
-  const yourLogoUrl = '/logo.png';
-
+const LandingPage: React.FC<LandingPageProps> = () => {
   const [activeTab, setActiveTab] = useState('home');
-
-  const heroRef = useRef<HTMLDivElement>(null);
-
-  const {
-    scrollYProgress: heroProgress,
-  } = useScroll({
-    target: heroRef,
-    offset: ['start start', 'end start'],
-  });
-
-  const heroOpacity = useTransform(
-    heroProgress,
-    [0, 0.7, 1],
-    [1, 1, 0]
-  );
-
-  const heroScale = useTransform(
-    heroProgress,
-    [0, 1],
-    [1, 0.92]
-  );
-
-  const heroY = useTransform(
-    heroProgress,
-    [0, 1],
-    [0, -50]
-  );
-
-  const partners = [
-    {
-      name: 'google',
-      icon: 'https://www.vectorlogo.zone/logos/google/google-icon.svg',
-    },
-    {
-      name: 'firebase',
-      icon: 'https://www.vectorlogo.zone/logos/firebase/firebase-icon.svg',
-    },
-    {
-      name: 'openai',
-      icon: 'https://static.cdnlogo.com/logos/o/38/openai.svg',
-    },
-    {
-      name: 'gemini',
-      icon: 'https://www.gstatic.com/lamda/images/gemini_sparkle_v002.svg',
-    },
-    {
-      name: 'lemonsqueezy',
-      icon: 'https://www.vectorlogo.zone/logos/lemonsqueezy/lemonsqueezy-icon.svg',
-    },
-  ];
-
-  const features = [
-    {
-      icon: Layers,
-      title: 'One link for everything',
-      desc: 'Catalogue, bookings, chat, and payments all live behind the single code you hand out.',
-    },
-    {
-      icon: Radio,
-      title: 'Synced across every device',
-      desc: 'Update it once from any device your team uses — every scan sees the same thing, instantly.',
-    },
-    {
-      icon: Zap,
-      title: 'Real-time requests',
-      desc: 'Staff calls, to-go orders, and messages land the moment a customer taps — no refreshing, no missed pings.',
-    },
-    {
-      icon: CreditCard,
-      title: 'Built-in payments',
-      desc: 'Customers pay right where they scanned. No separate terminal, no separate app to install.',
-    },
-  ];
 
   return (
     <div
       style={{
         minHeight: '100vh',
-        backgroundColor: T.paper,
+        background: T.paper,
         color: T.ink,
         fontFamily:
-          "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
-        position: 'relative',
+          "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
         overflowX: 'hidden',
       }}
     >
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap');
 
         * {
           box-sizing: border-box;
         }
 
-        .lp-display {
+        html {
+          scroll-behavior: smooth;
+        }
+
+        body {
+          margin: 0;
+        }
+
+        .malvin-display {
           font-family: 'Space Grotesk', sans-serif;
         }
 
-        .lp-mono {
+        .malvin-mono {
           font-family: 'JetBrains Mono', monospace;
         }
 
-        .lp-bg-dots {
-          position: absolute;
-          inset: 0;
-          z-index: 0;
-          pointer-events: none;
-          background-image: radial-gradient(${T.line} 1px, transparent 1px);
-          background-size: 28px 28px;
-          mask-image: radial-gradient(
-            ellipse 70% 60% at 50% 20%,
-            black 40%,
-            transparent 90%
-          );
-        }
-
-        @keyframes lpDrift {
-          0%, 100% {
-            transform: translate(0,0) scale(1);
-          }
-
-          50% {
-            transform: translate(3%,4%) scale(1.08);
-          }
-        }
-
-        .lp-glow {
-          animation: lpDrift 16s ease-in-out infinite;
-        }
-
-        .lp-nav-link {
+        .malvin-nav-link {
           color: ${T.inkSoft};
           text-decoration: none;
-          font-size: 0.92rem;
+          font-size: 0.9rem;
           font-weight: 500;
           cursor: pointer;
-          transition: color 0.2s ease;
+          transition:
+            color 0.2s ease,
+            opacity 0.2s ease;
         }
 
-        .lp-nav-link:hover,
-        .lp-nav-link.active {
+        .malvin-nav-link:hover {
           color: ${T.ink};
         }
 
-        .lp-btn-primary {
+        .malvin-nav-link.active {
+          color: ${T.ink};
+          font-weight: 600;
+        }
+
+        .malvin-primary {
+          border: none;
           background: ${T.blue};
           color: #fff;
-          border: none;
-          padding: 15px 26px;
+          padding: 15px 23px;
           border-radius: 12px;
           font-weight: 700;
-          font-size: 0.95rem;
+          font-size: 0.92rem;
           cursor: pointer;
           display: inline-flex;
           align-items: center;
-          gap: 8px;
+          justify-content: center;
+          gap: 9px;
+          text-decoration: none;
           transition:
             transform 0.2s ease,
             box-shadow 0.2s ease;
         }
 
-        .lp-btn-primary:hover {
+        .malvin-primary:hover {
           transform: translateY(-2px);
           box-shadow:
-            0 14px 30px rgba(47,111,224,0.32);
+            0 16px 35px rgba(47,111,224,0.28);
         }
 
-        .lp-btn-ghost {
+        .malvin-secondary {
           background: transparent;
           color: ${T.ink};
-          border: 1.5px solid ${T.line};
-          padding: 15px 24px;
+          border: 1px solid ${T.line};
+          padding: 15px 23px;
           border-radius: 12px;
           font-weight: 700;
-          font-size: 0.95rem;
+          font-size: 0.92rem;
           cursor: pointer;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 9px;
+          text-decoration: none;
           transition:
             border-color 0.2s ease,
-            background 0.2s ease;
+            background 0.2s ease,
+            transform 0.2s ease;
         }
 
-        .lp-btn-ghost:hover {
-          border-color: ${T.blue};
+        .malvin-secondary:hover {
+          border-color: rgba(47,111,224,0.35);
           background: ${T.surface};
+          transform: translateY(-2px);
         }
 
-        .lp-feature-card {
+        .malvin-grid {
+          background-image:
+            linear-gradient(
+              rgba(11,18,32,0.035) 1px,
+              transparent 1px
+            ),
+            linear-gradient(
+              90deg,
+              rgba(11,18,32,0.035) 1px,
+              transparent 1px
+            );
+          background-size: 42px 42px;
+        }
+
+        .malvin-product-card {
+          transition:
+            transform 0.3s ease,
+            box-shadow 0.3s ease,
+            border-color 0.3s ease;
+        }
+
+        .malvin-product-card:hover {
+          transform: translateY(-7px);
+          box-shadow:
+            0 25px 60px rgba(11,18,32,0.10);
+          border-color: rgba(47,111,224,0.20) !important;
+        }
+
+        .malvin-tech-card {
           transition:
             transform 0.25s ease,
-            box-shadow 0.25s ease;
+            background 0.25s ease;
         }
 
-        .lp-feature-card:hover {
-          transform: translateY(-4px);
-          box-shadow:
-            0 20px 40px rgba(11,18,32,0.08);
+        .malvin-tech-card:hover {
+          transform: translateY(-5px);
+          background: rgba(255,255,255,0.06) !important;
         }
 
-        .lp-partner-logo {
-          filter: grayscale(1) opacity(0.5);
-          transition:
-            opacity 0.25s ease,
-            filter 0.25s ease;
+        .malvin-footer-link {
+          color: rgba(11,18,32,0.55);
+          text-decoration: none;
+          font-size: 0.82rem;
+          transition: color 0.2s ease;
         }
 
-        .lp-partner-logo:hover {
-          filter: grayscale(0) opacity(1);
+        .malvin-footer-link:hover {
+          color: ${T.ink};
         }
 
         @media (max-width: 900px) {
-          .lp-hero-grid {
-            grid-template-columns: 1fr !important;
-            text-align: center;
+          .malvin-nav {
+            padding: 20px 24px !important;
           }
 
-          .lp-hero-grid > div:first-child {
-            order: 2;
+          .malvin-nav-links {
+            gap: 18px !important;
           }
 
-          .lp-hero-copy {
-            align-items: center !important;
+          .malvin-hero {
+            padding:
+              85px 28px
+              100px !important;
           }
 
-          .lp-headline {
-            font-size: 2.3rem !important;
+          .malvin-hero-title {
+            font-size:
+              clamp(3rem, 12vw, 5rem) !important;
+            letter-spacing:
+              -3px !important;
           }
 
-          .lp-hero-buttons {
-            justify-content: center !important;
+          .malvin-products-grid {
+            grid-template-columns:
+              1fr !important;
           }
 
-          .lp-nav-links {
-            display: none !important;
+          .malvin-product-inner {
+            grid-template-columns:
+              1fr !important;
           }
 
-          .lp-ghost-word {
-            display: none !important;
+          .malvin-product-visual {
+            min-height: 330px !important;
           }
 
-          .lp-network-scene {
-            width: 580px !important;
-            height: 580px !important;
+          .malvin-tech-grid {
+            grid-template-columns:
+              1fr 1fr !important;
           }
 
-          .lp-network-scene > div {
-            transform-origin: center center;
-          }
-
-          .lp-decode-icon span {
-            font-size: 0.68rem !important;
+          .malvin-footer-grid {
+            grid-template-columns:
+              1fr 1fr !important;
           }
         }
 
-        @media (max-width: 600px) {
-          .lp-network-section {
-            height: 135vh !important;
+        @media (max-width: 650px) {
+          .malvin-nav-links {
+            display: none !important;
           }
 
-          .lp-network-scene {
-            width: 500px !important;
-            height: 500px !important;
+          .malvin-nav {
+            padding:
+              18px 20px !important;
           }
 
-          .lp-network-scene > div {
-            transform: scale(0.73);
+          .malvin-hero {
+            padding:
+              70px 22px
+              85px !important;
           }
 
-          .lp-network-section h2 {
-            font-size: 1.65rem !important;
+          .malvin-hero-title {
+            font-size:
+              clamp(2.8rem, 16vw, 4.3rem) !important;
+            line-height: 0.98 !important;
           }
 
-          .lp-network-section p {
-            font-size: 0.76rem;
+          .malvin-hero-copy {
+            font-size:
+              1rem !important;
           }
 
-          .lp-network-section .lp-mono {
-            font-size: 0.58rem;
+          .malvin-section {
+            padding:
+              85px 22px !important;
+          }
+
+          .malvin-tech-grid {
+            grid-template-columns:
+              1fr !important;
+          }
+
+          .malvin-footer {
+            padding:
+              50px 22px 25px !important;
+          }
+
+          .malvin-footer-grid {
+            grid-template-columns:
+              1fr !important;
+          }
+
+          .malvin-cta {
+            padding:
+              85px 22px !important;
+          }
+
+          .malvin-buttons {
+            flex-direction: column;
+            width: 100%;
+          }
+
+          .malvin-buttons a,
+          .malvin-buttons button {
+            width: 100%;
           }
         }
 
         @media (prefers-reduced-motion: reduce) {
-          .lp-glow,
-          .lp-qr-cell {
-            animation: none !important;
+          * {
+            scroll-behavior: auto !important;
           }
         }
       `}</style>
 
-      {/* Ambient glows */}
-
-      <div
-        className="lp-glow"
-        style={{
-          position: 'absolute',
-          top: '-8%',
-          right: '-6%',
-          width: '46vw',
-          height: '46vw',
-          background:
-            'radial-gradient(circle, rgba(47,111,224,0.10) 0%, transparent 70%)',
-          filter: 'blur(70px)',
-          zIndex: 0,
-        }}
-      />
-
-      <div
-        className="lp-glow"
-        style={{
-          position: 'absolute',
-          top: '38%',
-          left: '-10%',
-          width: '38vw',
-          height: '38vw',
-          background:
-            'radial-gradient(circle, rgba(79,209,255,0.10) 0%, transparent 70%)',
-          filter: 'blur(70px)',
-          zIndex: 0,
-          animationDelay: '4s',
-        }}
-      />
-
-      {/* NAV */}
+      {/* ====================================================================
+          NAVIGATION
+      ==================================================================== */}
 
       <nav
+        className="malvin-nav"
         style={{
           position: 'relative',
-          zIndex: 10,
+          zIndex: 50,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -1470,8 +376,15 @@ const LandingPage: React.FC<LandingPageProps> = ({
           margin: '0 auto',
         }}
       >
-        <div
+        {/* Logo */}
+
+        <button
+          onClick={() => setActiveTab('home')}
           style={{
+            border: 'none',
+            background: 'transparent',
+            padding: 0,
+            cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             gap: 10,
@@ -1479,8 +392,8 @@ const LandingPage: React.FC<LandingPageProps> = ({
         >
           <div
             style={{
-              width: 32,
-              height: 32,
+              width: 34,
+              height: 34,
               borderRadius: 9,
               overflow: 'hidden',
               border: `1px solid ${T.line}`,
@@ -1491,8 +404,8 @@ const LandingPage: React.FC<LandingPageProps> = ({
             }}
           >
             <img
-              src={yourLogoUrl}
-              alt=""
+              src="/logo.png"
+              alt="Malvin"
               style={{
                 width: '100%',
                 height: '100%',
@@ -1502,19 +415,22 @@ const LandingPage: React.FC<LandingPageProps> = ({
           </div>
 
           <span
-            className="lp-display"
+            className="malvin-display"
             style={{
-              fontSize: '1.1rem',
+              fontSize: '1.08rem',
               fontWeight: 700,
               letterSpacing: '0.5px',
+              color: T.ink,
             }}
           >
             MALVIN
           </span>
-        </div>
+        </button>
+
+        {/* Links */}
 
         <div
-          className="lp-nav-links"
+          className="malvin-nav-links"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -1523,7 +439,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
         >
           <span
             onClick={() => setActiveTab('home')}
-            className={`lp-nav-link ${
+            className={`malvin-nav-link ${
               activeTab === 'home' ? 'active' : ''
             }`}
           >
@@ -1531,733 +447,1291 @@ const LandingPage: React.FC<LandingPageProps> = ({
           </span>
 
           <span
-            onClick={() => setActiveTab('explore')}
-            className={`lp-nav-link ${
-              activeTab === 'explore' ? 'active' : ''
+            onClick={() => setActiveTab('products')}
+            className={`malvin-nav-link ${
+              activeTab === 'products' ? 'active' : ''
             }`}
           >
-            Explore
+            Products
           </span>
 
           <span
-            onClick={() => setActiveTab('about')}
-            className={`lp-nav-link ${
-              activeTab === 'about' ? 'active' : ''
+            onClick={() => setActiveTab('company')}
+            className={`malvin-nav-link ${
+              activeTab === 'company' ? 'active' : ''
             }`}
           >
-            About
+            Company
           </span>
-
-          <Link to="/faq" className="lp-nav-link">
-            FAQ
-          </Link>
 
           <span
             onClick={() => setActiveTab('news')}
-            className={`lp-nav-link ${
+            className={`malvin-nav-link ${
               activeTab === 'news' ? 'active' : ''
             }`}
           >
             News
           </span>
 
-          <span
-            onClick={onLoginClick}
-            className="lp-nav-link"
-            style={{
-              fontWeight: 700,
-              color: T.blue,
-            }}
+          <Link
+            to="/contact"
+            className="malvin-nav-link"
           >
-            Sign in
-          </span>
+            Contact
+          </Link>
         </div>
       </nav>
 
+      {/* ====================================================================
+          CONTENT
+      ==================================================================== */}
+
       <AnimatePresence mode="wait">
+
+        {/* ==================================================================
+            HOME
+        ================================================================== */}
+
         {activeTab === 'home' && (
-          <motion.div
+          <motion.main
             key="home"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.35 }}
+            initial={{
+              opacity: 0,
+            }}
+            animate={{
+              opacity: 1,
+            }}
+            exit={{
+              opacity: 0,
+            }}
+            transition={{
+              duration: 0.3,
+            }}
           >
-            {/* HERO */}
 
-            <div
-              ref={heroRef}
+            {/* ==============================================================
+                HERO
+            ============================================================== */}
+
+            <section
+              className="malvin-hero malvin-grid"
               style={{
                 position: 'relative',
+                overflow: 'hidden',
+                padding: '115px 48px 140px',
                 background:
-                  `linear-gradient(180deg, ${T.surface} 0%, #ffffff 100%)`,
-                clipPath:
-                  'polygon(0 0, 100% 0, 100% 96%, 0 100%)',
-                paddingBottom: 90,
-              }}
-            >
-              <div
-                className="lp-bg-dots"
-                style={{ opacity: 1.4 }}
-              />
-
-              <div
-                aria-hidden="true"
-                className="lp-ghost-word"
-                style={{
-                  position: 'absolute',
-                  top: '4%',
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  zIndex: 1,
-                  fontSize: 'clamp(6rem, 16vw, 13rem)',
-                  fontWeight: 700,
-                  letterSpacing: '-4px',
-                  whiteSpace: 'nowrap',
-                  color: 'transparent',
-                  WebkitTextStroke:
-                    `1.5px ${T.line}`,
-                  userSelect: 'none',
-                  pointerEvents: 'none',
-                }}
-              >
-                SCAN & SYNC
-              </div>
-
-              <motion.section
-                className="lp-hero-grid"
-                style={{
-                  opacity: heroOpacity,
-                  scale: heroScale,
-                  y: heroY,
-                  position: 'relative',
-                  zIndex: 2,
-                  maxWidth: 1280,
-                  margin: '0 auto',
-                  padding: '56px 48px 40px',
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 0.9fr',
-                  gap: 60,
-                  alignItems: 'center',
-                }}
-              >
-                <div
-                  className="lp-hero-copy"
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'flex-start',
-                  }}
-                >
-                  <span
-                    className="lp-mono"
-                    style={{
-                      fontSize: '0.78rem',
-                      color: T.blue,
-                      letterSpacing: '2px',
-                      fontWeight: 500,
-                      marginBottom: 18,
-                    }}
-                  >
-                    ONE CODE. EVERYTHING SYNCED.
-                  </span>
-
-                  <h1
-                    className="lp-display lp-headline"
-                    style={{
-                      fontSize: '3.8rem',
-                      fontWeight: 700,
-                      lineHeight: 1.04,
-                      letterSpacing: '-2px',
-                      marginBottom: 22,
-                    }}
-                  >
-                    <WordReveal text="Give your customers" />
-                    <br />
-
-                    <WordReveal
-                      text="one thing to scan."
-                      delay={0.4}
-                    />
-
-                    <br />
-
-                    <WordReveal
-                      text="Run your whole business behind it."
-                      delay={0.8}
-                      style={{ color: T.blue }}
-                    />
-                  </h1>
-
-                  <p
-                    style={{
-                      fontSize: '1.05rem',
-                      color: T.inkSoft,
-                      lineHeight: 1.65,
-                      maxWidth: 460,
-                      marginBottom: 32,
-                    }}
-                  >
-                    Chat, orders, staff requests, reviews,
-                    payments — every customer interaction,
-                    synced across every device, behind one QR
-                    code you generate in seconds.
-                  </p>
-
-                  <div
-                    className="lp-hero-buttons"
-                    style={{
-                      display: 'flex',
-                      gap: 14,
-                      flexWrap: 'wrap',
-                      marginBottom: 40,
-                    }}
-                  >
-                    <MagneticButton
-                      onClick={onLoginClick}
-                      className="lp-btn-primary"
-                    >
-                      Generate your code
-                      <ArrowRight size={16} />
-                    </MagneticButton>
-
-                    <button
-                      onClick={onLoginClick}
-                      className="lp-btn-ghost"
-                    >
-                      For businesses
-                    </button>
-                  </div>
-
-                  <div
-                    className="lp-mono"
-                    style={{
-                      display: 'flex',
-                      gap: 24,
-                      fontSize: '0.75rem',
-                      color: T.inkFaint,
-                      letterSpacing: '0.5px',
-                    }}
-                  >
-                    <span>1 CODE</span>
-                    <span style={{ color: T.line }}>/</span>
-                    <span>EVERY STOREFRONT</span>
-                    <span style={{ color: T.line }}>/</span>
-                    <span>INSTANT SYNC</span>
-                  </div>
-                </div>
-
-                <QrHero />
-              </motion.section>
-            </div>
-
-            {/* NETWORK */}
-
-            <DecodeSection />
-
-            {/* FEATURES */}
-
-            <section
-              style={{
-                position: 'relative',
-                zIndex: 2,
-                maxWidth: 1280,
-                margin: '0 auto',
-                padding: '90px 48px 130px',
-              }}
-            >
-              <div
-                style={{
-                  maxWidth: 620,
-                  marginBottom: 45,
-                }}
-              >
-                <span
-                  className="lp-mono"
-                  style={{
-                    fontSize: '0.7rem',
-                    letterSpacing: '2px',
-                    color: T.blue,
-                  }}
-                >
-                  EVERYTHING CONNECTED
-                </span>
-
-                <h2
-                  className="lp-display"
-                  style={{
-                    fontSize: 'clamp(2rem, 4vw, 3rem)',
-                    letterSpacing: '-1.5px',
-                    margin: '10px 0 0',
-                  }}
-                >
-                  Your business isn't a collection
-                  of separate tools.
-                </h2>
-              </div>
-
-              <div
-                className="lp-features-grid"
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns:
-                    'repeat(4, 1fr)',
-                  gap: 18,
-                }}
-              >
-                {features.map((f, i) => (
-                  <ScrollReveal
-                    key={f.title}
-                    delay={i * 0.08}
-                  >
-                    <div
-                      className="lp-feature-card"
-                      style={{
-                        background: T.surface,
-                        border: `1px solid ${T.line}`,
-                        borderRadius: 20,
-                        padding: '28px 24px',
-                        height: '100%',
-                        marginTop:
-                          i % 2 === 1 ? 30 : 0,
-                      }}
-                    >
-                      <div
-                        style={{
-                          width: 40,
-                          height: 40,
-                          borderRadius: 11,
-                          background: '#fff',
-                          border: `1px solid ${T.line}`,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          marginBottom: 16,
-                        }}
-                      >
-                        <f.icon
-                          size={18}
-                          color={T.blue}
-                        />
-                      </div>
-
-                      <h3
-                        className="lp-display"
-                        style={{
-                          fontSize: '1.02rem',
-                          fontWeight: 700,
-                          marginBottom: 8,
-                        }}
-                      >
-                        {f.title}
-                      </h3>
-
-                      <p
-                        style={{
-                          fontSize: '0.86rem',
-                          color: T.inkSoft,
-                          lineHeight: 1.55,
-                          margin: 0,
-                        }}
-                      >
-                        {f.desc}
-                      </p>
-                    </div>
-                  </ScrollReveal>
-                ))}
-              </div>
-            </section>
-
-            {/* QUOTE */}
-
-            <ScrollReveal>
-              <section
-                style={{
-                  position: 'relative',
-                  zIndex: 2,
-                  background:
-                    `linear-gradient(135deg, ${T.blueDeep}, ${T.blue})`,
-                  padding: '90px 48px',
-                  overflow: 'hidden',
-                }}
-              >
-                <div
-                  className="lp-glow"
-                  style={{
-                    position: 'absolute',
-                    top: '10%',
-                    right: '8%',
-                    width: 300,
-                    height: 300,
-                    background:
-                      'radial-gradient(circle, rgba(79,209,255,0.25) 0%, transparent 70%)',
-                    filter: 'blur(50px)',
-                  }}
-                />
-
-                <div
-                  style={{
-                    position: 'absolute',
-                    inset: 0,
-                    opacity: 0.06,
-                    backgroundImage:
-                      'radial-gradient(#fff 1.5px, transparent 1.5px)',
-                    backgroundSize: '18px 18px',
-                  }}
-                />
-
-                <div
-                  style={{
-                    position: 'relative',
-                    maxWidth: 780,
-                    margin: '0 auto',
-                  }}
-                >
-                  <div
-                    style={{
-                      position: 'relative',
-                      padding: '10px 30px',
-                    }}
-                  >
-                    <ViewfinderCorners
-                      color="rgba(255,255,255,0.5)"
-                      size={20}
-                      inset={-4}
-                    />
-
-                    <p
-                      className="lp-display"
-                      style={{
-                        textAlign: 'center',
-                        fontSize: '2rem',
-                        fontStyle: 'italic',
-                        fontWeight: 500,
-                        color: '#fff',
-                        lineHeight: 1.4,
-                        margin: 0,
-                      }}
-                    >
-                      "It's a kill-two-birds-with-one-stone
-                      kind of situation."
-                    </p>
-                  </div>
-
-                  <p
-                    className="lp-mono"
-                    style={{
-                      textAlign: 'center',
-                      marginTop: 26,
-                      fontSize: '0.75rem',
-                      letterSpacing: '2px',
-                      color: 'rgba(255,255,255,0.6)',
-                    }}
-                  >
-                    ON RUNNING A BUSINESS WITH ONE CODE
-                  </p>
-                </div>
-              </section>
-            </ScrollReveal>
-
-            {/* STATEMENT */}
-
-            <ScrollReveal>
-              <section
-                style={{
-                  position: 'relative',
-                  zIndex: 2,
-                  textAlign: 'center',
-                  padding: '60px 48px 20px',
-                }}
-              >
-                <h2
-                  className="lp-display"
-                  style={{
-                    fontSize:
-                      'clamp(2.2rem, 6vw, 4.2rem)',
-                    fontWeight: 700,
-                    letterSpacing: '-2px',
-                    lineHeight: 1.05,
-                  }}
-                >
-                  This is how you run
-                  <br />
-                  a business{' '}
-                  <span style={{ color: T.blue }}>
-                    now.
-                  </span>
-                </h2>
-              </section>
-            </ScrollReveal>
-
-            {/* CTA */}
-
-            <section
-              style={{
-                position: 'relative',
-                zIndex: 2,
-                maxWidth: 700,
-                margin: '0 auto',
-                padding: '100px 48px',
+                  'linear-gradient(180deg, #F5F8FC 0%, #FFFFFF 100%)',
                 textAlign: 'center',
               }}
             >
-              <h2
-                className="lp-display"
-                style={{
-                  fontSize: '2.2rem',
-                  fontWeight: 700,
-                  letterSpacing: '-1px',
-                  marginBottom: 16,
-                }}
-              >
-                Your business, one scan away.
-              </h2>
+              {/* Glow */}
 
-              <p
-                style={{
-                  fontSize: '1rem',
-                  color: T.inkSoft,
-                  marginBottom: 32,
+              <motion.div
+                animate={{
+                  scale: [1, 1.12, 1],
+                  opacity: [0.35, 0.55, 0.35],
                 }}
-              >
-                Generate your code and see it live in under
-                two minutes.
-              </p>
+                transition={{
+                  duration: 8,
+                  repeat: Infinity,
+                  ease: 'easeInOut',
+                }}
+                style={{
+                  position: 'absolute',
+                  width: 600,
+                  height: 600,
+                  top: -250,
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  borderRadius: '50%',
+                  background:
+                    'radial-gradient(circle, rgba(47,111,224,0.13), transparent 68%)',
+                  filter: 'blur(20px)',
+                  pointerEvents: 'none',
+                }}
+              />
 
-              <button
-                onClick={onLoginClick}
-                className="lp-btn-primary"
+              <motion.div
+                initial={{
+                  opacity: 0,
+                  y: 25,
+                }}
+                animate={{
+                  opacity: 1,
+                  y: 0,
+                }}
+                transition={{
+                  duration: 0.7,
+                }}
                 style={{
-                  padding: '17px 34px',
-                  fontSize: '1rem',
+                  position: 'relative',
+                  zIndex: 2,
+                  maxWidth: 1050,
+                  margin: '0 auto',
                 }}
               >
-                Generate your code
-                <ArrowRight size={17} />
-              </button>
+                <div
+                  className="malvin-mono"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 9,
+                    padding: '7px 11px',
+                    borderRadius: 999,
+                    border:
+                      `1px solid rgba(47,111,224,0.15)`,
+                    background:
+                      'rgba(47,111,224,0.05)',
+                    color: T.blue,
+                    fontSize: '0.68rem',
+                    letterSpacing: '2.5px',
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: '50%',
+                      background: T.blue,
+                      boxShadow:
+                        `0 0 10px ${T.blue}`,
+                    }}
+                  />
+
+                  MALVIN AI
+                </div>
+
+                <h1
+                  className="malvin-display malvin-hero-title"
+                  style={{
+                    fontSize:
+                      'clamp(4rem, 9vw, 7.8rem)',
+                    lineHeight: 0.94,
+                    letterSpacing: '-6px',
+                    fontWeight: 700,
+                    margin:
+                      '30px auto 32px',
+                    maxWidth: 1000,
+                  }}
+                >
+                  We build
+                  <br />
+
+                  <span
+                    style={{
+                      color: T.blue,
+                    }}
+                  >
+                    what comes next.
+                  </span>
+                </h1>
+
+                <p
+                  className="malvin-hero-copy"
+                  style={{
+                    maxWidth: 670,
+                    margin: '0 auto',
+                    fontSize: '1.13rem',
+                    lineHeight: 1.75,
+                    color: T.inkSoft,
+                  }}
+                >
+                  Malvin is a technology enterprise
+                  building intelligent products,
+                  infrastructure and digital experiences
+                  for the next generation.
+                </p>
+
+                <div
+                  className="malvin-buttons"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 13,
+                    marginTop: 38,
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <button
+                    onClick={() =>
+                      setActiveTab('products')
+                    }
+                    className="malvin-primary"
+                  >
+                    Explore our products
+                    <ArrowRight size={16} />
+                  </button>
+
+                  <button
+                    onClick={() =>
+                      setActiveTab('company')
+                    }
+                    className="malvin-secondary"
+                  >
+                    About Malvin
+                  </button>
+                </div>
+              </motion.div>
             </section>
 
-            {/* FOOTER */}
+            {/* ==============================================================
+                INTRODUCTION
+            ============================================================== */}
 
-            <footer
+            <ScrollReveal>
+              <section
+                className="malvin-section"
+                style={{
+                  maxWidth: 1100,
+                  margin: '0 auto',
+                  padding: '125px 48px',
+                }}
+              >
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns:
+                      '0.8fr 1.2fr',
+                    gap: 80,
+                    alignItems: 'start',
+                  }}
+                >
+                  <div>
+                    <span
+                      className="malvin-mono"
+                      style={{
+                        fontSize: '0.68rem',
+                        color: T.blue,
+                        letterSpacing: '2.5px',
+                      }}
+                    >
+                      WHAT IS MALVIN?
+                    </span>
+                  </div>
+
+                  <div>
+                    <h2
+                      className="malvin-display"
+                      style={{
+                        fontSize:
+                          'clamp(2.2rem, 5vw, 4rem)',
+                        lineHeight: 1.08,
+                        letterSpacing: '-2px',
+                        margin: 0,
+                      }}
+                    >
+                      We don't build
+                      <br />
+
+                      <span
+                        style={{
+                          color: T.blue,
+                        }}
+                      >
+                        just one app.
+                      </span>
+                    </h2>
+
+                    <p
+                      style={{
+                        color: T.inkSoft,
+                        fontSize: '1.02rem',
+                        lineHeight: 1.75,
+                        marginTop: 25,
+                        maxWidth: 600,
+                      }}
+                    >
+                      Malvin is built as an enterprise
+                      that creates and operates products.
+                      Each product has its own purpose,
+                      identity and users — while benefiting
+                      from the technology and systems we
+                      build underneath.
+                    </p>
+                  </div>
+                </div>
+              </section>
+            </ScrollReveal>
+
+            {/* ==============================================================
+                PRODUCTS
+            ============================================================== */}
+
+            <section
+              className="malvin-section"
               style={{
-                position: 'relative',
-                zIndex: 2,
-                borderTop: `1px solid ${T.line}`,
-                padding: '28px 48px',
+                background: T.surface,
+                padding: '125px 48px',
               }}
             >
               <div
                 style={{
-                  maxWidth: 1280,
+                  maxWidth: 1180,
                   margin: '0 auto',
-                  display: 'flex',
-                  flexWrap: 'wrap',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: 16,
                 }}
               >
-                <span
-                  className="lp-mono"
-                  style={{
-                    fontSize: '0.68rem',
-                    color: T.inkFaint,
-                    letterSpacing: '1.5px',
-                  }}
-                >
-                  INTEGRATED PLATFORMS
-                </span>
-
-                <div
-                  style={{
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    alignItems: 'center',
-                    gap: 22,
-                  }}
-                >
-                  {partners.map(p => (
-                    <div
-                      key={p.name}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 6,
-                      }}
-                    >
-                      <img
-                        className="lp-partner-logo"
-                        src={p.icon}
-                        alt={p.name}
-                        style={{
-                          width: 15,
-                          height: 15,
-                          objectFit: 'contain',
-                        }}
-                      />
-
-                      <span
-                        style={{
-                          fontSize: '0.78rem',
-                          fontWeight: 600,
-                          color: T.inkFaint,
-                        }}
-                      >
-                        {p.name}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </footer>
-          </motion.div>
-        )}
-
-        {activeTab === 'explore' && (
-          <motion.div
-            key="explore"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            style={{
-              position: 'relative',
-              zIndex: 2,
-            }}
-          >
-            <Explore />
-          </motion.div>
-        )}
-
-        {activeTab === 'about' && (
-          <motion.div
-            key="about"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            style={{
-              position: 'relative',
-              zIndex: 2,
-            }}
-          >
-            <About />
-          </motion.div>
-        )}
-
-        {activeTab === 'news' && (
-          <motion.div
-            key="news"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            style={{
-              position: 'relative',
-              zIndex: 2,
-              maxWidth: 800,
-              margin: '0 auto',
-              padding: '20px 48px 100px',
-            }}
-          >
-            <h2
-              className="lp-display"
-              style={{
-                fontSize: '2.2rem',
-                fontWeight: 700,
-                marginBottom: 8,
-              }}
-            >
-              What's New
-            </h2>
-
-            <p
-              style={{
-                color: T.inkFaint,
-                fontSize: '1rem',
-                lineHeight: 1.6,
-                marginBottom: 32,
-              }}
-            >
-              Recent updates to the Malvin AI platform.
-            </p>
-
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 16,
-              }}
-            >
-              {[
-                {
-                  title:
-                    'Push notifications now work on iPhone — no App Store required',
-                  desc:
-                    'Add Malvin to your iPhone Home Screen from Safari and get real push notifications, the same as a native app — no Apple Developer account or App Store listing needed on our end.',
-                },
-                {
-                  title:
-                    'Emergency, Today, This Week, or Schedule — urgency on every service request',
-                  desc:
-                    "Requesting a Mechanic or Service job now asks how urgent it is. Emergency requests jump straight to the top of the business's job board, ahead of everything else.",
-                },
-                {
-                  title:
-                    'Preferred time on service requests',
-                  desc:
-                    'Let the business know roughly when you want the job done — "tomorrow morning," "Sat after 2pm," whatever works for you — right when you submit the request.',
-                },
-                {
-                  title:
-                    'Smarter QR handoff',
-                  desc:
-                    "Scan a Malvin code with your phone's regular camera and it now recognizes whether you already have the app installed — handing you straight into it if so, or walking you through getting set up if not.",
-                },
-                {
-                  title:
-                    'One uid, multiple businesses',
-                  desc:
-                    'The same business owner can now run a Food account and a Salon account side-by-side, each fully independent — separate pages, separate ratings, separate entries in your Recent Businesses.',
-                },
-                {
-                  title:
-                    'Independent ratings per business',
-                  desc:
-                    "A business's star rating no longer mixes with a different category business run by the same owner — each is scored entirely on its own.",
-                },
-              ].map((item, i) => (
-                <div
-                  key={i}
-                  style={{
-                    background: T.surface,
-                    border: `1px solid ${T.line}`,
-                    borderRadius: 16,
-                    padding: '20px 24px',
-                  }}
-                >
-                  <h3
+                <ScrollReveal>
+                  <div
                     style={{
-                      fontSize: '1.05rem',
-                      fontWeight: 700,
-                      marginBottom: 6,
+                      marginBottom: 55,
                     }}
                   >
-                    {item.title}
-                  </h3>
+                    <span
+                      className="malvin-mono"
+                      style={{
+                        color: T.blue,
+                        fontSize: '0.68rem',
+                        letterSpacing: '2.5px',
+                      }}
+                    >
+                      OUR PRODUCTS
+                    </span>
+
+                    <h2
+                      className="malvin-display"
+                      style={{
+                        fontSize:
+                          'clamp(2.5rem, 5vw, 4.5rem)',
+                        lineHeight: 1,
+                        letterSpacing: '-2.5px',
+                        margin:
+                          '14px 0 0',
+                      }}
+                    >
+                      Technology with
+                      <br />
+                      a purpose.
+                    </h2>
+                  </div>
+                </ScrollReveal>
+
+                {/* Reloop */}
+
+                <ScrollReveal delay={0.08}>
+                  <div
+                    className="malvin-product-card"
+                    style={{
+                      background: '#fff',
+                      border:
+                        `1px solid ${T.line}`,
+                      borderRadius: 28,
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <div
+                      className="malvin-product-inner"
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns:
+                          '1fr 1fr',
+                      }}
+                    >
+                      {/* Copy */}
+
+                      <div
+                        style={{
+                          padding:
+                            '65px 55px',
+                          display: 'flex',
+                          flexDirection:
+                            'column',
+                          justifyContent:
+                            'center',
+                        }}
+                      >
+                        <div
+                          className="malvin-mono"
+                          style={{
+                            color: T.blue,
+                            fontSize:
+                              '0.65rem',
+                            letterSpacing:
+                              '2px',
+                            marginBottom:
+                              16,
+                          }}
+                        >
+                          MALVIN PRODUCT · 01
+                        </div>
+
+                        <h3
+                          className="malvin-display"
+                          style={{
+                            fontSize:
+                              'clamp(2.8rem, 5vw, 4.5rem)',
+                            letterSpacing:
+                              '-3px',
+                            lineHeight: 0.95,
+                            margin: 0,
+                          }}
+                        >
+                          RELOOP
+                        </h3>
+
+                        <p
+                          className="malvin-display"
+                          style={{
+                            fontSize:
+                              '1.25rem',
+                            lineHeight:
+                              1.45,
+                            maxWidth: 470,
+                            margin:
+                              '24px 0 12px',
+                          }}
+                        >
+                          Give things another
+                          life.
+                        </p>
+
+                        <p
+                          style={{
+                            color:
+                              T.inkSoft,
+                            fontSize:
+                              '0.92rem',
+                            lineHeight:
+                              1.7,
+                            maxWidth: 460,
+                            margin:
+                              '0 0 28px',
+                          }}
+                        >
+                          Reloop is a recommerce
+                          platform designed to make
+                          second-hand buying and
+                          selling simple, accessible
+                          and human.
+                        </p>
+
+                        <Link
+                          to="/reloop"
+                          className="malvin-primary"
+                          style={{
+                            width:
+                              'fit-content',
+                          }}
+                        >
+                          Discover Reloop
+                          <ArrowRight
+                            size={16}
+                          />
+                        </Link>
+
+                        <div
+                          className="malvin-mono"
+                          style={{
+                            marginTop: 25,
+                            fontSize:
+                              '0.62rem',
+                            color:
+                              T.inkFaint,
+                            letterSpacing:
+                              '1.5px',
+                          }}
+                        >
+                          POWERED BY MALVIN
+                        </div>
+                      </div>
+
+                      {/* Visual */}
+
+                      <div
+                        className="malvin-product-visual"
+                        style={{
+                          minHeight: 500,
+                          background:
+                            'linear-gradient(135deg, #101010 0%, #262626 50%, #111111 100%)',
+                          position:
+                            'relative',
+                          overflow:
+                            'hidden',
+                          display: 'flex',
+                          alignItems:
+                            'center',
+                          justifyContent:
+                            'center',
+                        }}
+                      >
+                        {/* Decorative rings */}
+
+                        <motion.div
+                          animate={{
+                            rotate: 360,
+                          }}
+                          transition={{
+                            duration: 30,
+                            repeat: Infinity,
+                            ease: 'linear',
+                          }}
+                          style={{
+                            position:
+                              'absolute',
+                            width: 430,
+                            height: 430,
+                            borderRadius:
+                              '50%',
+                            border:
+                              '1px solid rgba(255,255,255,0.08)',
+                          }}
+                        />
+
+                        <motion.div
+                          animate={{
+                            rotate: -360,
+                          }}
+                          transition={{
+                            duration: 22,
+                            repeat: Infinity,
+                            ease: 'linear',
+                          }}
+                          style={{
+                            position:
+                              'absolute',
+                            width: 300,
+                            height: 300,
+                            borderRadius:
+                              '50%',
+                            border:
+                              '1px solid rgba(255,255,255,0.08)',
+                          }}
+                        />
+
+                        {/* Glow */}
+
+                        <div
+                          style={{
+                            position:
+                              'absolute',
+                            width: 280,
+                            height: 280,
+                            borderRadius:
+                              '50%',
+                            background:
+                              'radial-gradient(circle, rgba(255,255,255,0.13), transparent 68%)',
+                            filter:
+                              'blur(15px)',
+                          }}
+                        />
+
+                        <motion.div
+                          animate={{
+                            y: [-8, 8, -8],
+                          }}
+                          transition={{
+                            duration: 5,
+                            repeat: Infinity,
+                            ease: 'easeInOut',
+                          }}
+                          style={{
+                            position:
+                              'relative',
+                            zIndex: 2,
+                            textAlign:
+                              'center',
+                          }}
+                        >
+                          <div
+                            className="malvin-display"
+                            style={{
+                              color: '#fff',
+                              fontSize:
+                                'clamp(3.4rem, 7vw, 6rem)',
+                              fontWeight:
+                                700,
+                              letterSpacing:
+                                '-4px',
+                            }}
+                          >
+                            RELOOP
+                          </div>
+
+                          <div
+                            className="malvin-mono"
+                            style={{
+                              color:
+                                'rgba(255,255,255,0.45)',
+                              fontSize:
+                                '0.62rem',
+                              letterSpacing:
+                                '3px',
+                              marginTop:
+                                13,
+                            }}
+                          >
+                            SECOND LIFE
+                          </div>
+                        </motion.div>
+                      </div>
+                    </div>
+                  </div>
+                </ScrollReveal>
+
+                {/* Coming soon */}
+
+                <div
+                  className="malvin-products-grid"
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns:
+                      '1fr 1fr',
+                    gap: 18,
+                    marginTop: 18,
+                  }}
+                >
+                  <ScrollReveal delay={0.12}>
+                    <ProductComingSoon
+                      number="02"
+                      title="Coming soon."
+                      description="Another Malvin product is already being built."
+                    />
+                  </ScrollReveal>
+
+                  <ScrollReveal delay={0.18}>
+                    <ProductComingSoon
+                      number="03"
+                      title="More to come."
+                      description="Malvin is building a portfolio of products across different experiences."
+                    />
+                  </ScrollReveal>
+                </div>
+              </div>
+            </section>
+
+            {/* ==============================================================
+                TECHNOLOGY
+            ============================================================== */}
+
+            <section
+              style={{
+                background: T.surfaceDark,
+                color: '#fff',
+                padding: '130px 48px',
+                position: 'relative',
+                overflow: 'hidden',
+              }}
+            >
+              {/* Background glow */}
+
+              <motion.div
+                animate={{
+                  scale: [1, 1.15, 1],
+                  opacity: [0.2, 0.35, 0.2],
+                }}
+                transition={{
+                  duration: 9,
+                  repeat: Infinity,
+                  ease: 'easeInOut',
+                }}
+                style={{
+                  position: 'absolute',
+                  width: 700,
+                  height: 700,
+                  left: '50%',
+                  top: '40%',
+                  transform:
+                    'translate(-50%, -50%)',
+                  borderRadius: '50%',
+                  background:
+                    'radial-gradient(circle, rgba(47,111,224,0.28), transparent 68%)',
+                  filter: 'blur(45px)',
+                }}
+              />
+
+              <div
+                style={{
+                  position:
+                    'relative',
+                  maxWidth: 1180,
+                  margin: '0 auto',
+                }}
+              >
+                <ScrollReveal>
+                  <span
+                    className="malvin-mono"
+                    style={{
+                      color: T.cyan,
+                      fontSize:
+                        '0.68rem',
+                      letterSpacing:
+                        '2.5px',
+                    }}
+                  >
+                    THE TECHNOLOGY
+                  </span>
+
+                  <h2
+                    className="malvin-display"
+                    style={{
+                      fontSize:
+                        'clamp(2.6rem, 6vw, 5rem)',
+                      lineHeight:
+                        1.02,
+                      letterSpacing:
+                        '-3px',
+                      maxWidth: 800,
+                      margin:
+                        '15px 0 25px',
+                    }}
+                  >
+                    The products are
+                    different.
+                    <br />
+
+                    <span
+                      style={{
+                        color: T.cyan,
+                      }}
+                    >
+                      The technology connects them.
+                    </span>
+                  </h2>
 
                   <p
                     style={{
-                      fontSize: '0.9rem',
-                      color: T.inkSoft,
-                      lineHeight: 1.6,
-                      margin: 0,
+                      maxWidth: 650,
+                      color:
+                        'rgba(255,255,255,0.52)',
+                      lineHeight: 1.75,
+                      fontSize:
+                        '1rem',
                     }}
                   >
-                    {item.desc}
+                    Malvin develops the systems,
+                    infrastructure and intelligent
+                    technology that allow our products
+                    to evolve independently while
+                    sharing a common foundation.
                   </p>
+                </ScrollReveal>
+
+                <div
+                  className="malvin-tech-grid"
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns:
+                      'repeat(3, 1fr)',
+                    gap: 14,
+                    marginTop: 65,
+                  }}
+                >
+                  <TechnologyCard
+                    icon={Cpu}
+                    title="Intelligence"
+                    description="AI systems designed to understand, reason and assist."
+                  />
+
+                  <TechnologyCard
+                    icon={Layers}
+                    title="Infrastructure"
+                    description="Scalable systems that keep products connected and reliable."
+                  />
+
+                  <TechnologyCard
+                    icon={Shield}
+                    title="Security"
+                    description="Technology designed with privacy and security at its foundation."
+                  />
+
+                  <TechnologyCard
+                    icon={Globe2}
+                    title="Connectivity"
+                    description="Systems that allow products and people to interact seamlessly."
+                  />
+
+                  <TechnologyCard
+                    icon={Zap}
+                    title="Automation"
+                    description="Reducing repetitive work through intelligent systems."
+                  />
+
+                  <TechnologyCard
+                    icon={Users}
+                    title="People"
+                    description="Technology built around real human needs, not technology for its own sake."
+                  />
                 </div>
-              ))}
-            </div>
-          </motion.div>
+              </div>
+            </section>
+
+            {/* ==============================================================
+                PHILOSOPHY
+            ============================================================== */}
+
+            <ScrollReveal>
+              <section
+                className="malvin-section"
+                style={{
+                  maxWidth: 1000,
+                  margin: '0 auto',
+                  padding:
+                    '135px 48px',
+                  textAlign: 'center',
+                }}
+              >
+                <span
+                  className="malvin-mono"
+                  style={{
+                    color: T.blue,
+                    fontSize:
+                      '0.68rem',
+                    letterSpacing:
+                      '2.5px',
+                  }}
+                >
+                  OUR APPROACH
+                </span>
+
+                <h2
+                  className="malvin-display"
+                  style={{
+                    fontSize:
+                      'clamp(2.7rem, 6vw, 5rem)',
+                    lineHeight:
+                      1.03,
+                    letterSpacing:
+                      '-3px',
+                    margin:
+                      '18px 0 25px',
+                  }}
+                >
+                  Build.
+                  <br />
+                  Launch.
+                  <br />
+
+                  <span
+                    style={{
+                      color: T.blue,
+                    }}
+                  >
+                    Improve.
+                  </span>
+                </h2>
+
+                <p
+                  style={{
+                    maxWidth: 610,
+                    margin:
+                      '0 auto',
+                    color:
+                      T.inkSoft,
+                    lineHeight:
+                      1.75,
+                  }}
+                >
+                  We build products, put them in
+                  the hands of real people, learn
+                  from what happens and keep
+                  improving them.
+                </p>
+              </section>
+            </ScrollReveal>
+
+            {/* ==============================================================
+                FUTURE
+            ============================================================== */}
+
+            <section
+              style={{
+                background:
+                  T.surface,
+                padding:
+                  '110px 48px',
+                textAlign:
+                  'center',
+              }}
+            >
+              <ScrollReveal>
+                <span
+                  className="malvin-mono"
+                  style={{
+                    color: T.blue,
+                    fontSize:
+                      '0.68rem',
+                    letterSpacing:
+                      '2.5px',
+                  }}
+                >
+                  THE ROAD AHEAD
+                </span>
+
+                <h2
+                  className="malvin-display"
+                  style={{
+                    fontSize:
+                      'clamp(2.5rem, 6vw, 5rem)',
+                    lineHeight:
+                      1,
+                    letterSpacing:
+                      '-3px',
+                    margin:
+                      '18px auto 25px',
+                  }}
+                >
+                  Reloop is just
+                  <br />
+                  the beginning.
+                </h2>
+
+                <p
+                  style={{
+                    maxWidth: 620,
+                    margin:
+                      '0 auto',
+                    color:
+                      T.inkSoft,
+                    lineHeight:
+                      1.75,
+                  }}
+                >
+                  Malvin is building a portfolio
+                  of products designed to solve
+                  different problems across everyday
+                  life and business.
+                </p>
+              </ScrollReveal>
+            </section>
+
+            {/* ==============================================================
+                CTA
+            ============================================================== */}
+
+            <section
+              className="malvin-cta"
+              style={{
+                position:
+                  'relative',
+                padding:
+                  '125px 48px',
+                textAlign:
+                  'center',
+                overflow:
+                  'hidden',
+                background:
+                  `linear-gradient(135deg, ${T.blueDeep}, ${T.blue})`,
+                color: '#fff',
+              }}
+            >
+              <div
+                style={{
+                  position:
+                    'absolute',
+                  inset: 0,
+                  opacity: 0.08,
+                  backgroundImage:
+                    'radial-gradient(#fff 1px, transparent 1px)',
+                  backgroundSize:
+                    '24px 24px',
+                }}
+              />
+
+              <motion.div
+                animate={{
+                  scale: [
+                    1,
+                    1.12,
+                    1,
+                  ],
+                  opacity: [
+                    0.2,
+                    0.35,
+                    0.2,
+                  ],
+                }}
+                transition={{
+                  duration: 7,
+                  repeat: Infinity,
+                }}
+                style={{
+                  position:
+                    'absolute',
+                  width: 500,
+                  height: 500,
+                  left: '50%',
+                  top: '50%',
+                  transform:
+                    'translate(-50%, -50%)',
+                  borderRadius:
+                    '50%',
+                  background:
+                    'radial-gradient(circle, rgba(79,209,255,0.35), transparent 68%)',
+                  filter:
+                    'blur(40px)',
+                }}
+              />
+
+              <div
+                style={{
+                  position:
+                    'relative',
+                  zIndex: 2,
+                  maxWidth: 750,
+                  margin:
+                    '0 auto',
+                }}
+              >
+                <span
+                  className="malvin-mono"
+                  style={{
+                    color:
+                      'rgba(255,255,255,0.55)',
+                    fontSize:
+                      '0.68rem',
+                    letterSpacing:
+                      '2.5px',
+                  }}
+                >
+                  MALVIN AI
+                </span>
+
+                <h2
+                  className="malvin-display"
+                  style={{
+                    fontSize:
+                      'clamp(2.7rem, 6vw, 5rem)',
+                    lineHeight:
+                      1.02,
+                    letterSpacing:
+                      '-3px',
+                    margin:
+                      '18px 0 20px',
+                  }}
+                >
+                  Something new
+                  <br />
+                  is being built.
+                </h2>
+
+                <p
+                  style={{
+                    color:
+                      'rgba(255,255,255,0.62)',
+                    lineHeight:
+                      1.7,
+                    maxWidth: 570,
+                    margin:
+                      '0 auto',
+                  }}
+                >
+                  Explore what Malvin is building
+                  today — and follow what comes next.
+                </p>
+
+                <div
+                  className="malvin-buttons"
+                  style={{
+                    display:
+                      'flex',
+                    justifyContent:
+                      'center',
+                    gap: 12,
+                    flexWrap:
+                      'wrap',
+                    marginTop:
+                      32,
+                  }}
+                >
+                  <button
+                    onClick={() =>
+                      setActiveTab(
+                        'products'
+                      )
+                    }
+                    style={{
+                      border: 'none',
+                      background:
+                        '#fff',
+                      color:
+                        T.ink,
+                      padding:
+                        '15px 23px',
+                      borderRadius:
+                        12,
+                      fontWeight:
+                        700,
+                      cursor:
+                        'pointer',
+                      display:
+                        'inline-flex',
+                      alignItems:
+                        'center',
+                      gap: 8,
+                    }}
+                  >
+                    Explore products
+                    <ArrowRight
+                      size={16}
+                    />
+                  </button>
+
+                  <Link
+                    to="/contact"
+                    style={{
+                      color:
+                        '#fff',
+                      border:
+                        '1px solid rgba(255,255,255,0.25)',
+                      padding:
+                        '15px 23px',
+                      borderRadius:
+                        12,
+                      fontWeight:
+                        700,
+                      textDecoration:
+                        'none',
+                      display:
+                        'inline-flex',
+                      alignItems:
+                        'center',
+                      gap: 8,
+                    }}
+                  >
+                    Contact Malvin
+                  </Link>
+                </div>
+              </div>
+            </section>
+
+            {/* ==============================================================
+                FOOTER
+            ============================================================== */}
+
+            <MalvinFooter
+              onHome={() =>
+                setActiveTab('home')
+              }
+              onProducts={() =>
+                setActiveTab(
+                  'products'
+                )
+              }
+              onCompany={() =>
+                setActiveTab(
+                  'company'
+                )
+              }
+              onNews={() =>
+                setActiveTab('news')
+              }
+            />
+          </motion.main>
+        )}
+
+        {/* ==================================================================
+            PRODUCTS TAB
+        ================================================================== */}
+
+        {activeTab === 'products' && (
+          <motion.main
+            key="products"
+            initial={{
+              opacity: 0,
+              y: 15,
+            }}
+            animate={{
+              opacity: 1,
+              y: 0,
+            }}
+            exit={{
+              opacity: 0,
+            }}
+            transition={{
+              duration: 0.35,
+            }}
+          >
+            <ProductsPage
+              onHome={() =>
+                setActiveTab('home')
+              }
+            />
+          </motion.main>
+        )}
+
+        {/* ==================================================================
+            COMPANY TAB
+        ================================================================== */}
+
+        {activeTab === 'company' && (
+          <motion.main
+            key="company"
+            initial={{
+              opacity: 0,
+            }}
+            animate={{
+              opacity: 1,
+            }}
+            exit={{
+              opacity: 0,
+            }}
+          >
+            <About />
+
+            <MalvinFooter
+              onHome={() =>
+                setActiveTab('home')
+              }
+              onProducts={() =>
+                setActiveTab(
+                  'products'
+                )
+              }
+              onCompany={() =>
+                setActiveTab(
+                  'company'
+                )
+              }
+              onNews={() =>
+                setActiveTab('news')
+              }
+            />
+          </motion.main>
+        )}
+
+        {/* ==================================================================
+            NEWS TAB
+        ================================================================== */}
+
+        {activeTab === 'news' && (
+          <motion.main
+            key="news"
+            initial={{
+              opacity: 0,
+              y: 15,
+            }}
+            animate={{
+              opacity: 1,
+              y: 0,
+            }}
+            exit={{
+              opacity: 0,
+            }}
+            transition={{
+              duration: 0.35,
+            }}
+          >
+            <NewsPage />
+
+            <MalvinFooter
+              onHome={() =>
+                setActiveTab('home')
+              }
+              onProducts={() =>
+                setActiveTab(
+                  'products'
+                )
+              }
+              onCompany={() =>
+                setActiveTab(
+                  'company'
+                )
+              }
+              onNews={() =>
+                setActiveTab('news')
+              }
+            />
+          </motion.main>
         )}
       </AnimatePresence>
     </div>
@@ -2265,389 +1739,1000 @@ const LandingPage: React.FC<LandingPageProps> = ({
 };
 
 /* ============================================================================
-   QR HERO
+   PRODUCT COMING SOON
 ============================================================================ */
 
-const QrHero: React.FC = () => {
-  const cellSize = 30;
-
-  const gridPx =
-    QR_COLS * cellSize +
-    (QR_COLS - 1) * 3;
-
-  const [hovered, setHovered] =
-    useState<string | null>(null);
-
-  const tiltWrapRef =
-    useRef<HTMLDivElement>(null);
-
-  const tiltX = useSpring(0, {
-    stiffness: 150,
-    damping: 20,
-  });
-
-  const tiltY = useSpring(0, {
-    stiffness: 150,
-    damping: 20,
-  });
-
-  const rotateX = useTransform(
-    tiltY,
-    [-0.5, 0.5],
-    [10, -10]
-  );
-
-  const rotateY = useTransform(
-    tiltX,
-    [-0.5, 0.5],
-    [-10, 10]
-  );
-
-  const glareX = useTransform(
-    tiltX,
-    [-0.5, 0.5],
-    ['0%', '100%']
-  );
-
-  const glareY = useTransform(
-    tiltY,
-    [-0.5, 0.5],
-    ['0%', '100%']
-  );
-
-  const handleTiltMove = (
-    e: React.MouseEvent<HTMLDivElement>
-  ) => {
-    const rect =
-      tiltWrapRef.current?.getBoundingClientRect();
-
-    if (!rect) return;
-
-    tiltX.set(
-      (e.clientX - rect.left) /
-        rect.width -
-        0.5
-    );
-
-    tiltY.set(
-      (e.clientY - rect.top) /
-        rect.height -
-        0.5
-    );
-  };
-
-  const handleTiltLeave = () => {
-    tiltX.set(0);
-    tiltY.set(0);
-  };
-
+const ProductComingSoon: React.FC<{
+  number: string;
+  title: string;
+  description: string;
+}> = ({
+  number,
+  title,
+  description,
+}) => {
   return (
-    <motion.div
-      initial={{
-        opacity: 0,
-        scale: 0.9,
-      }}
-      animate={{
-        opacity: 1,
-        scale: 1,
-      }}
-      transition={{
-        duration: 0.6,
-      }}
+    <div
       style={{
+        minHeight: 250,
+        padding: 30,
+        borderRadius: 22,
+        border:
+          `1px solid ${T.line}`,
+        background:
+          'rgba(255,255,255,0.65)',
         display: 'flex',
-        justifyContent: 'center',
-        position: 'relative',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
       }}
     >
       <div
+        className="malvin-mono"
         style={{
-          position: 'absolute',
-          width: '110%',
-          height: '110%',
-          background:
-            'radial-gradient(circle, rgba(47,111,224,0.14) 0%, transparent 70%)',
-          filter: 'blur(40px)',
-        }}
-      />
-
-      <div
-        ref={tiltWrapRef}
-        onMouseMove={handleTiltMove}
-        onMouseLeave={handleTiltLeave}
-        style={{
-          position: 'relative',
-          perspective: 900,
+          fontSize: '0.65rem',
+          color: T.inkFaint,
+          letterSpacing: '2px',
         }}
       >
-        <ViewfinderCorners
-          color={T.blue}
-          size={26}
-          inset={-16}
-        />
+        PRODUCT · {number}
+      </div>
 
-        <motion.div
+      <div>
+        <h3
+          className="malvin-display"
           style={{
-            position: 'relative',
-            background: '#fff',
-            borderRadius: 28,
-            padding: 26,
-            border: `1px solid ${T.line}`,
-            boxShadow:
-              '0 30px 70px rgba(11,18,32,0.12)',
-            overflow: 'hidden',
-            rotateX,
-            rotateY,
-            transformStyle: 'preserve-3d',
+            fontSize: '1.6rem',
+            margin: '0 0 10px',
           }}
         >
-          <motion.div
-            style={{
-              position: 'absolute',
-              inset: -40,
-              zIndex: 4,
-              pointerEvents: 'none',
-              background: useTransform(
-                [glareX, glareY],
-                ([gx, gy]: any) =>
-                  `radial-gradient(circle at ${gx} ${gy}, rgba(255,255,255,0.5), transparent 45%)`
-              ),
-            }}
-          />
+          {title}
+        </h3>
 
-          <motion.div
-            initial={{ y: -20 }}
-            animate={{ y: gridPx + 20 }}
-            transition={{
-              duration: 2.6,
-              repeat: Infinity,
-              repeatDelay: 1.2,
-              ease: 'easeInOut',
-            }}
-            style={{
-              position: 'absolute',
-              left: 26,
-              right: 26,
-              height: 3,
-              borderRadius: 2,
-              background:
-                `linear-gradient(90deg, transparent, ${T.cyan}, transparent)`,
-              boxShadow:
-                `0 0 16px 3px ${T.cyan}`,
-              zIndex: 3,
-              pointerEvents: 'none',
-            }}
-          />
-
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns:
-                `repeat(${QR_COLS}, ${cellSize}px)`,
-              gridTemplateRows:
-                `repeat(${QR_ROWS}, ${cellSize}px)`,
-              gap: 3,
-              position: 'relative',
-            }}
-          >
-            {QR_PATTERN.map((row, r) =>
-              row.map((on, c) => {
-                const key = `${r},${c}`;
-
-                const iconCell =
-                  ICON_CELLS[key];
-
-                const delay =
-                  (r + c) * 0.015;
-
-                if (iconCell) {
-                  const {
-                    Icon,
-                    tint,
-                    label,
-                  } = iconCell;
-
-                  return (
-                    <motion.div
-                      key={key}
-                      initial={{
-                        opacity: 0,
-                        scale: 0,
-                      }}
-                      animate={{
-                        opacity: 1,
-                        scale: 1,
-                      }}
-                      transition={{
-                        delay: delay + 0.3,
-                        type: 'spring',
-                        stiffness: 260,
-                        damping: 16,
-                      }}
-                      onMouseEnter={() =>
-                        setHovered(key)
-                      }
-                      onMouseLeave={() =>
-                        setHovered(null)
-                      }
-                      whileHover={{
-                        scale: 1.15,
-                      }}
-                      style={{
-                        position: 'relative',
-                        width: cellSize,
-                        height: cellSize,
-                        borderRadius: 8,
-                        background: `${tint}14`,
-                        border:
-                          `1.5px solid ${tint}`,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer',
-                        zIndex: 2,
-                      }}
-                    >
-                      <Icon
-                        size={14}
-                        color={tint}
-                      />
-
-                      <AnimatePresence>
-                        {hovered === key && (
-                          <motion.div
-                            initial={{
-                              opacity: 0,
-                              y: 4,
-                              scale: 0.9,
-                            }}
-                            animate={{
-                              opacity: 1,
-                              y: 0,
-                              scale: 1,
-                            }}
-                            exit={{
-                              opacity: 0,
-                              y: 4,
-                              scale: 0.9,
-                            }}
-                            className="lp-mono"
-                            style={{
-                              position:
-                                'absolute',
-                              bottom: '120%',
-                              left: '50%',
-                              transform:
-                                'translateX(-50%)',
-                              background: T.ink,
-                              color: '#fff',
-                              fontSize:
-                                '0.65rem',
-                              padding:
-                                '4px 9px',
-                              borderRadius: 6,
-                              whiteSpace:
-                                'nowrap',
-                              letterSpacing:
-                                '0.5px',
-                              zIndex: 10,
-                            }}
-                          >
-                            {label}
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </motion.div>
-                  );
-                }
-
-                if (!on) {
-                  return (
-                    <div
-                      key={key}
-                      style={{
-                        width: cellSize,
-                        height: cellSize,
-                      }}
-                    />
-                  );
-                }
-
-                return (
-                  <motion.div
-                    key={key}
-                    className="lp-qr-cell"
-                    initial={{
-                      opacity: 0,
-                      scale: 0.2,
-                      x:
-                        (Math.random() - 0.5) *
-                        60,
-                      y:
-                        (Math.random() - 0.5) *
-                        60,
-                    }}
-                    animate={{
-                      opacity: 1,
-                      scale: 1,
-                      x: 0,
-                      y: 0,
-                    }}
-                    transition={{
-                      delay,
-                      duration: 0.45,
-                      ease: 'easeOut',
-                    }}
-                    style={{
-                      width: cellSize,
-                      height: cellSize,
-                      borderRadius: 6,
-                      background: T.ink,
-                    }}
-                  />
-                );
-              })
-            )}
-          </div>
-        </motion.div>
+        <p
+          style={{
+            color: T.inkSoft,
+            fontSize: '0.88rem',
+            lineHeight: 1.6,
+            margin: 0,
+          }}
+        >
+          {description}
+        </p>
       </div>
-    </motion.div>
+    </div>
   );
 };
 
 /* ============================================================================
-   SCROLL REVEAL
+   TECHNOLOGY CARD
 ============================================================================ */
 
-const ScrollReveal: React.FC<{
-  children: React.ReactNode;
-  delay?: number;
+const TechnologyCard: React.FC<{
+  icon: any;
+  title: string;
+  description: string;
 }> = ({
-  children,
-  delay = 0,
-}) => (
-  <motion.div
-    initial={{
-      opacity: 0,
-      y: 24,
-    }}
-    whileInView={{
-      opacity: 1,
-      y: 0,
-    }}
-    viewport={{
-      once: true,
-      margin: '-60px',
-    }}
-    transition={{
-      duration: 0.55,
-      delay,
-      ease: 'easeOut',
-    }}
-  >
-    {children}
-  </motion.div>
-);
+  icon: Icon,
+  title,
+  description,
+}) => {
+  return (
+    <div
+      className="malvin-tech-card"
+      style={{
+        minHeight: 210,
+        padding: 28,
+        borderRadius: 20,
+        border:
+          `1px solid ${T.lineDark}`,
+        background:
+          'rgba(255,255,255,0.035)',
+      }}
+    >
+      <Icon
+        size={22}
+        color={T.cyan}
+      />
+
+      <h3
+        className="malvin-display"
+        style={{
+          fontSize: '1.1rem',
+          margin:
+            '20px 0 9px',
+        }}
+      >
+        {title}
+      </h3>
+
+      <p
+        style={{
+          margin: 0,
+          color:
+            'rgba(255,255,255,0.48)',
+          fontSize: '0.84rem',
+          lineHeight: 1.65,
+        }}
+      >
+        {description}
+      </p>
+    </div>
+  );
+};
+
+/* ============================================================================
+   PRODUCTS PAGE
+============================================================================ */
+
+const ProductsPage: React.FC<{
+  onHome: () => void;
+}> = ({ onHome }) => {
+  return (
+    <>
+      <section
+        style={{
+          padding:
+            '110px 48px 80px',
+          background:
+            'linear-gradient(180deg, #F5F8FC, #fff)',
+          textAlign: 'center',
+        }}
+      >
+        <div
+          className="malvin-mono"
+          style={{
+            color: T.blue,
+            fontSize: '0.68rem',
+            letterSpacing: '2.5px',
+          }}
+        >
+          MALVIN PRODUCTS
+        </div>
+
+        <h1
+          className="malvin-display"
+          style={{
+            fontSize:
+              'clamp(3rem, 7vw, 6rem)',
+            letterSpacing:
+              '-4px',
+            lineHeight: 0.98,
+            margin:
+              '20px auto',
+          }}
+        >
+          Products built
+          <br />
+          <span
+            style={{
+              color: T.blue,
+            }}
+          >
+            for people.
+          </span>
+        </h1>
+
+        <p
+          style={{
+            maxWidth: 620,
+            margin:
+              '0 auto',
+            color: T.inkSoft,
+            lineHeight: 1.7,
+          }}
+        >
+          Malvin creates products with
+          independent identities and purposes,
+          all backed by the technology we build
+          underneath.
+        </p>
+      </section>
+
+      <section
+        style={{
+          maxWidth: 1100,
+          margin: '0 auto',
+          padding:
+            '80px 48px 130px',
+        }}
+      >
+        <div
+          className="malvin-product-card"
+          style={{
+            border:
+              `1px solid ${T.line}`,
+            borderRadius: 28,
+            overflow: 'hidden',
+            background: '#fff',
+          }}
+        >
+          <div
+            className="malvin-product-inner"
+            style={{
+              display: 'grid',
+              gridTemplateColumns:
+                '1fr 1fr',
+            }}
+          >
+            <div
+              style={{
+                minHeight: 500,
+                background:
+                  '#111',
+                color: '#fff',
+                display: 'flex',
+                alignItems:
+                  'center',
+                justifyContent:
+                  'center',
+                position:
+                  'relative',
+                overflow:
+                  'hidden',
+              }}
+            >
+              <motion.div
+                animate={{
+                  rotate: 360,
+                }}
+                transition={{
+                  duration: 25,
+                  repeat: Infinity,
+                  ease: 'linear',
+                }}
+                style={{
+                  position:
+                    'absolute',
+                  width: 420,
+                  height: 420,
+                  borderRadius:
+                    '50%',
+                  border:
+                    '1px solid rgba(255,255,255,0.1)',
+                }}
+              />
+
+              <div
+                className="malvin-display"
+                style={{
+                  position:
+                    'relative',
+                  zIndex: 2,
+                  fontSize:
+                    'clamp(3.5rem, 8vw, 6rem)',
+                  fontWeight: 700,
+                  letterSpacing:
+                    '-4px',
+                }}
+              >
+                RELOOP
+              </div>
+            </div>
+
+            <div
+              style={{
+                padding:
+                  '60px 50px',
+                display:
+                  'flex',
+                flexDirection:
+                  'column',
+                justifyContent:
+                  'center',
+              }}
+            >
+              <div
+                className="malvin-mono"
+                style={{
+                  color: T.blue,
+                  fontSize:
+                    '0.65rem',
+                  letterSpacing:
+                    '2px',
+                  marginBottom:
+                    15,
+                }}
+              >
+                MALVIN PRODUCT · 01
+              </div>
+
+              <h2
+                className="malvin-display"
+                style={{
+                  fontSize:
+                    '3.5rem',
+                  letterSpacing:
+                    '-3px',
+                  margin: 0,
+                }}
+              >
+                Reloop
+              </h2>
+
+              <p
+                className="malvin-display"
+                style={{
+                  fontSize:
+                    '1.25rem',
+                  lineHeight: 1.5,
+                }}
+              >
+                Buy better.
+                <br />
+                Sell smarter.
+                <br />
+                Give things another life.
+              </p>
+
+              <p
+                style={{
+                  color:
+                    T.inkSoft,
+                  lineHeight:
+                    1.7,
+                  fontSize:
+                    '0.9rem',
+                }}
+              >
+                Reloop is Malvin's first
+                consumer product, focused
+                on recommerce and making
+                second-hand commerce feel
+                simple and modern.
+              </p>
+
+              <Link
+                to="/reloop"
+                className="malvin-primary"
+                style={{
+                  width:
+                    'fit-content',
+                  marginTop: 15,
+                }}
+              >
+                Open Reloop
+                <ExternalLink
+                  size={15}
+                />
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        <div
+          style={{
+            marginTop: 18,
+            padding: 35,
+            border:
+              `1px solid ${T.line}`,
+            borderRadius: 22,
+            background:
+              T.surface,
+            textAlign: 'center',
+          }}
+        >
+          <span
+            className="malvin-mono"
+            style={{
+              fontSize:
+                '0.65rem',
+              color:
+                T.inkFaint,
+              letterSpacing:
+                '2px',
+            }}
+          >
+            MORE PRODUCTS
+          </span>
+
+          <h3
+            className="malvin-display"
+            style={{
+              fontSize:
+                '1.8rem',
+              margin:
+                '12px 0 8px',
+            }}
+          >
+            Coming soon.
+          </h3>
+
+          <p
+            style={{
+              color:
+                T.inkSoft,
+              margin: 0,
+              fontSize:
+                '0.9rem',
+            }}
+          >
+            Reloop is only the beginning
+            of what Malvin is building.
+          </p>
+        </div>
+
+        <div
+          style={{
+            textAlign:
+              'center',
+            marginTop:
+              45,
+          }}
+        >
+          <button
+            onClick={onHome}
+            className="malvin-secondary"
+          >
+            <ArrowRight
+              size={15}
+              style={{
+                transform:
+                  'rotate(180deg)',
+              }}
+            />
+            Back home
+          </button>
+        </div>
+      </section>
+    </>
+  );
+};
+
+/* ============================================================================
+   NEWS PAGE
+============================================================================ */
+
+const NewsPage: React.FC = () => {
+  const updates = [
+    {
+      date: 'AUGUST 2026',
+      title:
+        'Malvin enters a new chapter',
+      description:
+        'Malvin is evolving from a single product into a technology enterprise focused on building and operating a portfolio of products.',
+    },
+    {
+      date: 'AUGUST 2026',
+      title:
+        'Reloop joins the Malvin ecosystem',
+      description:
+        'Reloop becomes the first consumer product being developed under the Malvin technology ecosystem.',
+    },
+    {
+      date: 'COMING SOON',
+      title:
+        'More products are being built',
+      description:
+        'The next products are already in development. More details will be announced as they become ready.',
+    },
+  ];
+
+  return (
+    <>
+      <section
+        style={{
+          padding:
+            '110px 48px 75px',
+          background:
+            'linear-gradient(180deg, #F5F8FC, #fff)',
+        }}
+      >
+        <div
+          style={{
+            maxWidth: 850,
+            margin:
+              '0 auto',
+          }}
+        >
+          <span
+            className="malvin-mono"
+            style={{
+              color: T.blue,
+              fontSize:
+                '0.68rem',
+              letterSpacing:
+                '2.5px',
+            }}
+          >
+            MALVIN NEWS
+          </span>
+
+          <h1
+            className="malvin-display"
+            style={{
+              fontSize:
+                'clamp(3rem, 7vw, 5.5rem)',
+              letterSpacing:
+                '-4px',
+              lineHeight: 1,
+              margin:
+                '18px 0 20px',
+            }}
+          >
+            What's
+            <br />
+            happening.
+          </h1>
+
+          <p
+            style={{
+              color:
+                T.inkSoft,
+              lineHeight:
+                1.7,
+              maxWidth:
+                600,
+            }}
+          >
+            Updates from Malvin,
+            its products and the
+            technology we're building.
+          </p>
+        </div>
+      </section>
+
+      <section
+        style={{
+          maxWidth: 850,
+          margin:
+            '0 auto',
+          padding:
+            '60px 48px 130px',
+        }}
+      >
+        <div
+          style={{
+            display:
+              'flex',
+            flexDirection:
+              'column',
+            gap: 16,
+          }}
+        >
+          {updates.map(
+            (item, index) => (
+              <ScrollReveal
+                key={item.title}
+                delay={
+                  index * 0.08
+                }
+              >
+                <article
+                  style={{
+                    padding:
+                      '28px 30px',
+                    border:
+                      `1px solid ${T.line}`,
+                    borderRadius:
+                      20,
+                    background:
+                      '#fff',
+                  }}
+                >
+                  <div
+                    className="malvin-mono"
+                    style={{
+                      fontSize:
+                        '0.62rem',
+                      letterSpacing:
+                        '1.8px',
+                      color:
+                        T.blue,
+                      marginBottom:
+                        12,
+                    }}
+                  >
+                    {item.date}
+                  </div>
+
+                  <h2
+                    className="malvin-display"
+                    style={{
+                      fontSize:
+                        '1.35rem',
+                      margin:
+                        '0 0 9px',
+                    }}
+                  >
+                    {item.title}
+                  </h2>
+
+                  <p
+                    style={{
+                      color:
+                        T.inkSoft,
+                      fontSize:
+                        '0.88rem',
+                      lineHeight:
+                        1.65,
+                      margin: 0,
+                    }}
+                  >
+                    {item.description}
+                  </p>
+                </article>
+              </ScrollReveal>
+            )
+          )}
+        </div>
+      </section>
+    </>
+  );
+};
+
+/* ============================================================================
+   FOOTER
+============================================================================ */
+
+const MalvinFooter: React.FC<{
+  onHome: () => void;
+  onProducts: () => void;
+  onCompany: () => void;
+  onNews: () => void;
+}> = ({
+  onHome,
+  onProducts,
+  onCompany,
+  onNews,
+}) => {
+  return (
+    <footer
+      className="malvin-footer"
+      style={{
+        borderTop:
+          `1px solid ${T.line}`,
+        padding:
+          '65px 48px 28px',
+        background:
+          '#fff',
+      }}
+    >
+      <div
+        className="malvin-footer-grid"
+        style={{
+          maxWidth: 1180,
+          margin:
+            '0 auto',
+          display:
+            'grid',
+          gridTemplateColumns:
+            '2fr 1fr 1fr 1fr',
+          gap: 50,
+        }}
+      >
+        {/* Brand */}
+
+        <div>
+          <div
+            style={{
+              display:
+                'flex',
+              alignItems:
+                'center',
+              gap: 9,
+            }}
+          >
+            <img
+              src="/logo.png"
+              alt="Malvin"
+              style={{
+                width: 30,
+                height: 30,
+                borderRadius: 8,
+                objectFit:
+                  'cover',
+              }}
+            />
+
+            <span
+              className="malvin-display"
+              style={{
+                fontSize:
+                  '1.05rem',
+                fontWeight:
+                  700,
+              }}
+            >
+              MALVIN
+            </span>
+          </div>
+
+          <p
+            style={{
+              maxWidth: 300,
+              color:
+                T.inkFaint,
+              fontSize:
+                '0.83rem',
+              lineHeight:
+                1.65,
+              marginTop:
+                17,
+            }}
+          >
+            A technology enterprise
+            building products for
+            what comes next.
+          </p>
+        </div>
+
+        {/* Products */}
+
+        <div>
+          <strong
+            style={{
+              fontSize:
+                '0.82rem',
+            }}
+          >
+            Products
+          </strong>
+
+          <div
+            style={{
+              display:
+                'flex',
+              flexDirection:
+                'column',
+              gap: 10,
+              marginTop:
+                17,
+            }}
+          >
+            <Link
+              to="/reloop"
+              className="malvin-footer-link"
+            >
+              Reloop
+            </Link>
+
+            <span
+              className="malvin-footer-link"
+              style={{
+                cursor:
+                  'default',
+                opacity:
+                  0.6,
+              }}
+            >
+              Coming soon
+            </span>
+          </div>
+        </div>
+
+        {/* Company */}
+
+        <div>
+          <strong
+            style={{
+              fontSize:
+                '0.82rem',
+            }}
+          >
+            Company
+          </strong>
+
+          <div
+            style={{
+              display:
+                'flex',
+              flexDirection:
+                'column',
+              gap: 10,
+              marginTop:
+                17,
+            }}
+          >
+            <button
+              onClick={
+                onHome
+              }
+              className="malvin-footer-link"
+              style={{
+                border:
+                  'none',
+                background:
+                  'transparent',
+                padding: 0,
+                textAlign:
+                  'left',
+                cursor:
+                  'pointer',
+              }}
+            >
+              Home
+            </button>
+
+            <button
+              onClick={
+                onProducts
+              }
+              className="malvin-footer-link"
+              style={{
+                border:
+                  'none',
+                background:
+                  'transparent',
+                padding: 0,
+                textAlign:
+                  'left',
+                cursor:
+                  'pointer',
+              }}
+            >
+              Products
+            </button>
+
+            <button
+              onClick={
+                onCompany
+              }
+              className="malvin-footer-link"
+              style={{
+                border:
+                  'none',
+                background:
+                  'transparent',
+                padding: 0,
+                textAlign:
+                  'left',
+                cursor:
+                  'pointer',
+              }}
+            >
+              About
+            </button>
+
+            <button
+              onClick={
+                onNews
+              }
+              className="malvin-footer-link"
+              style={{
+                border:
+                  'none',
+                background:
+                  'transparent',
+                padding: 0,
+                textAlign:
+                  'left',
+                cursor:
+                  'pointer',
+              }}
+            >
+              News
+            </button>
+          </div>
+        </div>
+
+        {/* Connect */}
+
+        <div>
+          <strong
+            style={{
+              fontSize:
+                '0.82rem',
+            }}
+          >
+            Connect
+          </strong>
+
+          <div
+            style={{
+              display:
+                'flex',
+              flexDirection:
+                'column',
+              gap: 10,
+              marginTop:
+                17,
+            }}
+          >
+            <Link
+              to="/contact"
+              className="malvin-footer-link"
+            >
+              Contact
+            </Link>
+
+            <Link
+              to="/faq"
+              className="malvin-footer-link"
+            >
+              FAQ
+            </Link>
+
+            <span
+              className="malvin-footer-link"
+              style={{
+                cursor:
+                  'default',
+              }}
+            >
+              Instagram
+            </span>
+
+            <span
+              className="malvin-footer-link"
+              style={{
+                cursor:
+                  'default',
+              }}
+            >
+              LinkedIn
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom */}
+
+      <div
+        style={{
+          maxWidth:
+            1180,
+          margin:
+            '55px auto 0',
+          paddingTop:
+            20,
+          borderTop:
+            `1px solid ${T.line}`,
+          display:
+            'flex',
+          justifyContent:
+            'space-between',
+          alignItems:
+            'center',
+          gap: 15,
+          flexWrap:
+            'wrap',
+        }}
+      >
+        <span
+          className="malvin-mono"
+          style={{
+            fontSize:
+              '0.62rem',
+            color:
+              T.inkFaint,
+            letterSpacing:
+              '1.5px',
+          }}
+        >
+          © 2026 MALVIN AI
+        </span>
+
+        <div
+          style={{
+            display:
+              'flex',
+            gap: 18,
+          }}
+        >
+          <Link
+            to="/privacy"
+            className="malvin-footer-link"
+          >
+            Privacy
+          </Link>
+
+          <Link
+            to="/terms"
+            className="malvin-footer-link"
+          >
+            Terms
+          </Link>
+
+          <Link
+            to="/impressum"
+            className="malvin-footer-link"
+          >
+            Impressum
+          </Link>
+        </div>
+      </div>
+    </footer>
+  );
+};
 
 export default LandingPage;
-

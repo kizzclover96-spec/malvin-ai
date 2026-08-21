@@ -1255,11 +1255,7 @@ function App() {
               !user ? (
 
                 !showLogin ? (
-                  <LandingPage
-                    onLoginClick={() =>
-                      setShowLogin(true)
-                    }
-                  />
+                  <LandingPage  />
                 ) : (
                   <Login />
                 )
