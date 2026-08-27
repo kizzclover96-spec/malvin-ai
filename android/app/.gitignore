@@ -1,0 +1,22 @@
+/build/*
+!/build/.npmkeep
+# Android signing secrets & keystores
+*.keystore
+*.jks
+android/gradle.properties
+my-upload-key.keystore
+malvin-release-key.jks
+
+# Android debug signing
+android/app/debug.keystore
+
+# Production signing
+android/app/*.jks
+android/app/*.keystore
+
+# Local signing configuration
+android/gradle.properties
+
+*.keystore
+*.jks
+android/keystore.properties
