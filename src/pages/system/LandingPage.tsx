@@ -22,9 +22,14 @@ import {
 import { Link } from 'react-router-dom';
 import {
   signInWithEmailAndPassword,
+  signInWithPopup,
+  signInWithCredential,
+  GoogleAuthProvider,
   signOut,
 } from 'firebase/auth';
 import { ref, get } from 'firebase/database';
+import { Capacitor } from '@capacitor/core';
+import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 import { auth, db } from '../../firebase';
 import { OWNER_EMAIL, emailToAdminKey } from '../../hooks/useAdminRole';
 
@@ -2405,6 +2410,35 @@ const AdminAccessModal: React.FC<{
     onClose();
   };
 
+  // Shared post-auth gate: any real Google/email account can technically
+  // authenticate with Firebase, but only the Owner or an active admin
+  // record is allowed past this point. Everyone else is signed straight
+  // back out so no non-admin session is ever left standing here.
+  const verifyAdminAndProceed = async (signedInEmail: string) => {
+    const normalized = signedInEmail.toLowerCase();
+    const isOwner = normalized === OWNER_EMAIL.toLowerCase();
+
+    let isActiveAdmin = false;
+    if (!isOwner) {
+      const key = emailToAdminKey(normalized);
+      const snap = await get(ref(db, `admin/admins/${key}`));
+      const record = snap.exists() ? snap.val() : null;
+      isActiveAdmin = record?.status === 'active';
+    }
+
+    if (isOwner || isActiveAdmin) {
+      // Recognized admin — let the normal app-level auth listener pick
+      // this session up and route into the admin dashboard.
+      window.location.reload();
+      return;
+    }
+
+    await signOut(auth);
+    setError(
+      'Access denied. This account is not authorized for Malvin admin access. This attempt has been logged.'
+    );
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (submitting) return;
@@ -2417,34 +2451,39 @@ const AdminAccessModal: React.FC<{
         email.trim(),
         password
       );
-
-      const signedInEmail = (cred.user.email || '').toLowerCase();
-      const isOwner = signedInEmail === OWNER_EMAIL.toLowerCase();
-
-      let isActiveAdmin = false;
-      if (!isOwner) {
-        const key = emailToAdminKey(signedInEmail);
-        const snap = await get(ref(db, `admin/admins/${key}`));
-        const record = snap.exists() ? snap.val() : null;
-        isActiveAdmin = record?.status === 'active';
-      }
-
-      if (isOwner || isActiveAdmin) {
-        // Recognized admin — let the normal app-level auth listener pick
-        // this session up and route into the admin dashboard.
-        window.location.reload();
-        return;
-      }
-
-      // Not an authorized admin — never leave this session signed in.
-      await signOut(auth);
-      setError(
-        'Access denied. This account is not authorized for Malvin admin access. This attempt has been logged.'
-      );
+      await verifyAdminAndProceed(cred.user.email || '');
     } catch (err: any) {
-      setError(
-        'Sign-in failed. Check your credentials and try again.'
-      );
+      setError('Sign-in failed. Check your credentials and try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    if (submitting) return;
+    setError(null);
+    setSubmitting(true);
+
+    try {
+      let signedInEmail = '';
+
+      if (Capacitor.isNativePlatform()) {
+        const googleUser = await GoogleAuth.signIn();
+        const credential = GoogleAuthProvider.credential(
+          googleUser.authentication.idToken
+        );
+        const cred = await signInWithCredential(auth, credential);
+        signedInEmail = cred.user.email || '';
+      } else {
+        const provider = new GoogleAuthProvider();
+        provider.setCustomParameters({ prompt: 'select_account' });
+        const cred = await signInWithPopup(auth, provider);
+        signedInEmail = cred.user.email || '';
+      }
+
+      await verifyAdminAndProceed(signedInEmail);
+    } catch (err: any) {
+      setError('Google sign-in failed. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -2575,6 +2614,70 @@ const AdminAccessModal: React.FC<{
         </div>
 
         <form onSubmit={handleSubmit}>
+          <button
+            type="button"
+            onClick={handleGoogleSignIn}
+            disabled={submitting}
+            style={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 9,
+              padding: '10px 0',
+              borderRadius: 9,
+              border: `1px solid ${T.line}`,
+              background: '#fff',
+              color: T.ink,
+              fontWeight: 600,
+              fontSize: '0.82rem',
+              cursor: submitting ? 'default' : 'pointer',
+              marginBottom: 16,
+              opacity: submitting ? 0.6 : 1,
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 48 48" aria-hidden="true">
+              <path
+                fill="#FFC107"
+                d="M43.6 20.5H42V20.4H24v7.2h11.3c-1.6 4.6-6 7.9-11.3 7.9-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.4-5.4C34.6 6 29.6 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.2-.1-2.4-.4-3.5z"
+              />
+              <path
+                fill="#FF3D00"
+                d="M6.3 14.7l6 4.4C13.9 15.6 18.6 12.4 24 12.4c3.1 0 5.9 1.2 8 3.1l5.4-5.4C34.6 6.7 29.6 4.7 24 4.7c-7.5 0-14 4.3-17.3 10.6z"
+              />
+              <path
+                fill="#4CAF50"
+                d="M24 44c5.5 0 10.4-1.9 14.2-5.1l-6.6-5.4c-2 1.4-4.6 2.2-7.6 2.2-5.2 0-9.7-3.5-11.3-8.2l-6.2 4.8C10 39.6 16.5 44 24 44z"
+              />
+              <path
+                fill="#1976D2"
+                d="M43.6 20.5H42V20.4H24v7.2h11.3c-.8 2.3-2.2 4.2-4.1 5.6l6.6 5.4C41.6 35.4 44 30.1 44 24c0-1.2-.1-2.4-.4-3.5z"
+              />
+            </svg>
+            {submitting ? 'Verifying…' : 'Sign in with Google'}
+          </button>
+
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              marginBottom: 16,
+            }}
+          >
+            <div style={{ flex: 1, height: 1, background: T.line }} />
+            <span
+              style={{
+                fontSize: '0.65rem',
+                color: T.inkFaint,
+                letterSpacing: '0.5px',
+              }}
+            >
+              OR
+            </span>
+            <div style={{ flex: 1, height: 1, background: T.line }} />
+          </div>
+
           <label
             style={{
               display: 'block',
