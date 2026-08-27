@@ -47,6 +47,7 @@ import About from "./pages/system/About";
 import FAQ from "./pages/system/FAQ";
 import RefundPolicy from "./pages/system/RefundPolicy";
 import Impressum from "./pages/system/Impressum";
+import ReloopDeleteAccount from "./pages/system/ReloopDeleteAccount";
 
 import MarketFront from "./components/business/MarketFront";
 import Dashboard from "./components/business/dashboard";
@@ -1182,6 +1183,11 @@ function App() {
           <Route
             path="/impressum"
             element={<Impressum />}
+          />
+
+          <Route
+            path="/reloop/delete-account"
+            element={<ReloopDeleteAccount />}
           />
 
           <Route
