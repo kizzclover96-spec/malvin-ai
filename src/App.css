@@ -1,0 +1,381 @@
+/* The main dark background */
+.main-full-ui {
+  position: relative;
+  background-color: #08080a; /* Very dark blue/black */
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden; /* This hides the blobs when they move off-screen */
+  display: flex;
+}
+
+/* Container for the blobs */
+.background-blobs {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  filter: blur(120px); /* This smudges the circles into smoke */
+  z-index: 0;
+}
+
+.icon-button {
+  all: unset;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.blob {
+  position: absolute;
+  border-radius: 50%;
+  opacity: 0.5;
+  animation: move 20s infinite alternate;
+}
+
+/* Individual Colors based on your image */
+.purple {
+  width: 500px;
+  height: 500px;
+  background: #6a0dad;
+  top: -100px;
+  left: -100px;
+}
+
+.blue {
+  width: 600px;
+  height: 600px;
+  background: #00d4ff;
+  bottom: -150px;
+  right: -100px;
+  animation-duration: 25s; /* Moves at a different speed */
+}
+
+.pink {
+  width: 400px;
+  height: 400px;
+  background: #ff007f;
+  top: 40%;
+  left: 30%;
+  animation-duration: 18s;
+}
+
+/* The movement animation */
+@keyframes move {
+  from { transform: translate(0, 0) scale(1); }
+  to { transform: translate(100px, 50px) scale(1.2); }
+}
+
+
+.main-viewport-container {
+  height: auto !important;
+  max-height: none !important;
+  overflow-y: auto !important;
+}
+/* Ensure your sections sit on TOP of the color */
+.left-section, .middle-section, .right-section {
+  z-index: 1; /* Makes sure the UI is ABOVE the colorful blobs */
+  background: rgba(255, 255, 255, 0.03); /* Tiny bit of white for the "glass" look */
+  backdrop-filter: blur(20px); /* This blurs the moving blobs behind the UI */
+  border: 1px solid rgba(255, 255, 255, 0.1); /* Subtle border like the image */
+  margin: 10px;
+  border-radius: 24px;
+}
+.left-section {
+    flex: 1;
+    min-width: 250px;
+}
+
+.middle-section {
+    flex: 4; /* This makes the middle twice as wide as the others */
+}
+
+.right-section {
+    flex: 1;
+    min-width: 250px;
+}
+
+.mic-button {
+  width: 45px;
+  height: 45px;
+  border-radius: 50%; /* Makes it a perfect circle */
+  border: none;
+  cursor: pointer;
+  
+  /* The color blend from your image */
+  background: linear-gradient(135deg, #8a2be2, #ff007f, #6a0dad ); 
+  
+  /* The "Glow" effect */
+  box-shadow: 0 0 15px rgba(138, 43, 226, 0.5);
+  
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: white;
+  transition: transform 0.2s;
+}
+
+/* Style the actual button tag inside the div */
+.mic-button button {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+}
+
+
+@keyframes goldShine {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes goldGlow { 
+  0%, 100% { box-shadow: 0 0 5px rgba(255, 215, 0, 0.2); border-color: rgba(255, 215, 0, 0.4); } 
+  50% { box-shadow: 0 0 15px rgba(255, 215, 0, 0.5); border-color: #FFD700; }
+}
+
+@keyframes twinkle { 
+  0%, 100% { opacity: 0.3; transform: scale(0.8) rotate(0deg); } 
+  50% { opacity: 1; transform: scale(1.2) rotate(15deg); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* 1. RESET & CORE LAYOUT */
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden; /* Prevents accidental scrolling/bouncing */
+  position: fixed;  /* Best for mobile "App-like" feel */
+  background-color: #000;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+}
+
+/* 2. THE MOVING GRADIENT (Malvin's Idle State) */
+@keyframes gradientMove {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.moving-gradient {
+  background: linear-gradient(-45deg, #000000, #051937, #004d7a, #008793, #00bf72);
+  background-size: 400% 400%;
+  animation: gradientMove 15s ease infinite;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.extra-buttons-popup {
+  position: absolute;
+  bottom: 65px; /* Moves them above the pill */
+  left: -10px;
+  display: flex;
+  flex-direction: column; /* Stacked vertically */
+  gap: 12px;
+  background: rgba(15, 15, 25, 0.8);
+  padding: 10px;
+  border-radius: 20px;
+  border: 1px solid rgba(0, 225, 255, 0.2); /* Neon border */
+  backdrop-filter: blur(10px);
+  animation: popUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.popup-item {
+  background: rgba(255, 255, 255, 0.05); /* Almost invisible background */
+  border: 1px solid rgba(255, 255, 255, 0.1); /* Very thin white border */
+  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  
+  /* THIS is what makes it blend with your background */
+  backdrop-filter: blur(12px); 
+  
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.popup-item:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateY(-3px); /* Lifts up slightly */
+  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.3);
+}
+
+/* Adds a tiny soft glow to the white icon paths */
+.icon-shadow {
+  filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.2));
+}
+
+@keyframes popUp {
+  from { opacity: 0; transform: translateY(20px) scale(0.5); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.status-pill {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  padding: 6px 12px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.live-dot {
+  width: 8px;
+  height: 8px;
+  background-color: #00ff88; /* Connection Green */
+  border-radius: 50%;
+  box-shadow: 0 0 10px #00ff88;
+  animation: blink 2s infinite;
+}
+
+.status-text {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+
+.status-timer {
+  color: rgba(255, 255, 255, 0.5);
+  font-family: monospace; /* Keeps numbers from jumping around */
+  font-size: 11px;
+  border-left: 1px solid rgba(255, 255, 255, 0.2);
+  padding-left: 9px;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* 3. LIVEKIT COMPONENT TWEAKS */
+.lk-audio-bar {
+  background-color: #00d2ff; /* Matched to Neon Blue */
+  border-radius: 5px;
+  box-shadow: 0 0 10px rgba(0, 210, 255, 0.5);
+}
+
+/* 4. BACKGROUND CONVERSATION SCROLLBAR */
+/* This makes the scrollbar nearly invisible but functional */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(0, 210, 255, 0.2); /* Subtle neon blue tint */
+  border-radius: 10px;
+}
+
+/* 5. TEXT READABILITY (The "HUD" Look) */
+.custom-scrollbar p {
+  transition: all 0.4s ease;
+  /* This glow ensures you can read text over a busy video background */
+  text-shadow: 0 2px 4px rgba(0,0,0,0.9), 0 0 20px rgba(0,0,0,0.5);
+}
+
+/* 6. UI BUTTON HOVERS */
+button {
+  transition: transform 0.1s ease, opacity 0.2s ease;
+}
+
+button:active {
+  transform: scale(0.92);
+}
+
+/* 7. SETTINGS INPUTS (Inside Sidebar) */
+input[type="range"] {
+  cursor: pointer;
+}
+
+input[type="text"]::placeholder {
+  color: #444;
+  font-style: italic;
+}
+
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background-color: #000; 
+  overflow: hidden; 
+  position: fixed;
+}
+
+#root {
+  display: block;
+}
+
+.logo {
+  height: 6em;
+  padding: 1.5em; /* fixed lowercase */
+  will-change: filter;
+  transition: filter 300ms; /* fixed lowercase */
+}
+
+.logo:hover {
+  filter: drop-shadow(0 0 2em #646cffaa); /* fixed lowercase */
+}
+
+@keyframes logo-spin { /* fixed name to match animation call */
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  a:nth-of-type(2) .logo {
+    animation: logo-spin infinite 20s linear; /* fixed lowercase and space */
+  }
+}
+
+.card {
+  padding: 2em;
+}
+
+.read-the-docs {
+  color: #888; /* fixed lowercase */
+}

@@ -1,0 +1,18 @@
+{
+  "projects": {
+    "default": "malvin-df21d"
+  },
+  "targets": {
+    "malvin-df21d": {
+      "hosting": {
+        "app": [
+          "malvin-df21d"
+        ],
+        "stores": [
+          "malvin-stores"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

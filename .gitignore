@@ -1,0 +1,39 @@
+@"
+node_modules/
+dist/
+.firebase/
+.env
+.env.*
+!.env.example
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Firebase local files
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# Android build output
+android/.gradle/
+android/build/
+android/app/build/
+android/.cxx/
+
+# iOS build output
+ios/App/Pods/
+ios/App/build/
+ios/App/DerivedData/
+
+# Local secrets / credentials
+*.pem
+*.key
+serviceAccountKey.json
+google-services-admin.json
+"@ | Set-Content .gitignore

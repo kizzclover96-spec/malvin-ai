@@ -1,0 +1,479 @@
+/* ============================================================================
+   B-Vin.module.css
+   Glass-look chrome for the header row: business avatar holder, the
+   frosted top-center pill (with bright corner reflections), the language
+   chip, and the gear icon. Kept as real CSS (not inline style objects) so
+   the glass/reflection effect can use ::before/::after pseudo-elements,
+   which inline styles can't express.
+============================================================================ */
+
+.headerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  row-gap: 10px;
+  gap: 10px;
+  padding: 16px 18px;
+  position: relative;
+  z-index: 30;
+}
+
+.leftGroup {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1 1 0;
+}
+
+.rightGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* These two wrap the status pill and the connections/apps pill — no
+   styling on desktop, but on mobile (below) they're what gets pushed
+   onto their own row so the always-needed controls in .rightGroup
+   (clicks, language, settings gear) never get squeezed off past the
+   edge of the screen. */
+.statusPillWrap,
+.appsPillWrap {
+  display: flex;
+  min-width: 0;
+}
+
+/* -------------------------------- Avatar -------------------------------- */
+
+.avatarHolder {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.9), 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+.avatarHolder img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.businessName {
+  font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  font-style: italic;
+  font-weight: 700;
+  font-size: 20px;
+  letter-spacing: 0.1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 45vw;
+}
+
+/* ------------------------------- Icon chips ------------------------------ */
+
+.clickChip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 11px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(20, 19, 16, 0.6);
+  white-space: nowrap;
+}
+
+.langChip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 11px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+  color: #141310;
+  transition: transform 0.18s ease;
+}
+.langChip:hover {
+  transform: translateY(-1px) scale(1.04);
+}
+
+.gearBtn {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  color: #141310;
+  transition: transform 0.18s ease;
+}
+.gearBtn:hover {
+  transform: translateY(-1px) rotate(20deg) scale(1.05);
+}
+
+/* --------------------------- Top-center glass pill ------------------------ */
+
+.pillOuter {
+  display: flex;
+  justify-content: center;
+  flex: 0 1 auto;
+}
+
+.glassPill {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: min(300px, 46vw);
+  padding: 6px 6px 6px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(26px) saturate(180%);
+  -webkit-backdrop-filter: blur(26px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow:
+    0 16px 38px rgba(0, 0, 0, 0.16),
+    0 2px 6px rgba(0, 0, 0, 0.08),
+    inset 0 1px 1px rgba(255, 255, 255, 0.95);
+  overflow: hidden;
+  cursor: pointer;
+  transition: width 0.35s cubic-bezier(0.16, 1, 0.3, 1), border-radius 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.35s ease;
+}
+
+.glassPill.expanded {
+  width: min(360px, 88vw);
+  border-radius: 34px;
+  padding: 14px;
+  flex-direction: column;
+  align-items: stretch;
+  cursor: default;
+  box-shadow:
+    0 30px 70px rgba(0, 0, 0, 0.22),
+    0 4px 12px rgba(0, 0, 0, 0.1),
+    inset 0 1px 1px rgba(255, 255, 255, 0.95);
+}
+
+/* bright reflection highlight — top-left corner */
+.glassPill::before {
+  content: "";
+  position: absolute;
+  top: -55%;
+  left: -25%;
+  width: 65%;
+  height: 150%;
+  background: radial-gradient(circle at top left, rgba(255, 255, 255, 1), rgba(255, 255, 255, 0) 62%);
+  transform: rotate(-14deg);
+  pointer-events: none;
+}
+
+/* bright reflection highlight — bottom-right corner */
+.glassPill::after {
+  content: "";
+  position: absolute;
+  bottom: -55%;
+  right: -22%;
+  width: 55%;
+  height: 140%;
+  background: radial-gradient(circle at bottom right, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0) 62%);
+  transform: rotate(-14deg);
+  pointer-events: none;
+}
+
+.pillBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 25;
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+}
+
+.toolSquare {
+  position: relative;
+  width: 26px;
+  height: 26px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+  user-select: none;
+}
+.toolSquare:active {
+  transform: scale(0.9);
+}
+
+.toolRowExpanded {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+.toolRowExpanded:active {
+  transform: scale(0.98);
+}
+
+.pillTools {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  flex: 1;
+  min-width: 0;
+  scrollbar-width: none;
+}
+.pillTools::-webkit-scrollbar {
+  display: none;
+}
+
+.pillActions {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.pillDivider {
+  width: 1px;
+  height: 18px;
+  background: rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
+}
+
+.pillCircleBtn {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s ease, filter 0.2s ease;
+}
+.pillCircleBtn:hover {
+  transform: scale(1.08);
+  filter: brightness(1.05);
+}
+.pillCircleBtn:active {
+  transform: scale(0.93);
+}
+
+/* ============================================================================
+   MOBILE HEADER — the root cause of "the gear icon and language pill
+   sometimes don't show": .headerRow never wrapped, and the page root
+   clips overflow-x, so once the avatar+name+status pill+tools island+
+   connections pill added up to more than the screen width, everything
+   after them (language chip, settings gear) got pushed off-screen and
+   silently cut off instead of wrapping or scrolling into view.
+
+   Below this breakpoint the row is forced into a clean, predictable
+   two-line layout instead of relying on however much horizontal space
+   happens to be left:
+     Row 1: business identity  ⟷  clicks · language · settings gear
+     Row 2: status pill, tools island, connections — centered, wrapping
+            onto their own row(s) rather than ever being clipped.
+
+   Ordered BEFORE the narrower 480px block below so that block's more
+   specific overrides (smaller glassPill, tighter businessName) still
+   win at very small widths — later rules in the same cascade beat
+   earlier ones when both queries match.
+============================================================================ */
+@media (max-width: 640px) {
+  .headerRow {
+    padding: 12px 14px;
+  }
+  .leftGroup {
+    order: 1;
+    flex: 1 1 auto;
+  }
+  .rightGroup {
+    order: 2;
+    flex: 0 0 auto;
+  }
+  .statusPillWrap {
+    order: 3;
+    flex: 1 1 auto;
+  }
+  .pillOuter {
+    order: 4;
+    flex: 1 1 100%;
+    justify-content: center;
+  }
+  .appsPillWrap {
+    order: 5;
+    flex: 0 1 auto;
+    margin: 0 auto;
+  }
+  .glassPill {
+    width: min(280px, 78vw);
+  }
+  .businessName {
+    max-width: 38vw;
+  }
+}
+
+@media (max-width: 480px) {
+  .businessName {
+    font-size: 17px;
+    max-width: 32vw;
+  }
+  .glassPill {
+    width: min(230px, 52vw);
+  }
+  .clickChip span {
+    display: none;
+  }
+}
+
+/* ------------------------- Apps & Connections pill ------------------------ */
+
+.connectPill {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow:
+    0 12px 28px rgba(0, 0, 0, 0.12),
+    0 2px 6px rgba(0, 0, 0, 0.06),
+    inset 0 1px 1px rgba(255, 255, 255, 0.95);
+  overflow: hidden;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  color: #1d1d1f;
+  white-space: nowrap;
+  transition: transform 0.18s ease, box-shadow 0.25s ease;
+}
+.connectPill:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    0 16px 34px rgba(0, 0, 0, 0.14),
+    0 2px 6px rgba(0, 0, 0, 0.08),
+    inset 0 1px 1px rgba(255, 255, 255, 0.95);
+}
+.connectPill:active {
+  transform: scale(0.97);
+}
+
+/* same corner-reflection technique as the main island pill */
+.connectPill::before {
+  content: "";
+  position: absolute;
+  top: -60%;
+  left: -25%;
+  width: 60%;
+  height: 150%;
+  background: radial-gradient(circle at top left, rgba(255, 255, 255, 1), rgba(255, 255, 255, 0) 62%);
+  transform: rotate(-14deg);
+  pointer-events: none;
+}
+.connectPill::after {
+  content: "";
+  position: absolute;
+  bottom: -60%;
+  right: -20%;
+  width: 50%;
+  height: 140%;
+  background: radial-gradient(circle at bottom right, rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0) 62%);
+  transform: rotate(-14deg);
+  pointer-events: none;
+}
+
+/* -------------------------- Centered form popup --------------------------- */
+
+.connectModalBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(20, 20, 22, 0.4);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.connectModal {
+  position: relative;
+  width: 100%;
+  max-width: 380px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(36px) saturate(180%);
+  -webkit-backdrop-filter: blur(36px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  border-radius: 32px;
+  padding: 30px 28px;
+  box-shadow:
+    0 40px 90px rgba(0, 0, 0, 0.24),
+    0 6px 18px rgba(0, 0, 0, 0.1),
+    inset 0 1px 1px rgba(255, 255, 255, 0.95);
+  overflow: hidden;
+  color: #1d1d1f;
+}
+
+/* reflections at top-left AND bottom-left, per spec (the main island uses
+   top-left/bottom-right — this popup deliberately mirrors it differently) */
+.connectModal::before {
+  content: "";
+  position: absolute;
+  top: -50%;
+  left: -30%;
+  width: 70%;
+  height: 140%;
+  background: radial-gradient(circle at top left, rgba(255, 255, 255, 1), rgba(255, 255, 255, 0) 60%);
+  transform: rotate(-10deg);
+  pointer-events: none;
+}
+.connectModal::after {
+  content: "";
+  position: absolute;
+  bottom: -50%;
+  left: -25%;
+  width: 60%;
+  height: 130%;
+  background: radial-gradient(circle at bottom left, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0) 60%);
+  transform: rotate(-10deg);
+  pointer-events: none;
+}
